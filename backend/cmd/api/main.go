@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 
 	httpHandler "synergit/internal/adapter/handler/http"
 	"synergit/internal/adapter/repository"
@@ -21,11 +22,16 @@ func main() {
 	// 3. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoService)
 
-	// 4. Set up the router
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/repos", repoHandler.HandleCreateRepo)
+	// 4. Set up the gin router
+	router := gin.Default()
+
+	// Group routes for clean versioning
+	v1 := router.Group("/api/v1")
+	{
+		v1.POST("/repos", repoHandler.HandleCreateRepo)
+	}
 
 	// 5. Start the server
 	fmt.Println("Synergit backend running on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	log.Fatal(router.Run(":8080"))
 }

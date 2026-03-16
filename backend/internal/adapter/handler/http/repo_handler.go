@@ -1,9 +1,10 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 	"synergit/internal/core/usecase"
+
+	"github.com/gin-gonic/gin"
 )
 
 type RepoHandler struct {
@@ -20,21 +21,20 @@ type CreateRepoRequest struct {
 	Name string `json:"name"`
 }
 
-func (h *RepoHandler) HandleCreateRepo(w http.ResponseWriter, r *http.Request) {
+func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 	var req CreateRepoRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
 		return
 	}
 
 	// Call the business logic
 	repo, err := h.repoUsecase.CreateRepository(req.Name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(repo)
+	// Gin handles writing the JSON response and headers
+	c.JSON(http.StatusCreated, repo)
 }
