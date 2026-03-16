@@ -64,3 +64,18 @@ func (g *LocalGitAdapter) UploadPack(repoName string, reqBody io.Reader, resWrit
 
 	return cmd.Run()
 }
+
+// Process incoming git pushes
+func (g *LocalGitAdapter) ReceivePack(repoName string, reqBody io.Reader, resWriter io.Writer) error {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+
+	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", fullPath)
+
+	// Stream the incoming code directly into Git
+	cmd.Stdin = reqBody
+
+	// Stream Git's acknowledgement back to the HTTP response
+	cmd.Stdout = resWriter
+
+	return cmd.Run()
+}

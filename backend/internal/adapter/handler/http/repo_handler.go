@@ -82,3 +82,16 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 		// Don't write HTTP errors here, Git is already streaming the response
 	}
 }
+
+func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
+	repoName := c.Param("name")
+
+	// Git requires this specific content type for pushes
+	c.Header("Content-Type", "application/x-git-receive-pack-result")
+	c.Header("Cache-Control", "no-cache")
+
+	err := h.repoUsecase.ReceivePack(repoName, c.Request.Body, c.Writer)
+	if err != nil {
+		fmt.Printf("Error receiving pack: %v\n", err)
+	}
+}

@@ -33,6 +33,7 @@ func main() {
 		// Git Smart HTTP routes
 		v1.GET("/repos/:name/info/refs", repoHandler.HandleInfoRefs)
 		v1.POST("/repos/:name/git-upload-pack", repoHandler.HandleUploadPack)
+		v1.POST("/repos/:name/git-receive-pack", repoHandler.HandleReceivePack)
 	}
 
 	// 5. Start the server

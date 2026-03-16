@@ -54,3 +54,7 @@ func (s *RepoService) GetIntoRefs(repoName string, service string) ([]byte, erro
 func (s *RepoService) UploadPack(repoName string, in io.Reader, out io.Writer) error {
 	return s.gitManager.UploadPack(repoName, in, out)
 }
+
+func (s *RepoService) ReceivePack(repoName string, in io.Reader, out io.Writer) error {
+	return s.gitManager.ReceivePack(repoName, in, out)
+}

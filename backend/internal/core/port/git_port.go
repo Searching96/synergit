@@ -8,5 +8,10 @@ type GitManager interface {
 
 	// Methods for smart http
 	AdvertiseRefs(repoName string, service string) ([]byte, error)
+
+	// Method for pulling code
 	UploadPack(repoName string, reqBody io.Reader, resWriter io.Writer) error
+
+	// Method for pushing code
+	ReceivePack(repoName string, reqBody io.Reader, resWriter io.Writer) error
 }
