@@ -29,6 +29,10 @@ func main() {
 	v1 := router.Group("/api/v1")
 	{
 		v1.POST("/repos", repoHandler.HandleCreateRepo)
+
+		// Git Smart HTTP routes
+		v1.GET("/repos/:name/info/refs", repoHandler.HandleInfoRefs)
+		v1.POST("/repos/:name/git-upload-pack", repoHandler.HandleUploadPack)
 	}
 
 	// 5. Start the server

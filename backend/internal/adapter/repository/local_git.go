@@ -2,9 +2,11 @@ package repository
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // LocalGitAdapter implements port.GitManager using the local OS
@@ -38,4 +40,27 @@ func (g *LocalGitAdapter) InitBareRepo(repoName string) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+func (g *LocalGitAdapter) AdvertiseRefs(repoName string, service string) ([]byte, error) {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+
+	// The client asks for "git-upload-pack", but the command is just "upload-pack"
+	cmdName := strings.TrimPrefix(service, "git-")
+
+	// --stateless-rpc tells git we are over HTTP, not SSH
+	cmd := exec.Command("git", cmdName, "--stateless-rpc", "--advertise-refs", fullPath)
+	return cmd.Output()
+}
+
+func (g *LocalGitAdapter) UploadPack(repoName string, reqBody io.Reader, resWriter io.Writer) error {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
+
+	// Magic of Go: Pipe the HTTP request body directly to the Git command's input
+	cmd.Stdin = reqBody
+	// Pipe the Git command's output directly to the HTTP response
+	cmd.Stdout = resWriter
+
+	return cmd.Run()
 }

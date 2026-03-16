@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"io"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 	"time"
@@ -40,4 +41,16 @@ func (s *RepoService) CreateRepository(name string) (*domain.Repository, error) 
 
 	// Will add database port here later
 	return repo, nil
+}
+
+func (s *RepoService) GetIntoRefs(repoName string, service string) ([]byte, error) {
+	// Security/Validation: Only allow valid git services
+	if service != "git-upload-pack" && service != "git-receive-pack" {
+		return nil, errors.New("unsupported git service")
+	}
+	return s.gitManager.AdvertiseRefs(repoName, service)
+}
+
+func (s *RepoService) UploadPack(repoName string, in io.Reader, out io.Writer) error {
+	return s.gitManager.UploadPack(repoName, in, out)
 }
