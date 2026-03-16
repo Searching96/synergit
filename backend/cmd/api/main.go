@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 
@@ -12,12 +13,26 @@ import (
 )
 
 func main() {
+	// 0. Connect to database
+	connStr := "postgres://postgres:user@localhost:5432/synergit?sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatalf("Failed to open DB connection: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping DB: %v", err)
+	}
+	fmt.Printf("Connected to PostgreSQL successfully!")
+
 	// 1. Initialize infrastructure adapters
 	gitRoot := "D:/SynergitRepo/"
 	gitAdapter := repository.NewLocalGitAdapter(gitRoot)
+	dbAdapter := repository.NewPostgresRepoStore(db)
 
 	// 2. Initialize usecases (injecting the adapters)
-	repoService := usecase.NewRepoService(gitAdapter)
+	repoService := usecase.NewRepoService(gitAdapter, dbAdapter)
 
 	// 3. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoService)

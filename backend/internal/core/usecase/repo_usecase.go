@@ -11,12 +11,14 @@ import (
 // RepoService implements the business logic for repositories
 type RepoService struct {
 	gitManager port.GitManager // Dependency injected via interface
+	repoStore  port.RepositoryStore
 }
 
 // NewRepoService creates a new usecase instance
-func NewRepoService(gm port.GitManager) *RepoService {
+func NewRepoService(gm port.GitManager, rs port.RepositoryStore) *RepoService {
 	return &RepoService{
 		gitManager: gm,
+		repoStore:  rs,
 	}
 }
 
@@ -33,13 +35,18 @@ func (s *RepoService) CreateRepository(name string) (*domain.Repository, error) 
 	}
 
 	repo := &domain.Repository{
-		ID:        "generate-uuid-here", // Will add later
 		Name:      name,
 		Path:      fullPath,
 		CreatedAt: time.Now(),
 	}
 
-	// Will add database port here later
+	// Save the metadata to database
+	err = s.repoStore.Save(repo)
+	if err != nil {
+		// Note: In a production system, we'd want a "Saga" here to delete the physical folder
+		// if the database insert fails. We will keep it simple for now.
+		return nil, err
+	}
 	return repo, nil
 }
 
