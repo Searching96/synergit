@@ -120,3 +120,16 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 
 	c.JSON(http.StatusOK, files)
 }
+
+func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
+	repoName := c.Param("name")
+	requestPath := c.Query("path")
+
+	content, err := h.repoUsecase.GetRepoBlob(repoName, requestPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, content)
+}

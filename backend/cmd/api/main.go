@@ -10,6 +10,8 @@ import (
 	httpHandler "synergit/internal/adapter/handler/http"
 	"synergit/internal/adapter/repository"
 	"synergit/internal/core/usecase"
+
+	"github.com/gin-contrib/cors"
 )
 
 func main() {
@@ -40,6 +42,15 @@ func main() {
 	// 4. Set up the gin router
 	router := gin.Default()
 
+	// Config CORS before setting up routes
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
 	// Group routes for clean versioning
 	v1 := router.Group("/api/v1")
 	{
@@ -54,6 +65,9 @@ func main() {
 
 		// Get repo tree route
 		v1.GET("/repos/:name/tree", repoHandler.HandleGetTree)
+
+		// Get file content route
+		v1.GET("/repos/:name/blob", repoHandler.HandleGetBlob)
 	}
 
 	// 5. Start the server

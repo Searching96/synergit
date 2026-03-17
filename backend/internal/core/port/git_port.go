@@ -18,6 +18,9 @@ type GitManager interface {
 	// Method for pushing code
 	ReceivePack(repoName string, reqBody io.Reader, resWriter io.Writer) error
 
-	// Method for file tree view, path can be empty for the root directory
+	// Method for file tree view, path can be empty for the root directory, this returns file paths
 	GetTree(repoName string, path string) ([]domain.RepoFile, error)
+
+	// Method for getting file content
+	GetBlob(repoName string, path string) (string, error)
 }

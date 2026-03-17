@@ -146,3 +146,41 @@ func (g *LocalGitAdapter) GetTree(repoName string, requestPath string) ([]domain
 
 	return files, nil
 }
+
+func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string) (string, error) {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	ref, err := r.Head()
+	if err != nil {
+		return "", err
+	}
+
+	commit, err := r.CommitObject(ref.Hash())
+	if err != nil {
+		return "", err
+	}
+
+	tree, err := commit.Tree()
+	if err != nil {
+		return "", err
+	}
+
+	// Find the specific file in the tree
+	file, err := tree.File(requestPath)
+	if err != nil {
+		return "", fmt.Errorf("file not found: %w", err)
+	}
+
+	// Extract the string content
+	content, err := file.Contents()
+	if err != nil {
+		return "", fmt.Errorf("failed to read file content: %w", err)
+	}
+
+	return content, nil
+}
