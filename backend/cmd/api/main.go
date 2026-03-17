@@ -49,6 +49,8 @@ func main() {
 		v1.GET("/repos/:name/info/refs", repoHandler.HandleInfoRefs)
 		v1.POST("/repos/:name/git-upload-pack", repoHandler.HandleUploadPack)
 		v1.POST("/repos/:name/git-receive-pack", repoHandler.HandleReceivePack)
+
+		v1.GET("/repos", repoHandler.HandleGetRepos)
 	}
 
 	// 5. Start the server

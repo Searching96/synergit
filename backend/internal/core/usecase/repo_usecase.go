@@ -65,3 +65,7 @@ func (s *RepoService) UploadPack(repoName string, in io.Reader, out io.Writer) e
 func (s *RepoService) ReceivePack(repoName string, in io.Reader, out io.Writer) error {
 	return s.gitManager.ReceivePack(repoName, in, out)
 }
+
+func (s *RepoService) GetAllRepositories() ([]*domain.Repository, error) {
+	return s.repoStore.FindAll()
+}

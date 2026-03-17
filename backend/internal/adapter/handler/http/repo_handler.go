@@ -95,3 +95,13 @@ func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
 		fmt.Printf("Error receiving pack: %v\n", err)
 	}
 }
+
+func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
+	repos, err := h.repoUsecase.GetAllRepositories()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch repositories"})
+		return
+	}
+
+	c.JSON(http.StatusOK, repos)
+}
