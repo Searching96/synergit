@@ -69,3 +69,7 @@ func (s *RepoService) ReceivePack(repoName string, in io.Reader, out io.Writer) 
 func (s *RepoService) GetAllRepositories() ([]*domain.Repository, error) {
 	return s.repoStore.FindAll()
 }
+
+func (s *RepoService) GetRepoTree(repoName string, path string) ([]domain.RepoFile, error) {
+	return s.gitManager.GetTree(repoName, path)
+}

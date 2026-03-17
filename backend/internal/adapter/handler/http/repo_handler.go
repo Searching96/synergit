@@ -105,3 +105,18 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 
 	c.JSON(http.StatusOK, repos)
 }
+
+func (h *RepoHandler) HandleGetTree(c *gin.Context) {
+	repoName := c.Param("name")
+
+	// Get the path query parameter. If it doesn't exist, it defaults to "" (root)
+	requestPath := c.Query("path")
+
+	files, err := h.repoUsecase.GetRepoTree(repoName, requestPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, files)
+}

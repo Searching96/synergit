@@ -5,8 +5,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path" // Use path instead filepath to guarantee forward slashes (/)
 	"path/filepath"
 	"strings"
+	"synergit/internal/core/domain"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 // LocalGitAdapter implements port.GitManager using the local OS
@@ -78,4 +84,65 @@ func (g *LocalGitAdapter) ReceivePack(repoName string, reqBody io.Reader, resWri
 	cmd.Stdout = resWriter
 
 	return cmd.Run()
+}
+
+func (g *LocalGitAdapter) GetTree(repoName string, requestPath string) ([]domain.RepoFile, error) {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+
+	// 1. Open the repository
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	// 2. Get the HEAD reference (usually the 'master' or 'main' branch)
+	ref, err := r.Head()
+	if err != nil {
+		// If the repo is completely empty (no commits yet), r.Head() returns and error
+		if err == plumbing.ErrReferenceNotFound {
+			return []domain.RepoFile{}, nil // Return an empty array instead of an error
+		}
+		return nil, err
+	}
+
+	// 3. Get the commit object that HEAD points to
+	commit, err := r.CommitObject(ref.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Get the root file tree of that commit
+	tree, err := commit.Tree()
+	if err != nil {
+		return nil, err
+	}
+
+	// 5. If the user requested a specific sub-folder, navigate to it
+	var targetTree *object.Tree
+	if requestPath == "" || requestPath == "/" {
+		targetTree = tree
+	} else {
+		targetTree, err = tree.Tree(requestPath)
+
+		if err != nil {
+			return nil, fmt.Errorf("path not found: %w", err)
+		}
+	}
+
+	// 6. Map the Git entries to our domain model
+	var files []domain.RepoFile
+	for _, entry := range targetTree.Entries {
+		nodeType := "file"
+		if !entry.Mode.IsFile() {
+			nodeType = "dir"
+		}
+
+		files = append(files, domain.RepoFile{
+			Name: entry.Name,
+			Path: path.Join(requestPath, entry.Name), // e.g., "src/main.go"
+			Type: nodeType,
+		})
+	}
+
+	return files, nil
 }

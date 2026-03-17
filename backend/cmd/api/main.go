@@ -51,6 +51,9 @@ func main() {
 		v1.POST("/repos/:name/git-receive-pack", repoHandler.HandleReceivePack)
 
 		v1.GET("/repos", repoHandler.HandleGetRepos)
+
+		// Get repo tree route
+		v1.GET("/repos/:name/tree", repoHandler.HandleGetTree)
 	}
 
 	// 5. Start the server
