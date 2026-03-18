@@ -9,11 +9,17 @@ import (
 	"path/filepath"
 	"strings"
 	"synergit/internal/core/domain"
+	"synergit/internal/core/port"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
+
+// --- Compile-time interface check ---
+// If LocalGitAdapter ever fails to implement port.GitManager,
+// the compiler will throw an error exactly on this line.
+var _ port.GitManager = (*LocalGitAdapter)(nil)
 
 // LocalGitAdapter implements port.GitManager using the local OS
 type LocalGitAdapter struct {
@@ -183,4 +189,54 @@ func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string) (string, 
 	}
 
 	return content, nil
+}
+
+func (g *LocalGitAdapter) GetCommits(repoName string) ([]domain.Commit, error) {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+
+	// 1. Open the repository
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	// 2. Get HEAD
+	ref, err := r.Head()
+	if err != nil {
+		if err == plumbing.ErrReferenceNotFound {
+			// Repo is empty, no commits yet
+			return []domain.Commit{}, nil
+		}
+		// Other errors except empty repo error
+		return nil, err
+	}
+
+	// 3. Get the commit iterator starting from HEAD
+	commitIter, err := r.Log(&git.LogOptions{From: ref.Hash()})
+	if err != nil {
+		return nil, err
+	}
+
+	var commits []domain.Commit
+
+	// 4. Loop through the commits and map them to our Domain struct
+	err = commitIter.ForEach(func(c *object.Commit) error {
+		commits = append(commits, domain.Commit{
+			Hash:   c.Hash.String(),
+			Author: c.Author.Name,
+			// Clean up the message (sometimes t hey have trailing newlines)
+			Message: strings.TrimSpace(c.Message),
+			Date:    c.Author.When,
+		})
+
+		// Note: If we have massive repos, we might want to break this loop
+		// after 50 or 100 commits to implement pagination later.
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate commits: %w", err)
+	}
+
+	return commits, nil
 }

@@ -133,3 +133,15 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 
 	c.JSON(http.StatusOK, content)
 }
+
+func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
+	repoName := c.Param("name")
+
+	commits, err := h.repoUsecase.GetRepoCommits(repoName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, commits)
+}

@@ -23,4 +23,7 @@ type GitManager interface {
 
 	// Method for getting file content
 	GetBlob(repoName string, path string) (string, error)
+
+	// Method for getting all commits
+	GetCommits(repoName string) ([]domain.Commit, error)
 }

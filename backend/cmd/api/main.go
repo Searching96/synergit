@@ -68,6 +68,9 @@ func main() {
 
 		// Get file content route
 		v1.GET("/repos/:name/blob", repoHandler.HandleGetBlob)
+
+		// Get commits route
+		v1.GET("/repos/:name/commits", repoHandler.HandleGetCommits)
 	}
 
 	// 5. Start the server

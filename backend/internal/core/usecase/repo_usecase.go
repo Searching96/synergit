@@ -77,3 +77,7 @@ func (s *RepoService) GetRepoTree(repoName string, path string) ([]domain.RepoFi
 func (s *RepoService) GetRepoBlob(repoName string, path string) (string, error) {
 	return s.gitManager.GetBlob(repoName, path)
 }
+
+func (s *RepoService) GetRepoCommits(repoName string) ([]domain.Commit, error) {
+	return s.gitManager.GetCommits(repoName)
+}

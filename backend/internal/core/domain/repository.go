@@ -1,6 +1,8 @@
 package domain
 
-import "time"
+import (
+	"time"
+)
 
 // Repository represents the core entity of our SCM module
 type Repository struct {
