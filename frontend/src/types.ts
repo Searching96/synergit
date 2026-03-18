@@ -1,0 +1,12 @@
+export interface Repository {
+    id: string;
+    name: string;
+    path: string;
+    created_at: string;
+}
+
+export interface RepoFile {
+    name: string;
+    path: string;
+    type: 'file' | 'dir';
+}
