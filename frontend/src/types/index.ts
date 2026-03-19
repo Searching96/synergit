@@ -10,3 +10,11 @@ export interface RepoFile {
     path: string;
     type: 'file' | 'dir';
 }
+
+
+export interface Commit {
+    hash: string;
+    author: string;
+    message: string;
+    date: string; // ISO string from the backend
+}
