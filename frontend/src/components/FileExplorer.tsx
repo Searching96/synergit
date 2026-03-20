@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { RepoFile } from "../types";
 import { ArrowLeft, FileText, Folder } from "lucide-react";
+import { api } from "../services/api";
 
 interface FileExplorerProps {
 	repoName: string;
@@ -19,16 +20,14 @@ export default function FileExplorer({ repoName }: FileExplorerProps) {
 	const loadTree = (path: string) => {
 		setCurrentPath(path);
 		setFileContent(null);
-		fetch(`http://localhost:8080/api/v1/repos/${repoName}/tree?path=${path}`)
-			.then((res) => res.json())
+    api.getTree(repoName, path)
 			.then((data) => setTree(data || []))
 			.catch(console.error);
 	};
 
 	const loadBlob = (path: string) => {
 		setCurrentPath(path);
-		fetch(`http://localhost:8080/api/v1/repos/${repoName}/blob?path=${path}`)
-			.then((res) => res.json())
+    api.getBlob(repoName, path)
 			.then((data) => {
 				const textToDisplay = typeof data === 'string' ? data : data.content;
 				setFileContent(textToDisplay);

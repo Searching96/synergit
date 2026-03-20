@@ -3,6 +3,7 @@ import type { Repository } from "./types/index";
 import { BookOpen, Code, History} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
+import { api } from "./services/api";
 
 function App () {
   const [repos, setRepos] = useState<Repository[]>([]);
@@ -10,8 +11,7 @@ function App () {
   const [activeTab, setActiveTab] = useState<'files' | 'commits'>('files');
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/repos')
-      .then((res) => res.json())
+    api.getRepos()
       .then((data) => setRepos(data))
       .catch(console.error);
   }, []);

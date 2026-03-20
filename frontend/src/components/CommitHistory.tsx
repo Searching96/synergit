@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Commit } from "../types";
 import { Clock, GitCommit, User } from "lucide-react";
+import { api } from "../services/api"
 
 interface CommitHistoryProps {
 	repoName: string;
@@ -12,8 +13,7 @@ export default function CommitHistory({ repoName }: CommitHistoryProps) {
 
 	useEffect(() => {
 		setLoading(true);
-		fetch(`http://localhost:8080/api/v1/repos/${repoName}/commits`)
-			.then((res) => res.json())
+		api.getCommits(repoName)
 			.then((data) => {
 				setCommits(data || []);
 				setLoading(false)
