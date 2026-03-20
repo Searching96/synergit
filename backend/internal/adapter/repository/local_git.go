@@ -92,7 +92,7 @@ func (g *LocalGitAdapter) ReceivePack(repoName string, reqBody io.Reader, resWri
 	return cmd.Run()
 }
 
-func (g *LocalGitAdapter) GetTree(repoName string, requestPath string) ([]domain.RepoFile, error) {
+func (g *LocalGitAdapter) GetTree(repoName string, requestPath string, branch string) ([]domain.RepoFile, error) {
 	fullPath := filepath.Join(g.storageRoot, repoName+".git")
 
 	// 1. Open the repository
@@ -102,9 +102,9 @@ func (g *LocalGitAdapter) GetTree(repoName string, requestPath string) ([]domain
 	}
 
 	// 2. Get the HEAD reference (usually the 'master' or 'main' branch)
-	ref, err := r.Head()
+	ref, err := getBranchRef(r, branch)
 	if err != nil {
-		// If the repo is completely empty (no commits yet), r.Head() returns and error
+		// If branch is completely empty (no commits yet), getBranchRef() returns and error
 		if err == plumbing.ErrReferenceNotFound {
 			return []domain.RepoFile{}, nil // Return an empty array instead of an error
 		}
@@ -153,7 +153,7 @@ func (g *LocalGitAdapter) GetTree(repoName string, requestPath string) ([]domain
 	return files, nil
 }
 
-func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string) (string, error) {
+func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string, branch string) (string, error) {
 	fullPath := filepath.Join(g.storageRoot, repoName+".git")
 
 	r, err := git.PlainOpen(fullPath)
@@ -161,7 +161,7 @@ func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string) (string, 
 		return "", fmt.Errorf("failed to open repo: %w", err)
 	}
 
-	ref, err := r.Head()
+	ref, err := getBranchRef(r, branch)
 	if err != nil {
 		return "", err
 	}
@@ -191,7 +191,7 @@ func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string) (string, 
 	return content, nil
 }
 
-func (g *LocalGitAdapter) GetCommits(repoName string) ([]domain.Commit, error) {
+func (g *LocalGitAdapter) GetCommits(repoName string, branch string) ([]domain.Commit, error) {
 	fullPath := filepath.Join(g.storageRoot, repoName+".git")
 
 	// 1. Open the repository
@@ -201,10 +201,10 @@ func (g *LocalGitAdapter) GetCommits(repoName string) ([]domain.Commit, error) {
 	}
 
 	// 2. Get HEAD
-	ref, err := r.Head()
+	ref, err := getBranchRef(r, branch)
 	if err != nil {
 		if err == plumbing.ErrReferenceNotFound {
-			// Repo is empty, no commits yet
+			// Branch is empty, no commits yet
 			return []domain.Commit{}, nil
 		}
 		// Other errors except empty repo error
@@ -239,4 +239,35 @@ func (g *LocalGitAdapter) GetCommits(repoName string) ([]domain.Commit, error) {
 	}
 
 	return commits, nil
+}
+
+func getBranchRef(r *git.Repository, branch string) (*plumbing.Reference, error) {
+	if branch == "" {
+		return r.Head()
+	}
+	return r.Reference(plumbing.ReferenceName("refs/heads/"+branch), true)
+}
+
+func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) {
+	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, err
+	}
+
+	iter, err := r.Branches()
+	if err != nil {
+		return nil, err
+	}
+
+	var branches []domain.Branch
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		branches = append(branches, domain.Branch{
+			Name:       ref.Name().Short(),
+			CommitHash: ref.Hash().String(),
+		})
+		return nil
+	})
+
+	return branches, err
 }

@@ -110,9 +110,10 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 	repoName := c.Param("name")
 
 	// Get the path query parameter. If it doesn't exist, it defaults to "" (root)
-	requestPath := c.Query("path")
+	path := c.Query("path")
+	branch := c.Query("branch")
 
-	files, err := h.repoUsecase.GetRepoTree(repoName, requestPath)
+	files, err := h.repoUsecase.GetRepoTree(repoName, path, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -123,9 +124,10 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 
 func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 	repoName := c.Param("name")
-	requestPath := c.Query("path")
+	path := c.Query("path")
+	branch := c.Query("branch")
 
-	content, err := h.repoUsecase.GetRepoBlob(repoName, requestPath)
+	content, err := h.repoUsecase.GetRepoBlob(repoName, path, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -136,12 +138,23 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 
 func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	repoName := c.Param("name")
+	branch := c.Query("branch")
 
-	commits, err := h.repoUsecase.GetRepoCommits(repoName)
+	commits, err := h.repoUsecase.GetRepoCommits(repoName, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, commits)
+}
+
+func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
+	repoName := c.Param("name")
+	branches, err := h.repoUsecase.GetRepoBranches(repoName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, branches)
 }

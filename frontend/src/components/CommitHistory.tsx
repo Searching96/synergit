@@ -5,15 +5,18 @@ import { api } from "../services/api"
 
 interface CommitHistoryProps {
 	repoName: string;
+	branch: string;
 }
 
-export default function CommitHistory({ repoName }: CommitHistoryProps) {
+export default function CommitHistory({ repoName, branch }: CommitHistoryProps) {
 	const [commits, setCommits] = useState<Commit[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 
 	useEffect(() => {
+		if (!branch) return;
+
 		setLoading(true);
-		api.getCommits(repoName)
+		api.getCommits(repoName, branch)
 			.then((data) => {
 				setCommits(data || []);
 				setLoading(false)
@@ -22,7 +25,7 @@ export default function CommitHistory({ repoName }: CommitHistoryProps) {
 				console.error(err);
 				setLoading(false);
 			});
-	}, [repoName]);
+	}, [repoName, branch]);
 
 	if (loading) {
 		return <div className="p-8 text-center text-gray-500">Loading History...</div>;

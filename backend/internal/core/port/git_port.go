@@ -19,11 +19,13 @@ type GitManager interface {
 	ReceivePack(repoName string, reqBody io.Reader, resWriter io.Writer) error
 
 	// Method for file tree view, path can be empty for the root directory, this returns file paths
-	GetTree(repoName string, path string) ([]domain.RepoFile, error)
+	GetTree(repoName string, path string, branch string) ([]domain.RepoFile, error)
 
 	// Method for getting file content
-	GetBlob(repoName string, path string) (string, error)
+	GetBlob(repoName string, path string, branch string) (string, error)
 
 	// Method for getting all commits
-	GetCommits(repoName string) ([]domain.Commit, error)
+	GetCommits(repoName string, branch string) ([]domain.Commit, error)
+
+	GetBranches(repoName string) ([]domain.Branch, error)
 }

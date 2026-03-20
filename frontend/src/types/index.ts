@@ -18,3 +18,8 @@ export interface Commit {
 	message: string;
 	date: string; // ISO string from the backend
 }
+
+export interface Branch {
+	name: string;
+	commit_hash: string;
+}

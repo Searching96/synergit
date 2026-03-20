@@ -71,6 +71,8 @@ func main() {
 
 		// Get commits route
 		v1.GET("/repos/:name/commits", repoHandler.HandleGetCommits)
+
+		v1.GET("/repos/:name/branches", repoHandler.HandleGetBranches)
 	}
 
 	// 5. Start the server

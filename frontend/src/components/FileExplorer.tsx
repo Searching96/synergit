@@ -5,9 +5,10 @@ import { api } from "../services/api";
 
 interface FileExplorerProps {
 	repoName: string;
+  branch: string;
 }
 
-export default function FileExplorer({ repoName }: FileExplorerProps) {
+export default function FileExplorer({ repoName, branch }: FileExplorerProps) {
 	const [tree, setTree] = useState<RepoFile[]>([]);
 	const [currentPath, setCurrentPath] = useState<string>('');
 	const [fileContent, setFileContent] = useState<string | null>(null);
@@ -15,19 +16,19 @@ export default function FileExplorer({ repoName }: FileExplorerProps) {
 	// Load root on mount or repo change
 	useEffect(() => {
 		loadTree('');
-	}, [repoName])
+	}, [repoName, branch])
 
 	const loadTree = (path: string) => {
 		setCurrentPath(path);
 		setFileContent(null);
-    api.getTree(repoName, path)
+    api.getTree(repoName, path, branch)
 			.then((data) => setTree(data || []))
 			.catch(console.error);
 	};
 
 	const loadBlob = (path: string) => {
 		setCurrentPath(path);
-    api.getBlob(repoName, path)
+    api.getBlob(repoName, path, branch)
 			.then((data) => {
 				const textToDisplay = typeof data === 'string' ? data : data.content;
 				setFileContent(textToDisplay);
@@ -47,7 +48,7 @@ export default function FileExplorer({ repoName }: FileExplorerProps) {
 		const pathParts = currentPath.split('/')
 		pathParts.pop();
 		loadTree(pathParts.join('/'));
-	}
+	};
 
 	return (
     <div>

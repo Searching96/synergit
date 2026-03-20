@@ -16,3 +16,8 @@ type Commit struct {
 	Message string    `json:"message"`
 	Date    time.Time `json:"date"`
 }
+
+type Branch struct {
+	Name       string `json:"name"`
+	CommitHash string `json:"commit_hash"`
+}

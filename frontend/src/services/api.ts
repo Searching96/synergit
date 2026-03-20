@@ -1,4 +1,4 @@
-import type { Commit, RepoFile, Repository } from "../types";
+import type { Branch, Commit, RepoFile, Repository } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -17,12 +17,15 @@ async function fetcher<T>(endpoint: string): Promise<T> {
 export const api = {
 	getRepos: () => fetcher<Repository[]>('/repos'),
 
-	getTree: (repoName: string, path: string) =>
-		fetcher<RepoFile[]>(`/repos/${repoName}/tree?path=${encodeURIComponent(path)}`),
+	getBranches: (repoName: string) =>
+		fetcher<Branch[]>(`/repos/${repoName}/branches`),
 
-	getBlob: (repoName: string, path: string) =>
-		fetcher<{ content: string } | string>(`/repos/${repoName}/blob?=path=${encodeURIComponent(path)}`),
+	getTree: (repoName: string, path: string, branch: string = '') =>
+		fetcher<RepoFile[]>(`/repos/${repoName}/tree?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`),
 
-	getCommits: (repoName: string) =>
-		fetcher<Commit[]>(`/repos/${repoName}/commits`),
+	getBlob: (repoName: string, path: string, branch: string = '') =>
+		fetcher<{ content: string } | string>(`/repos/${repoName}/blob?=path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`),
+
+	getCommits: (repoName: string, branch: string = '') =>
+		fetcher<Commit[]>(`/repos/${repoName}/commits?branch=${encodeURIComponent(branch)}`),
 }

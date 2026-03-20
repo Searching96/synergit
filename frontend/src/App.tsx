@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Repository } from "./types/index";
-import { BookOpen, Code, History} from "lucide-react";
+import type { Branch, Repository } from "./types/index";
+import { BookOpen, Code, GitBranch, History} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { api } from "./services/api";
@@ -10,11 +10,27 @@ function App () {
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'commits'>('files');
 
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [currentBranch, setCurrentBranch] = useState<string>('');
+
   useEffect(() => {
     api.getRepos()
-      .then((data) => setRepos(data))
+      .then((data) => setRepos(data || [])) // Just to ensure handling null value for data 
+                                            // since we do not know the backend will handle empty list or not
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (selectedRepo) {
+      api.getBranches(selectedRepo)
+        .then((data) => {
+          setBranches(data || []);
+          const defaultBranch = data?.find(b => b.name === 'main' || b.name === 'master')?.name || data?.[0]?.name || '';
+          setCurrentBranch(defaultBranch);
+        })
+        .catch(console.error)
+    }
+  }, [selectedRepo]);
 
   return (
     <div className="flex h-screen bg-white font-sans text-gray-900">
@@ -50,12 +66,32 @@ function App () {
           <div className="max-w-5xl mx-auto">
             {/* Header & Tabs */}
             <div className="mb-6 pb-4 border-b border-gray-200">
-              <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
-                <BookOpen size={24} className="mr-3 text-gray-400" />
-                {selectedRepo}
-              </h2>
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
+                  <BookOpen size={24} className="mr-3 text-gray-400" />
+                  {selectedRepo}
+                </h2>
 
-              {/* Tab Navigation */}
+                {/* Navigation among branches */}
+                {branches.length > 0 && (
+                  <div className="flex items-center text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-md w-fit mb-1">
+                    <GitBranch size={16} className="mr-2 text-gray-500" />
+                    <select
+                      value={currentBranch}
+                      onChange={(e) => setCurrentBranch(e.target.value)}
+                      className="bg-transparent border-none focus:ring-0 cursor-pointer font-medium outline-none"
+                    >
+                      {branches.map((b) => (
+                        <option key={b.name} value={b.name}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation between files and commits */}
               <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
                 <button
                   onClick={() => setActiveTab('files')}
@@ -78,9 +114,9 @@ function App () {
 
             {/* Dynamic Content Area */}
             {activeTab === 'files' ? (
-              <FileExplorer repoName={selectedRepo} />
+              <FileExplorer repoName={selectedRepo} branch={currentBranch} />
             ) : (
-              <CommitHistory repoName={selectedRepo} />
+              <CommitHistory repoName={selectedRepo} branch={currentBranch}/>
             )}
 
           </div>

@@ -70,14 +70,18 @@ func (s *RepoService) GetAllRepositories() ([]*domain.Repository, error) {
 	return s.repoStore.FindAll()
 }
 
-func (s *RepoService) GetRepoTree(repoName string, path string) ([]domain.RepoFile, error) {
-	return s.gitManager.GetTree(repoName, path)
+func (s *RepoService) GetRepoTree(repoName string, path string, branch string) ([]domain.RepoFile, error) {
+	return s.gitManager.GetTree(repoName, path, branch)
 }
 
-func (s *RepoService) GetRepoBlob(repoName string, path string) (string, error) {
-	return s.gitManager.GetBlob(repoName, path)
+func (s *RepoService) GetRepoBlob(repoName string, path string, branch string) (string, error) {
+	return s.gitManager.GetBlob(repoName, path, branch)
 }
 
-func (s *RepoService) GetRepoCommits(repoName string) ([]domain.Commit, error) {
-	return s.gitManager.GetCommits(repoName)
+func (s *RepoService) GetRepoCommits(repoName string, branch string) ([]domain.Commit, error) {
+	return s.gitManager.GetCommits(repoName, branch)
+}
+
+func (s *RepoService) GetRepoBranches(repoName string) ([]domain.Branch, error) {
+	return s.gitManager.GetBranches(repoName)
 }
