@@ -255,6 +255,13 @@ func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) 
 		return nil, err
 	}
 
+	// Get the default branch from HEAD
+	headRef, _ := r.Head()
+	headBranchName := ""
+	if headRef != nil {
+		headBranchName = headRef.Name().Short()
+	}
+
 	iter, err := r.Branches()
 	if err != nil {
 		return nil, err
@@ -265,6 +272,7 @@ func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) 
 		branches = append(branches, domain.Branch{
 			Name:       ref.Name().Short(),
 			CommitHash: ref.Hash().String(),
+			IsDefault:  ref.Name().Short() == headBranchName,
 		})
 		return nil
 	})

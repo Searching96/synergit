@@ -25,7 +25,7 @@ function App () {
       api.getBranches(selectedRepo)
         .then((data) => {
           setBranches(data || []);
-          const defaultBranch = data?.find(b => b.name === 'main' || b.name === 'master')?.name || data?.[0]?.name || '';
+          const defaultBranch = data?.find(b => b.is_default)?.name || data?.[0]?.name || ''; 
           setCurrentBranch(defaultBranch);
         })
         .catch(console.error)

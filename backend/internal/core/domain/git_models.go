@@ -20,4 +20,5 @@ type Commit struct {
 type Branch struct {
 	Name       string `json:"name"`
 	CommitHash string `json:"commit_hash"`
+	IsDefault  bool   `json:"is_default"`
 }

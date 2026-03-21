@@ -22,4 +22,5 @@ export interface Commit {
 export interface Branch {
 	name: string;
 	commit_hash: string;
+	is_default: boolean;
 }
