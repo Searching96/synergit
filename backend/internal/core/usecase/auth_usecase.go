@@ -1,0 +1,58 @@
+package usecase
+
+import (
+	"errors"
+	"synergit/internal/core/domain"
+	"synergit/internal/core/port"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
+)
+
+type AuthService struct {
+	userRepo  port.UserRepository
+	jwtSecret []byte
+}
+
+func NewAuthService(userRepo port.UserRepository, secret string) *AuthService {
+	return &AuthService{
+		userRepo:  userRepo,
+		jwtSecret: []byte(secret),
+	}
+}
+
+func (s *AuthService) Register(username string, email string, password string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user := &domain.User{
+		Username:     username,
+		Email:        email,
+		PasswordHash: string(hashedPassword),
+	}
+
+	return s.userRepo.CreateUser(user)
+}
+
+func (s *AuthService) Login(username string, password string) (string, error) {
+	user, err := s.userRepo.GetUserByUserName(username)
+	if err != nil {
+		return "", errors.New("invalid username or password")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return "", errors.New("invalid username or password")
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id":  user.ID,
+		"username": user.Username,
+		"exp":      time.Now().Add(time.Hour * 72).Unix(), // Token expires in 72 hours
+	})
+
+	return token.SignedString(s.jwtSecret)
+}
