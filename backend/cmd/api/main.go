@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	httpHandler "synergit/internal/adapter/handler/http"
+	"synergit/internal/adapter/handler/http/middleware"
 	"synergit/internal/adapter/repository"
 	"synergit/internal/core/usecase"
 
@@ -31,13 +32,19 @@ func main() {
 	// 1. Initialize infrastructure adapters
 	gitRoot := "D:/SynergitRepo/"
 	gitAdapter := repository.NewLocalGitAdapter(gitRoot)
-	dbAdapter := repository.NewPostgresRepoStore(db)
+	dbRepoAdapter := repository.NewPostgresRepoStore(db)
+	dbUserAdapter := repository.NewPostgresUserAdapter(db)
 
 	// 2. Initialize usecases (injecting the adapters)
-	repoService := usecase.NewRepoService(gitAdapter, dbAdapter)
+	// In production, load this secret from an env var
+	jwtSecret := "my-super-secret-jwt-key-change-me"
+
+	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter)
+	authUsecase := usecase.NewAuthService(dbUserAdapter, jwtSecret)
 
 	// 3. Initialize delivery/handlers (injecting the usecases)
-	repoHandler := httpHandler.NewRepoHandler(repoService)
+	repoHandler := httpHandler.NewRepoHandler(repoUsecase)
+	authHandler := httpHandler.NewAuthHandler(authUsecase)
 
 	// 4. Set up the gin router
 	router := gin.Default()
@@ -54,25 +61,23 @@ func main() {
 	// Group routes for clean versioning
 	v1 := router.Group("/api/v1")
 	{
-		v1.POST("/repos", repoHandler.HandleCreateRepo)
+		// Auth routes
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+		}
 
-		// Git Smart HTTP routes
-		v1.GET("/repos/:name/info/refs", repoHandler.HandleInfoRefs)
-		v1.POST("/repos/:name/git-upload-pack", repoHandler.HandleUploadPack)
-		v1.POST("/repos/:name/git-receive-pack", repoHandler.HandleReceivePack)
-
-		v1.GET("/repos", repoHandler.HandleGetRepos)
-
-		// Get repo tree route
-		v1.GET("/repos/:name/tree", repoHandler.HandleGetTree)
-
-		// Get file content route
-		v1.GET("/repos/:name/blob", repoHandler.HandleGetBlob)
-
-		// Get commits route
-		v1.GET("/repos/:name/commits", repoHandler.HandleGetCommits)
-
-		v1.GET("/repos/:name/branches", repoHandler.HandleGetBranches)
+		// Repo routes (we will secure these with JWT middleware soon)
+		repos := v1.Group("/repos")
+		repos.Use(middleware.AuthMiddleware(jwtSecret)) // Apply middleware before further routing
+		{
+			repos.GET("", repoHandler.HandleGetRepos)
+			repos.GET("/:name/branches", repoHandler.HandleGetBranches)
+			repos.GET("/:name/tree", repoHandler.HandleGetTree)
+			repos.GET("/:name/blob", repoHandler.HandleGetBlob)
+			repos.GET("/:name/commits", repoHandler.HandleGetCommits)
+		}
 	}
 
 	// 5. Start the server
