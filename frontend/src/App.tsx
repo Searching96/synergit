@@ -3,9 +3,12 @@ import type { Branch, Repository } from "./types/index";
 import { BookOpen, Code, GitBranch, History} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
-import { api } from "./services/api";
+import { reposApi } from "./services/api";
+import Auth from "./components/Auth";
 
 function App () {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
+
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'commits'>('files');
@@ -14,15 +17,23 @@ function App () {
   const [currentBranch, setCurrentBranch] = useState<string>('');
 
   useEffect(() => {
-    api.getRepos()
-      .then((data) => setRepos(data || [])) // Just to ensure handling null value for data 
-                                            // since we do not know the backend will handle empty list or not
-      .catch(console.error);
-  }, []);
+    if (isAuthenticated) {
+      reposApi.getRepos()
+        .then((data) => setRepos(data || [])) // Just to ensure handling null value for data 
+                                              // since we do not know the backend will handle empty list or not
+        .catch((err) => {
+          console.error(err);
+          // If token is invalid/expired, log out
+          if (err.message.includes('token') || err.message.includes('Unauthorized')) {
+            handleLogout();
+          }
+        });
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (selectedRepo) {
-      api.getBranches(selectedRepo)
+    if (selectedRepo && isAuthenticated) {
+      reposApi.getBranches(selectedRepo)
         .then((data) => {
           setBranches(data || []);
           const defaultBranch = data?.find(b => b.is_default)?.name || data?.[0]?.name || ''; 
@@ -30,7 +41,17 @@ function App () {
         })
         .catch(console.error)
     }
-  }, [selectedRepo]);
+  }, [selectedRepo, isAuthenticated]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    setSelectedRepo(null);
+  };
+
+  if (!isAuthenticated) {
+    return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="flex h-screen bg-white font-sans text-gray-900">

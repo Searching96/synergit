@@ -31,13 +31,13 @@ func (p *PostgresUserAdapter) CreateUser(user *domain.User) error {
 
 func (p *PostgresUserAdapter) GetUserByUserName(username string) (*domain.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, craeted_at, updated_at
+		SELECT id, username, email, password_hash, created_at, updated_at
 		FROM users
 		WHERE username = $1`
 
 	user := &domain.User{}
 	err := p.db.QueryRow(query, username).
-		Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user, user.CreatedAt, &user.UpdatedAt)
+		Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

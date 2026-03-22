@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 	"time"
@@ -38,13 +39,19 @@ func (s *AuthService) Register(username string, email string, password string) e
 }
 
 func (s *AuthService) Login(username string, password string) (string, error) {
+	fmt.Printf("Attempting login for Username: '%s', Password length: %d\n", username, len(password))
+
 	user, err := s.userRepo.GetUserByUserName(username)
 	if err != nil {
+		fmt.Printf("DB Fetch Error: %v\n", err)
 		return "", errors.New("invalid username or password")
 	}
 
+	fmt.Printf("DB User Found: ID=%d, RetrievedHashLength=%d\n", user.ID, len(user.PasswordHash))
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
+		fmt.Printf("Bcrypt Compare Error: %v\n", err)
 		return "", errors.New("invalid username or password")
 	}
 
