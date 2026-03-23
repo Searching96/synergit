@@ -23,7 +23,7 @@ func NewRepoService(gm port.GitManager, rs port.RepositoryStore) *RepoService {
 }
 
 // CreateRepository is the actual business logic
-func (s *RepoService) CreateRepository(name string) (*domain.Repository, error) {
+func (s *RepoService) CreateRepository(name string) (*domain.Repo, error) {
 	if name == "" {
 		return nil, errors.New("repository name cannot be empty")
 	}
@@ -34,7 +34,7 @@ func (s *RepoService) CreateRepository(name string) (*domain.Repository, error) 
 		return nil, err
 	}
 
-	repo := &domain.Repository{
+	repo := &domain.Repo{
 		Name:      name,
 		Path:      fullPath,
 		CreatedAt: time.Now(),
@@ -66,7 +66,7 @@ func (s *RepoService) ReceivePack(repoName string, in io.Reader, out io.Writer) 
 	return s.gitManager.ReceivePack(repoName, in, out)
 }
 
-func (s *RepoService) GetAllRepositories() ([]*domain.Repository, error) {
+func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
 	return s.repoStore.FindAll()
 }
 

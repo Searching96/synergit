@@ -1,4 +1,4 @@
-package repository
+package postgres
 
 import (
 	"database/sql"
@@ -16,7 +16,7 @@ func NewPostgresRepoStore(db *sql.DB) *PostgresRepoStore {
 	return &PostgresRepoStore{db: db}
 }
 
-func (p *PostgresRepoStore) Save(repo *domain.Repository) error {
+func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 	query := `
 	INSERT INTO repositories (name, path, created_at)
 	VALUES ($1, $2, $3)
@@ -26,7 +26,7 @@ func (p *PostgresRepoStore) Save(repo *domain.Repository) error {
 	return err
 }
 
-func (p *PostgresRepoStore) FindAll() ([]*domain.Repository, error) {
+func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	query := `SELECT id, name, path, created_at FROM repositories ORDER BY created_at`
 
 	rows, err := p.db.Query(query)
@@ -35,11 +35,11 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repository, error) {
 	}
 	defer rows.Close() // Always close rows to free up database connections
 
-	var repos []*domain.Repository
+	var repos []*domain.Repo
 
 	// Iterate over the rows
 	for rows.Next() {
-		repo := &domain.Repository{}
+		repo := &domain.Repo{}
 
 		// Scan copies the the columns in the current row into the values pointed at by dest
 		err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt)
@@ -57,7 +57,7 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repository, error) {
 	// If the table is empty, repos will be nil, which Gin will serialize as "null"
 	// It's usually better API design to return an empty array instead
 	if repos == nil {
-		repos = []*domain.Repository{}
+		repos = []*domain.Repo{}
 	}
 
 	return repos, nil

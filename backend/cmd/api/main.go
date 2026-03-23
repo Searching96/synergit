@@ -10,6 +10,7 @@ import (
 	httpHandler "synergit/internal/adapter/handler/http"
 	"synergit/internal/adapter/handler/http/middleware"
 	"synergit/internal/adapter/repository"
+	"synergit/internal/adapter/repository/postgres"
 	"synergit/internal/core/usecase"
 
 	"github.com/gin-contrib/cors"
@@ -32,8 +33,8 @@ func main() {
 	// 1. Initialize infrastructure adapters
 	gitRoot := "D:/SynergitRepo/"
 	gitAdapter := repository.NewLocalGitAdapter(gitRoot)
-	dbRepoAdapter := repository.NewPostgresRepoStore(db)
-	dbUserAdapter := repository.NewPostgresUserAdapter(db)
+	dbRepoAdapter := postgres.NewPostgresRepoStore(db)
+	dbUserAdapter := postgres.NewPostgresUserStore(db)
 
 	// 2. Initialize usecases (injecting the adapters)
 	// In production, load this secret from an env var

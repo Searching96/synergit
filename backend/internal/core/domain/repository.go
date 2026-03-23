@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-// Repository represents the core entity of our SCM module
-type Repository struct {
+// Repo represents the core entity of our SCM module
+type Repo struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Path      string    `json:"path"`

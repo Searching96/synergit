@@ -1,4 +1,4 @@
-package repository
+package postgres
 
 import (
 	"database/sql"
@@ -7,17 +7,17 @@ import (
 	"synergit/internal/core/port"
 )
 
-var _ port.UserRepository = (*PostgresUserAdapter)(nil)
+var _ port.UserRepository = (*PostgresUserStore)(nil)
 
-type PostgresUserAdapter struct {
+type PostgresUserStore struct {
 	db *sql.DB
 }
 
-func NewPostgresUserAdapter(db *sql.DB) *PostgresUserAdapter {
-	return &PostgresUserAdapter{db: db}
+func NewPostgresUserStore(db *sql.DB) *PostgresUserStore {
+	return &PostgresUserStore{db: db}
 }
 
-func (p *PostgresUserAdapter) CreateUser(user *domain.User) error {
+func (p *PostgresUserStore) CreateUser(user *domain.User) error {
 	query := `
 		INSERT INTO users(username, email, password_hash)
 		VALUES ($1, $2, $3)
@@ -29,7 +29,7 @@ func (p *PostgresUserAdapter) CreateUser(user *domain.User) error {
 	return err
 }
 
-func (p *PostgresUserAdapter) GetUserByUserName(username string) (*domain.User, error) {
+func (p *PostgresUserStore) GetUserByUserName(username string) (*domain.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, created_at, updated_at
 		FROM users
@@ -49,7 +49,7 @@ func (p *PostgresUserAdapter) GetUserByUserName(username string) (*domain.User, 
 	return user, nil
 }
 
-func (p *PostgresUserAdapter) GetUserByEmail(email string) (*domain.User, error) {
+func (p *PostgresUserStore) GetUserByEmail(email string) (*domain.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, created_at, updated_at
 		FROM users

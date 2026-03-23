@@ -3,6 +3,6 @@ package port
 import "synergit/internal/core/domain"
 
 type RepositoryStore interface {
-	Save(repo *domain.Repository) error
-	FindAll() ([]*domain.Repository, error)
+	Save(repo *domain.Repo) error
+	FindAll() ([]*domain.Repo, error)
 }
