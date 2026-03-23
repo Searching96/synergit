@@ -11,11 +11,11 @@ import (
 // RepoService implements the business logic for repositories
 type RepoService struct {
 	gitManager port.GitManager // Dependency injected via interface
-	repoStore  port.RepositoryStore
+	repoStore  port.RepoRepository
 }
 
 // NewRepoService creates a new usecase instance
-func NewRepoService(gm port.GitManager, rs port.RepositoryStore) *RepoService {
+func NewRepoService(gm port.GitManager, rs port.RepoRepository) *RepoService {
 	return &RepoService{
 		gitManager: gm,
 		repoStore:  rs,

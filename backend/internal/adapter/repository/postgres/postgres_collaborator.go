@@ -11,13 +11,13 @@ type PostgresCollaboratorStore struct {
 	db *sql.DB
 }
 
-func NewPostgresCollaboratorAdapter(db *sql.DB) domain.CollaboratorRepository {
+func NewPostgresCollaboratorStore(db *sql.DB) *PostgresCollaboratorStore {
 	return &PostgresCollaboratorStore{db: db}
 }
 
 func (p *PostgresCollaboratorStore) AddCollaborator(repoID uuid.UUID, userID uuid.UUID, role string) error {
 	query := `
-		INSERT INTO repository_collaborators (repositori_id, user_id, role)
+		INSERT INTO repository_collaborators (repository_id, user_id, role)
 		VALUES ($1, $2, $3)`
 	_, err := p.db.Exec(query, repoID, userID, role)
 	return err

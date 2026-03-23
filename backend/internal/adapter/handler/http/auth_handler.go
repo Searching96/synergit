@@ -8,11 +8,11 @@ import (
 )
 
 type AuthHandler struct {
-	authService *usecase.AuthService
+	authUsecase *usecase.AuthService
 }
 
-func NewAuthHandler(authService *usecase.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func NewAuthHandler(uc *usecase.AuthService) *AuthHandler {
+	return &AuthHandler{authUsecase: uc}
 }
 
 // Structs to define the expected JSON payloads
@@ -36,7 +36,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	err := h.authService.Register(req.Username, req.Email, req.Password)
+	err := h.authUsecase.Register(req.Username, req.Email, req.Password)
 	if err != nil {
 		// If it fails, it's usually because the username/email already exists
 		c.JSON(http.StatusConflict, gin.H{"error": "Failed to register user. Username or email may already be taken."})
@@ -53,7 +53,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.authService.Login(req.Username, req.Password)
+	token, err := h.authUsecase.Login(req.Username, req.Password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return

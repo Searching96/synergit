@@ -12,13 +12,13 @@ import (
 )
 
 type AuthService struct {
-	userRepo  port.UserRepository
+	userStore port.UserRepository
 	jwtSecret []byte
 }
 
-func NewAuthService(userRepo port.UserRepository, secret string) *AuthService {
+func NewAuthService(userStore port.UserRepository, secret string) *AuthService {
 	return &AuthService{
-		userRepo:  userRepo,
+		userStore: userStore,
 		jwtSecret: []byte(secret),
 	}
 }
@@ -35,19 +35,19 @@ func (s *AuthService) Register(username string, email string, password string) e
 		PasswordHash: string(hashedPassword),
 	}
 
-	return s.userRepo.CreateUser(user)
+	return s.userStore.CreateUser(user)
 }
 
 func (s *AuthService) Login(username string, password string) (string, error) {
 	fmt.Printf("Attempting login for Username: '%s', Password length: %d\n", username, len(password))
 
-	user, err := s.userRepo.GetUserByUserName(username)
+	user, err := s.userStore.GetUserByUserName(username)
 	if err != nil {
 		fmt.Printf("DB Fetch Error: %v\n", err)
 		return "", errors.New("invalid username or password")
 	}
 
-	fmt.Printf("DB User Found: ID=%d, RetrievedHashLength=%d\n", user.ID, len(user.PasswordHash))
+	fmt.Printf("DB User Found: ID=%s, RetrievedHashLength=%d\n", user.ID, len(user.PasswordHash))
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
