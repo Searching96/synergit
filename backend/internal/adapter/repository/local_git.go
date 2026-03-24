@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -278,4 +280,69 @@ func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) 
 	})
 
 	return branches, err
+}
+
+func (g *LocalGitAdapter) MergeBranches(
+	repoName string, sourceBranch string, targetBranch string,
+	mergerName string, commitMessage string,
+) error {
+	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+
+	// 1. Create a temporary directory for the working tree
+	tempDir, err := os.MkdirTemp("", "synergit-merge-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp merge directory: %w", err)
+	}
+	// Ensure cleanup happens no matter what
+	defer os.RemoveAll(tempDir)
+
+	// Helper function to run git commands inside the temp directory
+	runGitCmd := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], stderr.String())
+		}
+		return nil
+	}
+
+	// 2. Clone the bare repository into the temp directory
+	cloneCmd := exec.Command("git", "clone", bareRepoPath, tempDir)
+	if err := cloneCmd.Run(); err != nil {
+		return fmt.Errorf("failed to clone repo for merging: %w", err)
+	}
+
+	// 3. Configure Git user for the merge conflict
+	// Git requires an email, so we generate a placeholder using the mergerName
+	mergerEmail := fmt.Sprintf("%s@synergit.local", mergerName)
+	if err := runGitCmd("config", "user.name", mergerName); err != nil {
+		return err
+	}
+	if err := runGitCmd("config", "user.email", mergerEmail); err != nil {
+		return err
+	}
+
+	// 4. Checkout the target branch
+	if err := runGitCmd("checkout", targetBranch); err != nil {
+		return fmt.Errorf("failed to checkout target branch: %w", err)
+	}
+
+	// 5. Perform the merge (--no-ff ensures a merge commit is always created, like GitHub does)
+	err = runGitCmd("merge", "origin/"+sourceBranch, "--no-ff", "-m", commitMessage)
+	if err != nil {
+		// If this fails, it is almost certainly a merge conflict.
+		// The temp dir will be deleted, leaving the bare repo untouched.
+		return errors.New("merge conflict detected: cannot merge automatically")
+	}
+
+	// 6. Push the merged target branch back to the bare repository
+	if err := runGitCmd("push", "origin", targetBranch); err != nil {
+		return fmt.Errorf("failed to push merged branch: %w", err)
+	}
+
+	return nil
 }

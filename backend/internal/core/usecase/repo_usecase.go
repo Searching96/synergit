@@ -65,7 +65,7 @@ func (s *RepoService) CreateRepository(name string, ownerID uuid.UUID) (*domain.
 	return repo, nil
 }
 
-func (s *RepoService) resolveRepoName(repoID string) (string, error) {
+func (s *RepoService) resolveRepoName(repoID uuid.UUID) (string, error) {
 	repo, err := s.repoStore.FindByID(repoID)
 	if err != nil {
 		return "", err
@@ -76,7 +76,7 @@ func (s *RepoService) resolveRepoName(repoID string) (string, error) {
 	return repo.Name, nil
 }
 
-func (s *RepoService) GetIntoRefs(repoID string, service string) ([]byte, error) {
+func (s *RepoService) GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error) {
 	// Security/Validation: Only allow valid git services
 	if service != "git-upload-pack" && service != "git-receive-pack" {
 		return nil, errors.New("unsupported git service")
@@ -90,7 +90,7 @@ func (s *RepoService) GetIntoRefs(repoID string, service string) ([]byte, error)
 	return s.gitManager.AdvertiseRefs(repoName, service)
 }
 
-func (s *RepoService) UploadPack(repoID string, in io.Reader, out io.Writer) error {
+func (s *RepoService) UploadPack(repoID uuid.UUID, in io.Reader, out io.Writer) error {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return err
@@ -99,7 +99,7 @@ func (s *RepoService) UploadPack(repoID string, in io.Reader, out io.Writer) err
 	return s.gitManager.UploadPack(repoName, in, out)
 }
 
-func (s *RepoService) ReceivePack(repoID string, in io.Reader, out io.Writer) error {
+func (s *RepoService) ReceivePack(repoID uuid.UUID, in io.Reader, out io.Writer) error {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
 	return s.repoStore.FindAll()
 }
 
-func (s *RepoService) GetRepoTree(repoID string, path string, branch string) ([]domain.RepoFile, error) {
+func (s *RepoService) GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error) {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func (s *RepoService) GetRepoTree(repoID string, path string, branch string) ([]
 	return s.gitManager.GetTree(repoName, path, branch)
 }
 
-func (s *RepoService) GetRepoBlob(repoID string, path string, branch string) (string, error) {
+func (s *RepoService) GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error) {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return "", err
@@ -130,7 +130,7 @@ func (s *RepoService) GetRepoBlob(repoID string, path string, branch string) (st
 	return s.gitManager.GetBlob(repoName, path, branch)
 }
 
-func (s *RepoService) GetRepoCommits(repoID string, branch string) ([]domain.Commit, error) {
+func (s *RepoService) GetRepoCommits(repoID uuid.UUID, branch string) ([]domain.Commit, error) {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (s *RepoService) GetRepoCommits(repoID string, branch string) ([]domain.Com
 	return s.gitManager.GetCommits(repoName, branch)
 }
 
-func (s *RepoService) GetRepoBranches(repoID string) ([]domain.Branch, error) {
+func (s *RepoService) GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error) {
 	repoName, err := s.resolveRepoName(repoID)
 	if err != nil {
 		return nil, err

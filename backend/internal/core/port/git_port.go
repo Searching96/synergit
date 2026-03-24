@@ -28,4 +28,6 @@ type GitManager interface {
 	GetCommits(repoName string, branch string) ([]domain.Commit, error)
 
 	GetBranches(repoName string) ([]domain.Branch, error)
+	MergeBranches(repoName string, sourceBranch string, targetBranch string,
+		mergerName string, commitMessage string) error
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"synergit/internal/core/domain"
 
+	"github.com/google/uuid"
 	// This blank import registers the Postgres driver with the database/sql package
 	_ "github.com/lib/pq"
 )
@@ -64,7 +65,7 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	return repos, nil
 }
 
-func (p *PostgresRepoStore) FindByID(id string) (*domain.Repo, error) {
+func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 	query := `SELECT id, name, path, created_at FROM repositories WHERE id = $1`
 
 	repo := &domain.Repo{}

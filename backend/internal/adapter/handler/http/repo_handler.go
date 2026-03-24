@@ -23,6 +23,15 @@ type CreateRepoRequest struct {
 	Name string `json:"name"`
 }
 
+func parseRepoID(c *gin.Context) (uuid.UUID, bool) {
+	repoID, err := uuid.Parse(c.Param("repo_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid repo_id format"})
+		return uuid.Nil, false
+	}
+	return repoID, true
+}
+
 func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 	var req CreateRepoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -54,7 +63,10 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 	service := c.Query("service")
 
 	if service == "" {
@@ -83,7 +95,10 @@ func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
 
 // HandleUploadPack handles POST /:repo_id/git-upload-pack
 func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
@@ -97,7 +112,10 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 
 	// Git requires this specific content type for pushes
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
@@ -120,7 +138,10 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetTree(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 
 	// Get the path query parameter. If it doesn't exist, it defaults to "" (root)
 	path := c.Query("path")
@@ -136,7 +157,10 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 	path := c.Query("path")
 	branch := c.Query("branch")
 
@@ -150,7 +174,10 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 	branch := c.Query("branch")
 
 	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch)
@@ -163,7 +190,10 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
-	repoID := c.Param("repo_id")
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
 	branches, err := h.repoUsecase.GetRepoBranches(repoID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
