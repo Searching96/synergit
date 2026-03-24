@@ -3,17 +3,17 @@ package http
 import (
 	"fmt"
 	"net/http"
-	"synergit/internal/core/usecase"
+	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type RepoHandler struct {
-	repoUsecase *usecase.RepoService
+	repoUsecase port.RepoUsecase
 }
 
-func NewRepoHandler(uc *usecase.RepoService) *RepoHandler {
+func NewRepoHandler(uc port.RepoUsecase) *RepoHandler {
 	return &RepoHandler{
 		repoUsecase: uc,
 	}

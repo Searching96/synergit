@@ -2,17 +2,17 @@ package http
 
 import (
 	"net/http"
-	"synergit/internal/core/usecase"
+	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type CollaboratorHandler struct {
-	collaboratorUsecase *usecase.CollaboratorService
+	collaboratorUsecase port.CollaboratorUsecase
 }
 
-func NewCollaboratorHandler(uc *usecase.CollaboratorService) *CollaboratorHandler {
+func NewCollaboratorHandler(uc port.CollaboratorUsecase) *CollaboratorHandler {
 	return &CollaboratorHandler{
 		collaboratorUsecase: uc,
 	}

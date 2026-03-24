@@ -7,3 +7,8 @@ type UserRepository interface {
 	GetUserByUserName(username string) (*domain.User, error)
 	GetUserByEmail(email string) (*domain.User, error)
 }
+
+type AuthUsecase interface {
+	Register(username string, email string, password string) error
+	Login(username string, password string) (string, error)
+}

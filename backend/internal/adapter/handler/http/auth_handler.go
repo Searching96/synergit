@@ -2,16 +2,16 @@ package http
 
 import (
 	"net/http"
-	"synergit/internal/core/usecase"
+	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AuthHandler struct {
-	authUsecase *usecase.AuthService
+	authUsecase port.AuthUsecase
 }
 
-func NewAuthHandler(uc *usecase.AuthService) *AuthHandler {
+func NewAuthHandler(uc port.AuthUsecase) *AuthHandler {
 	return &AuthHandler{authUsecase: uc}
 }
 
