@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"synergit/internal/core/domain"
 
 	// This blank import registers the Postgres driver with the database/sql package
@@ -61,4 +62,19 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	}
 
 	return repos, nil
+}
+
+func (p *PostgresRepoStore) FindByID(id string) (*domain.Repo, error) {
+	query := `SELECT id, name, path, created_at FROM repositories WHERE id = $1`
+
+	repo := &domain.Repo{}
+	err := p.db.QueryRow(query, id).Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return repo, nil
 }

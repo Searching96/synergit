@@ -4,11 +4,11 @@ import { Clock, GitCommit, User } from "lucide-react";
 import { reposApi } from "../services/api"
 
 interface CommitHistoryProps {
-	repoName: string;
+	repoId: string;
 	branch: string;
 }
 
-export default function CommitHistory({ repoName, branch }: CommitHistoryProps) {
+export default function CommitHistory({ repoId, branch }: CommitHistoryProps) {
 	const [commits, setCommits] = useState<Commit[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
 
@@ -16,7 +16,7 @@ export default function CommitHistory({ repoName, branch }: CommitHistoryProps) 
 		if (!branch) return;
 
 		setLoading(true);
-		reposApi.getCommits(repoName, branch)
+		reposApi.getCommits(repoId, branch)
 			.then((data) => {
 				setCommits(data || []);
 				setLoading(false)
@@ -25,7 +25,7 @@ export default function CommitHistory({ repoName, branch }: CommitHistoryProps) 
 				console.error(err);
 				setLoading(false);
 			});
-	}, [repoName, branch]);
+	}, [repoId, branch]);
 
 	if (loading) {
 		return <div className="p-8 text-center text-gray-500">Loading History...</div>;

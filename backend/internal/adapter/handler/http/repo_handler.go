@@ -6,6 +6,7 @@ import (
 	"synergit/internal/core/usecase"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type RepoHandler struct {
@@ -29,8 +30,20 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 		return
 	}
 
+	requesterIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	requesterID, err := uuid.Parse(requesterIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid requester token"})
+		return
+	}
+
 	// Call the business logic
-	repo, err := h.repoUsecase.CreateRepository(req.Name)
+	repo, err := h.repoUsecase.CreateRepository(req.Name, requesterID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -41,14 +54,14 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 	service := c.Query("service")
 
 	if service == "" {
 		c.String(http.StatusBadRequest, "service query parameter is requiered")
 	}
 
-	refs, err := h.repoUsecase.GetIntoRefs(repoName, service)
+	refs, err := h.repoUsecase.GetIntoRefs(repoID, service)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -68,15 +81,15 @@ func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
 	c.Writer.Write(refs)
 }
 
-// HandleUploadPack handles POST /:name/git-upload-pack
+// HandleUploadPack handles POST /:repo_id/git-upload-pack
 func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
 	// Pass the HTTP Request Body and Response Writer directly to the usecase
-	err := h.repoUsecase.UploadPack(repoName, c.Request.Body, c.Writer)
+	err := h.repoUsecase.UploadPack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
 		// Don't write HTTP errors here, Git is already streaming the response
@@ -84,13 +97,13 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 
 	// Git requires this specific content type for pushes
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.ReceivePack(repoName, c.Request.Body, c.Writer)
+	err := h.repoUsecase.ReceivePack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
 	}
@@ -107,13 +120,13 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetTree(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 
 	// Get the path query parameter. If it doesn't exist, it defaults to "" (root)
 	path := c.Query("path")
 	branch := c.Query("branch")
 
-	files, err := h.repoUsecase.GetRepoTree(repoName, path, branch)
+	files, err := h.repoUsecase.GetRepoTree(repoID, path, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -123,11 +136,11 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 	path := c.Query("path")
 	branch := c.Query("branch")
 
-	content, err := h.repoUsecase.GetRepoBlob(repoName, path, branch)
+	content, err := h.repoUsecase.GetRepoBlob(repoID, path, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -137,10 +150,10 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
-	repoName := c.Param("name")
+	repoID := c.Param("repo_id")
 	branch := c.Query("branch")
 
-	commits, err := h.repoUsecase.GetRepoCommits(repoName, branch)
+	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -150,8 +163,8 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
-	repoName := c.Param("name")
-	branches, err := h.repoUsecase.GetRepoBranches(repoName)
+	repoID := c.Param("repo_id")
+	branches, err := h.repoUsecase.GetRepoBranches(repoID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

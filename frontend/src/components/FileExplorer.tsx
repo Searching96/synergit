@@ -4,11 +4,11 @@ import { ArrowLeft, FileText, Folder } from "lucide-react";
 import { reposApi } from "../services/api";
 
 interface FileExplorerProps {
-	repoName: string;
+  repoId: string;
   branch: string;
 }
 
-export default function FileExplorer({ repoName, branch }: FileExplorerProps) {
+export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
 	const [tree, setTree] = useState<RepoFile[]>([]);
 	const [currentPath, setCurrentPath] = useState<string>('');
 	const [fileContent, setFileContent] = useState<string | null>(null);
@@ -16,19 +16,19 @@ export default function FileExplorer({ repoName, branch }: FileExplorerProps) {
 	// Load root on mount or repo change
 	useEffect(() => {
 		loadTree('');
-	}, [repoName, branch])
+  }, [repoId, branch])
 
 	const loadTree = (path: string) => {
 		setCurrentPath(path);
 		setFileContent(null);
-    reposApi.getTree(repoName, path, branch)
+    reposApi.getTree(repoId, path, branch)
 			.then((data) => setTree(data || []))
 			.catch(console.error);
 	};
 
 	const loadBlob = (path: string) => {
 		setCurrentPath(path);
-    reposApi.getBlob(repoName, path, branch)
+    reposApi.getBlob(repoId, path, branch)
 			.then((data) => {
 				const textToDisplay = typeof data === 'string' ? data : data.content;
 				setFileContent(textToDisplay);

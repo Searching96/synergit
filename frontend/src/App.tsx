@@ -10,7 +10,7 @@ function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'commits'>('files');
 
   const [branches, setBranches] = useState<Branch[]>([])
@@ -32,8 +32,8 @@ function App () {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (selectedRepo && isAuthenticated) {
-      reposApi.getBranches(selectedRepo)
+    if (selectedRepoId && isAuthenticated) {
+      reposApi.getBranches(selectedRepoId)
         .then((data) => {
           setBranches(data || []);
           const defaultBranch = data?.find(b => b.is_default)?.name || data?.[0]?.name || ''; 
@@ -41,13 +41,15 @@ function App () {
         })
         .catch(console.error)
     }
-  }, [selectedRepo, isAuthenticated]);
+  }, [selectedRepoId, isAuthenticated]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
-    setSelectedRepo(null);
+    setSelectedRepoId(null);
   };
+
+  const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
 
   if (!isAuthenticated) {
     return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
@@ -63,11 +65,11 @@ function App () {
             <li
               key={repo.id}
               onClick={() => {
-                setSelectedRepo(repo.name);
+                setSelectedRepoId(repo.id);
                 setActiveTab('files');
               }}
               className={`flex items-center p-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${
-                selectedRepo === repo.name ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
+                selectedRepoId === repo.id ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
               <BookOpen size={16} className="mr-2 text-gray-500" />
@@ -90,7 +92,7 @@ function App () {
               <div className="flex flex-col">
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                   <BookOpen size={24} className="mr-3 text-gray-400" />
-                  {selectedRepo}
+                  {selectedRepo.name}
                 </h2>
 
                 {/* Navigation among branches */}
@@ -135,9 +137,9 @@ function App () {
 
             {/* Dynamic Content Area */}
             {activeTab === 'files' ? (
-              <FileExplorer repoName={selectedRepo} branch={currentBranch} />
+              <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />
             ) : (
-              <CommitHistory repoName={selectedRepo} branch={currentBranch}/>
+              <CommitHistory repoId={selectedRepo.id} branch={currentBranch}/>
             )}
 
           </div>

@@ -53,7 +53,7 @@ func main() {
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter)
+	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter)
 	authUsecase := usecase.NewAuthService(dbUserAdapter, jwtSecret)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
 
@@ -90,11 +90,12 @@ func main() {
 		repos.Use(middleware.AuthMiddleware(jwtSecret))
 		{
 			// Existing repo routes
+			repos.POST("", repoHandler.HandleCreateRepo)
 			repos.GET("", repoHandler.HandleGetRepos)
-			repos.GET("/:name/branches", repoHandler.HandleGetBranches)
-			repos.GET("/:name/tree", repoHandler.HandleGetTree)
-			repos.GET("/:name/blob", repoHandler.HandleGetBlob)
-			repos.GET("/:name/commits", repoHandler.HandleGetCommits)
+			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
+			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
+			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
+			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)
 
 			repos.POST("/:repo_id/collaborators", collabHandler.HandleAddCollaborator)
 			repos.GET("/:repo_id/collaborators", collabHandler.HandleGetCollaborators)
