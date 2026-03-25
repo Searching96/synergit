@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
@@ -20,19 +21,10 @@ func NewRepoHandler(uc port.RepoUsecase) *RepoHandler {
 	}
 }
 
-type CreateRepoRequest struct {
-	Name string `json:"name"`
-}
-
-type CreateBranchRequest struct {
-	Name       string `json:"name" binding:"required"`
-	FromBranch string `json:"from_branch"`
-}
-
 func parseRepoID(c *gin.Context) (uuid.UUID, bool) {
 	repoID, err := uuid.Parse(c.Param("repo_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid repo_id format"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
 		return uuid.Nil, false
 	}
 	return repoID, true
@@ -54,28 +46,28 @@ func parseCloneCoordinates(c *gin.Context) (string, string, bool) {
 }
 
 func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
-	var req CreateRepoRequest
+	var req dto.CreateRepoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
 		return
 	}
 
 	requesterIDStr, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
 		return
 	}
 
 	requesterID, err := uuid.Parse(requesterIDStr.(string))
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid requester token"})
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
 		return
 	}
 
 	// Call the business logic
 	repo, err := h.repoUsecase.CreateRepository(req.Name, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -212,7 +204,7 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 	repos, err := h.repoUsecase.GetAllRepositories()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch repositories"})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch repositories"})
 		return
 	}
 
@@ -231,7 +223,7 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 
 	files, err := h.repoUsecase.GetRepoTree(repoID, path, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -248,7 +240,7 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 
 	content, err := h.repoUsecase.GetRepoBlob(repoID, path, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -264,7 +256,7 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 
 	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
@@ -278,7 +270,7 @@ func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
 	}
 	branches, err := h.repoUsecase.GetRepoBranches(repoID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, branches)
@@ -290,15 +282,15 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 		return
 	}
 
-	var req CreateBranchRequest
+	var req dto.CreateBranchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: " + err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
 		return
 	}
 
 	branch, err := h.repoUsecase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
 		return
 	}
 
