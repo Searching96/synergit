@@ -110,7 +110,7 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 	commitMessage := fmt.Sprintf("Merge branch '%s' into '%s' (PR #%d)", pr.SourceBranch, pr.TargetBranch, prNumber)
 
 	// 4. Perform the actual Git merge on the server filesystem
-	err = s.gitManager.MergeBranches(repo.Name, pr.SourceBranch,
+	err = s.gitManager.MergeBranches(repo.Path, pr.SourceBranch,
 		pr.TargetBranch, mergerName, commitMessage)
 	if err != nil {
 		return errors.New("failed to merge branches")

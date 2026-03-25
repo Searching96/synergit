@@ -34,12 +34,30 @@ func NewLocalGitAdapter(root string) *LocalGitAdapter {
 	}
 }
 
+func (g *LocalGitAdapter) resolveRepoPath(repoLocator string) string {
+	if filepath.IsAbs(repoLocator) {
+		return repoLocator
+	}
+
+	slug := strings.TrimSpace(repoLocator)
+	if strings.HasSuffix(slug, ".git") {
+		return filepath.Join(g.storageRoot, filepath.FromSlash(slug))
+	}
+
+	return filepath.Join(g.storageRoot, filepath.FromSlash(slug)+".git")
+}
+
 // InitBareRepo satisfies the port.GitManager interface
-func (g *LocalGitAdapter) InitBareRepo(repoName string) (string, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
+	cleanSlug := path.Clean(strings.TrimSpace(repoSlug))
+	if cleanSlug == "." || strings.HasPrefix(cleanSlug, "../") || strings.Contains(cleanSlug, "/../") {
+		return "", errors.New("invalid repository path")
+	}
+
+	fullPath := g.resolveRepoPath(cleanSlug)
 
 	if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
-		return "", fmt.Errorf("repository %s already exists", repoName)
+		return "", fmt.Errorf("repository %s already exists", cleanSlug)
 	}
 
 	if err := os.MkdirAll(fullPath, 0755); err != nil {
@@ -56,8 +74,8 @@ func (g *LocalGitAdapter) InitBareRepo(repoName string) (string, error) {
 	return fullPath, nil
 }
 
-func (g *LocalGitAdapter) AdvertiseRefs(repoName string, service string) ([]byte, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte, error) {
+	fullPath := g.resolveRepoPath(repoPath)
 
 	// The client asks for "git-upload-pack", but the command is just "upload-pack"
 	cmdName := strings.TrimPrefix(service, "git-")
@@ -67,8 +85,8 @@ func (g *LocalGitAdapter) AdvertiseRefs(repoName string, service string) ([]byte
 	return cmd.Output()
 }
 
-func (g *LocalGitAdapter) UploadPack(repoName string, reqBody io.Reader, resWriter io.Writer) error {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) UploadPack(repoPath string, reqBody io.Reader, resWriter io.Writer) error {
+	fullPath := g.resolveRepoPath(repoPath)
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
 
 	// Magic of Go: Pipe the HTTP request body directly to the Git command's input
@@ -80,8 +98,8 @@ func (g *LocalGitAdapter) UploadPack(repoName string, reqBody io.Reader, resWrit
 }
 
 // Process incoming git pushes
-func (g *LocalGitAdapter) ReceivePack(repoName string, reqBody io.Reader, resWriter io.Writer) error {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) ReceivePack(repoPath string, reqBody io.Reader, resWriter io.Writer) error {
+	fullPath := g.resolveRepoPath(repoPath)
 
 	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", fullPath)
 
@@ -94,8 +112,8 @@ func (g *LocalGitAdapter) ReceivePack(repoName string, reqBody io.Reader, resWri
 	return cmd.Run()
 }
 
-func (g *LocalGitAdapter) GetTree(repoName string, requestPath string, branch string) ([]domain.RepoFile, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string, branch string) ([]domain.RepoFile, error) {
+	fullPath := g.resolveRepoPath(repoPath)
 
 	// 1. Open the repository
 	r, err := git.PlainOpen(fullPath)
@@ -155,8 +173,8 @@ func (g *LocalGitAdapter) GetTree(repoName string, requestPath string, branch st
 	return files, nil
 }
 
-func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string, branch string) (string, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string, branch string) (string, error) {
+	fullPath := g.resolveRepoPath(repoPath)
 
 	r, err := git.PlainOpen(fullPath)
 	if err != nil {
@@ -193,8 +211,8 @@ func (g *LocalGitAdapter) GetBlob(repoName string, requestPath string, branch st
 	return content, nil
 }
 
-func (g *LocalGitAdapter) GetCommits(repoName string, branch string) ([]domain.Commit, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) GetCommits(repoPath string, branch string) ([]domain.Commit, error) {
+	fullPath := g.resolveRepoPath(repoPath)
 
 	// 1. Open the repository
 	r, err := git.PlainOpen(fullPath)
@@ -250,8 +268,8 @@ func getBranchRef(r *git.Repository, branch string) (*plumbing.Reference, error)
 	return r.Reference(plumbing.ReferenceName("refs/heads/"+branch), true)
 }
 
-func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) {
-	fullPath := filepath.Join(g.storageRoot, repoName+".git")
+func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) {
+	fullPath := g.resolveRepoPath(repoPath)
 	r, err := git.PlainOpen(fullPath)
 	if err != nil {
 		return nil, err
@@ -282,11 +300,53 @@ func (g *LocalGitAdapter) GetBranches(repoName string) ([]domain.Branch, error) 
 	return branches, err
 }
 
+func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string, fromBranch string) (*domain.Branch, error) {
+	if strings.TrimSpace(newBranch) == "" {
+		return nil, errors.New("branch name cannot be empty")
+	}
+
+	fullPath := g.resolveRepoPath(repoPath)
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	newRefName := plumbing.NewBranchReferenceName(newBranch)
+	if err := newRefName.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid branch name: %w", err)
+	}
+
+	if _, err := r.Reference(newRefName, true); err == nil {
+		return nil, errors.New("branch already exists")
+	} else if err != plumbing.ErrReferenceNotFound {
+		return nil, err
+	}
+
+	sourceRef, err := getBranchRef(r, fromBranch)
+	if err != nil {
+		if fromBranch == "" {
+			return nil, errors.New("cannot create branch: repository has no commits yet")
+		}
+		return nil, fmt.Errorf("source branch not found: %w", err)
+	}
+
+	newRef := plumbing.NewHashReference(newRefName, sourceRef.Hash())
+	if err := r.Storer.SetReference(newRef); err != nil {
+		return nil, fmt.Errorf("failed to create branch: %w", err)
+	}
+
+	return &domain.Branch{
+		Name:       newBranch,
+		CommitHash: sourceRef.Hash().String(),
+		IsDefault:  false,
+	}, nil
+}
+
 func (g *LocalGitAdapter) MergeBranches(
-	repoName string, sourceBranch string, targetBranch string,
+	repoPath string, sourceBranch string, targetBranch string,
 	mergerName string, commitMessage string,
 ) error {
-	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+	bareRepoPath := g.resolveRepoPath(repoPath)
 
 	// 1. Create a temporary directory for the working tree
 	tempDir, err := os.MkdirTemp("", "synergit-merge-*")

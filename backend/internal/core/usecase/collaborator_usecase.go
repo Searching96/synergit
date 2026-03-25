@@ -22,9 +22,9 @@ func NewCollaboratorService(collaboratorStore port.CollaboratorRepository) *Coll
 func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID, role string, requesterID uuid.UUID) error {
 	role = strings.ToUpper(role)
 
-	validRoles := map[string]bool{"OWNER": true, "MAINTAINER": true, "WRITE": true, "READ": true}
+	validRoles := map[string]bool{"OWNER": true, "MAINTAINER": true, "WRITE": true}
 	if !validRoles[role] {
-		return errors.New("invalid role: must be OWNER, MAINTAINER, WRITE, or READ")
+		return errors.New("invalid role: must be OWNER, MAINTAINER, or WRITE")
 	}
 
 	requesterRole, err := s.collaboratorStore.GetRole(repoID, requesterID)

@@ -79,3 +79,23 @@ func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 
 	return repo, nil
 }
+
+func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
+	query := `
+		SELECT id, name, path, created_at
+		FROM repositories
+		WHERE REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
+		ORDER BY created_at DESC
+		LIMIT 1`
+
+	repo := &domain.Repo{}
+	err := p.db.QueryRow(query, ownerUsername, repoName).Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return repo, nil
+}

@@ -49,18 +49,21 @@ func main() {
 	dbRepoAdapter := postgres.NewPostgresRepoStore(db)
 	dbUserAdapter := postgres.NewPostgresUserStore(db)
 	dbCollabAdapter := postgres.NewPostgresCollaboratorStore(db)
+	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter)
+	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter, dbUserAdapter)
 	authUsecase := usecase.NewAuthService(dbUserAdapter, jwtSecret)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
+	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter, gitAdapter, dbRepoAdapter, dbUserAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoUsecase)
 	authHandler := httpHandler.NewAuthHandler(authUsecase)
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUsecase)
+	prHandler := httpHandler.NewPullRequestHandler(prUsecase)
 
 	// 5. Set up the gin router
 	router := gin.Default()
@@ -74,6 +77,11 @@ func main() {
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
+
+	// Public Git Smart HTTP routes for clone/fetch operations
+	router.GET("/:username/:repo_git/info/refs", repoHandler.HandleInfoRefsPublic)
+	router.POST("/:username/:repo_git/git-upload-pack", repoHandler.HandleUploadPackPublic)
+	router.POST("/:username/:repo_git/git-receive-pack", repoHandler.HandleReceivePackPublic)
 
 	// Group routes for clean versioning
 	v1 := router.Group("/api/v1")
@@ -89,17 +97,26 @@ func main() {
 		repos := v1.Group("/repos")
 		repos.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			// Existing repo routes
+			// Repo routes
 			repos.POST("", repoHandler.HandleCreateRepo)
 			repos.GET("", repoHandler.HandleGetRepos)
+			repos.POST("/:repo_id/branches", repoHandler.HandleCreateBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)
 
+			// Collab routes
 			repos.POST("/:repo_id/collaborators", collabHandler.HandleAddCollaborator)
 			repos.GET("/:repo_id/collaborators", collabHandler.HandleGetCollaborators)
 			repos.DELETE("/:repo_id/collaborators/:user_id", collabHandler.HandleRemoveCollaborator)
+
+			// Pull request routes
+			repos.POST("/:repo_id/pulls", prHandler.HandleCreatePullRequest)
+			repos.GET("/:repo_id/pulls", prHandler.HandleListPullRequests)
+			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
+			repos.POST("/:repo_id/pulls/:pull_id/merge", prHandler.HandleMergePullRequest)
+			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
 		}
 	}
 
