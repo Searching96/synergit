@@ -3,9 +3,12 @@ package postgres
 import (
 	"database/sql"
 	"synergit/internal/core/domain"
+	"synergit/internal/core/port"
 
 	"github.com/google/uuid"
 )
+
+var _ port.CollaboratorRepository = (*PostgresCollaboratorStore)(nil)
 
 type PostgresCollaboratorStore struct {
 	db *sql.DB

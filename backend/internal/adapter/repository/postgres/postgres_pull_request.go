@@ -3,9 +3,12 @@ package postgres
 import (
 	"database/sql"
 	"synergit/internal/core/domain"
+	"synergit/internal/core/port"
 
 	"github.com/google/uuid"
 )
+
+var _ port.PullRequestRepository = (*PostgresPullRequestStore)(nil)
 
 type PostgresPullRequestStore struct {
 	db *sql.DB

@@ -140,3 +140,104 @@ func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID
 
 	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusClosed)
 }
+
+func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,
+	requesterID uuid.UUID) ([]domain.ConflictFile, error) {
+
+	// 1. Fetch the PR
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return nil, errors.New("pull request not found")
+	}
+
+	// 2. Optional: Verify they are at least a collaborator on the repo
+	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
+	if err != nil || role == "" {
+		return nil, errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	// 3. Get repo name
+	repo, err := s.repoStore.FindByID(pr.RepoID)
+	if err != nil || repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	// 4. Fetch the list of conflicting files from Git
+	files, err := s.gitManager.GetConflictingFiles(repo.Name, pr.SourceBranch,
+		pr.TargetBranch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get conflicting files: %w", err)
+	}
+
+	// 5. Fetch the raw content with conflict markers for each file
+	var conflicts []domain.ConflictFile
+	for _, file := range files {
+		content, err := s.gitManager.GetConflictContent(repo.Name, pr.SourceBranch,
+			pr.TargetBranch, file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get conflict content for file %s: %w",
+				file, err)
+		}
+
+		conflicts = append(conflicts, domain.ConflictFile{
+			Path:    file,
+			Content: content,
+		})
+	}
+
+	return conflicts, nil
+}
+
+func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.UUID,
+	commitMessage string, resolutions []domain.ConflictResolution) error {
+
+	// 1. Fetch the PR
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return errors.New("pull request not found")
+	}
+
+	if pr.Status != domain.PullRequestStatusOpen {
+		return errors.New("only open pull requests can have conflicts resolved")
+	}
+
+	// 2. Verify Permissions (Must be PR Creator, or have WRITE/MAINTAINER/OWNER)
+	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
+	if pr.CreatorID != requesterID && role != "OWNER" && role != "MAINTAINER" &&
+		role != "WRITE" {
+
+		return errors.New(
+			"unauthorized: you do not have permission to resolve conflicts for this repo",
+		)
+	}
+
+	// 3. Get repo name
+	repo, err := s.repoStore.FindByID(pr.RepoID)
+	if err != nil || repo == nil {
+		return errors.New("repository not found")
+	}
+
+	// 4. Get user details for the Git commit
+	resolverName := ""
+	user, err := s.userStore.GetUserByID(requesterID)
+	if err == nil && user != nil {
+		resolverName = user.Username
+	}
+	if resolverName == "" {
+		return errors.New("resolver user not found")
+	}
+
+	// Default commit message if none provided
+	if commitMessage == "" {
+		commitMessage = fmt.Sprintf("Resolve merge conflicts for PR #%s", pr.ID.String())
+	}
+
+	// 5. Execute the Git operation
+	err = s.gitManager.ResolveConflictsAndCommit(repo.Name, pr.SourceBranch,
+		pr.TargetBranch, resolverName, commitMessage, resolutions)
+	if err != nil {
+		return fmt.Errorf("failed to resolve conflicts: %w", err)
+	}
+
+	return nil
+}

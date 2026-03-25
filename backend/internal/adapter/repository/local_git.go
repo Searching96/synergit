@@ -50,7 +50,9 @@ func (g *LocalGitAdapter) resolveRepoPath(repoLocator string) string {
 // InitBareRepo satisfies the port.GitManager interface
 func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
 	cleanSlug := path.Clean(strings.TrimSpace(repoSlug))
-	if cleanSlug == "." || strings.HasPrefix(cleanSlug, "../") || strings.Contains(cleanSlug, "/../") {
+	if cleanSlug == "." || strings.HasPrefix(cleanSlug, "../") ||
+		strings.Contains(cleanSlug, "/../") {
+
 		return "", errors.New("invalid repository path")
 	}
 
@@ -85,7 +87,9 @@ func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte
 	return cmd.Output()
 }
 
-func (g *LocalGitAdapter) UploadPack(repoPath string, reqBody io.Reader, resWriter io.Writer) error {
+func (g *LocalGitAdapter) UploadPack(repoPath string, reqBody io.Reader,
+	resWriter io.Writer) error {
+
 	fullPath := g.resolveRepoPath(repoPath)
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
 
@@ -98,7 +102,9 @@ func (g *LocalGitAdapter) UploadPack(repoPath string, reqBody io.Reader, resWrit
 }
 
 // Process incoming git pushes
-func (g *LocalGitAdapter) ReceivePack(repoPath string, reqBody io.Reader, resWriter io.Writer) error {
+func (g *LocalGitAdapter) ReceivePack(repoPath string, reqBody io.Reader,
+	resWriter io.Writer) error {
+
 	fullPath := g.resolveRepoPath(repoPath)
 
 	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", fullPath)
@@ -112,7 +118,9 @@ func (g *LocalGitAdapter) ReceivePack(repoPath string, reqBody io.Reader, resWri
 	return cmd.Run()
 }
 
-func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string, branch string) ([]domain.RepoFile, error) {
+func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string,
+	branch string) ([]domain.RepoFile, error) {
+
 	fullPath := g.resolveRepoPath(repoPath)
 
 	// 1. Open the repository
@@ -173,7 +181,9 @@ func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string, branch st
 	return files, nil
 }
 
-func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string, branch string) (string, error) {
+func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string,
+	branch string) (string, error) {
+
 	fullPath := g.resolveRepoPath(repoPath)
 
 	r, err := git.PlainOpen(fullPath)
@@ -211,7 +221,9 @@ func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string, branch st
 	return content, nil
 }
 
-func (g *LocalGitAdapter) GetCommits(repoPath string, branch string) ([]domain.Commit, error) {
+func (g *LocalGitAdapter) GetCommits(repoPath string, branch string) ([]domain.Commit,
+	error) {
+
 	fullPath := g.resolveRepoPath(repoPath)
 
 	// 1. Open the repository
@@ -300,7 +312,9 @@ func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) 
 	return branches, err
 }
 
-func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string, fromBranch string) (*domain.Branch, error) {
+func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
+	fromBranch string) (*domain.Branch, error) {
+
 	if strings.TrimSpace(newBranch) == "" {
 		return nil, errors.New("branch name cannot be empty")
 	}
@@ -402,6 +416,157 @@ func (g *LocalGitAdapter) MergeBranches(
 	// 6. Push the merged target branch back to the bare repository
 	if err := runGitCmd("push", "origin", targetBranch); err != nil {
 		return fmt.Errorf("failed to push merged branch: %w", err)
+	}
+
+	return nil
+}
+
+func (a *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch string,
+	targetBranch string) ([]string, error) {
+
+	bareRepoPath := filepath.Join(a.storageRoot, repoName)
+	tempDir, err := os.MkdirTemp("", "synergit-conflict-check-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) (string, error) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+
+	// Clone and prepare
+	if _, err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return nil, fmt.Errorf("failed to clone: %w", err)
+	}
+
+	if _, err := runGit("checkout", targetBranch); err != nil {
+		return nil, fmt.Errorf("failed to checkout target: %w", err)
+	}
+
+	// Attmept the merge (we expect this to fail if there are conflicts)
+	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+
+	// Get unmerged files (files with conflicts)
+	out, err := runGit("diff", "--name-only", "--diff-filter=U")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get diff: %w", err)
+	}
+
+	var files []string
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	for _, line := range lines {
+		if line != "" {
+			files = append(files, line)
+		}
+	}
+
+	return files, nil
+}
+
+func (g *LocalGitAdapter) GetConflictContent(repoName string, sourceBranch string,
+	targetBranch string, filePath string) (string, error) {
+
+	// Note: In a heavily optimized system, we should cache the temp dir state.
+	// For now, doing a fresh clone is safest and ensures no state leakage.
+	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+	tempDir, err := os.MkdirTemp("", "synergit-conflict-content-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		return cmd.Run()
+	}
+
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return "", fmt.Errorf("failed to clone: %w", err)
+	}
+	if err := runGit("checkout", targetBranch); err != nil {
+		return "", fmt.Errorf("failed to checkout target: %w", err)
+	}
+
+	// Trigger the conflict
+	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+
+	// Read the specific file that contains the Git conflict markers
+	// (e.g., <<<<<<<, =======, >>>>>>>)
+	fullPath := filepath.Join(tempDir, filePath)
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read conflicting file: %w", err)
+	}
+
+	return string(content), nil
+}
+
+func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranch string,
+	targetBranch string, resolverName string, commitMessage string,
+	resolutions []domain.ConflictResolution) error {
+
+	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+	tempDir, err := os.MkdirTemp("", "synergit-conflict-resolve-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		var stderr bytes.Buffer
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], stderr.String())
+		}
+		return nil
+	}
+
+	// 1. Clone
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return err
+	}
+
+	// 2. Checkout the source branch (we are fixing the feature branch so it can be merged)
+	if err := runGit("checkout", sourceBranch); err != nil {
+		return err
+	}
+
+	// 3. Configure Git user
+	resolverEmail := fmt.Sprintf("%s@synergit.local", resolverName)
+	runGit("config", "user.name", resolverName)
+	runGit("config", "user.email", resolverEmail)
+
+	// 4. Trigger the conflict my merging the target branch into the source branch
+	// This will fail with a conflict, which is exactly what we want.
+	runGit("merge", "origin/"+targetBranch, "--no-commit", "--no-ff")
+
+	// 5. Overwrite the conflicted files with the user's resolved text
+	for _, res := range resolutions {
+		fullPath := filepath.Join(tempDir, res.Path)
+		if err := os.WriteFile(fullPath, []byte(res.ResolvedContent), 0644); err != nil {
+			return fmt.Errorf("failed to write resolved content to %s: %w",
+				res.ResolvedContent)
+		}
+		// Stage the resolved file
+		if err := runGit("add", res.Path); err != nil {
+			return err
+		}
+	}
+
+	// 6. Complete the merge by committing the resolutions
+	if err := runGit("commit", "-m", commitMessage); err != nil {
+		return fmt.Errorf("failed to commit resolutions: %w", err)
+	}
+
+	// 7. Push the fixed source branch back to the bare server
+	if err := runGit("push", "origin", sourceBranch); err != nil {
+		return fmt.Errorf("failed to push resolved branch: %w", err)
 	}
 
 	return nil

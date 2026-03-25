@@ -18,7 +18,8 @@ type GitManager interface {
 	// Method for pushing code
 	ReceivePack(repoPath string, reqBody io.Reader, resWriter io.Writer) error
 
-	// Method for file tree view, path can be empty for the root directory, this returns file paths
+	// Method for file tree view, path can be empty for the root directory,
+	// this returns file paths
 	GetTree(repoPath string, path string, branch string) ([]domain.RepoFile, error)
 
 	// Method for getting file content
@@ -28,7 +29,21 @@ type GitManager interface {
 	GetCommits(repoPath string, branch string) ([]domain.Commit, error)
 
 	GetBranches(repoPath string) ([]domain.Branch, error)
-	CreateBranch(repoPath string, newBranch string, fromBranch string) (*domain.Branch, error)
+	CreateBranch(repoPath string, newBranch string,
+		fromBranch string) (*domain.Branch, error)
 	MergeBranches(repoPath string, sourceBranch string, targetBranch string,
 		mergerName string, commitMessage string) error
+
+	// Returns a list of file paths that have merge conflicts
+	GetConflictingFiles(repoName string, sourceBranch string,
+		targetBranch string) ([]string, error)
+
+	// Returns the raw file content with Git's conflict markers inserted
+	GetConflictContent(repoName string, sourceBranch string,
+		targetBranch string, filePath string) (string, error)
+
+	// Takes the resolved contents, commits them to the source branch, and pushes
+	ResolveConflictsAndCommit(repoName string, sourceBranch string,
+		targetBranch string, resolverName string, commitMessage string,
+		resolutions []domain.ConflictResolution) error
 }

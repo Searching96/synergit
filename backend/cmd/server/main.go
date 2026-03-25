@@ -54,10 +54,12 @@ func main() {
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
 
-	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter, dbUserAdapter)
+	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
+		dbUserAdapter)
 	authUsecase := usecase.NewAuthService(dbUserAdapter, jwtSecret)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
-	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter, gitAdapter, dbRepoAdapter, dbUserAdapter)
+	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
+		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoUsecase)
@@ -107,9 +109,9 @@ func main() {
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)
 
 			// Collab routes
-			repos.POST("/:repo_id/collaborators", collabHandler.HandleAddCollaborator)
-			repos.GET("/:repo_id/collaborators", collabHandler.HandleGetCollaborators)
-			repos.DELETE("/:repo_id/collaborators/:user_id", collabHandler.HandleRemoveCollaborator)
+			repos.POST("/:repo_id/collabs", collabHandler.HandleAddCollaborator)
+			repos.GET("/:repo_id/collabs", collabHandler.HandleGetCollaborators)
+			repos.DELETE("/:repo_id/collabs/:user_id", collabHandler.HandleRemoveCollaborator)
 
 			// Pull request routes
 			repos.POST("/:repo_id/pulls", prHandler.HandleCreatePullRequest)
@@ -117,6 +119,10 @@ func main() {
 			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/merge", prHandler.HandleMergePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
+
+			// Resolve conflicts routes
+			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)
+			repos.POST("/:repo_id/pulls/:pull_id/conflicts/resolve", prHandler.HandleResolveConflicts)
 		}
 	}
 

@@ -26,3 +26,13 @@ type PullRequest struct {
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
 }
+
+type ConflictFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"` // The raw text containing the Git conflict markers
+}
+
+type ConflictResolution struct {
+	Path            string `json:"path" binding:"required"`
+	ResolvedContent string `json:"resolved_content" binding:"required"`
+}

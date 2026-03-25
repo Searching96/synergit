@@ -14,9 +14,10 @@ type PullRequestRepository interface {
 }
 
 type PullRequestUsecase interface {
-	CreatePullRequest(repoID uuid.UUID, creatorID uuid.UUID,
-		title string, description string, sourceBranch string,
-		targetBranch string) (*domain.PullRequest, error)
+	CreatePullRequest(
+		repoID uuid.UUID, creatorID uuid.UUID, title string, description string,
+		sourceBranch string, targetBranch string,
+	) (*domain.PullRequest, error)
 	GetPullRequest(id uuid.UUID) (*domain.PullRequest, error)
 	ListPullRequestsForRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
 
@@ -24,4 +25,10 @@ type PullRequestUsecase interface {
 	// calling the Git port to actually merge the code and updating DB
 	MergePullRequest(prID uuid.UUID, mergerID uuid.UUID) error
 	ClosePullRequest(prID uuid.UUID, closerID uuid.UUID) error
+
+	// For handling merge conflicts
+	GetMergeConflicts(prID uuid.UUID, requesterID uuid.UUID) ([]domain.ConflictFile,
+		error)
+	ResolveConflicts(prID uuid.UUID, requesterID uuid.UUID, commitMessage string,
+		resolutions []domain.ConflictResolution) error
 }

@@ -145,3 +145,59 @@ func (h *PullRequestHandler) HandleClosePullRequest(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "pull request closed successfully"})
 }
+
+func (h *PullRequestHandler) HandleGetMergeConflicts(c *gin.Context) {
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requesterIDStr, _ := c.Get("user_id")
+	requesterID, err := uuid.Parse(requesterIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid requester token"})
+		return
+	}
+
+	conflicts, err := h.prUsecase.GetMergeConflicts(pullID, requesterID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, conflicts)
+}
+
+func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requesterIDStr, _ := c.Get("user_id")
+	requesterID, err := uuid.Parse(requesterIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid requester token"})
+		return
+	}
+
+	var req dto.ResolveConflictsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request payload: " + err.Error()})
+		return
+	}
+
+	err = h.prUsecase.ResolveConflicts(pullID, requesterID, req.CommitMessage, req.Resolutions)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{
+		Message: "conflicts resolved and pull request merged successfully",
+	})
+}
