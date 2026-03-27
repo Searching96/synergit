@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement, type MouseEvent as ReactMouseEvent } from "react";
 import type { RepoFile } from "../types";
-import { ArrowLeft, FileText, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import { reposApi } from "../services/api";
 
 interface FileExplorerProps {
@@ -9,91 +9,303 @@ interface FileExplorerProps {
 }
 
 export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
-	const [tree, setTree] = useState<RepoFile[]>([]);
+	const [treeByPath, setTreeByPath] = useState<Record<string, RepoFile[]>>({});
+	const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(['']));
 	const [currentPath, setCurrentPath] = useState<string>('');
 	const [fileContent, setFileContent] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [draftContent, setDraftContent] = useState<string>('');
+  const [commitMessage, setCommitMessage] = useState<string>('');
+  const [isCommitting, setIsCommitting] = useState<boolean>(false);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const [fileLoading, setFileLoading] = useState<boolean>(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(288);
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  
+  const prevRepoIdRef = useRef<string>(repoId);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(288);
 
-	// Load root on mount or repo change
+	// Keep current opened file when branch changes; reset only on repository changes.
 	useEffect(() => {
-		loadTree('');
+    const repoChanged = prevRepoIdRef.current !== repoId;
+    prevRepoIdRef.current = repoId;
+
+    if (repoChanged) {
+      setExpandedDirs(new Set(['']));
+		  loadDir('');
+      setCurrentPath('');
+      setFileContent(null);
+      setIsEditing(false);
+      setDraftContent('');
+      setCommitMessage('');
+      setCommitError(null);
+      return;
+    }
+
+    loadDir('');
+
+    if (fileContent !== null && currentPath) {
+      loadBlob(currentPath);
+      return;
+    }
   }, [repoId, branch])
 
-	const loadTree = (path: string) => {
-		setCurrentPath(path);
-		setFileContent(null);
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const min = 200;
+      const max = Math.floor(window.innerWidth * 0.55);
+      const nextWidth = resizeStartWidthRef.current + (e.clientX - resizeStartXRef.current);
+      setSidebarWidth(Math.max(min, Math.min(max, nextWidth)));
+    };
+
+    const onMouseUp = () => setIsResizingSidebar(false);
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isResizingSidebar]);
+
+	const loadDir = (path: string) => {
     reposApi.getTree(repoId, path, branch)
-			.then((data) => setTree(data || []))
+			.then((data) => {
+        setTreeByPath((prev) => ({ ...prev, [path]: data || [] }));
+      })
 			.catch(console.error);
 	};
 
 	const loadBlob = (path: string) => {
 		setCurrentPath(path);
+    setCommitError(null);
+    setFileLoading(true);
     reposApi.getBlob(repoId, path, branch)
 			.then((data) => {
 				const textToDisplay = typeof data === 'string' ? data : data.content;
 				setFileContent(textToDisplay);
+        setDraftContent(textToDisplay);
+        setIsEditing(false);
 			})
-			.catch(console.error);
+			.catch(console.error)
+      .finally(() => setFileLoading(false));
 	}
+
+  const handleCommitChanges = async () => {
+    if (!currentPath || fileContent === null || !commitMessage.trim()) return;
+
+    try {
+      setIsCommitting(true);
+      setCommitError(null);
+
+      await reposApi.commitFileChange(repoId, {
+        branch,
+        path: currentPath,
+        content: draftContent,
+        commit_message: commitMessage.trim(),
+      });
+
+      setFileContent(draftContent);
+      setIsEditing(false);
+      setCommitMessage('');
+    } catch (err: any) {
+      setCommitError(err?.message || 'Failed to commit changes');
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+
+    const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
+    setDraftContent(updated);
+
+    requestAnimationFrame(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + 1;
+    });
+  };
 
 	const handleItemClick = (item: RepoFile) => {
 		if (item.type === 'dir') {
-			loadTree(item.path);
+			setExpandedDirs((prev) => {
+        const next = new Set(prev);
+        if (next.has(item.path)) {
+          next.delete(item.path);
+        } else {
+          next.add(item.path);
+          if (!treeByPath[item.path]) {
+            loadDir(item.path);
+          }
+        }
+        return next;
+      });
 		} else {
 			loadBlob(item.path);
 		}
 	};
 
-	const goBack = () => {
-		const pathParts = currentPath.split('/')
-		pathParts.pop();
-		loadTree(pathParts.join('/'));
-	};
+  const sortEntries = (entries: RepoFile[]) => {
+    return [...entries].sort((a, b) => {
+      if (a.type === b.type) return a.name.localeCompare(b.name);
+      return a.type === 'dir' ? -1 : 1;
+    });
+  };
+
+  const renderDir = (path: string, depth: number = 0): ReactElement[] => {
+    const entries = sortEntries(treeByPath[path] || []);
+    const nodes: ReactElement[] = [];
+
+    entries.forEach((item) => {
+      const isDir = item.type === 'dir';
+      const isExpanded = isDir && expandedDirs.has(item.path);
+      const isActiveFile = !isDir && currentPath === item.path;
+
+      nodes.push(
+        <button
+          key={item.path}
+          onClick={() => handleItemClick(item)}
+          className={`w-full flex items-center gap-2 py-1.5 pr-2 text-sm text-left hover:bg-gray-100 ${
+            isActiveFile ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+          }`}
+          style={{ paddingLeft: `${8 + depth * 16}px` }}
+        >
+          {isDir ? (
+            isExpanded ? <ChevronDown size={14} className="text-gray-500 shrink-0" /> : <ChevronRight size={14} className="text-gray-500 shrink-0" />
+          ) : (
+            <span className="w-[14px] shrink-0" />
+          )}
+
+          {isDir ? <Folder size={16} className="text-gray-500 shrink-0" /> : <FileText size={16} className="text-gray-400 shrink-0" />}
+          <span className="truncate">{item.name}</span>
+        </button>,
+      );
+
+      if (isDir && isExpanded) {
+        nodes.push(...renderDir(item.path, depth + 1));
+      }
+    });
+
+    return nodes;
+  };
 
 	return (
-    <div>
-      {/* Breadcrumb / Back Navigation */}
-      <div className="flex items-center mb-4">
-        {currentPath !== '' && (
-          <button onClick={goBack} className="flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm mr-4">
-            <ArrowLeft size={16} className="mr-2" /> Back
-          </button>
-        )}
-        <span className="text-gray-600 font-mono text-sm">{currentPath || '/ (root)'}</span>
+    <div className="h-full min-h-0 flex border border-gray-200 rounded-md overflow-hidden bg-white">
+      <div
+        className="border-r border-gray-200 bg-gray-50 overflow-y-auto"
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200">
+          Files
+        </div>
+        <div className="py-2">{renderDir('')}</div>
       </div>
 
-      {/* Content Viewer */}
-      {fileContent !== null ? (
-        <div className="border border-gray-200 rounded-md shadow-sm overflow-hidden">
-          <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 flex items-center">
-            <FileText size={16} className="mr-2" />
-            {currentPath.split('/').pop()}
-          </div>
-          <div className="bg-white p-4 overflow-x-auto">
-            <pre className="text-sm font-mono text-gray-800 leading-relaxed">
-              <code>{fileContent}</code>
-            </pre>
-          </div>
+      <div
+        className="w-1 cursor-col-resize bg-gray-100 hover:bg-blue-300 transition-colors"
+        onMouseDown={(e: ReactMouseEvent<HTMLDivElement>) => {
+          resizeStartXRef.current = e.clientX;
+          resizeStartWidthRef.current = sidebarWidth;
+          setIsResizingSidebar(true);
+        }}
+      />
+
+      <div className="flex-1 min-w-0 flex flex-col bg-white">
+        <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200 font-mono">
+          {currentPath || '/ (root)'}
         </div>
-      ) : (
-        <div className="border border-gray-200 rounded-md shadow-sm">
-          {tree.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 text-sm bg-gray-50 rounded-md">This folder is empty.</div>
+
+        {currentPath && fileContent !== null ? (
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText size={16} className="mr-2" />
+              {currentPath.split('/').pop()}
+            </div>
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(true);
+                  setDraftContent(fileContent);
+                  setCommitError(null);
+                }}
+                className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Edit
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  setDraftContent(fileContent);
+                  setCommitError(null);
+                }}
+                className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div className="bg-white p-4 space-y-3">
+              <textarea
+                className="w-full min-h-[360px] border border-gray-300 rounded-md p-3 font-mono text-sm"
+                value={draftContent}
+                onChange={(e) => setDraftContent(e.target.value)}
+                onKeyDown={handleTextareaKeyDown}
+                spellCheck={false}
+              />
+
+              <input
+                type="text"
+                value={commitMessage}
+                onChange={(e) => setCommitMessage(e.target.value)}
+                placeholder="Commit message"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+
+              {commitError && <div className="text-sm text-red-600">{commitError}</div>}
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={isCommitting || !commitMessage.trim()}
+                  onClick={handleCommitChanges}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-md hover:bg-black disabled:opacity-50"
+                >
+                  {isCommitting ? 'Committing...' : 'Commit Changes'}
+                </button>
+              </div>
+            </div>
           ) : (
-            <ul className="divide-y divide-gray-200 bg-white rounded-md">
-              {[...tree].sort((a, b) => {
-                if (a.type === b.type) return a.name.localeCompare(b.name);
-                return a.type === 'dir' ? -1 : 1;
-              }).map((item) => (
-                <li key={item.path} onClick={() => handleItemClick(item)} className="px-4 py-2.5 hover:bg-gray-50 cursor-pointer flex items-center text-sm transition-colors group">
-                  {item.type === 'dir' ? <Folder size={18} className="mr-3 text-blue-400 fill-blue-100" /> : <FileText size={18} className="mr-3 text-gray-400" />}
-                  <span className="text-gray-700 group-hover:text-blue-600">{item.name}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="bg-white p-4 overflow-auto">
+              <pre className="text-sm font-mono text-gray-800 leading-relaxed">
+                <code>{fileContent}</code>
+              </pre>
+            </div>
           )}
         </div>
-      )}
+        ) : fileLoading ? (
+          <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading file...</div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+            Select a file from the sidebar to view its content.
+          </div>
+        )}
+      </div>
     </div>
-  );
+	);
 }

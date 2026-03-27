@@ -31,4 +31,6 @@ type RepoUsecase interface {
 	GetRepoCommits(repoID uuid.UUID, branch string) ([]domain.Commit, error)
 	GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
+	CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,
+		filePath string, content string, commitMessage string) error
 }

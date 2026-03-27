@@ -356,6 +356,93 @@ func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
 	}, nil
 }
 
+func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
+	filePath string, content string, authorName string, commitMessage string) error {
+
+	if strings.TrimSpace(branch) == "" {
+		return errors.New("branch is required")
+	}
+
+	if strings.TrimSpace(filePath) == "" {
+		return errors.New("file path is required")
+	}
+
+	if strings.TrimSpace(commitMessage) == "" {
+		return errors.New("commit message is required")
+	}
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+
+	tempDir, err := os.MkdirTemp("", "synergit-edit-commit-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	if err := runGit("checkout", "-B", branch, "origin/"+branch); err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
+	}
+
+	cleanPath := filepath.Clean(filepath.FromSlash(filePath))
+	if cleanPath == "." || filepath.IsAbs(cleanPath) {
+		return errors.New("invalid file path")
+	}
+
+	fullPath := filepath.Join(tempDir, cleanPath)
+	relPath, err := filepath.Rel(tempDir, fullPath)
+	if err != nil || strings.HasPrefix(relPath, "..") {
+		return errors.New("invalid file path")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+		return fmt.Errorf("failed to create file directory: %w", err)
+	}
+
+	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	if err := runGit("add", cleanPath); err != nil {
+		return fmt.Errorf("failed to stage file: %w", err)
+	}
+
+	email := fmt.Sprintf("%s@synergit.local", authorName)
+	if err := runGit("config", "user.name", authorName); err != nil {
+		return err
+	}
+	if err := runGit("config", "user.email", email); err != nil {
+		return err
+	}
+
+	if err := runGit("commit", "-m", commitMessage); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "nothing to commit") {
+			return errors.New("no changes to commit")
+		}
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	if err := runGit("push", "origin", branch); err != nil {
+		return fmt.Errorf("failed to push branch: %w", err)
+	}
+
+	return nil
+}
+
 func (g *LocalGitAdapter) MergeBranches(
 	repoPath string, sourceBranch string, targetBranch string,
 	mergerName string, commitMessage string,
@@ -563,9 +650,10 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		return err
 	}
 
-	// 2. Checkout the source branch (we are fixing the feature branch so it can be merged)
-	if err := runGit("checkout", "-B", sourceBranch, "origin/"+sourceBranch); err != nil {
-		return fmt.Errorf("failed to checkout source branch: %w", err)
+	// 2. Checkout the target branch. Resolutions should be committed on target,
+	// preserving source branch history.
+	if err := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); err != nil {
+		return fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
 	// 3. Configure Git user
@@ -573,9 +661,9 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 	runGit("config", "user.name", resolverName)
 	runGit("config", "user.email", resolverEmail)
 
-	// 4. Trigger the conflict my merging the target branch into the source branch
+	// 4. Trigger conflict by merging source into target.
 	// This will fail with a conflict, which is exactly what we want.
-	runGit("merge", "origin/"+targetBranch, "--no-commit", "--no-ff")
+	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
 
 	// 5. Overwrite the conflicted files with the user's resolved text
 	for _, res := range resolutions {
@@ -595,8 +683,8 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		return fmt.Errorf("failed to commit resolutions: %w", err)
 	}
 
-	// 7. Push the fixed source branch back to the bare server
-	if err := runGit("push", "origin", sourceBranch); err != nil {
+	// 7. Push the merged target branch back to the bare server.
+	if err := runGit("push", "origin", targetBranch); err != nil {
 		return fmt.Errorf("failed to push resolved branch: %w", err)
 	}
 

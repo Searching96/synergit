@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from "react";
 import type { Branch, PullRequest } from "../types";
 import { pullsApi } from "../services/api/pull";
 import { AlertCircle, CheckCircle, Clock, GitMerge, GitPullRequest } from "lucide-react";
@@ -23,6 +23,10 @@ export default function PullRequestList({ repoId, branches, defaultSourceBranch 
   const [prDescription, setPrDescription] = useState('');
   const [prSourceBranch, setPrSourceBranch] = useState('');
   const [prTargetBranch, setPrTargetBranch] = useState('');
+  const [leftPaneWidth, setLeftPaneWidth] = useState<number>(210);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartXRef = useRef(0);
+  const resizeStartWidthRef = useRef(210);
 
   const fetchPulls = async () => {
     try {
@@ -65,6 +69,27 @@ export default function PullRequestList({ repoId, branches, defaultSourceBranch 
     setPrSourceBranch(defaultSource);
     setPrTargetBranch(defaultTarget);
   }, [branches, defaultSourceBranch, repoId]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const min = 180;
+      const max = Math.floor(window.innerWidth * 0.5);
+      const nextWidth = resizeStartWidthRef.current + (e.clientX - resizeStartXRef.current);
+      setLeftPaneWidth(Math.max(min, Math.min(max, nextWidth)));
+    };
+
+    const onMouseUp = () => setIsResizing(false);
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isResizing]);
 
   const handleMerge = async () => {
     if (!selectedPR) return;
@@ -113,13 +138,23 @@ export default function PullRequestList({ repoId, branches, defaultSourceBranch 
     }
   };
 
+  const getPRNumber = (pullId: string): number | null => {
+    const idx = pulls.findIndex((p) => p.id === pullId);
+    if (idx === -1) return null;
+    // API list is newest-first; convert to oldest-first numbering.
+    return pulls.length - idx;
+  };
+
   if (loading) return <div className="p-4 text-gray-500">Loading pull requests...</div>;
   if (error) return <div className="p-4 text-red-500">{error}</div>;
 
   return (
     <div className="flex h-full border border-gray-200 rounded-lg overflow-hidden bg-white">
       {/* Left List Pane */}
-      <div className="w-1/3 border-r border-gray-200 bg-gray-50 overflow-y-auto">
+      <div
+        className="border-r border-gray-200 bg-gray-50 overflow-y-auto"
+        style={{ width: `${leftPaneWidth}px` }}
+      >
         <div className="p-4 border-b border-gray-200 bg-gray-100">
           <div className="font-semibold text-gray-700 flex items-center gap-2">
             <GitPullRequest size={18} />
@@ -194,7 +229,9 @@ export default function PullRequestList({ repoId, branches, defaultSourceBranch 
                 selectedPR?.id === pr.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
               }`}
             >
-              <div className="font-medium text-gray-900 truncate">{pr.title}</div>
+              <div className="font-medium text-gray-900 truncate">
+                {pr.title} {getPRNumber(pr.id) !== null ? `(PR #${getPRNumber(pr.id)})` : ''}
+              </div>
               <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                   pr.status === 'OPEN' ? 'bg-green-100 text-green-700' : 
@@ -209,32 +246,45 @@ export default function PullRequestList({ repoId, branches, defaultSourceBranch 
         )}
       </div>
 
+      <div
+        className="w-1 cursor-col-resize bg-gray-100 hover:bg-blue-300 transition-colors"
+        onMouseDown={(e: ReactMouseEvent<HTMLDivElement>) => {
+          resizeStartXRef.current = e.clientX;
+          resizeStartWidthRef.current = leftPaneWidth;
+          setIsResizing(true);
+        }}
+      />
+
       {/* Right Details Pane */}
-      <div className="w-2/3 flex flex-col bg-white overflow-y-auto">
+      <div className="flex-1 min-w-0 flex flex-col bg-white overflow-y-auto">
         {!selectedPR ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 p-8 text-center">
             Select a pull request from the list to view details or resolve conflicts.
           </div>
         ) : isResolving ? (
-          <div className="p-4 h-full">
+          <div className="h-full flex flex-col">
             <button 
               onClick={() => setIsResolving(false)}
-              className="mb-4 text-sm text-blue-600 hover:underline"
+              className="mx-4 mt-4 mb-3 text-sm text-blue-600 hover:underline w-fit"
             >
               ← Back to PR Details
             </button>
-            <ConflictResolver 
-              repoId={repoId} 
-              pullId={selectedPR.id} 
-              onResolved={() => {
-                setIsResolving(false);
-                fetchPulls();
-              }} 
-            />
+            <div className="flex-1 min-h-0 px-4 pb-4">
+              <ConflictResolver 
+                repoId={repoId} 
+                pullId={selectedPR.id} 
+                onResolved={() => {
+                  setIsResolving(false);
+                  fetchPulls();
+                }} 
+              />
+            </div>
           </div>
         ) : (
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{selectedPR.title}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              {selectedPR.title} {getPRNumber(selectedPR.id) !== null ? `(PR ${getPRNumber(selectedPR.id)})` : ''}
+            </h2>
             <div className="flex items-center gap-4 text-sm text-gray-600 mb-6">
               <div className="flex items-center gap-1">
                 <GitPullRequest size={16} />

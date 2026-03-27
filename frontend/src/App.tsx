@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BookOpen, Code, GitBranch, GitPullRequest, History} from "lucide-react";
+import { BookOpen, ChevronDown, Code, GitBranch, GitPullRequest, History } from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
@@ -14,13 +14,21 @@ function App () {
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls'>('files');
 
-  const [branches, setBranches] = useState<Branch[]>([])
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
-  const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
-  const [newBranchName, setNewBranchName] = useState<string>('');
-  const [branchFrom, setBranchFrom] = useState<string>('');
+  const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
+  const [branchQuery, setBranchQuery] = useState<string>('');
   const [branchSubmitting, setBranchSubmitting] = useState<boolean>(false);
   const [branchError, setBranchError] = useState<string | null>(null);
+
+  const filteredBranches = useMemo(() => {
+    const q = branchQuery.trim().toLowerCase();
+    if (!q) return branches;
+    return branches.filter((b) => b.name.toLowerCase().includes(q));
+  }, [branches, branchQuery]);
+
+  const branchQueryTrimmed = branchQuery.trim();
+  const branchNameExists = branches.some((b) => b.name.toLowerCase() === branchQueryTrimmed.toLowerCase());
 
   const refreshBranches = () => {
     if (!selectedRepoId || !isAuthenticated) return;
@@ -39,12 +47,6 @@ function App () {
           return defaultBranch;
         });
 
-        setBranchFrom((prev) => {
-          if (prev && branchList.some((b) => b.name === prev)) {
-            return prev;
-          }
-          return defaultBranch;
-        });
       })
       .catch(console.error);
   };
@@ -70,23 +72,22 @@ function App () {
     }
   }, [selectedRepoId, isAuthenticated]);
 
-  const handleCreateBranch = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selectedRepoId || !newBranchName.trim()) return;
+  const handleCreateBranch = async () => {
+    if (!selectedRepoId || !branchQueryTrimmed) return;
 
     try {
       setBranchSubmitting(true);
       setBranchError(null);
 
       await reposApi.createBranch(selectedRepoId, {
-        name: newBranchName.trim(),
-        from_branch: branchFrom || undefined,
+        name: branchQueryTrimmed,
+        from_branch: currentBranch || undefined,
       });
 
-      setNewBranchName('');
-      setIsCreatingBranch(false);
+      setBranchQuery('');
+      setIsBranchMenuOpen(false);
       refreshBranches();
-      setCurrentBranch(newBranchName.trim());
+      setCurrentBranch(branchQueryTrimmed);
     } catch (err: any) {
       setBranchError(err?.message || 'Failed to create branch');
     } finally {
@@ -131,13 +132,13 @@ function App () {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 p-8 w-full h-full min-w-0 min-h-0 overflow-y-auto">
         {!selectedRepo ? (
           <div className="flex h-full items-center justify-center text-gray-400">
             <h2 className="text-xl font-medium">Select a repository to view its content </h2>
           </div>
         ) : (
-          <div className="max-w-5xl mx-auto">
+          <div className="w-full h-full min-h-0">
             {/* Header & Tabs */}
             <div className="mb-6 pb-4 border-b border-gray-200">
               {/* Repo Name and Branch Selector */}
@@ -150,74 +151,77 @@ function App () {
 
                 {/* Navigation among branches */}
                 {branches.length > 0 && (
-                  <div className="flex items-center text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-md w-fit mb-1">
-                    <GitBranch size={16} className="mr-2 text-gray-500" />
-                    <select
-                      value={currentBranch}
-                      onChange={(e) => setCurrentBranch(e.target.value)}
-                      className="bg-transparent border-none focus:ring-0 cursor-pointer font-medium outline-none"
-                    >
-                      {branches.map((b) => (
-                        <option key={b.name} value={b.name}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {isCreatingBranch ? (
-                  <form onSubmit={handleCreateBranch} className="flex flex-wrap items-center gap-2 mt-1">
-                    <input
-                      value={newBranchName}
-                      onChange={(e) => setNewBranchName(e.target.value)}
-                      placeholder="new-branch-name"
-                      className="px-2 py-1 text-sm border border-gray-300 rounded-md"
-                      required
-                    />
-                    <select
-                      value={branchFrom}
-                      onChange={(e) => setBranchFrom(e.target.value)}
-                      className="px-2 py-1 text-sm border border-gray-300 rounded-md"
-                    >
-                      {branches.map((b) => (
-                        <option key={b.name} value={b.name}>{b.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      disabled={branchSubmitting}
-                      className="px-3 py-1 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-900 disabled:opacity-50"
-                    >
-                      {branchSubmitting ? 'Creating...' : 'Create'}
-                    </button>
+                  <div className="relative w-full max-w-md">
                     <button
                       type="button"
                       onClick={() => {
-                        setIsCreatingBranch(false);
+                        setIsBranchMenuOpen((prev) => !prev);
                         setBranchError(null);
                       }}
-                      className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                      className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
                     >
-                      Cancel
+                      <span className="flex items-center gap-2 truncate">
+                        <GitBranch size={16} className="text-gray-500" />
+                        <span className="truncate">{currentBranch || 'Select branch'}</span>
+                      </span>
+                      <ChevronDown size={16} className="text-gray-500" />
                     </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCreatingBranch(true);
-                      setBranchError(null);
-                      setBranchFrom(currentBranch || branches.find((b) => b.is_default)?.name || branches[0]?.name || '');
-                    }}
-                    className="w-fit px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  >
-                    Create Branch
-                  </button>
-                )}
 
-                {branchError && (
-                  <div className="text-sm text-red-600">{branchError}</div>
+                    {isBranchMenuOpen && (
+                      <div className="absolute z-20 mt-2 w-full rounded-md border border-gray-200 bg-white p-3 shadow-lg">
+                        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                          Switch branches
+                        </div>
+
+                        <input
+                          value={branchQuery}
+                          onChange={(e) => setBranchQuery(e.target.value)}
+                          placeholder="Find or create branch..."
+                          className="mb-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                        />
+
+                        <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200">
+                          {filteredBranches.length > 0 ? (
+                            filteredBranches.map((b) => (
+                              <button
+                                key={b.name}
+                                type="button"
+                                onClick={() => {
+                                  setCurrentBranch(b.name);
+                                  setIsBranchMenuOpen(false);
+                                  setBranchQuery('');
+                                  setBranchError(null);
+                                }}
+                                className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                                  currentBranch === b.name ? 'bg-gray-50 font-semibold text-gray-900' : 'text-gray-700'
+                                }`}
+                              >
+                                <span>{b.name}</span>
+                                {b.is_default && <span className="text-xs text-gray-500">default</span>}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-gray-500">No branches found.</div>
+                          )}
+                        </div>
+
+                        {branchQueryTrimmed && !branchNameExists && (
+                          <button
+                            type="button"
+                            disabled={branchSubmitting}
+                            onClick={handleCreateBranch}
+                            className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {branchSubmitting
+                              ? 'Creating branch...'
+                              : `Create branch: ${branchQueryTrimmed} from ${currentBranch}`}
+                          </button>
+                        )}
+
+                        {branchError && <div className="mt-2 text-sm text-red-600">{branchError}</div>}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -251,7 +255,7 @@ function App () {
             </div>
 
             {/* Dynamic Content Area */}
-            <div className="flex-1 p-6 overflow-hidden">
+            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' ? 'p-0' : 'p-6'}`}>
               {activeTab === 'files' && <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'pulls' && (

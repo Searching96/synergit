@@ -64,3 +64,10 @@ export interface CreatePullRequestPayload {
 	source_branch: string;
 	target_branch: string;
 }
+
+export interface CommitFileChangePayload {
+	branch: string;
+	path: string;
+	content: string;
+	commit_message: string;
+}

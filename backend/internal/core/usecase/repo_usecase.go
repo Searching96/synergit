@@ -211,3 +211,32 @@ func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromB
 
 	return s.gitManager.CreateBranch(repoPath, newBranch, fromBranch)
 }
+
+func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
+	branch string, filePath string, content string, commitMessage string) error {
+
+	if strings.TrimSpace(branch) == "" {
+		return errors.New("branch is required")
+	}
+
+	if strings.TrimSpace(filePath) == "" {
+		return errors.New("file path is required")
+	}
+
+	if strings.TrimSpace(commitMessage) == "" {
+		return errors.New("commit message is required")
+	}
+
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return err
+	}
+
+	user, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || user == nil {
+		return errors.New("requester user not found")
+	}
+
+	return s.gitManager.CommitFileChange(repoPath, branch, filePath, content,
+		user.Username, commitMessage)
+}

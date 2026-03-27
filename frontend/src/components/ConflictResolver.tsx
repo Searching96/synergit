@@ -3,6 +3,59 @@ import type { ConflictFile } from "../types";
 import { pullsApi } from "../services/api/pull";
 import { AlertTriangle, CheckCircle, FileCode, Save } from "lucide-react";
 
+type ConflictBlock = {
+	start: number;
+	end: number;
+	current: string;
+	incoming: string;
+	currentRef: string;
+	incomingRef: string;
+};
+
+type ConflictSegment =
+	| { type: 'text'; text: string }
+	| { type: 'conflict'; block: ConflictBlock };
+
+const parseConflictSegments = (content: string): ConflictSegment[] => {
+	const segments: ConflictSegment[] = [];
+	const regex = /[ \t]*<<<<<<<([^\r\n]*)\r?\n([\s\S]*?)[ \t]*=======\r?\n([\s\S]*?)[ \t]*>>>>>>>([^\r\n]*)\r?\n?/g;
+
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = regex.exec(content)) !== null) {
+		if (match.index > lastIndex) {
+			segments.push({ type: 'text', text: content.slice(lastIndex, match.index) });
+		}
+
+		segments.push({
+			type: 'conflict',
+			block: {
+				start: match.index,
+				end: regex.lastIndex,
+				currentRef: match[1].trim() || 'HEAD',
+				incomingRef: match[4].trim() || 'incoming',
+				current: match[2],
+				incoming: match[3],
+			},
+		});
+
+		lastIndex = regex.lastIndex;
+	}
+
+	if (lastIndex < content.length) {
+		segments.push({ type: 'text', text: content.slice(lastIndex) });
+	}
+
+	return segments;
+};
+
+const parseConflictBlocks = (content: string): ConflictBlock[] => {
+	return parseConflictSegments(content)
+		.filter((segment): segment is { type: 'conflict'; block: ConflictBlock } => segment.type === 'conflict')
+		.map((segment) => segment.block);
+};
+
 interface ConflictResolverProps {
 	repoId: string,
 	pullId: string,
@@ -18,6 +71,7 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 	const [loading, setLoading] = useState(true);
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [rawEditMode, setRawEditMode] = useState(false);
 
 	useEffect(() => {
 		const fetchConflicts = async () => {
@@ -45,6 +99,63 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 		if (!activeFile) return;
 		setResolutions(prev => ({ ...prev, [activeFile]: content }));
 	};
+
+	const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if (e.key !== 'Tab') return;
+		e.preventDefault();
+
+		const textarea = e.currentTarget;
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		const value = textarea.value;
+
+		const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
+		handleContentChange(updated);
+
+		requestAnimationFrame(() => {
+			textarea.selectionStart = textarea.selectionEnd = start + 1;
+		});
+	};
+
+	const applyResolutionToBlock = (mode: 'current' | 'incoming' | 'both', blockIndex: number) => {
+		if (!activeFile) return;
+
+		const content = resolutions[activeFile] || '';
+		const blocks = parseConflictBlocks(content);
+		const target = blocks[blockIndex];
+		if (!target) return;
+
+		const replacement =
+			mode === 'current' ? target.current :
+			mode === 'incoming' ? target.incoming :
+			`${target.current}${target.incoming}`;
+
+		const updated = `${content.slice(0, target.start)}${replacement}${content.slice(target.end)}`;
+		setResolutions(prev => ({ ...prev, [activeFile]: updated }));
+	};
+
+	const applyResolutionToAll = (mode: 'current' | 'incoming' | 'both') => {
+		if (!activeFile) return;
+
+		let content = resolutions[activeFile] || '';
+		const blocks = parseConflictBlocks(content);
+
+		for (let i = blocks.length - 1; i >= 0; i--) {
+			const block = blocks[i];
+			const replacement =
+				mode === 'current' ? block.current :
+				mode === 'incoming' ? block.incoming :
+				`${block.current}${block.incoming}`;
+
+			content = `${content.slice(0, block.start)}${replacement}${content.slice(block.end)}`;
+		}
+
+		setResolutions(prev => ({ ...prev, [activeFile]: content }));
+	};
+
+	const activeContent = activeFile ? (resolutions[activeFile] || '') : '';
+	const activeBlocks = parseConflictBlocks(activeContent);
+	const activeSegments = parseConflictSegments(activeContent);
 
 	const handleSubmit = async () => {
 		try {
@@ -109,11 +220,94 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 
 				{/* Main Editor Area */}
 				<div className="flex-1 flex flex-col bg-white">
-					{activeFile && (
+					{activeFile && activeBlocks.length > 0 && (
+						<div className="border-b border-gray-200 p-3 bg-gray-50 space-y-2">
+							<div className="flex items-center justify-between">
+								<span className="text-sm font-medium text-gray-700">
+									{activeBlocks.length} conflict block(s)
+								</span>
+								<div className="flex gap-2">
+									<button
+										type="button"
+										onClick={() => setRawEditMode((prev) => !prev)}
+										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+									>
+										{rawEditMode ? 'Merge view' : 'Raw editor'}
+									</button>
+									<button
+										type="button"
+										onClick={() => applyResolutionToAll('current')}
+										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+									>
+										Accept all current
+									</button>
+									<button
+										type="button"
+										onClick={() => applyResolutionToAll('incoming')}
+										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+									>
+										Accept all incoming
+									</button>
+									<button
+										type="button"
+										onClick={() => applyResolutionToAll('both')}
+										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+									>
+										Accept all both
+									</button>
+								</div>
+							</div>
+						</div>
+					)}
+
+					{activeFile && !rawEditMode && activeBlocks.length > 0 && (
+						<div className="flex-1 overflow-auto bg-white text-[#24292f] font-mono text-sm">
+							{(() => {
+								let conflictIndex = -1;
+								return activeSegments.map((segment, idx) => {
+									if (segment.type === 'text') {
+										return (
+											<pre key={`text-${idx}`} className="whitespace-pre-wrap px-4 py-3 leading-6 bg-white">
+												{segment.text}
+											</pre>
+										);
+									}
+
+									conflictIndex += 1;
+									const block = segment.block;
+
+									return (
+										<div key={`conflict-${idx}`} className="border-y border-gray-200">
+											<div className="px-4 py-2 text-xs bg-white text-gray-600 border-b border-gray-200">
+												<button type="button" onClick={() => applyResolutionToBlock('current', conflictIndex)} className="text-blue-600 hover:underline">Accept Current Change</button>
+												<span className="mx-2">|</span>
+												<button type="button" onClick={() => applyResolutionToBlock('incoming', conflictIndex)} className="text-blue-600 hover:underline">Accept Incoming Change</button>
+												<span className="mx-2">|</span>
+												<button type="button" onClick={() => applyResolutionToBlock('both', conflictIndex)} className="text-blue-600 hover:underline">Accept Both Changes</button>
+											</div>
+
+											<div className="bg-[#e6ffec] border-b border-[#b7ebc0]">
+												<div className="px-4 py-1 text-xs text-[#1a7f37]">&lt;&lt;&lt;&lt;&lt;&lt;&lt; {block.currentRef} (Current Change)</div>
+												<pre className="whitespace-pre-wrap px-4 pb-3 leading-6">{block.current}</pre>
+											</div>
+
+											<div className="bg-[#eaf5ff]">
+												<pre className="whitespace-pre-wrap px-4 pt-3 leading-6">{block.incoming}</pre>
+												<div className="px-4 py-1 text-xs text-[#0969da]">&gt;&gt;&gt;&gt;&gt;&gt;&gt; {block.incomingRef} (Incoming Change)</div>
+											</div>
+										</div>
+									);
+								});
+							})()}
+						</div>
+					)}
+
+					{activeFile && (rawEditMode || activeBlocks.length === 0) && (
 						<textarea
 							className="flex-1 w-full p-4 font-mono text-sm resize-none focus:outline-none"
 							value={resolutions[activeFile]}
 							onChange={(e) => handleContentChange(e.target.value)}
+							onKeyDown={handleTextareaKeyDown}
 							spellCheck="false"
 						/>
 					)}

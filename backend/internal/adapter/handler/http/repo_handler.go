@@ -296,3 +296,37 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, branch)
 }
+
+func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	requesterID, err := uuid.Parse(requesterIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+		return
+	}
+
+	var req dto.CommitFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	err = h.repoUsecase.CommitFileChange(repoID, requesterID, req.Branch,
+		req.Path, req.Content, req.CommitMessage)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "file committed successfully"})
+}
