@@ -1,20 +1,53 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BookOpen, Code, GitBranch, History} from "lucide-react";
+import { BookOpen, Code, GitBranch, GitPullRequest, History} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
-import { reposApi } from "./services/api";
+import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/Auth";
+import PullRequestList from "./components/PullRequestList";
 
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'commits'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls'>('files');
 
   const [branches, setBranches] = useState<Branch[]>([])
   const [currentBranch, setCurrentBranch] = useState<string>('');
+  const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
+  const [newBranchName, setNewBranchName] = useState<string>('');
+  const [branchFrom, setBranchFrom] = useState<string>('');
+  const [branchSubmitting, setBranchSubmitting] = useState<boolean>(false);
+  const [branchError, setBranchError] = useState<string | null>(null);
+
+  const refreshBranches = () => {
+    if (!selectedRepoId || !isAuthenticated) return;
+
+    reposApi.getBranches(selectedRepoId)
+      .then((data) => {
+        const branchList = data || [];
+        setBranches(branchList);
+
+        const defaultBranch = branchList.find((b) => b.is_default)?.name || branchList[0]?.name || '';
+
+        setCurrentBranch((prev) => {
+          if (prev && branchList.some((b) => b.name === prev)) {
+            return prev;
+          }
+          return defaultBranch;
+        });
+
+        setBranchFrom((prev) => {
+          if (prev && branchList.some((b) => b.name === prev)) {
+            return prev;
+          }
+          return defaultBranch;
+        });
+      })
+      .catch(console.error);
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -23,8 +56,8 @@ function App () {
                                               // since we do not know the backend will handle empty list or not
         .catch((err) => {
           console.error(err);
-          // If token is invalid/expired, log out
-          if (err.message.includes('token') || err.message.includes('Unauthorized')) {
+          // If token is invalid/expired, log out on explicit 401 from API layer.
+          if (err instanceof ApiError && err.status === 401) {
             handleLogout();
           }
         });
@@ -33,15 +66,33 @@ function App () {
 
   useEffect(() => {
     if (selectedRepoId && isAuthenticated) {
-      reposApi.getBranches(selectedRepoId)
-        .then((data) => {
-          setBranches(data || []);
-          const defaultBranch = data?.find(b => b.is_default)?.name || data?.[0]?.name || ''; 
-          setCurrentBranch(defaultBranch);
-        })
-        .catch(console.error)
+      refreshBranches();
     }
   }, [selectedRepoId, isAuthenticated]);
+
+  const handleCreateBranch = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedRepoId || !newBranchName.trim()) return;
+
+    try {
+      setBranchSubmitting(true);
+      setBranchError(null);
+
+      await reposApi.createBranch(selectedRepoId, {
+        name: newBranchName.trim(),
+        from_branch: branchFrom || undefined,
+      });
+
+      setNewBranchName('');
+      setIsCreatingBranch(false);
+      refreshBranches();
+      setCurrentBranch(newBranchName.trim());
+    } catch (err: any) {
+      setBranchError(err?.message || 'Failed to create branch');
+    } finally {
+      setBranchSubmitting(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -89,7 +140,9 @@ function App () {
           <div className="max-w-5xl mx-auto">
             {/* Header & Tabs */}
             <div className="mb-6 pb-4 border-b border-gray-200">
-              <div className="flex flex-col">
+              {/* Repo Name and Branch Selector */}
+              <div className="flex flex-col gap-2">
+                {/* Repo Name */}
                 <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
                   <BookOpen size={24} className="mr-3 text-gray-400" />
                   {selectedRepo.name}
@@ -112,10 +165,64 @@ function App () {
                     </select>
                   </div>
                 )}
+
+                {isCreatingBranch ? (
+                  <form onSubmit={handleCreateBranch} className="flex flex-wrap items-center gap-2 mt-1">
+                    <input
+                      value={newBranchName}
+                      onChange={(e) => setNewBranchName(e.target.value)}
+                      placeholder="new-branch-name"
+                      className="px-2 py-1 text-sm border border-gray-300 rounded-md"
+                      required
+                    />
+                    <select
+                      value={branchFrom}
+                      onChange={(e) => setBranchFrom(e.target.value)}
+                      className="px-2 py-1 text-sm border border-gray-300 rounded-md"
+                    >
+                      {branches.map((b) => (
+                        <option key={b.name} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      disabled={branchSubmitting}
+                      className="px-3 py-1 text-sm font-medium text-white bg-gray-800 rounded-md hover:bg-gray-900 disabled:opacity-50"
+                    >
+                      {branchSubmitting ? 'Creating...' : 'Create'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingBranch(false);
+                        setBranchError(null);
+                      }}
+                      className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingBranch(true);
+                      setBranchError(null);
+                      setBranchFrom(currentBranch || branches.find((b) => b.is_default)?.name || branches[0]?.name || '');
+                    }}
+                    className="w-fit px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Create Branch
+                  </button>
+                )}
+
+                {branchError && (
+                  <div className="text-sm text-red-600">{branchError}</div>
+                )}
               </div>
 
-              {/* Navigation between files and commits */}
-              <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
+              {/* Navigation between files, commits, and pull requests */}
+              <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg mt-4">
                 <button
                   onClick={() => setActiveTab('files')}
                   className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
@@ -132,18 +239,31 @@ function App () {
                 >
                   <History size={16} className="mr-2" /> Commits
                 </button>
+                <button
+                  onClick={() => setActiveTab('pulls')}
+                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    activeTab === 'pulls' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <GitPullRequest size={16} className="mr-2" /> Pull Requests
+                </button>
               </div>
             </div>
 
             {/* Dynamic Content Area */}
-            {activeTab === 'files' ? (
-              <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />
-            ) : (
-              <CommitHistory repoId={selectedRepo.id} branch={currentBranch}/>
-            )}
-
+            <div className="flex-1 p-6 overflow-hidden">
+              {activeTab === 'files' && <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />}
+              {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
+              {activeTab === 'pulls' && (
+                <PullRequestList
+                  repoId={selectedRepo.id}
+                  branches={branches}
+                  defaultSourceBranch={currentBranch}
+                />
+              )}
+            </div>
           </div>
-       )}
+        )}
       </div>
     </div>
   );

@@ -58,7 +58,7 @@ func (s *AuthService) Login(username string, password string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
-		"exp":      time.Now().Add(time.Hour * 72).Unix(), // Token expires in 72 hours
+		"exp":      time.Now().Add(time.Hour * 7200).Unix(), // Token expires in 72 hours
 	})
 
 	return token.SignedString(s.jwtSecret)

@@ -408,9 +408,14 @@ func (g *LocalGitAdapter) MergeBranches(
 	// 5. Perform the merge (--no-ff ensures a merge commit is always created, like GitHub does)
 	err = runGitCmd("merge", "origin/"+sourceBranch, "--no-ff", "-m", commitMessage)
 	if err != nil {
-		// If this fails, it is almost certainly a merge conflict.
-		// The temp dir will be deleted, leaving the bare repo untouched.
-		return errors.New("merge conflict detected: cannot merge automatically")
+		lowerErr := strings.ToLower(err.Error())
+		if strings.Contains(lowerErr, "conflict") {
+			// Expected merge conflict path; FE will send user to resolver.
+			return errors.New("merge conflict detected: cannot merge automatically")
+		}
+
+		// Non-conflict merge failures should not be reported as conflicts.
+		return fmt.Errorf("failed to merge branches: %w", err)
 	}
 
 	// 6. Push the merged target branch back to the bare repository
@@ -421,13 +426,13 @@ func (g *LocalGitAdapter) MergeBranches(
 	return nil
 }
 
-func (a *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch string,
+func (g *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch string,
 	targetBranch string) ([]string, error) {
 
-	bareRepoPath := filepath.Join(a.storageRoot, repoName)
-	tempDir, err := os.MkdirTemp("", "synergit-conflict-check-*")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp dir: %w", err)
+	bareRepoPath := g.resolveRepoPath(repoName)
+	tempDir, mkdirErr := os.MkdirTemp("", "synergit-conflict-check-*")
+	if mkdirErr != nil {
+		return nil, fmt.Errorf("failed to create temp dir: %w", mkdirErr)
 	}
 	defer os.RemoveAll(tempDir)
 
@@ -439,29 +444,51 @@ func (a *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch stri
 	}
 
 	// Clone and prepare
-	if _, err := runGit("clone", bareRepoPath, tempDir); err != nil {
-		return nil, fmt.Errorf("failed to clone: %w", err)
+	if cloneOut, cloneErr := runGit("clone", bareRepoPath, tempDir); cloneErr != nil {
+		return nil, fmt.Errorf("failed to clone: %w: %s", cloneErr, strings.TrimSpace(cloneOut))
 	}
 
-	if _, err := runGit("checkout", targetBranch); err != nil {
-		return nil, fmt.Errorf("failed to checkout target: %w", err)
+	if chkoutOut, chkoutErr := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); chkoutErr != nil {
+		return nil, fmt.Errorf("failed to checkout target: %w: %s", chkoutErr, strings.TrimSpace(chkoutOut))
 	}
 
-	// Attmept the merge (we expect this to fail if there are conflicts)
-	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	// Attempt the merge: conflict case is expected to return non-zero, but other failures
+	// (e.g. unknown branch) should surface as explicit errors.
+	mergeOut, mergeErr := runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
 
-	// Get unmerged files (files with conflicts)
-	out, err := runGit("diff", "--name-only", "--diff-filter=U")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get diff: %w", err)
+	// Use index-level unmerged entries; this is more reliable than `git diff --diff-filter=U`.
+	unmergedOut, unmergedErr := runGit("ls-files", "-u")
+	if unmergedErr != nil {
+		return nil, fmt.Errorf("failed to list unmerged files: %w: %s",
+			unmergedErr, strings.TrimSpace(unmergedOut))
 	}
 
-	var files []string
-	lines := strings.Split(strings.TrimSpace(out), "\n")
+	files := []string{}
+	seen := map[string]bool{}
+	lines := strings.Split(strings.TrimSpace(unmergedOut), "\n")
 	for _, line := range lines {
-		if line != "" {
-			files = append(files, line)
+		if strings.TrimSpace(line) == "" {
+			continue
 		}
+
+		// Format: <mode> <sha> <stage>\t<path>
+		parts := strings.SplitN(line, "\t", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		file := strings.TrimSpace(parts[1])
+		if file == "" || seen[file] {
+			continue
+		}
+
+		seen[file] = true
+		files = append(files, file)
+	}
+
+	if mergeErr != nil && len(files) == 0 {
+		return nil, fmt.Errorf("merge failed before conflict detection: %w: %s",
+			mergeErr, strings.TrimSpace(mergeOut))
 	}
 
 	return files, nil
@@ -472,28 +499,31 @@ func (g *LocalGitAdapter) GetConflictContent(repoName string, sourceBranch strin
 
 	// Note: In a heavily optimized system, we should cache the temp dir state.
 	// For now, doing a fresh clone is safest and ensures no state leakage.
-	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+	bareRepoPath := g.resolveRepoPath(repoName)
 	tempDir, err := os.MkdirTemp("", "synergit-conflict-content-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
-	runGit := func(args ...string) error {
+	runGit := func(args ...string) (string, error) {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = tempDir
-		return cmd.Run()
+		out, err := cmd.CombinedOutput()
+		return string(out), err
 	}
 
-	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
-		return "", fmt.Errorf("failed to clone: %w", err)
+	if out, err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return "", fmt.Errorf("failed to clone: %w: %s", err, strings.TrimSpace(out))
 	}
-	if err := runGit("checkout", targetBranch); err != nil {
-		return "", fmt.Errorf("failed to checkout target: %w", err)
+	if out, err := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); err != nil {
+		return "", fmt.Errorf("failed to checkout target: %w: %s", err, strings.TrimSpace(out))
 	}
 
 	// Trigger the conflict
-	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	mergeOut, mergeErr := runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	_ = mergeOut
+	_ = mergeErr
 
 	// Read the specific file that contains the Git conflict markers
 	// (e.g., <<<<<<<, =======, >>>>>>>)
@@ -510,7 +540,7 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 	targetBranch string, resolverName string, commitMessage string,
 	resolutions []domain.ConflictResolution) error {
 
-	bareRepoPath := filepath.Join(g.storageRoot, repoName)
+	bareRepoPath := g.resolveRepoPath(repoName)
 	tempDir, err := os.MkdirTemp("", "synergit-conflict-resolve-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -521,6 +551,7 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		cmd := exec.Command("git", args...)
 		cmd.Dir = tempDir
 		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("git %s failed: %s", args[0], stderr.String())
 		}
@@ -533,8 +564,8 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 	}
 
 	// 2. Checkout the source branch (we are fixing the feature branch so it can be merged)
-	if err := runGit("checkout", sourceBranch); err != nil {
-		return err
+	if err := runGit("checkout", "-B", sourceBranch, "origin/"+sourceBranch); err != nil {
+		return fmt.Errorf("failed to checkout source branch: %w", err)
 	}
 
 	// 3. Configure Git user
@@ -551,7 +582,7 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		fullPath := filepath.Join(tempDir, res.Path)
 		if err := os.WriteFile(fullPath, []byte(res.ResolvedContent), 0644); err != nil {
 			return fmt.Errorf("failed to write resolved content to %s: %w",
-				res.ResolvedContent)
+				res.Path, err)
 		}
 		// Stage the resolved file
 		if err := runGit("add", res.Path); err != nil {

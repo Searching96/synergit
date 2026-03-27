@@ -20,6 +20,22 @@ type PullRequestService struct {
 	repoStore port.RepoRepository
 }
 
+func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (int, error) {
+	repoPRs, err := s.prStore.ListByRepo(repoID)
+	if err != nil {
+		return 0, errors.New("failed to get pull request list")
+	}
+
+	// ListByRepo is ordered newest first; convert to stable oldest-first numbering.
+	for idx, repoPR := range repoPRs {
+		if repoPR.ID == prID {
+			return len(repoPRs) - idx, nil
+		}
+	}
+
+	return 0, errors.New("pull request not found in repository list")
+}
+
 func NewPullRequestService(prStore port.PullRequestRepository,
 	collabStore port.CollaboratorRepository,
 	gitManager port.GitManager,
@@ -100,13 +116,11 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 		return errors.New("merger user not found")
 	}
 
-	repoPRs, err := s.prStore.ListByRepo(pr.RepoID)
-	if err != nil {
-		return errors.New("failed to get pull request list")
-	}
-
 	mergerName := merger.Username
-	prNumber := len(repoPRs) + 1
+	prNumber, err := s.resolvePRNumber(pr.RepoID, pr.ID)
+	if err != nil {
+		return err
+	}
 	commitMessage := fmt.Sprintf("Merge branch '%s' into '%s' (PR #%d)", pr.SourceBranch, pr.TargetBranch, prNumber)
 
 	// 4. Perform the actual Git merge on the server filesystem
@@ -163,16 +177,16 @@ func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,
 	}
 
 	// 4. Fetch the list of conflicting files from Git
-	files, err := s.gitManager.GetConflictingFiles(repo.Name, pr.SourceBranch,
+	files, err := s.gitManager.GetConflictingFiles(repo.Path, pr.SourceBranch,
 		pr.TargetBranch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conflicting files: %w", err)
 	}
 
 	// 5. Fetch the raw content with conflict markers for each file
-	var conflicts []domain.ConflictFile
+	conflicts := []domain.ConflictFile{}
 	for _, file := range files {
-		content, err := s.gitManager.GetConflictContent(repo.Name, pr.SourceBranch,
+		content, err := s.gitManager.GetConflictContent(repo.Path, pr.SourceBranch,
 			pr.TargetBranch, file)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get conflict content for file %s: %w",
@@ -229,11 +243,15 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 
 	// Default commit message if none provided
 	if commitMessage == "" {
-		commitMessage = fmt.Sprintf("Resolve merge conflicts for PR #%s", pr.ID.String())
+		prNumber, err := s.resolvePRNumber(pr.RepoID, pr.ID)
+		if err != nil {
+			return err
+		}
+		commitMessage = fmt.Sprintf("Resolve merge conflicts for PR #%d", prNumber)
 	}
 
 	// 5. Execute the Git operation
-	err = s.gitManager.ResolveConflictsAndCommit(repo.Name, pr.SourceBranch,
+	err = s.gitManager.ResolveConflictsAndCommit(repo.Path, pr.SourceBranch,
 		pr.TargetBranch, resolverName, commitMessage, resolutions)
 	if err != nil {
 		return fmt.Errorf("failed to resolve conflicts: %w", err)

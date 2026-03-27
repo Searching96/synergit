@@ -1,8 +1,15 @@
 import { fetcher } from './client';
-import type { Branch, Commit, RepoFile, Repository } from '../../types';
+import type { Branch, Commit, CreateBranchPayload, RepoFile, Repository } from '../../types';
 
 export const reposApi = {
   getRepos: () => fetcher<Repository[]>('/repos'),
+
+  createBranch: (repoId: string, payload: CreateBranchPayload) =>
+    fetcher<Branch>(`/repos/${repoId}/branches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
   
   getBranches: (repoId: string) => 
     fetcher<Branch[]>(`/repos/${repoId}/branches`),
