@@ -67,6 +67,8 @@ func statusFromUsecaseError(err error) int {
 		return http.StatusBadRequest
 	case strings.Contains(msg, "cannot"):
 		return http.StatusBadRequest
+	case strings.Contains(msg, "queue is full"):
+		return http.StatusServiceUnavailable
 	default:
 		return http.StatusInternalServerError
 	}

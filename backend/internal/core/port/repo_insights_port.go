@@ -11,8 +11,13 @@ type RepoInsightsRepository interface {
 	GetLatestByRepoID(repoID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
 }
 
-type RepoInsightsUsecase interface {
-	GetLastestInsights(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
+type RepoInsightsScheduler interface {
 	EnqueueRecompute(repoID uuid.UUID, trigger string) error
+}
+
+type RepoInsightsUsecase interface {
+	RepoInsightsScheduler
+	GetLastestInsights(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
+	TriggerRecompute(repoID uuid.UUID, requesterID uuid.UUID, trigger string) error
 	RecomputeNow(repoID uuid.UUID, trigger string) error
 }

@@ -1,20 +1,56 @@
 package usecase
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log"
+	"sort"
+	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 var _ port.RepoInsightsUsecase = (*RepoInsightsService)(nil)
 
+const (
+	defaultInsightsWorkerCount = 4
+	defaultInsightsQueueSize   = 128
+)
+
 type RepoInsightsService struct {
 	insightsStore port.RepoInsightsRepository
 	repoStore     port.RepoRepository
 	collabStore   port.CollaboratorRepository
 	gitManager    port.GitManager
+
+	jobs chan insightsJob
+}
+
+type insightsJob struct {
+	RepoID   uuid.UUID
+	Trigger  string
+	QueuedAt time.Time
+}
+
+type analysisInput struct {
+	Since           time.Time
+	CommitsByHash   map[string]domain.Commit
+	CommitsByBranch map[string][]domain.Commit
+}
+
+type metricTask struct {
+	Name string
+	Run  func(context.Context, *analysisInput) (any, error)
+}
+
+type metricResult struct {
+	Name  string
+	Value any
+	Err   error
 }
 
 func NewRepoInsightsService(
@@ -23,11 +59,30 @@ func NewRepoInsightsService(
 	collabStore port.CollaboratorRepository,
 	gitManager port.GitManager,
 ) *RepoInsightsService {
-	return &RepoInsightsService{
+	s := &RepoInsightsService{
 		insightsStore: insightsStore,
 		repoStore:     repoStore,
 		collabStore:   collabStore,
 		gitManager:    gitManager,
+		jobs:          make(chan insightsJob, defaultInsightsQueueSize),
+	}
+
+	s.startWorkers(defaultInsightsWorkerCount)
+
+	return s
+}
+
+func (s *RepoInsightsService) startWorkers(workerCount int) {
+	for i := 0; i < workerCount; i++ {
+		go s.workerLoop(i + 1)
+	}
+}
+
+func (s *RepoInsightsService) workerLoop(workerID int) {
+	for job := range s.jobs {
+		if err := s.RecomputeNow(job.RepoID, job.Trigger); err != nil {
+			log.Printf("repo insights worker %d failed for repo %s: %v", workerID, job.RepoID, err)
+		}
 	}
 }
 
@@ -35,9 +90,8 @@ func (s *RepoInsightsService) GetLastestInsights(
 	repoID uuid.UUID,
 	requesterID uuid.UUID,
 ) (*domain.RepoInsightsSnapshot, error) {
-	role, err := s.collabStore.GetRole(repoID, requesterID)
-	if err != nil || !role.IsValid() {
-		return nil, errors.New("unauthorized: you do not have access to this repo")
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
 	}
 
 	snapshot, err := s.insightsStore.GetLatestByRepoID(repoID)
@@ -58,10 +112,307 @@ func (s *RepoInsightsService) GetLastestInsights(
 	return snapshot, nil
 }
 
+func (s *RepoInsightsService) TriggerRecompute(
+	repoID uuid.UUID,
+	requesterID uuid.UUID,
+	trigger string,
+) error {
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return err
+	}
+
+	return s.EnqueueRecompute(repoID, trigger)
+}
+
+func (s *RepoInsightsService) authorizeRepoAccess(repoID uuid.UUID, requesterID uuid.UUID) error {
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || !role.IsValid() {
+		return errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	return nil
+}
+
 func (s *RepoInsightsService) EnqueueRecompute(repoID uuid.UUID, trigger string) error {
-	return errors.New("not implemented")
+	job := insightsJob{
+		RepoID:   repoID,
+		Trigger:  strings.TrimSpace(trigger),
+		QueuedAt: time.Now().UTC(),
+	}
+	if job.Trigger == "" {
+		job.Trigger = "unspecified"
+	}
+
+	select {
+	case s.jobs <- job:
+		return nil
+	default:
+		return errors.New("insights queue is full, please try again later")
+	}
 }
 
 func (s *RepoInsightsService) RecomputeNow(repoID uuid.UUID, trigger string) error {
-	return errors.New("not implemented")
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return err
+	}
+	if repo == nil {
+		return errors.New("repository not found")
+	}
+
+	now := time.Now().UTC()
+	input, err := s.buildAnalysisInput(repo.Path, now)
+	if err != nil {
+		saveErr := s.insightsStore.SaveLatest(&domain.RepoInsightsSnapshot{
+			RepoID:          repoID,
+			ComputedAt:      now,
+			CommitsLast30d:  0,
+			CommitTrend:     []domain.CommitTrendPoint{},
+			TopContributors: []domain.ContributorStat{},
+			BranchActivity:  []domain.BranchActivityStat{},
+			LastError:       err.Error(),
+		})
+		if saveErr != nil {
+			return fmt.Errorf("analysis failed (%v) and failed to persist error snapshot (%v)", err, saveErr)
+		}
+		return err
+	}
+
+	tasks := s.metricTasks()
+	results := make(chan metricResult, len(tasks))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for _, task := range tasks {
+		t := task
+		go func() {
+			value, runErr := t.Run(ctx, input)
+			results <- metricResult{Name: t.Name, Value: value, Err: runErr}
+		}()
+	}
+
+	snapshot := &domain.RepoInsightsSnapshot{
+		RepoID:          repoID,
+		ComputedAt:      now,
+		CommitsLast30d:  len(input.CommitsByHash),
+		CommitTrend:     []domain.CommitTrendPoint{},
+		TopContributors: []domain.ContributorStat{},
+		BranchActivity:  []domain.BranchActivityStat{},
+	}
+
+	var metricErrors []string
+
+	for i := 0; i < len(tasks); i++ {
+		res := <-results
+		if res.Err != nil {
+			metricErrors = append(metricErrors, fmt.Sprintf("%s: %v", res.Name, res.Err))
+			continue
+		}
+
+		switch res.Name {
+		case "commit_trend":
+			value, ok := res.Value.([]domain.CommitTrendPoint)
+			if !ok {
+				metricErrors = append(metricErrors, "commit_trend: invalid metric output type")
+				continue
+			}
+			snapshot.CommitTrend = value
+		case "top_contributors":
+			value, ok := res.Value.([]domain.ContributorStat)
+			if !ok {
+				metricErrors = append(metricErrors, "top_contributors: invalid metric output type")
+				continue
+			}
+			snapshot.TopContributors = value
+		case "branch_activity":
+			value, ok := res.Value.([]domain.BranchActivityStat)
+			if !ok {
+				metricErrors = append(metricErrors, "branch_activity: invalid metric output type")
+				continue
+			}
+			snapshot.BranchActivity = value
+		default:
+			log.Printf("unknown metric result name: %s", res.Name)
+		}
+	}
+
+	if len(metricErrors) > 0 {
+		snapshot.LastError = "some metrics failed: " + strings.Join(metricErrors, "; ")
+	}
+
+	if err := s.insightsStore.SaveLatest(snapshot); err != nil {
+		return fmt.Errorf("failed to save insights snapshot: %v", err)
+	}
+
+	if snapshot.LastError != "" {
+		return errors.New(snapshot.LastError)
+	}
+
+	return nil
+}
+
+func (s *RepoInsightsService) metricTasks() []metricTask {
+	return []metricTask{
+		{
+			Name: "commit_trend",
+			Run: func(ctx context.Context, input *analysisInput) (any, error) {
+				return s.computeCommitTrend(ctx, input)
+			},
+		},
+		{
+			Name: "top_contributors",
+			Run: func(ctx context.Context, input *analysisInput) (any, error) {
+				return s.computeTopContributors(ctx, input)
+			},
+		},
+		{
+			Name: "branch_activity",
+			Run: func(ctx context.Context, input *analysisInput) (any, error) {
+				return s.computeBranchActivity(ctx, input)
+			},
+		},
+	}
+}
+
+func (s *RepoInsightsService) buildAnalysisInput(repoPath string, now time.Time) (*analysisInput, error) {
+	branches, err := s.gitManager.GetBranches(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	since := now.AddDate(0, 0, -30)
+	input := &analysisInput{
+		Since:           since,
+		CommitsByHash:   map[string]domain.Commit{},
+		CommitsByBranch: map[string][]domain.Commit{},
+	}
+
+	for _, branch := range branches {
+		commits, err := s.gitManager.GetCommits(repoPath, branch.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		filtered := filterCommitsSince(commits, since)
+		input.CommitsByBranch[branch.Name] = filtered
+
+		for _, commit := range filtered {
+			input.CommitsByHash[commit.Hash] = commit
+		}
+	}
+
+	return input, nil
+}
+
+func filterCommitsSince(commits []domain.Commit, since time.Time) []domain.Commit {
+	result := make([]domain.Commit, 0, len(commits))
+	for _, commit := range commits {
+		commitTime := commit.Date.UTC()
+		if commitTime.After(since) || commitTime.Equal(since) {
+			result = append(result, commit)
+		}
+	}
+	return result
+}
+
+func (s *RepoInsightsService) computeCommitTrend(ctx context.Context,
+	input *analysisInput) ([]domain.CommitTrendPoint, error) {
+
+	byDay := map[string]int{}
+	for _, commit := range input.CommitsByHash {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		day := commit.Date.UTC().Format("2006-01-02")
+		byDay[day]++
+	}
+
+	days := make([]string, 0, len(byDay))
+	for day := range byDay {
+		days = append(days, day)
+	}
+	sort.Strings(days)
+
+	points := make([]domain.CommitTrendPoint, 0, len(days))
+	for _, day := range days {
+		points = append(points, domain.CommitTrendPoint{
+			Date:        day,
+			CommitCount: byDay[day],
+		})
+	}
+
+	return points, nil
+}
+
+func (s *RepoInsightsService) computeTopContributors(ctx context.Context,
+	input *analysisInput) ([]domain.ContributorStat, error) {
+
+	byAuthor := map[string]int{}
+
+	for _, commit := range input.CommitsByHash {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		author := strings.TrimSpace(commit.Author)
+		if author == "" {
+			author = "Unknown"
+		}
+		byAuthor[author]++
+	}
+
+	stats := make([]domain.ContributorStat, 0, len(byAuthor))
+	for author, count := range byAuthor {
+		stats = append(stats, domain.ContributorStat{
+			AuthorName:  author,
+			CommitCount: count,
+		})
+	}
+
+	sort.Slice(stats, func(i int, j int) bool {
+		if stats[i].CommitCount == stats[j].CommitCount {
+			return stats[i].AuthorName < stats[j].AuthorName
+		}
+		return stats[i].CommitCount > stats[j].CommitCount
+	})
+
+	if len(stats) > 5 {
+		stats = stats[:5]
+	}
+
+	return stats, nil
+}
+
+func (s *RepoInsightsService) computeBranchActivity(ctx context.Context,
+	input *analysisInput) ([]domain.BranchActivityStat, error) {
+
+	stats := make([]domain.BranchActivityStat, 0, len(input.CommitsByBranch))
+
+	for branchName, commits := range input.CommitsByBranch {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		stats = append(stats, domain.BranchActivityStat{
+			BranchName:  branchName,
+			CommitCount: len(commits),
+		})
+	}
+
+	sort.Slice(stats, func(i int, j int) bool {
+		if stats[i].CommitCount == stats[j].CommitCount {
+			return stats[i].BranchName < stats[j].BranchName
+		}
+		return stats[i].CommitCount > stats[j].CommitCount
+	})
+
+	return stats, nil
 }

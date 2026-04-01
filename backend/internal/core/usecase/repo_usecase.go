@@ -15,15 +15,24 @@ type RepoService struct {
 	repoStore   port.RepoRepository
 	collabStore port.CollaboratorRepository
 	userStore   port.UserRepository
+
+	repoInsightsScheduler port.RepoInsightsScheduler
 }
 
 // NewRepoService creates a new usecase instance
-func NewRepoService(gm port.GitManager, rs port.RepoRepository, cs port.CollaboratorRepository, us port.UserRepository) *RepoService {
+func NewRepoService(
+	gm port.GitManager,
+	rs port.RepoRepository,
+	cs port.CollaboratorRepository,
+	us port.UserRepository,
+	ris port.RepoInsightsScheduler,
+) *RepoService {
 	return &RepoService{
-		gitManager:  gm,
-		repoStore:   rs,
-		collabStore: cs,
-		userStore:   us,
+		gitManager:            gm,
+		repoStore:             rs,
+		collabStore:           cs,
+		userStore:             us,
+		repoInsightsScheduler: ris,
 	}
 }
 
@@ -155,7 +164,13 @@ func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload port.ByteRead
 		return err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter)
+	if err := s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter); err != nil {
+		return err
+	}
+
+	s.enqueueInsights(repoID, "receive_pack_legacy")
+
+	return nil
 }
 
 func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string,
@@ -166,7 +181,18 @@ func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName s
 		return err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter)
+	if err := s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter); err != nil {
+		return err
+	}
+
+	repo, err := s.repoStore.FindByOwnerAndName(ownerUsername, repoName)
+	if err == nil && repo != nil {
+		if repoUUID, parseErr := uuid.Parse(repo.ID); parseErr == nil {
+			s.enqueueInsights(repoUUID, "receive_pack_public")
+		}
+	}
+
+	return nil
 }
 
 func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
@@ -242,4 +268,13 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 
 	return s.gitManager.CommitFileChange(repoPath, branch, filePath, content,
 		user.Username, commitMessage)
+}
+
+func (s *RepoService) enqueueInsights(repoID uuid.UUID, trigger string) {
+	if s.repoInsightsScheduler == nil {
+		return
+	}
+	if err := s.repoInsightsScheduler.EnqueueRecompute(repoID, trigger); err != nil {
+		// Do not fail push path because of analytics queue pressure
+	}
 }

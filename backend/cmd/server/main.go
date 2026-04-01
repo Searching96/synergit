@@ -51,14 +51,17 @@ func main() {
 	dbUserAdapter := postgres.NewPostgresUserStore(db)
 	dbCollabAdapter := postgres.NewPostgresCollaboratorStore(db)
 	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
+	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	passwordHasher := security.NewBcryptPasswordHasher(0)
 	tokenManager := security.NewJWTTokenManager(jwtSecret)
 
+	repoInsightUsecase := usecase.NewRepoInsightsService(dbRepoInsightsAdapter, dbRepoAdapter,
+		dbCollabAdapter, gitAdapter)
 	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
-		dbUserAdapter)
+		dbUserAdapter, repoInsightUsecase)
 	authUsecase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
 	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
@@ -69,6 +72,7 @@ func main() {
 	authHandler := httpHandler.NewAuthHandler(authUsecase)
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUsecase)
 	prHandler := httpHandler.NewPullRequestHandler(prUsecase)
+	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUsecase)
 
 	// 5. Set up the gin router
 	router := gin.Default()
@@ -111,6 +115,8 @@ func main() {
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)
 			repos.POST("/:repo_id/commit-file", repoHandler.HandleCommitFileChange)
+			repos.GET("/:repo_id/insights", repoInsightsHandler.HandleGetLatestInsights)
+			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 
 			// Collab routes
 			repos.POST("/:repo_id/collabs", collabHandler.HandleAddCollaborator)
