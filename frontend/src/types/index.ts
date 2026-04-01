@@ -25,6 +25,31 @@ export interface Branch {
 	is_default: boolean;
 }
 
+export interface CommitTrendPoint {
+	date: string;
+	commit_count: number;
+}
+
+export interface ContributorStat {
+	author_name: string;
+	commit_count: number;
+}
+
+export interface BranchActivityStat {
+	branch_name: string;
+	commit_count: number;
+}
+
+export interface RepoInsightsSnapshot {
+	repo_id: string;
+	computed_at: string;
+	commits_last_30d: number;
+	commit_trend: CommitTrendPoint[];
+	top_contributors: ContributorStat[];
+	branch_activity: BranchActivityStat[];
+	last_error?: string;
+}
+
 export interface ConflictFile {
 	path: string;
 	content: string;

@@ -2,6 +2,7 @@ import { fetcher } from './client';
 import type {
   Branch,
   Commit,
+  RepoInsightsSnapshot,
   CommitFileChangePayload,
   CreateBranchPayload,
   RepoFile,
@@ -36,4 +37,13 @@ export const reposApi = {
     
   getCommits: (repoId: string, branch: string = '') => 
     fetcher<Commit[]>(`/repos/${repoId}/commits?branch=${encodeURIComponent(branch)}`),
+
+  getInsights: (repoId: string) =>
+    fetcher<RepoInsightsSnapshot>(`/repos/${repoId}/insights`),
+
+  triggerInsightsRecompute: (repoId: string, trigger: string = 'manual_frontend') =>
+    fetcher<{ message: string }>(
+      `/repos/${repoId}/insights/recompute?trigger=${encodeURIComponent(trigger)}`,
+      { method: 'POST' },
+    ),
 };

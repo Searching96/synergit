@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BookOpen, Code, GitPullRequest, History } from "lucide-react";
+import { BarChart3, BookOpen, Code, GitPullRequest, History } from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/Auth";
 import PullRequestList from "./components/PullRequestList";
 import BranchMenu from "./components/BranchMenu";
+import RepoInsights from "./components/RepoInsights";
 
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls' | 'insights'>('files');
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
@@ -165,6 +166,14 @@ function App () {
                 >
                   <GitPullRequest size={16} className="mr-2" /> Pull Requests
                 </button>
+                <button
+                  onClick={() => setActiveTab('insights')}
+                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    activeTab === 'insights' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <BarChart3 size={16} className="mr-2" /> Insights
+                </button>
               </div>
             </div>
 
@@ -179,6 +188,7 @@ function App () {
                   defaultSourceBranch={currentBranch}
                 />
               )}
+              {activeTab === 'insights' && <RepoInsights repoId={selectedRepo.id} />}
             </div>
           </div>
         )}
