@@ -19,11 +19,15 @@ type RepoUsecase interface {
 	GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error)
 	GetIntoRefsByOwnerAndName(ownerUsername string, repoName string, service string) ([]byte, error)
 	// Deprecated: use UploadPackByOwnerAndName for username/repo clone flow.
-	UploadPack(repoID uuid.UUID, requestPayload []byte) ([]byte, error)
-	UploadPackByOwnerAndName(ownerUsername string, repoName string, requestPayload []byte) ([]byte, error)
+	UploadPack(repoID uuid.UUID, requestPayload ByteReader,
+		responseWriter ByteWriter) error
+	UploadPackByOwnerAndName(ownerUsername string, repoName string,
+		requestPayload ByteReader, responseWriter ByteWriter) error
 	// Deprecated: repo_id smart HTTP path is legacy and not exposed publicly.
-	ReceivePack(repoID uuid.UUID, requestPayload []byte) ([]byte, error)
-	ReceivePackByOwnerAndName(ownerUsername string, repoName string, requestPayload []byte) ([]byte, error)
+	ReceivePack(repoID uuid.UUID, requestPayload ByteReader,
+		responseWriter ByteWriter) error
+	ReceivePackByOwnerAndName(ownerUsername string, repoName string,
+		requestPayload ByteReader, responseWriter ByteWriter) error
 	GetAllRepositories() ([]*domain.Repo, error)
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)

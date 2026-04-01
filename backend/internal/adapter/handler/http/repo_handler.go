@@ -2,7 +2,6 @@ package http
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
@@ -117,20 +116,11 @@ func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	requestPayload, readErr := io.ReadAll(c.Request.Body)
-	if readErr != nil {
-		c.String(http.StatusBadRequest, "failed to read git request payload")
-		return
-	}
-
-	responsePayload, err := h.repoUsecase.ReceivePack(repoID, requestPayload)
+	err := h.repoUsecase.ReceivePack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
 		c.String(statusFromUsecaseError(err), err.Error())
-		return
 	}
-
-	_, _ = c.Writer.Write(responsePayload)
 }
 
 // Deprecated: use HandleUploadPackPublic (/:username/:repo.git/git-upload-pack).
@@ -144,21 +134,11 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	// Pass the HTTP Request Body and Response Writer directly to the usecase
-	requestPayload, readErr := io.ReadAll(c.Request.Body)
-	if readErr != nil {
-		c.String(http.StatusBadRequest, "failed to read git request payload")
-		return
-	}
-
-	responsePayload, err := h.repoUsecase.UploadPack(repoID, requestPayload)
+	err := h.repoUsecase.UploadPack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
 		c.String(statusFromUsecaseError(err), err.Error())
-		return
 	}
-
-	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleInfoRefsPublic(c *gin.Context) {
@@ -198,21 +178,12 @@ func (h *RepoHandler) HandleUploadPackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	requestPayload, readErr := io.ReadAll(c.Request.Body)
-	if readErr != nil {
-		c.String(http.StatusBadRequest, "failed to read git request payload")
-		return
-	}
-
-	responsePayload, err := h.repoUsecase.UploadPackByOwnerAndName(owner, repo,
-		requestPayload)
+	err := h.repoUsecase.UploadPackByOwnerAndName(owner, repo, c.Request.Body,
+		c.Writer)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
 		c.String(statusFromUsecaseError(err), err.Error())
-		return
 	}
-
-	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
@@ -224,21 +195,12 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	requestPayload, readErr := io.ReadAll(c.Request.Body)
-	if readErr != nil {
-		c.String(http.StatusBadRequest, "failed to read git request payload")
-		return
-	}
-
-	responsePayload, err := h.repoUsecase.ReceivePackByOwnerAndName(owner, repo,
-		requestPayload)
+	err := h.repoUsecase.ReceivePackByOwnerAndName(owner, repo, c.Request.Body,
+		c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
 		c.String(statusFromUsecaseError(err), err.Error())
-		return
 	}
-
-	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleGetRepos(c *gin.Context) {

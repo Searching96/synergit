@@ -94,7 +94,7 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 
 	// 2. Check permissions (Must be OWNER, MAINTAINER, or WRITE)
 	role, err := s.collabStore.GetRole(pr.RepoID, mergerID)
-	if err != nil || (role != "OWNER" && role != "MAINTAINER" && role != "WRITE") {
+	if err != nil || !role.CanWrite() {
 		return errors.New("unauthorized: you do not have permission to merge in this repo")
 	}
 
@@ -141,7 +141,7 @@ func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID
 	// 2. Check permissions
 	// Only the creator, OWNER, or MAINTAINER can close a PR without merging
 	role, err := s.collabStore.GetRole(pr.RepoID, closerID)
-	if err != nil || (role != "OWNER" && role != "MAINTAINER" && role != "WRITE") {
+	if err != nil || !role.CanWrite() {
 		return errors.New("unauthorized: you do not have permission to close this pull request")
 	}
 
@@ -159,7 +159,7 @@ func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,
 
 	// 2. Optional: Verify they are at least a collaborator on the repo
 	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
-	if err != nil || role == "" {
+	if err != nil || !role.IsValid() {
 		return nil, errors.New("unauthorized: you do not have access to this repo")
 	}
 
@@ -210,8 +210,7 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 
 	// 2. Verify Permissions (Must be PR Creator, or have WRITE/MAINTAINER/OWNER)
 	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
-	if pr.CreatorID != requesterID && role != "OWNER" && role != "MAINTAINER" &&
-		role != "WRITE" {
+	if pr.CreatorID != requesterID && !role.CanWrite() {
 
 		return errors.New(
 			"unauthorized: you do not have permission to resolve conflicts for this repo",

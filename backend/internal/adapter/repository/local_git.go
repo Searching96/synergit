@@ -87,47 +87,45 @@ func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte
 }
 
 func (g *LocalGitAdapter) UploadPack(repoPath string,
-	requestPayload []byte) ([]byte, error) {
+	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
 
 	fullPath := g.resolveRepoPath(repoPath)
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
 
-	cmd.Stdin = bytes.NewReader(requestPayload)
+	cmd.Stdin = requestPayload
 
-	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	cmd.Stdout = responseWriter
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("git upload-pack failed: %s: %w",
+		return fmt.Errorf("git upload-pack failed: %s: %w",
 			strings.TrimSpace(stderr.String()), err)
 	}
 
-	return stdout.Bytes(), nil
+	return nil
 }
 
 // Process incoming git pushes
 func (g *LocalGitAdapter) ReceivePack(repoPath string,
-	requestPayload []byte) ([]byte, error) {
+	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
 
 	fullPath := g.resolveRepoPath(repoPath)
 
 	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", fullPath)
 
-	cmd.Stdin = bytes.NewReader(requestPayload)
+	cmd.Stdin = requestPayload
 
-	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	cmd.Stdout = responseWriter
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("git receive-pack failed: %s: %w",
+		return fmt.Errorf("git receive-pack failed: %s: %w",
 			strings.TrimSpace(stderr.String()), err)
 	}
 
-	return stdout.Bytes(), nil
+	return nil
 }
 
 func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string,
@@ -178,9 +176,9 @@ func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string,
 	// 6. Map the Git entries to our domain model
 	var files []domain.RepoFile
 	for _, entry := range targetTree.Entries {
-		nodeType := "file"
+		nodeType := domain.RepoFileTypeFile
 		if !entry.Mode.IsFile() {
-			nodeType = "dir"
+			nodeType = domain.RepoFileTypeDir
 		}
 
 		files = append(files, domain.RepoFile{

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
+	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
@@ -51,7 +52,14 @@ func (h *CollaboratorHandler) HandleAddCollaborator(c *gin.Context) {
 		return
 	}
 
-	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID, req.Role, requesterID)
+	role, err := domain.ParseCollaboratorRole(req.Role)
+	if err != nil {
+		respondUsecaseError(c, err)
+		return
+	}
+
+	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID, role,
+		requesterID)
 	if err != nil {
 		respondUsecaseError(c, err)
 		return

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
@@ -18,11 +19,13 @@ func NewPostgresCollaboratorStore(db *sql.DB) *PostgresCollaboratorStore {
 	return &PostgresCollaboratorStore{db: db}
 }
 
-func (p *PostgresCollaboratorStore) AddCollaborator(repoID uuid.UUID, userID uuid.UUID, role string) error {
+func (p *PostgresCollaboratorStore) AddCollaborator(repoID uuid.UUID, userID uuid.UUID,
+	role domain.CollaboratorRole) error {
+
 	query := `
 		INSERT INTO repository_collaborators (repository_id, user_id, role)
 		VALUES ($1, $2, $3)`
-	_, err := p.db.Exec(query, repoID, userID, role)
+	_, err := p.db.Exec(query, repoID, userID, string(role))
 	return err
 }
 
@@ -34,16 +37,27 @@ func (p *PostgresCollaboratorStore) RemoveCollaborator(repoID uuid.UUID, userID 
 	return err
 }
 
-func (p *PostgresCollaboratorStore) GetRole(repoID uuid.UUID, userID uuid.UUID) (string, error) {
+func (p *PostgresCollaboratorStore) GetRole(repoID uuid.UUID,
+	userID uuid.UUID) (domain.CollaboratorRole, error) {
+
 	query := `
 		SELECT role FROM repository_collaborators
 		WHERE repository_id = $1 AND user_id = $2`
-	var role string
-	err := p.db.QueryRow(query, repoID, userID).Scan(&role)
+	var roleRaw string
+	err := p.db.QueryRow(query, repoID, userID).Scan(&roleRaw)
 	if err == sql.ErrNoRows {
 		return "", nil
 	}
-	return role, err
+	if err != nil {
+		return "", err
+	}
+
+	role, parseErr := domain.ParseCollaboratorRole(roleRaw)
+	if parseErr != nil {
+		return "", fmt.Errorf("invalid collaborator role in database: %w", parseErr)
+	}
+
+	return role, nil
 }
 
 func (p *PostgresCollaboratorStore) GetCollaborators(repoID uuid.UUID) ([]domain.RepoCollaborator, error) {
@@ -60,9 +74,17 @@ func (p *PostgresCollaboratorStore) GetCollaborators(repoID uuid.UUID) ([]domain
 	var collabs []domain.RepoCollaborator
 	for rows.Next() {
 		var c domain.RepoCollaborator
-		if err := rows.Scan(&c.RepositoryID, &c.UserID, &c.Role, &c.CreatedAt); err != nil {
+		var roleRaw string
+		if err := rows.Scan(&c.RepositoryID, &c.UserID, &roleRaw, &c.CreatedAt); err != nil {
 			return nil, err
 		}
+
+		role, parseErr := domain.ParseCollaboratorRole(roleRaw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid collaborator role in database: %w", parseErr)
+		}
+
+		c.Role = role
 		collabs = append(collabs, c)
 	}
 

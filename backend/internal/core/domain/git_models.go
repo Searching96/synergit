@@ -4,10 +4,17 @@ import (
 	"time"
 )
 
+type RepoFileType string
+
+const (
+	RepoFileTypeFile RepoFileType = "FILE"
+	RepoFileTypeDir  RepoFileType = "DIR"
+)
+
 type RepoFile struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
-	Type string `json:"type"` // "file" or "dir"
+	Name string       `json:"name"`
+	Path string       `json:"path"`
+	Type RepoFileType `json:"type"`
 }
 
 type Commit struct {

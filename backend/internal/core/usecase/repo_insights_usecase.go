@@ -36,7 +36,7 @@ func (s *RepoInsightsService) GetLastestInsights(
 	requesterID uuid.UUID,
 ) (*domain.RepoInsightsSnapshot, error) {
 	role, err := s.collabStore.GetRole(repoID, requesterID)
-	if err != nil || role == "" {
+	if err != nil || !role.IsValid() {
 		return nil, errors.New("unauthorized: you do not have access to this repo")
 	}
 

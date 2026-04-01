@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
@@ -19,11 +18,10 @@ func NewCollaboratorService(collaboratorStore port.CollaboratorRepository) *Coll
 	}
 }
 
-func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID, role string, requesterID uuid.UUID) error {
-	role = strings.ToUpper(role)
+func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID,
+	role domain.CollaboratorRole, requesterID uuid.UUID) error {
 
-	validRoles := map[string]bool{"OWNER": true, "MAINTAINER": true, "WRITE": true}
-	if !validRoles[role] {
+	if !role.IsValid() {
 		return errors.New("invalid role: must be OWNER, MAINTAINER, or WRITE")
 	}
 
@@ -32,7 +30,7 @@ func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID
 		return errors.New("failed to verify requester permissions")
 	}
 
-	if requesterRole != "OWNER" && requesterRole != "MAINTAINER" {
+	if !requesterRole.CanManageCollaborators() {
 		return errors.New("unauthorized: only owners and maintainers can add collaborators")
 	}
 
@@ -46,7 +44,7 @@ func (s *CollaboratorService) RemoveCollaborator(repoID uuid.UUID, userID uuid.U
 			return errors.New("failed to verify requester permissions")
 		}
 
-		if requesterRole != "OWNER" && requesterRole != "MAINTAINER" {
+		if !requesterRole.CanManageCollaborators() {
 			return errors.New("unauthorized: only owners and maintainers can remove other collaborators")
 		}
 	}
@@ -56,7 +54,7 @@ func (s *CollaboratorService) RemoveCollaborator(repoID uuid.UUID, userID uuid.U
 
 func (s *CollaboratorService) GetCollaborators(repoID uuid.UUID, requesterID uuid.UUID) ([]domain.RepoCollaborator, error) {
 	requesterRole, err := s.collaboratorStore.GetRole(repoID, requesterID)
-	if err != nil || requesterRole == "" {
+	if err != nil || !requesterRole.IsValid() {
 		return nil, errors.New("unauthorized: you do not have access to this repo")
 	}
 

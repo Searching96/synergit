@@ -66,7 +66,8 @@ func (s *RepoService) CreateRepository(name string, ownerID uuid.UUID) (*domain.
 		return nil, errors.New("failed to parse created repository id")
 	}
 
-	err = s.collabStore.AddCollaborator(repoUUID, ownerID, "OWNER")
+	err = s.collabStore.AddCollaborator(repoUUID, ownerID,
+		domain.CollaboratorRoleOwner)
 	if err != nil {
 		return nil, err
 	}
@@ -125,49 +126,49 @@ func (s *RepoService) GetIntoRefsByOwnerAndName(ownerUsername string, repoName s
 }
 
 // Deprecated: use UploadPackByOwnerAndName for username/repo clone flow.
-func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload []byte) ([]byte,
-	error) {
+func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload port.ByteReader,
+	responseWriter port.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.gitManager.UploadPack(repoPath, requestPayload)
+	return s.gitManager.UploadPack(repoPath, requestPayload, responseWriter)
 }
 
 func (s *RepoService) UploadPackByOwnerAndName(ownerUsername string, repoName string,
-	requestPayload []byte) ([]byte, error) {
+	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.gitManager.UploadPack(repoPath, requestPayload)
+	return s.gitManager.UploadPack(repoPath, requestPayload, responseWriter)
 }
 
 // Deprecated: repo_id receive-pack path is legacy and not publicly exposed.
-func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload []byte) ([]byte,
-	error) {
+func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload port.ByteReader,
+	responseWriter port.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, requestPayload)
+	return s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter)
 }
 
 func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string,
-	requestPayload []byte) ([]byte, error) {
+	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, requestPayload)
+	return s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter)
 }
 
 func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {

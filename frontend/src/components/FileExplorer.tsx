@@ -137,7 +137,7 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
   };
 
 	const handleItemClick = (item: RepoFile) => {
-		if (item.type === 'dir') {
+    if (item.type === 'DIR') {
 			setExpandedDirs((prev) => {
         const next = new Set(prev);
         if (next.has(item.path)) {
@@ -158,7 +158,7 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
   const sortEntries = (entries: RepoFile[]) => {
     return [...entries].sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
-      return a.type === 'dir' ? -1 : 1;
+      return a.type === 'DIR' ? -1 : 1;
     });
   };
 
@@ -167,7 +167,7 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
     const nodes: ReactElement[] = [];
 
     entries.forEach((item) => {
-      const isDir = item.type === 'dir';
+      const isDir = item.type === 'DIR';
       const isExpanded = isDir && expandedDirs.has(item.path);
       const isActiveFile = !isDir && currentPath === item.path;
 

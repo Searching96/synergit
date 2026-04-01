@@ -12,10 +12,12 @@ type GitManager interface {
 	AdvertiseRefs(repoPath string, service string) ([]byte, error)
 
 	// Method for pulling code
-	UploadPack(repoPath string, requestPayload []byte) ([]byte, error)
+	UploadPack(repoPath string, requestPayload ByteReader,
+		responseWriter ByteWriter) error
 
 	// Method for pushing code
-	ReceivePack(repoPath string, requestPayload []byte) ([]byte, error)
+	ReceivePack(repoPath string, requestPayload ByteReader,
+		responseWriter ByteWriter) error
 
 	// Method for file tree view, path can be empty for the root directory,
 	// this returns file paths

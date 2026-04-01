@@ -8,7 +8,7 @@ export interface Repository {
 export interface RepoFile {
 	name: string;
 	path: string;
-	type: 'file' | 'dir';
+	type: 'FILE' | 'DIR';
 }
 
 
