@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 	"time"
@@ -30,8 +29,8 @@ func NewRepoService(gm port.GitManager, rs port.RepoRepository, cs port.Collabor
 
 // CreateRepository is the actual business logic
 func (s *RepoService) CreateRepository(name string, ownerID uuid.UUID) (*domain.Repo, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("repository name cannot be empty")
+	if err := domain.ValidateRepoName(name); err != nil {
+		return nil, err
 	}
 
 	owner, err := s.userStore.GetUserByID(ownerID)
@@ -99,9 +98,8 @@ func (s *RepoService) resolveRepoPathByOwnerAndName(ownerUsername string, repoNa
 
 // Deprecated: use GetIntoRefsByOwnerAndName for username/repo clone flow.
 func (s *RepoService) GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error) {
-	// Security/Validation: Only allow valid git services
-	if service != "git-upload-pack" && service != "git-receive-pack" {
-		return nil, errors.New("unsupported git service")
+	if err := domain.ValidateGitService(service); err != nil {
+		return nil, err
 	}
 
 	repoPath, err := s.resolveRepoPath(repoID)
@@ -113,8 +111,8 @@ func (s *RepoService) GetIntoRefs(repoID uuid.UUID, service string) ([]byte, err
 }
 
 func (s *RepoService) GetIntoRefsByOwnerAndName(ownerUsername string, repoName string, service string) ([]byte, error) {
-	if service != "git-upload-pack" && service != "git-receive-pack" {
-		return nil, errors.New("unsupported git service")
+	if err := domain.ValidateGitService(service); err != nil {
+		return nil, err
 	}
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
@@ -212,6 +210,10 @@ func (s *RepoService) GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 }
 
 func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error) {
+	if err := domain.ValidateBranchName(newBranch); err != nil {
+		return nil, err
+	}
+
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
 		return nil, err
@@ -222,17 +224,10 @@ func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromB
 
 func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 	branch string, filePath string, content string, commitMessage string) error {
+	if err := domain.ValidateCommitFileChangeInput(branch, filePath,
+		commitMessage); err != nil {
 
-	if strings.TrimSpace(branch) == "" {
-		return errors.New("branch is required")
-	}
-
-	if strings.TrimSpace(filePath) == "" {
-		return errors.New("file path is required")
-	}
-
-	if strings.TrimSpace(commitMessage) == "" {
-		return errors.New("commit message is required")
+		return err
 	}
 
 	repoPath, err := s.resolveRepoPath(repoID)

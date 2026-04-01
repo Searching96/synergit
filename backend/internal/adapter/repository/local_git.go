@@ -325,10 +325,6 @@ func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) 
 func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
 	fromBranch string) (*domain.Branch, error) {
 
-	if strings.TrimSpace(newBranch) == "" {
-		return nil, errors.New("branch name cannot be empty")
-	}
-
 	fullPath := g.resolveRepoPath(repoPath)
 	r, err := git.PlainOpen(fullPath)
 	if err != nil {
@@ -368,18 +364,6 @@ func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
 
 func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 	filePath string, content string, authorName string, commitMessage string) error {
-
-	if strings.TrimSpace(branch) == "" {
-		return errors.New("branch is required")
-	}
-
-	if strings.TrimSpace(filePath) == "" {
-		return errors.New("file path is required")
-	}
-
-	if strings.TrimSpace(commitMessage) == "" {
-		return errors.New("commit message is required")
-	}
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 

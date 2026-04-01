@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -35,13 +34,6 @@ func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
 	var req dto.CreatePullRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
-		return
-	}
-
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.SourceBranch) == "" ||
-		strings.TrimSpace(req.TargetBranch) == "" {
-
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "title, source_branch, and target_branch are required"})
 		return
 	}
 
@@ -178,18 +170,8 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 		return
 	}
 
-	if len(req.Resolutions) == 0 {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "resolutions are required"})
-		return
-	}
-
 	resolutions := make([]domain.ConflictResolution, 0, len(req.Resolutions))
 	for _, resolution := range req.Resolutions {
-		if strings.TrimSpace(resolution.Path) == "" || strings.TrimSpace(resolution.ResolvedContent) == "" {
-			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "each resolution requires path and resolved_content"})
-			return
-		}
-
 		resolutions = append(resolutions, domain.ConflictResolution{
 			Path:            resolution.Path,
 			ResolvedContent: resolution.ResolvedContent,

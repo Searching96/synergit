@@ -24,6 +24,10 @@ func NewAuthService(userStore port.UserRepository, hasher port.PasswordHasher,
 }
 
 func (s *AuthService) Register(username string, email string, password string) error {
+	if err := domain.ValidateRegistrationInput(username, email, password); err != nil {
+		return err
+	}
+
 	hashedPassword, err := s.hasher.Hash(password)
 	if err != nil {
 		return err
@@ -39,6 +43,10 @@ func (s *AuthService) Register(username string, email string, password string) e
 }
 
 func (s *AuthService) Login(username string, password string) (string, error) {
+	if err := domain.ValidateLoginInput(username, password); err != nil {
+		return "", err
+	}
+
 	user, err := s.userStore.GetUserByUserName(username)
 	if err != nil {
 		return "", errors.New("invalid username or password")

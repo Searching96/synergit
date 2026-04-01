@@ -51,10 +51,6 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "repository name is required"})
-		return
-	}
 
 	requesterID, ok := parseRequesterID(c)
 	if !ok {
@@ -290,11 +286,6 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 		return
 	}
 
-	if strings.TrimSpace(req.Name) == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "branch name is required"})
-		return
-	}
-
 	branch, err := h.repoUsecase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
 	if err != nil {
 		respondUsecaseError(c, err)
@@ -318,13 +309,6 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 	var req dto.CommitFileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
-		return
-	}
-
-	if strings.TrimSpace(req.Branch) == "" || strings.TrimSpace(req.Path) == "" ||
-		strings.TrimSpace(req.CommitMessage) == "" {
-
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "branch, path, and commit_message are required"})
 		return
 	}
 

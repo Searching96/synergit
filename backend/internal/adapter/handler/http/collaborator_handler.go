@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -41,24 +40,14 @@ func (h *CollaboratorHandler) HandleAddCollaborator(c *gin.Context) {
 		return
 	}
 
-	if strings.TrimSpace(req.UserID) == "" || strings.TrimSpace(req.Role) == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "user_id and role are required"})
-		return
-	}
-
 	targetUserID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid user_id format in body"})
 		return
 	}
 
-	role, err := domain.ParseCollaboratorRole(req.Role)
-	if err != nil {
-		respondUsecaseError(c, err)
-		return
-	}
-
-	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID, role,
+	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID,
+		domain.CollaboratorRole(req.Role),
 		requesterID)
 	if err != nil {
 		respondUsecaseError(c, err)

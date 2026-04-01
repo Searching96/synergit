@@ -48,8 +48,10 @@ func (s *PullRequestService) CreatePullRequest(
 	repoID uuid.UUID, creatorID uuid.UUID, title string,
 	description string, sourceBranch string, targetBranch string,
 ) (*domain.PullRequest, error) {
-	if sourceBranch == targetBranch {
-		return nil, errors.New("source and target branches cannot be the same")
+	if err := domain.ValidateCreatePullRequestInput(title, sourceBranch,
+		targetBranch); err != nil {
+
+		return nil, err
 	}
 
 	pr := &domain.PullRequest{
@@ -197,6 +199,9 @@ func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,
 
 func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.UUID,
 	commitMessage string, resolutions []domain.ConflictResolution) error {
+	if err := domain.ValidateConflictResolutions(resolutions); err != nil {
+		return err
+	}
 
 	// 1. Fetch the PR
 	pr, err := s.prStore.GetByID(prID)

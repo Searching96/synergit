@@ -20,9 +20,9 @@ func NewCollaboratorService(collaboratorStore port.CollaboratorRepository) *Coll
 
 func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID,
 	role domain.CollaboratorRole, requesterID uuid.UUID) error {
-
-	if !role.IsValid() {
-		return errors.New("invalid role: must be OWNER, MAINTAINER, or WRITE")
+	normalizedRole, err := domain.ParseCollaboratorRole(string(role))
+	if err != nil {
+		return err
 	}
 
 	requesterRole, err := s.collaboratorStore.GetRole(repoID, requesterID)
@@ -34,7 +34,7 @@ func (s *CollaboratorService) AddCollaborator(repoID uuid.UUID, userID uuid.UUID
 		return errors.New("unauthorized: only owners and maintainers can add collaborators")
 	}
 
-	return s.collaboratorStore.AddCollaborator(repoID, userID, role)
+	return s.collaboratorStore.AddCollaborator(repoID, userID, normalizedRole)
 }
 
 func (s *CollaboratorService) RemoveCollaborator(repoID uuid.UUID, userID uuid.UUID, requesterID uuid.UUID) error {
