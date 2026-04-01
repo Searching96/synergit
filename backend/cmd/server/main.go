@@ -51,6 +51,7 @@ func main() {
 	dbUserAdapter := postgres.NewPostgresUserStore(db)
 	dbCollabAdapter := postgres.NewPostgresCollaboratorStore(db)
 	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
+	dbIssueAdapter := postgres.NewPostgresIssueStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
@@ -64,6 +65,7 @@ func main() {
 		dbUserAdapter, repoInsightUsecase)
 	authUsecase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
+	issueUsecase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
 	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
@@ -71,6 +73,7 @@ func main() {
 	repoHandler := httpHandler.NewRepoHandler(repoUsecase)
 	authHandler := httpHandler.NewAuthHandler(authUsecase)
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUsecase)
+	issueHandler := httpHandler.NewIssueHandler(issueUsecase)
 	prHandler := httpHandler.NewPullRequestHandler(prUsecase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUsecase)
 
@@ -129,6 +132,15 @@ func main() {
 			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/merge", prHandler.HandleMergePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
+
+			// Issue routes
+			repos.POST("/:repo_id/issues", issueHandler.HandleCreateIssue)
+			repos.GET("/:repo_id/issues", issueHandler.HandleListIssues)
+			repos.GET("/:repo_id/issues/:issue_id", issueHandler.HandleGetIssue)
+			repos.PATCH("/:repo_id/issues/:issue_id/status", issueHandler.HandleUpdateIssueStatus)
+			repos.GET("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleListIssueAssignees)
+			repos.POST("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleAssignIssue)
+			repos.DELETE("/:repo_id/issues/:issue_id/assignees/:user_id", issueHandler.HandleUnassignIssue)
 
 			// Resolve conflicts routes
 			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)
