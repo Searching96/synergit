@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
@@ -70,6 +71,32 @@ func (p *PostgresPullRequestStore) ListByRepo(repoID uuid.UUID) ([]domain.PullRe
 		pullRequests = append(pullRequests, pr)
 	}
 	return pullRequests, nil
+}
+
+func (p *PostgresPullRequestStore) GetSequenceNumber(repoID uuid.UUID,
+	prID uuid.UUID) (int, error) {
+
+	query := `
+		WITH numbered AS (
+			SELECT id,
+			ROW_NUMBER() OVER (PARTITION BY repo_id ORDER BY created_at ASC) AS pr_number
+			FROM pull_requests
+			WHERE repo_id = $1
+		)
+		SELECT pr_number
+		FROM numbered
+		WHERE id = $2`
+
+	var sequenceNumber int
+	err := p.db.QueryRow(query, repoID, prID).Scan(&sequenceNumber)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, errors.New("pull request not found")
+		}
+		return 0, err
+	}
+
+	return sequenceNumber, nil
 }
 
 func (p *PostgresPullRequestStore) UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error {

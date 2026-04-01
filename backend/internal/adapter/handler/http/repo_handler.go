@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
@@ -51,23 +52,20 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
 		return
 	}
-
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "repository name is required"})
 		return
 	}
 
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	// Call the business logic
 	repo, err := h.repoUsecase.CreateRepository(req.Name, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -85,11 +83,12 @@ func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
 
 	if service == "" {
 		c.String(http.StatusBadRequest, "service query parameter is requiered")
+		return
 	}
 
 	refs, err := h.repoUsecase.GetIntoRefs(repoID, service)
 	if err != nil {
-		c.String(http.StatusInternalServerError, err.Error())
+		c.String(statusFromUsecaseError(err), err.Error())
 		return
 	}
 
@@ -118,10 +117,20 @@ func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.ReceivePack(repoID, c.Request.Body, c.Writer)
+	requestPayload, readErr := io.ReadAll(c.Request.Body)
+	if readErr != nil {
+		c.String(http.StatusBadRequest, "failed to read git request payload")
+		return
+	}
+
+	responsePayload, err := h.repoUsecase.ReceivePack(repoID, requestPayload)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
+		c.String(statusFromUsecaseError(err), err.Error())
+		return
 	}
+
+	_, _ = c.Writer.Write(responsePayload)
 }
 
 // Deprecated: use HandleUploadPackPublic (/:username/:repo.git/git-upload-pack).
@@ -136,11 +145,20 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 
 	// Pass the HTTP Request Body and Response Writer directly to the usecase
-	err := h.repoUsecase.UploadPack(repoID, c.Request.Body, c.Writer)
+	requestPayload, readErr := io.ReadAll(c.Request.Body)
+	if readErr != nil {
+		c.String(http.StatusBadRequest, "failed to read git request payload")
+		return
+	}
+
+	responsePayload, err := h.repoUsecase.UploadPack(repoID, requestPayload)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
-		// Don't write HTTP errors here, Git is already streaming the response
+		c.String(statusFromUsecaseError(err), err.Error())
+		return
 	}
+
+	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleInfoRefsPublic(c *gin.Context) {
@@ -180,10 +198,21 @@ func (h *RepoHandler) HandleUploadPackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.UploadPackByOwnerAndName(owner, repo, c.Request.Body, c.Writer)
+	requestPayload, readErr := io.ReadAll(c.Request.Body)
+	if readErr != nil {
+		c.String(http.StatusBadRequest, "failed to read git request payload")
+		return
+	}
+
+	responsePayload, err := h.repoUsecase.UploadPackByOwnerAndName(owner, repo,
+		requestPayload)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
+		c.String(statusFromUsecaseError(err), err.Error())
+		return
 	}
+
+	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
@@ -195,16 +224,27 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.ReceivePackByOwnerAndName(owner, repo, c.Request.Body, c.Writer)
+	requestPayload, readErr := io.ReadAll(c.Request.Body)
+	if readErr != nil {
+		c.String(http.StatusBadRequest, "failed to read git request payload")
+		return
+	}
+
+	responsePayload, err := h.repoUsecase.ReceivePackByOwnerAndName(owner, repo,
+		requestPayload)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
+		c.String(statusFromUsecaseError(err), err.Error())
+		return
 	}
+
+	_, _ = c.Writer.Write(responsePayload)
 }
 
 func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 	repos, err := h.repoUsecase.GetAllRepositories()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "Failed to fetch repositories"})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -223,7 +263,7 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 
 	files, err := h.repoUsecase.GetRepoTree(repoID, path, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -240,7 +280,7 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 
 	content, err := h.repoUsecase.GetRepoBlob(repoID, path, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -256,7 +296,7 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 
 	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -270,7 +310,7 @@ func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
 	}
 	branches, err := h.repoUsecase.GetRepoBranches(repoID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, branches)
@@ -288,9 +328,14 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "branch name is required"})
+		return
+	}
+
 	branch, err := h.repoUsecase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -303,15 +348,8 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
@@ -321,10 +359,17 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 		return
 	}
 
-	err = h.repoUsecase.CommitFileChange(repoID, requesterID, req.Branch,
+	if strings.TrimSpace(req.Branch) == "" || strings.TrimSpace(req.Path) == "" ||
+		strings.TrimSpace(req.CommitMessage) == "" {
+
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "branch, path, and commit_message are required"})
+		return
+	}
+
+	err := h.repoUsecase.CommitFileChange(repoID, requesterID, req.Branch,
 		req.Path, req.Content, req.CommitMessage)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 

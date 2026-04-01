@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path" // Use path instead filepath to guarantee forward slashes (/)
@@ -87,35 +86,48 @@ func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte
 	return cmd.Output()
 }
 
-func (g *LocalGitAdapter) UploadPack(repoPath string, reqBody io.Reader,
-	resWriter io.Writer) error {
+func (g *LocalGitAdapter) UploadPack(repoPath string,
+	requestPayload []byte) ([]byte, error) {
 
 	fullPath := g.resolveRepoPath(repoPath)
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
 
-	// Magic of Go: Pipe the HTTP request body directly to the Git command's input
-	cmd.Stdin = reqBody
-	// Pipe the Git command's output directly to the HTTP response
-	cmd.Stdout = resWriter
+	cmd.Stdin = bytes.NewReader(requestPayload)
 
-	return cmd.Run()
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git upload-pack failed: %s: %w",
+			strings.TrimSpace(stderr.String()), err)
+	}
+
+	return stdout.Bytes(), nil
 }
 
 // Process incoming git pushes
-func (g *LocalGitAdapter) ReceivePack(repoPath string, reqBody io.Reader,
-	resWriter io.Writer) error {
+func (g *LocalGitAdapter) ReceivePack(repoPath string,
+	requestPayload []byte) ([]byte, error) {
 
 	fullPath := g.resolveRepoPath(repoPath)
 
 	cmd := exec.Command("git", "receive-pack", "--stateless-rpc", fullPath)
 
-	// Stream the incoming code directly into Git
-	cmd.Stdin = reqBody
+	cmd.Stdin = bytes.NewReader(requestPayload)
 
-	// Stream Git's acknowledgement back to the HTTP response
-	cmd.Stdout = resWriter
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git receive-pack failed: %s: %w",
+			strings.TrimSpace(stderr.String()), err)
+	}
+
+	return stdout.Bytes(), nil
 }
 
 func (g *LocalGitAdapter) GetTree(repoPath string, requestPath string,

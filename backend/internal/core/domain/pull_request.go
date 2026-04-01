@@ -33,6 +33,6 @@ type ConflictFile struct {
 }
 
 type ConflictResolution struct {
-	Path            string `json:"path" binding:"required"`
-	ResolvedContent string `json:"resolved_content" binding:"required"`
+	Path            string `json:"path"`
+	ResolvedContent string `json:"resolved_content"`
 }

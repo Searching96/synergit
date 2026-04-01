@@ -21,19 +21,12 @@ type PullRequestService struct {
 }
 
 func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (int, error) {
-	repoPRs, err := s.prStore.ListByRepo(repoID)
+	sequenceNumber, err := s.prStore.GetSequenceNumber(repoID, prID)
 	if err != nil {
-		return 0, errors.New("failed to get pull request list")
+		return 0, errors.New("failed to get pull request number")
 	}
 
-	// ListByRepo is ordered newest first; convert to stable oldest-first numbering.
-	for idx, repoPR := range repoPRs {
-		if repoPR.ID == prID {
-			return len(repoPRs) - idx, nil
-		}
-	}
-
-	return 0, errors.New("pull request not found in repository list")
+	return sequenceNumber, nil
 }
 
 func NewPullRequestService(prStore port.PullRequestRepository,

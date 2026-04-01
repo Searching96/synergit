@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/port"
 
@@ -28,21 +29,19 @@ func (h *CollaboratorHandler) HandleAddCollaborator(c *gin.Context) {
 		return
 	}
 
-	// Extract requester ID from JWT middleware
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	var req dto.AddCollaboratorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if strings.TrimSpace(req.UserID) == "" || strings.TrimSpace(req.Role) == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "user_id and role are required"})
 		return
 	}
 
@@ -54,7 +53,7 @@ func (h *CollaboratorHandler) HandleAddCollaborator(c *gin.Context) {
 
 	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID, req.Role, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -77,20 +76,14 @@ func (h *CollaboratorHandler) HandleRemoveCollaborator(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	err = h.collaboratorUsecase.RemoveCollaborator(repoID, targetUserID, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -106,20 +99,14 @@ func (h *CollaboratorHandler) HandleGetCollaborators(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	collabs, err := h.collaboratorUsecase.GetCollaborators(repoID, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 

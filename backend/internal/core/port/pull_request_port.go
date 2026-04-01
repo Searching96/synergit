@@ -10,6 +10,7 @@ type PullRequestRepository interface {
 	Create(pr *domain.PullRequest) error
 	GetByID(id uuid.UUID) (*domain.PullRequest, error)
 	ListByRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
+	GetSequenceNumber(repoID uuid.UUID, prID uuid.UUID) (int, error)
 	UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error
 }
 

@@ -13,6 +13,7 @@ import (
 	"synergit/internal/adapter/handler/http/middleware"
 	"synergit/internal/adapter/repository"
 	"synergit/internal/adapter/repository/postgres"
+	"synergit/internal/adapter/security"
 	"synergit/internal/core/usecase"
 
 	"github.com/gin-contrib/cors"
@@ -53,10 +54,12 @@ func main() {
 
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
+	passwordHasher := security.NewBcryptPasswordHasher(0)
+	tokenManager := security.NewJWTTokenManager(jwtSecret)
 
 	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
 		dbUserAdapter)
-	authUsecase := usecase.NewAuthService(dbUserAdapter, jwtSecret)
+	authUsecase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
 	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter)

@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"io"
 	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -126,41 +125,49 @@ func (s *RepoService) GetIntoRefsByOwnerAndName(ownerUsername string, repoName s
 }
 
 // Deprecated: use UploadPackByOwnerAndName for username/repo clone flow.
-func (s *RepoService) UploadPack(repoID uuid.UUID, in io.Reader, out io.Writer) error {
+func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload []byte) ([]byte,
+	error) {
+
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.gitManager.UploadPack(repoPath, in, out)
+	return s.gitManager.UploadPack(repoPath, requestPayload)
 }
 
-func (s *RepoService) UploadPackByOwnerAndName(ownerUsername string, repoName string, in io.Reader, out io.Writer) error {
+func (s *RepoService) UploadPackByOwnerAndName(ownerUsername string, repoName string,
+	requestPayload []byte) ([]byte, error) {
+
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.gitManager.UploadPack(repoPath, in, out)
+	return s.gitManager.UploadPack(repoPath, requestPayload)
 }
 
 // Deprecated: repo_id receive-pack path is legacy and not publicly exposed.
-func (s *RepoService) ReceivePack(repoID uuid.UUID, in io.Reader, out io.Writer) error {
+func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload []byte) ([]byte,
+	error) {
+
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, in, out)
+	return s.gitManager.ReceivePack(repoPath, requestPayload)
 }
 
-func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string, in io.Reader, out io.Writer) error {
+func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string,
+	requestPayload []byte) ([]byte, error) {
+
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return s.gitManager.ReceivePack(repoPath, in, out)
+	return s.gitManager.ReceivePack(repoPath, requestPayload)
 }
 
 func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {

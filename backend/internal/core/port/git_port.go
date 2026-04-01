@@ -1,7 +1,6 @@
 package port
 
 import (
-	"io"
 	"synergit/internal/core/domain"
 )
 
@@ -13,10 +12,10 @@ type GitManager interface {
 	AdvertiseRefs(repoPath string, service string) ([]byte, error)
 
 	// Method for pulling code
-	UploadPack(repoPath string, reqBody io.Reader, resWriter io.Writer) error
+	UploadPack(repoPath string, requestPayload []byte) ([]byte, error)
 
 	// Method for pushing code
-	ReceivePack(repoPath string, reqBody io.Reader, resWriter io.Writer) error
+	ReceivePack(repoPath string, requestPayload []byte) ([]byte, error)
 
 	// Method for file tree view, path can be empty for the root directory,
 	// this returns file paths

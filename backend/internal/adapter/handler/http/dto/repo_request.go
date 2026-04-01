@@ -7,13 +7,13 @@ type CreateRepoRequest struct {
 
 // CreateBranchRequest defines payload for creating a branch.
 type CreateBranchRequest struct {
-	Name       string `json:"name" binding:"required"`
+	Name       string `json:"name"`
 	FromBranch string `json:"from_branch"`
 }
 
 type CommitFileRequest struct {
-	Branch        string `json:"branch" binding:"required"`
-	Path          string `json:"path" binding:"required"`
+	Branch        string `json:"branch"`
+	Path          string `json:"path"`
 	Content       string `json:"content"`
-	CommitMessage string `json:"commit_message" binding:"required"`
+	CommitMessage string `json:"commit_message"`
 }

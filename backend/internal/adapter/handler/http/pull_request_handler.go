@@ -2,7 +2,9 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"synergit/internal/adapter/handler/http/dto"
+	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
@@ -25,14 +27,8 @@ func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
@@ -42,10 +38,17 @@ func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.SourceBranch) == "" ||
+		strings.TrimSpace(req.TargetBranch) == "" {
+
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "title, source_branch, and target_branch are required"})
+		return
+	}
+
 	pr, err := h.prUsecase.CreatePullRequest(repoID, requesterID,
 		req.Title, req.Description, req.SourceBranch, req.TargetBranch)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -62,7 +65,7 @@ func (h *PullRequestHandler) HandleListPullRequests(c *gin.Context) {
 
 	prs, err := h.prUsecase.ListPullRequestsForRepo(repoID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -79,7 +82,7 @@ func (h *PullRequestHandler) HandleGetPullRequest(c *gin.Context) {
 
 	pr, err := h.prUsecase.GetPullRequest(pullID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 	if pr == nil {
@@ -98,20 +101,14 @@ func (h *PullRequestHandler) HandleMergePullRequest(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requestID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requestID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	err = h.prUsecase.MergePullRequest(pullID, requestID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -126,20 +123,14 @@ func (h *PullRequestHandler) HandleClosePullRequest(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "unauthorized"})
-		return
-	}
-	requestID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "invalid requester token"})
+	requestID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	err = h.prUsecase.ClosePullRequest(pullID, requestID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -154,16 +145,14 @@ func (h *PullRequestHandler) HandleGetMergeConflicts(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, _ := c.Get("user_id")
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
 	conflicts, err := h.prUsecase.GetMergeConflicts(pullID, requesterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -178,10 +167,8 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 		return
 	}
 
-	requesterIDStr, _ := c.Get("user_id")
-	requesterID, err := uuid.Parse(requesterIDStr.(string))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid requester token"})
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
 		return
 	}
 
@@ -191,9 +178,27 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 		return
 	}
 
-	err = h.prUsecase.ResolveConflicts(pullID, requesterID, req.CommitMessage, req.Resolutions)
+	if len(req.Resolutions) == 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "resolutions are required"})
+		return
+	}
+
+	resolutions := make([]domain.ConflictResolution, 0, len(req.Resolutions))
+	for _, resolution := range req.Resolutions {
+		if strings.TrimSpace(resolution.Path) == "" || strings.TrimSpace(resolution.ResolvedContent) == "" {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "each resolution requires path and resolved_content"})
+			return
+		}
+
+		resolutions = append(resolutions, domain.ConflictResolution{
+			Path:            resolution.Path,
+			ResolvedContent: resolution.ResolvedContent,
+		})
+	}
+
+	err = h.prUsecase.ResolveConflicts(pullID, requesterID, req.CommitMessage, resolutions)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 

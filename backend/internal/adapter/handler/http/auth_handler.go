@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/port"
 
@@ -25,10 +26,22 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.Username) == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "username is required"})
+		return
+	}
+	if strings.TrimSpace(req.Email) == "" || !strings.Contains(req.Email, "@") {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "valid email is required"})
+		return
+	}
+	if len(req.Password) < 6 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "password must be at least 6 characters"})
+		return
+	}
+
 	err := h.authUsecase.Register(req.Username, req.Email, req.Password)
 	if err != nil {
-		// If it fails, it's usually because the username/email already exists
-		c.JSON(http.StatusConflict, dto.ErrorResponse{Error: "Failed to register user. Username or email may already be taken."})
+		respondUsecaseError(c, err)
 		return
 	}
 
@@ -43,9 +56,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.Password) == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "username and password are required"})
+		return
+	}
+
 	token, err := h.authUsecase.Login(req.Username, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: err.Error()})
+		respondUsecaseError(c, err)
 		return
 	}
 

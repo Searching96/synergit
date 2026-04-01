@@ -1,7 +1,6 @@
 package port
 
 import (
-	"io"
 	"synergit/internal/core/domain"
 
 	"github.com/google/uuid"
@@ -20,11 +19,11 @@ type RepoUsecase interface {
 	GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error)
 	GetIntoRefsByOwnerAndName(ownerUsername string, repoName string, service string) ([]byte, error)
 	// Deprecated: use UploadPackByOwnerAndName for username/repo clone flow.
-	UploadPack(repoID uuid.UUID, in io.Reader, out io.Writer) error
-	UploadPackByOwnerAndName(ownerUsername string, repoName string, in io.Reader, out io.Writer) error
+	UploadPack(repoID uuid.UUID, requestPayload []byte) ([]byte, error)
+	UploadPackByOwnerAndName(ownerUsername string, repoName string, requestPayload []byte) ([]byte, error)
 	// Deprecated: repo_id smart HTTP path is legacy and not exposed publicly.
-	ReceivePack(repoID uuid.UUID, in io.Reader, out io.Writer) error
-	ReceivePackByOwnerAndName(ownerUsername string, repoName string, in io.Reader, out io.Writer) error
+	ReceivePack(repoID uuid.UUID, requestPayload []byte) ([]byte, error)
+	ReceivePackByOwnerAndName(ownerUsername string, repoName string, requestPayload []byte) ([]byte, error)
 	GetAllRepositories() ([]*domain.Repo, error)
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
