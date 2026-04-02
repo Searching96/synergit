@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BarChart3, BookOpen, Code, GitPullRequest, History } from "lucide-react";
+import { BarChart3, BookOpen, CircleDot, Code, GitPullRequest, History } from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
@@ -8,13 +8,14 @@ import Auth from "./components/Auth";
 import PullRequestList from "./components/PullRequestList";
 import BranchMenu from "./components/BranchMenu";
 import RepoInsights from "./components/RepoInsights";
+import IssueBoard from "./components/IssueBoard";
 
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls' | 'insights'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls' | 'issues' | 'insights'>('files');
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
@@ -167,6 +168,14 @@ function App () {
                   <GitPullRequest size={16} className="mr-2" /> Pull Requests
                 </button>
                 <button
+                  onClick={() => setActiveTab('issues')}
+                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+                    activeTab === 'issues' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <CircleDot size={16} className="mr-2" /> Issues
+                </button>
+                <button
                   onClick={() => setActiveTab('insights')}
                   className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                     activeTab === 'insights' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
@@ -178,7 +187,7 @@ function App () {
             </div>
 
             {/* Dynamic Content Area */}
-            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' ? 'p-0' : 'p-6'}`}>
+            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' ? 'p-0' : 'p-6'}`}>
               {activeTab === 'files' && <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'pulls' && (
@@ -188,6 +197,7 @@ function App () {
                   defaultSourceBranch={currentBranch}
                 />
               )}
+              {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}
               {activeTab === 'insights' && <RepoInsights repoId={selectedRepo.id} />}
             </div>
           </div>

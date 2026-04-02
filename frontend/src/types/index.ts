@@ -78,6 +78,26 @@ export interface PullRequest {
 	updated_at: string;
 }
 
+export type IssueStatus = 'OPEN' | 'CLOSED';
+
+export interface IssueAssignee {
+	issue_id: string;
+	user_id: string;
+	assigned_at: string;
+}
+
+export interface Issue {
+	id: string;
+	repo_id: string;
+	creator_id: string;
+	title: string;
+	description: string;
+	status: IssueStatus;
+	created_at: string;
+	updated_at: string;
+	assignees?: IssueAssignee[];
+}
+
 export interface CreateBranchPayload {
 	name: string;
 	from_branch?: string;
@@ -88,6 +108,19 @@ export interface CreatePullRequestPayload {
 	description?: string;
 	source_branch: string;
 	target_branch: string;
+}
+
+export interface CreateIssuePayload {
+	title: string;
+	description?: string;
+}
+
+export interface UpdateIssueStatusPayload {
+	status: IssueStatus;
+}
+
+export interface AssignIssuePayload {
+	user_id: string;
 }
 
 export interface CommitFileChangePayload {
