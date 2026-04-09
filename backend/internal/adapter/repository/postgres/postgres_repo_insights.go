@@ -65,7 +65,7 @@ func (p *PostgresRepoInsightsStore) SaveLatest(snapshot *domain.RepoInsightsSnap
 
 func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain.RepoInsightsSnapshot, error) {
 	query := `
-		SELECT repod_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity, last_error
+		SELECT repo_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity, last_error
 		FROM repo_insights
 		WHERE repo_id = $1`
 
