@@ -4,13 +4,16 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  Ellipsis,
   FileText,
   Folder,
   GitBranch,
   Link,
   Pencil,
+  Plus,
   Search,
   Tag,
+  Trash2,
   Upload,
 } from "lucide-react";
 import type { Branch, RepoFile } from "../types";
@@ -75,6 +78,9 @@ export default function FileExplorer({
   const [branchCreateInput, setBranchCreateInput] = useState<string>("");
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
+  const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
+  const [branchPickerTab, setBranchPickerTab] = useState<"branches" | "tags">("branches");
+  const [isBranchesPageOpen, setIsBranchesPageOpen] = useState<boolean>(false);
 
   const rootEntries = useMemo(() => sortEntries(entriesByPath[""] || []), [entriesByPath]);
   const currentEntries = useMemo(
@@ -84,6 +90,12 @@ export default function FileExplorer({
 
   const isRootMode = selectedFilePath === null && currentDirPath === "";
   const cloneUrl = `https://github.com/Searching96/${repoName}.git`;
+  const defaultBranch = branches.find((item) => item.is_default) || branches[0] || null;
+  const nonDefaultBranches = defaultBranch
+    ? branches.filter((item) => item.name !== defaultBranch.name)
+    : branches;
+  const yourBranches = nonDefaultBranches.slice(0, 1);
+  const activeBranches = nonDefaultBranches.slice(1);
 
   const loadDir = useCallback(
     async (path: string, isRoot: boolean) => {
@@ -147,6 +159,11 @@ export default function FileExplorer({
     setDraftContent("");
     setCommitMessage("");
     setCommitError(null);
+    setIsAddFileMenuOpen(false);
+    setIsBranchMenuOpen(false);
+    setIsCodeMenuOpen(false);
+    setIsBranchesPageOpen(false);
+    setBranchPickerTab("branches");
     void loadDir("", true);
   }, [repoId, branch, loadDir]);
 
@@ -208,6 +225,7 @@ export default function FileExplorer({
     setFileContent(null);
     setCommitError(null);
     setIsEditing(false);
+    setIsBranchesPageOpen(false);
     expandPathAncestors(path);
 
     if (!entriesByPath[path]) {
@@ -218,6 +236,7 @@ export default function FileExplorer({
   const openFile = (path: string) => {
     setSelectedFilePath(path);
     setCurrentDirPath(getParentPath(path));
+    setIsBranchesPageOpen(false);
     expandPathAncestors(getParentPath(path));
     if (!entriesByPath[getParentPath(path)]) {
       void loadDir(getParentPath(path), false);
@@ -367,16 +386,129 @@ export default function FileExplorer({
       )}
 
       {isRootMode ? (
+        isBranchesPageOpen ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-[40px] leading-[48px] font-normal text-[#24292f]">Branches</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsBranchesPageOpen(false)}
+                  className="h-8 px-3 rounded-md text-sm text-[#57606a] hover:bg-[#eaedf1]"
+                >
+                  Back to code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBranchesPageOpen(false);
+                    setIsBranchMenuOpen(true);
+                    setBranchPickerTab("branches");
+                  }}
+                  className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b]"
+                >
+                  New branch
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-[#d1d9e0] flex items-end gap-2 text-sm text-[#57606a]">
+              {["Overview", "Yours", "Active", "Stale", "All"].map((tab, index) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`h-10 px-3 rounded-t-md ${
+                    index === 0
+                      ? "bg-[#f6f8fa] border border-[#d1d9e0] border-b-transparent text-[#24292f]"
+                      : "hover:text-[#24292f]"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+              <input
+                type="text"
+                readOnly
+                placeholder="Search branches..."
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+              />
+            </div>
+
+            <div className="space-y-6">
+              {[
+                { title: "Default", rows: defaultBranch ? [defaultBranch] : [] },
+                { title: "Your branches", rows: yourBranches },
+                { title: "Active branches", rows: activeBranches },
+              ].map((section) => (
+                <section key={section.title} className="space-y-2">
+                  <h3 className="text-xl font-semibold text-[#24292f]">{section.title}</h3>
+
+                  <div className="border border-[#d1d9e0] rounded-md overflow-hidden bg-white">
+                    <div className="px-4 py-3 border-b border-[#d1d9e0] text-xs font-semibold text-[#57606a] uppercase tracking-wide grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4">
+                      <span>Branch</span>
+                      <span>Updated</span>
+                      <span>Check status</span>
+                      <span>Behind</span>
+                      <span>Ahead</span>
+                      <span>Pull request</span>
+                      <span></span>
+                    </div>
+
+                    {section.rows.length === 0 ? (
+                      <div className="px-4 py-4 text-sm text-[#57606a]">No branches in this section.</div>
+                    ) : (
+                      <ul>
+                        {section.rows.map((item) => (
+                          <li
+                            key={`${section.title}-${item.name}`}
+                            className="px-4 py-3 border-t border-[#d8dee4] first:border-t-0 grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4 items-center text-sm"
+                          >
+                            <div className="min-w-0 flex items-center gap-2">
+                              <span className="inline-flex items-center rounded-full bg-[#ddf4ff] text-[#0969da] px-2 py-0.5 text-xs font-semibold">
+                                {item.name}
+                              </span>
+                              <button type="button" className="text-[#57606a] hover:text-[#24292f]" aria-label="Copy branch name">
+                                <Copy size={14} />
+                              </button>
+                            </div>
+                            <span className="text-[#57606a]">just now</span>
+                            <span className="text-[#8c959f]">-</span>
+                            <span className="text-[#57606a]">0</span>
+                            <span className="text-[#57606a]">0</span>
+                            <span className="text-[#8c959f]">-</span>
+                            <div className="flex items-center justify-end gap-2 text-[#57606a]">
+                              <button type="button" className="hover:text-[#24292f]" aria-label="Delete branch">
+                                <Trash2 size={14} />
+                              </button>
+                              <button type="button" className="hover:text-[#24292f]" aria-label="More branch actions">
+                                <Ellipsis size={14} />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <section className="space-y-4 min-w-0">
             <div className="relative flex flex-wrap items-center gap-2">
-              {(isBranchMenuOpen || isCodeMenuOpen) && (
+              {(isBranchMenuOpen || isCodeMenuOpen || isAddFileMenuOpen) && (
                 <button
                   type="button"
                   aria-label="Close dropdown"
                   onClick={() => {
                     setIsBranchMenuOpen(false);
                     setIsCodeMenuOpen(false);
+                    setIsAddFileMenuOpen(false);
                   }}
                   className="fixed inset-0 z-10"
                 />
@@ -388,8 +520,10 @@ export default function FileExplorer({
                   onClick={() => {
                     setIsBranchMenuOpen((prev) => !prev);
                     setIsCodeMenuOpen(false);
+                    setIsAddFileMenuOpen(false);
+                    setBranchPickerTab("branches");
                   }}
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#24292f] hover:bg-[#eaedf1]"
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-semibold text-[#24292f] hover:bg-[#f6f8fa]"
                 >
                   <GitBranch size={14} className="text-[#57606a]" />
                   {branch || "master"}
@@ -397,54 +531,87 @@ export default function FileExplorer({
                 </button>
 
                 {isBranchMenuOpen && (
-                  <div className="absolute left-0 top-[calc(100%+6px)] w-[280px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
-                    <div className="px-3 py-2 border-b border-[#d1d9e0] text-xs font-semibold uppercase tracking-wide text-[#57606a]">
-                      Switch branch
+                  <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
+                    <div className="grid grid-cols-2 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0]">
+                      <button
+                        type="button"
+                        onClick={() => setBranchPickerTab("branches")}
+                        className={`h-10 ${
+                          branchPickerTab === "branches"
+                            ? "bg-[#f6f8fa] text-[#24292f]"
+                            : "hover:bg-[#f6f8fa]"
+                        }`}
+                      >
+                        Branches
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBranchPickerTab("tags")}
+                        className={`h-10 ${
+                          branchPickerTab === "tags"
+                            ? "bg-[#f6f8fa] text-[#24292f]"
+                            : "hover:bg-[#f6f8fa]"
+                        }`}
+                      >
+                        Tags
+                      </button>
                     </div>
 
-                    <div className="max-h-56 overflow-auto py-1">
-                      {branches.map((item) => (
-                        <button
-                          key={item.name}
-                          type="button"
-                          onClick={() => {
-                            onSelectBranch(item.name);
-                            setIsBranchMenuOpen(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left text-sm hover:bg-[#f6f8fa] ${
-                            item.name === branch ? "text-[#0969da] font-medium" : "text-[#24292f]"
-                          }`}
-                        >
-                          {item.name}
-                        </button>
-                      ))}
-                    </div>
+                    {branchPickerTab === "branches" ? (
+                      <>
+                        <div className="max-h-56 overflow-auto py-1">
+                          {branches.map((item) => (
+                            <button
+                              key={item.name}
+                              type="button"
+                              onClick={() => {
+                                onSelectBranch(item.name);
+                                setIsBranchMenuOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-[#f6f8fa] ${
+                                item.name === branch ? "text-[#0969da] font-medium" : "text-[#24292f]"
+                              }`}
+                            >
+                              {item.name}
+                            </button>
+                          ))}
+                        </div>
 
-                    <div className="px-3 py-2 border-t border-[#d1d9e0] space-y-2">
-                      <p className="text-xs text-[#57606a]">Create new branch from {branch || "master"}</p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={branchCreateInput}
-                          onChange={(e) => setBranchCreateInput(e.target.value)}
-                          placeholder="new-branch-name"
-                          className="flex-1 h-8 rounded-md border border-[#d1d9e0] px-2 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void handleCreateBranchFromDropdown()}
-                          disabled={isCreatingBranch || !branchCreateInput.trim()}
-                          className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b] disabled:opacity-50"
-                        >
-                          {isCreatingBranch ? "..." : "Create"}
-                        </button>
-                      </div>
-                    </div>
+                        <div className="px-3 py-2 border-t border-[#d1d9e0] space-y-2">
+                          <p className="text-xs text-[#57606a]">Create new branch from {branch || "master"}</p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={branchCreateInput}
+                              onChange={(e) => setBranchCreateInput(e.target.value)}
+                              placeholder="new-branch-name"
+                              className="flex-1 h-8 rounded-md border border-[#d1d9e0] px-2 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void handleCreateBranchFromDropdown()}
+                              disabled={isCreatingBranch || !branchCreateInput.trim()}
+                              className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b] disabled:opacity-50"
+                            >
+                              {isCreatingBranch ? "..." : "Create"}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="px-3 py-6 text-sm text-[#57606a]">No tags found.</div>
+                    )}
                   </div>
                 )}
               </div>
 
               <button
                 type="button"
+                onClick={() => {
+                  setIsBranchesPageOpen(true);
+                  setIsBranchMenuOpen(false);
+                  setIsCodeMenuOpen(false);
+                  setIsAddFileMenuOpen(false);
+                }}
                 className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#57606a] hover:bg-[#eaedf1] inline-flex items-center gap-2"
               >
                 <GitBranch size={14} />
@@ -469,9 +636,40 @@ export default function FileExplorer({
                     className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
                   />
                 </div>
-                <button className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-medium text-[#24292f]">
-                  Add file
-                </button>
+
+                <div className="relative z-20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddFileMenuOpen((prev) => !prev);
+                      setIsCodeMenuOpen(false);
+                      setIsBranchMenuOpen(false);
+                    }}
+                    className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-medium text-[#24292f] inline-flex items-center gap-2 hover:bg-[#f6f8fa]"
+                  >
+                    Add file
+                    <ChevronDown size={14} className="text-[#57606a]" />
+                  </button>
+
+                  {isAddFileMenuOpen && (
+                    <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2.5 text-left text-sm text-[#24292f] hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                      >
+                        <Plus size={14} className="text-[#57606a]" />
+                        Create new file
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full px-3 py-2.5 text-left text-sm text-[#24292f] hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                      >
+                        <Upload size={14} className="text-[#57606a]" />
+                        Upload files
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="relative z-20">
                   <button
@@ -479,6 +677,7 @@ export default function FileExplorer({
                     onClick={() => {
                       setIsCodeMenuOpen((prev) => !prev);
                       setIsBranchMenuOpen(false);
+                      setIsAddFileMenuOpen(false);
                     }}
                     className="h-9 px-4 rounded-md border border-[#2da44e] bg-[#2da44e] text-sm font-semibold text-white inline-flex items-center gap-2 hover:bg-[#2c974b]"
                   >
@@ -583,7 +782,7 @@ export default function FileExplorer({
                 <h3 className="text-lg font-semibold text-[#24292f]">README</h3>
                 <button
                   type="button"
-                  className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a] hover:bg-[#f6f8fa] flex items-center justify-center"
+                  className="h-8 w-8 rounded-md bg-transparent text-sm text-[#57606a] hover:bg-[#f6f8fa] flex items-center justify-center"
                   aria-label="Edit README"
                 >
                   <Pencil size={15} />
@@ -633,6 +832,7 @@ export default function FileExplorer({
             </div>
           </aside>
         </div>
+        )
       ) : (
         <div className="h-full min-h-[560px] border border-[#d1d9e0] rounded-md overflow-hidden bg-white flex">
           <aside className="w-[320px] border-r border-[#d1d9e0] bg-white flex flex-col">
