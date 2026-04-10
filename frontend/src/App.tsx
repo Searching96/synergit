@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BarChart3, BookOpen, CircleDot, Code, GitPullRequest, History } from "lucide-react";
+import { BarChart3, BookOpen, CircleDot, Code, GitPullRequest, History, Menu, X } from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
@@ -16,6 +16,7 @@ function App () {
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls' | 'issues' | 'insights'>('files');
+  const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
@@ -62,6 +63,19 @@ function App () {
     }
   }, [selectedRepoId, isAuthenticated]);
 
+  useEffect(() => {
+    if (!isRepoDrawerOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsRepoDrawerOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isRepoDrawerOpen]);
+
   const handleCreateBranch = async (branchName: string) => {
     if (!selectedRepoId || !branchName.trim()) {
       throw new Error('Invalid branch name');
@@ -89,34 +103,51 @@ function App () {
   }
 
   return (
-    <div className="flex h-screen bg-white font-sans text-gray-900">
-      {/* Sidebar */}
-      <div className="w-72 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto">
-        <h3 className="text-sm font-semibold mb-4 text-gray-600 uppercase tracking-wider">Repository</h3>
-        <ul className="space-y-1">
-          {repos.map((repo) => (
-            <li
-              key={repo.id}
-              onClick={() => {
-                setSelectedRepoId(repo.id);
-                setActiveTab('files');
-              }}
-              className={`flex items-center p-2 rounded-md cursor-pointer text-sm font-medium transition-colors ${
-                selectedRepoId === repo.id ? 'bg-gray-200 text-gray-900' : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <BookOpen size={16} className="mr-2 text-gray-500" />
-              {repo.name}
-            </li>
-          ))}
-        </ul>
-      </div>
+    <div className="h-screen bg-white font-sans text-gray-900 flex flex-col">
+      <header className="h-14 border-b border-gray-200 bg-white px-4 md:px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setIsRepoDrawerOpen(true)}
+            className="h-9 w-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center"
+            aria-label="Open repository menu"
+          >
+            <Menu size={18} className="text-gray-700" />
+          </button>
+
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 truncate">
+              {selectedRepo ? selectedRepo.name : 'No repository selected'}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {selectedRepo ? 'Repository view' : 'Open the menu to choose a repository'}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          Logout
+        </button>
+      </header>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 w-full h-full min-w-0 min-h-0 overflow-y-auto">
+      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto p-6 md:p-8">
         {!selectedRepo ? (
           <div className="flex h-full items-center justify-center text-gray-400">
-            <h2 className="text-xl font-medium">Select a repository to view its content </h2>
+            <div className="text-center space-y-3">
+              <h2 className="text-xl font-medium">Select a repository to view its content</h2>
+              <button
+                type="button"
+                onClick={() => setIsRepoDrawerOpen(true)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Open Repository Menu
+              </button>
+            </div>
           </div>
         ) : (
           <div className="w-full h-full min-h-0">
@@ -187,7 +218,7 @@ function App () {
             </div>
 
             {/* Dynamic Content Area */}
-            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' ? 'p-0' : 'p-6'}`}>
+            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' || activeTab === 'files' ? 'p-0' : 'p-6'}`}>
               {activeTab === 'files' && <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'pulls' && (
@@ -202,7 +233,57 @@ function App () {
             </div>
           </div>
         )}
-      </div>
+      </main>
+
+      {isRepoDrawerOpen && (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close repository menu"
+            onClick={() => setIsRepoDrawerOpen(false)}
+            className="absolute inset-0 bg-black/35"
+          />
+
+          <aside className="absolute left-0 top-0 h-full w-[320px] bg-white border-r border-gray-200 shadow-xl flex flex-col">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Repositories</h3>
+              <button
+                type="button"
+                onClick={() => setIsRepoDrawerOpen(false)}
+                className="h-8 w-8 rounded-md border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
+                aria-label="Close"
+              >
+                <X size={16} className="text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-3 overflow-y-auto">
+              <ul className="space-y-1">
+                {repos.map((repo) => (
+                  <li key={repo.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedRepoId(repo.id);
+                        setActiveTab('files');
+                        setIsRepoDrawerOpen(false);
+                      }}
+                      className={`w-full flex items-center p-2 rounded-md text-sm font-medium transition-colors ${
+                        selectedRepoId === repo.id
+                          ? 'bg-gray-200 text-gray-900'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <BookOpen size={16} className="mr-2 text-gray-500" />
+                      <span className="truncate">{repo.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

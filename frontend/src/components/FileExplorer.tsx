@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactElement, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RepoFile } from "../types";
-import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
+import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { reposApi } from "../services/api";
 
 interface FileExplorerProps {
@@ -9,94 +9,61 @@ interface FileExplorerProps {
 }
 
 export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
-	const [treeByPath, setTreeByPath] = useState<Record<string, RepoFile[]>>({});
-	const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set(['']));
-	const [currentPath, setCurrentPath] = useState<string>('');
+	const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
+	const [currentDirPath, setCurrentDirPath] = useState<string>('');
+	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
 	const [fileContent, setFileContent] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [draftContent, setDraftContent] = useState<string>('');
   const [commitMessage, setCommitMessage] = useState<string>('');
   const [isCommitting, setIsCommitting] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [dirLoading, setDirLoading] = useState<boolean>(true);
   const [fileLoading, setFileLoading] = useState<boolean>(false);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(288);
-  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
-  
-  const prevRepoIdRef = useRef<string>(repoId);
-  const resizeStartXRef = useRef(0);
-  const resizeStartWidthRef = useRef(288);
 
-	// Keep current opened file when branch changes; reset only on repository changes.
-	useEffect(() => {
-    const repoChanged = prevRepoIdRef.current !== repoId;
-    prevRepoIdRef.current = repoId;
-
-    if (repoChanged) {
-      setExpandedDirs(new Set(['']));
-		  loadDir('');
-      setCurrentPath('');
-      setFileContent(null);
-      setIsEditing(false);
-      setDraftContent('');
-      setCommitMessage('');
-      setCommitError(null);
-      return;
+	const loadDir = useCallback(async (path: string) => {
+		try {
+      setDirLoading(true);
+      const data = await reposApi.getTree(repoId, path, branch);
+      setEntriesByPath((prev) => ({ ...prev, [path]: data || [] }));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDirLoading(false);
     }
+	}, [repoId, branch]);
 
-    loadDir('');
-
-    if (fileContent !== null && currentPath) {
-      loadBlob(currentPath);
-      return;
-    }
-  }, [repoId, branch])
-
-  useEffect(() => {
-    if (!isResizingSidebar) return;
-
-    const onMouseMove = (e: MouseEvent) => {
-      const min = 200;
-      const max = Math.floor(window.innerWidth * 0.55);
-      const nextWidth = resizeStartWidthRef.current + (e.clientX - resizeStartXRef.current);
-      setSidebarWidth(Math.max(min, Math.min(max, nextWidth)));
-    };
-
-    const onMouseUp = () => setIsResizingSidebar(false);
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [isResizingSidebar]);
-
-	const loadDir = (path: string) => {
-    reposApi.getTree(repoId, path, branch)
-			.then((data) => {
-        setTreeByPath((prev) => ({ ...prev, [path]: data || [] }));
-      })
-			.catch(console.error);
-	};
-
-	const loadBlob = (path: string) => {
-		setCurrentPath(path);
+	const loadBlob = useCallback(async (path: string) => {
     setCommitError(null);
     setFileLoading(true);
-    reposApi.getBlob(repoId, path, branch)
-			.then((data) => {
-				const textToDisplay = typeof data === 'string' ? data : data.content;
-				setFileContent(textToDisplay);
-        setDraftContent(textToDisplay);
-        setIsEditing(false);
-			})
-			.catch(console.error)
-      .finally(() => setFileLoading(false));
-	}
+    try {
+      const data = await reposApi.getBlob(repoId, path, branch);
+      const textToDisplay = typeof data === 'string' ? data : data.content;
+      setFileContent(textToDisplay);
+      setDraftContent(textToDisplay);
+      setIsEditing(false);
+      setSelectedFilePath(path);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFileLoading(false);
+    }
+	}, [repoId, branch]);
+
+	useEffect(() => {
+    setEntriesByPath({});
+    setCurrentDirPath('');
+    setSelectedFilePath(null);
+    setFileContent(null);
+    setIsEditing(false);
+    setDraftContent('');
+    setCommitMessage('');
+    setCommitError(null);
+    void loadDir('');
+  }, [repoId, branch, loadDir]);
 
   const handleCommitChanges = async () => {
-    if (!currentPath || fileContent === null || !commitMessage.trim()) return;
+    if (!selectedFilePath || fileContent === null || !commitMessage.trim()) return;
 
     try {
       setIsCommitting(true);
@@ -104,7 +71,7 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
 
       await reposApi.commitFileChange(repoId, {
         branch,
-        path: currentPath,
+        path: selectedFilePath,
         content: draftContent,
         commit_message: commitMessage.trim(),
       });
@@ -112,8 +79,8 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
       setFileContent(draftContent);
       setIsEditing(false);
       setCommitMessage('');
-    } catch (err: any) {
-      setCommitError(err?.message || 'Failed to commit changes');
+    } catch (err: unknown) {
+      setCommitError(err instanceof Error ? err.message : 'Failed to commit changes');
     } finally {
       setIsCommitting(false);
     }
@@ -136,130 +103,128 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
     });
   };
 
-	const handleItemClick = (item: RepoFile) => {
-    if (item.type === 'DIR') {
-			setExpandedDirs((prev) => {
-        const next = new Set(prev);
-        if (next.has(item.path)) {
-          next.delete(item.path);
-        } else {
-          next.add(item.path);
-          if (!treeByPath[item.path]) {
-            loadDir(item.path);
-          }
-        }
-        return next;
-      });
-		} else {
-			loadBlob(item.path);
-		}
+	const openDirectory = (path: string) => {
+    setCurrentDirPath(path);
+    setSelectedFilePath(null);
+    setFileContent(null);
+    setCommitError(null);
+    setIsEditing(false);
+
+    if (!entriesByPath[path]) {
+      void loadDir(path);
+    }
 	};
 
-  const sortEntries = (entries: RepoFile[]) => {
+	const openFile = (path: string) => {
+    void loadBlob(path);
+	};
+
+  const currentEntries = useMemo(() => {
+    const entries = entriesByPath[currentDirPath] || [];
     return [...entries].sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === 'DIR' ? -1 : 1;
     });
+  }, [entriesByPath, currentDirPath]);
+
+  const getParentPath = (path: string) => {
+    if (!path) return '';
+    const parts = path.split('/').filter(Boolean);
+    parts.pop();
+    return parts.join('/');
   };
 
-  const renderDir = (path: string, depth: number = 0): ReactElement[] => {
-    const entries = sortEntries(treeByPath[path] || []);
-    const nodes: ReactElement[] = [];
+  const directoryParts = currentDirPath.split('/').filter(Boolean);
 
-    entries.forEach((item) => {
-      const isDir = item.type === 'DIR';
-      const isExpanded = isDir && expandedDirs.has(item.path);
-      const isActiveFile = !isDir && currentPath === item.path;
-
-      nodes.push(
-        <button
-          key={item.path}
-          onClick={() => handleItemClick(item)}
-          className={`w-full flex items-center gap-2 py-1.5 pr-2 text-sm text-left hover:bg-gray-100 ${
-            isActiveFile ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-          }`}
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
-        >
-          {isDir ? (
-            isExpanded ? <ChevronDown size={14} className="text-gray-500 shrink-0" /> : <ChevronRight size={14} className="text-gray-500 shrink-0" />
-          ) : (
-            <span className="w-[14px] shrink-0" />
-          )}
-
-          {isDir ? <Folder size={16} className="text-gray-500 shrink-0" /> : <FileText size={16} className="text-gray-400 shrink-0" />}
-          <span className="truncate">{item.name}</span>
-        </button>,
-      );
-
-      if (isDir && isExpanded) {
-        nodes.push(...renderDir(item.path, depth + 1));
-      }
-    });
-
-    return nodes;
-  };
+  const fileParts = (selectedFilePath || '').split('/').filter(Boolean);
 
 	return (
-    <div className="h-full min-h-0 flex border border-gray-200 rounded-md overflow-hidden bg-white">
-      <div
-        className="border-r border-gray-200 bg-gray-50 overflow-y-auto"
-        style={{ width: `${sidebarWidth}px` }}
-      >
-        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 border-b border-gray-200">
-          Files
-        </div>
-        <div className="py-2">{renderDir('')}</div>
+    <div className="h-full min-h-0 flex flex-col border border-gray-200 rounded-md overflow-hidden bg-white">
+      <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200 bg-gray-50 flex items-center gap-1 flex-wrap">
+        <button
+          type="button"
+          onClick={() => openDirectory('')}
+          className="font-medium hover:text-gray-900"
+        >
+          root
+        </button>
+
+        {selectedFilePath
+          ? fileParts.map((part, index) => (
+              <span key={`${part}-${index}`} className="flex items-center gap-1">
+                <ChevronRight size={14} className="text-gray-400" />
+                <span className="font-mono text-gray-700">{part}</span>
+              </span>
+            ))
+          : directoryParts.map((part, index) => {
+              const partialPath = directoryParts.slice(0, index + 1).join('/');
+              return (
+                <span key={`${part}-${index}`} className="flex items-center gap-1">
+                  <ChevronRight size={14} className="text-gray-400" />
+                  <button
+                    type="button"
+                    onClick={() => openDirectory(partialPath)}
+                    className="font-mono hover:text-gray-900"
+                  >
+                    {part}
+                  </button>
+                </span>
+              );
+            })}
       </div>
 
-      <div
-        className="w-1 cursor-col-resize bg-gray-100 hover:bg-blue-300 transition-colors"
-        onMouseDown={(e: ReactMouseEvent<HTMLDivElement>) => {
-          resizeStartXRef.current = e.clientX;
-          resizeStartWidthRef.current = sidebarWidth;
-          setIsResizingSidebar(true);
-        }}
-      />
-
-      <div className="flex-1 min-w-0 flex flex-col bg-white">
-        <div className="px-4 py-2 text-sm text-gray-600 border-b border-gray-200 font-mono">
-          {currentPath || '/ (root)'}
-        </div>
-
-        {currentPath && fileContent !== null ? (
+      <div className="flex-1 min-w-0 flex flex-col bg-white overflow-auto">
+        {selectedFilePath ? (
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 flex items-center justify-between">
             <div className="flex items-center">
               <FileText size={16} className="mr-2" />
-              {currentPath.split('/').pop()}
+              {selectedFilePath.split('/').pop()}
             </div>
-            {!isEditing ? (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  setIsEditing(true);
-                  setDraftContent(fileContent);
-                  setCommitError(null);
-                }}
-                className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
-              >
-                Edit
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
+                  setSelectedFilePath(null);
+                  setFileContent(null);
                   setIsEditing(false);
-                  setDraftContent(fileContent);
                   setCommitError(null);
                 }}
                 className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
               >
-                Cancel
+                Back to folder
               </button>
-            )}
+              {!isEditing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setDraftContent(fileContent || '');
+                    setCommitError(null);
+                  }}
+                  className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
+                >
+                  Edit
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setDraftContent(fileContent || '');
+                    setCommitError(null);
+                  }}
+                  className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
 
-          {isEditing ? (
+          {fileLoading ? (
+            <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading file...</div>
+          ) : isEditing ? (
             <div className="bg-white p-4 space-y-3">
               <textarea
                 className="w-full min-h-[360px] border border-gray-300 rounded-md p-3 font-mono text-sm"
@@ -293,16 +258,58 @@ export default function FileExplorer({ repoId, branch }: FileExplorerProps) {
           ) : (
             <div className="bg-white p-4 overflow-auto">
               <pre className="text-sm font-mono text-gray-800 leading-relaxed">
-                <code>{fileContent}</code>
+                <code>{fileContent || ''}</code>
               </pre>
             </div>
           )}
         </div>
-        ) : fileLoading ? (
-          <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">Loading file...</div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-            Select a file from the sidebar to view its content.
+          <div className="flex-1 min-h-0 overflow-auto">
+            <div className="px-4 py-3 border-b border-gray-200 text-sm font-medium text-gray-700 flex items-center gap-2">
+              <FolderOpen size={16} className="text-gray-500" />
+              {currentDirPath || '/'}
+            </div>
+
+            {dirLoading && currentEntries.length === 0 ? (
+              <div className="p-6 text-sm text-gray-500">Loading directory...</div>
+            ) : currentEntries.length === 0 && currentDirPath === '' ? (
+              <div className="p-6 text-sm text-gray-500">Repository is empty.</div>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {currentDirPath !== '' && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => openDirectory(getParentPath(currentDirPath))}
+                      className="w-full px-4 py-3 text-sm flex items-center gap-3 hover:bg-gray-50 text-gray-700"
+                    >
+                      <Folder size={16} className="text-gray-500" />
+                      ..
+                    </button>
+                  </li>
+                )}
+
+                {currentEntries.map((item) => (
+                  <li key={item.path}>
+                    <button
+                      type="button"
+                      onClick={() => item.type === 'DIR' ? openDirectory(item.path) : openFile(item.path)}
+                      className="w-full px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-gray-50"
+                    >
+                      <span className="min-w-0 flex items-center gap-3">
+                        {item.type === 'DIR' ? (
+                          <Folder size={16} className="text-gray-500 shrink-0" />
+                        ) : (
+                          <FileText size={16} className="text-gray-400 shrink-0" />
+                        )}
+                        <span className="truncate text-gray-800">{item.name}</span>
+                      </span>
+                      <span className="text-xs text-gray-500 shrink-0">{item.type === 'DIR' ? 'Folder' : 'File'}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
