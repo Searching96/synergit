@@ -1,6 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import type { Branch, Repository } from "./types/index";
-import { BarChart3, BookOpen, CircleDot, Code, GitPullRequest, History, Menu, X } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  BookOpen,
+  CircleDot,
+  Code,
+  GitFork,
+  GitPullRequest,
+  History,
+  Menu,
+  Plus,
+  Search,
+  Star,
+  X,
+} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
@@ -10,12 +24,28 @@ import BranchMenu from "./components/BranchMenu";
 import RepoInsights from "./components/RepoInsights";
 import IssueBoard from "./components/IssueBoard";
 
+type TabKey = 'files' | 'commits' | 'pulls' | 'issues' | 'insights';
+
+interface MainTab {
+  key: TabKey;
+  label: string;
+  icon: ComponentType<{ size?: number; className?: string }>;
+}
+
+const MAIN_TABS: MainTab[] = [
+  { key: 'files', label: 'Code', icon: Code },
+  { key: 'issues', label: 'Issues', icon: CircleDot },
+  { key: 'pulls', label: 'Pull requests', icon: GitPullRequest },
+  { key: 'commits', label: 'Commits', icon: History },
+  { key: 'insights', label: 'Insights', icon: BarChart3 },
+];
+
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'files' | 'commits' | 'pulls' | 'issues' | 'insights'>('files');
+  const [activeTab, setActiveTab] = useState<TabKey>('files');
   const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
 
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -103,123 +133,160 @@ function App () {
   }
 
   return (
-    <div className="h-screen bg-white font-sans text-gray-900 flex flex-col">
-      <header className="h-14 border-b border-gray-200 bg-white px-4 md:px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => setIsRepoDrawerOpen(true)}
-            className="h-9 w-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center"
-            aria-label="Open repository menu"
-          >
-            <Menu size={18} className="text-gray-700" />
-          </button>
+    <div className="h-screen bg-[#f6f8fa] font-sans text-[#1f2328] flex flex-col">
+      <header className="border-b border-[#d1d9e0] bg-white">
+        <div className="h-14 max-w-[1400px] mx-auto px-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => setIsRepoDrawerOpen(true)}
+              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              aria-label="Open repository menu"
+            >
+              <Menu size={18} className="text-[#57606a]" />
+            </button>
 
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800 truncate">
-              {selectedRepo ? selectedRepo.name : 'No repository selected'}
-            </p>
-            <p className="text-xs text-gray-500 truncate">
-              {selectedRepo ? 'Repository view' : 'Open the menu to choose a repository'}
-            </p>
+            <div className="h-8 w-8 rounded-full bg-[#24292f] text-white text-sm font-semibold flex items-center justify-center">
+              S
+            </div>
+
+            <div className="hidden md:block min-w-0">
+              <p className="text-sm font-semibold text-[#24292f] truncate">
+                {selectedRepo ? selectedRepo.name : 'Select repository'}
+              </p>
+            </div>
+          </div>
+
+          <div className="hidden lg:block flex-1 max-w-xl">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+              <input
+                type="text"
+                readOnly
+                placeholder="Type / to search"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              aria-label="Create"
+            >
+              <Plus size={16} className="text-[#57606a]" />
+            </button>
+            <button
+              type="button"
+              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              aria-label="Notifications"
+            >
+              <Bell size={16} className="text-[#57606a]" />
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="px-3 py-1.5 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md hover:bg-[#f6f8fa]"
+            >
+              Logout
+            </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="px-3 py-1.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-        >
-          Logout
-        </button>
+        <div className="h-12 border-t border-[#f0f2f5] max-w-[1400px] mx-auto px-4 flex items-end overflow-x-auto">
+          {MAIN_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.key;
+
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`h-11 px-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                  active
+                    ? 'border-[#fd8c73] text-[#24292f]'
+                    : 'border-transparent text-[#57606a] hover:text-[#24292f] hover:border-[#d1d9e0]'
+                }`}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto p-6 md:p-8">
+      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto">
+        <div className="max-w-[1400px] mx-auto px-4 py-6 h-full">
         {!selectedRepo ? (
-          <div className="flex h-full items-center justify-center text-gray-400">
+          <div className="flex h-full items-center justify-center text-[#57606a]">
             <div className="text-center space-y-3">
               <h2 className="text-xl font-medium">Select a repository to view its content</h2>
               <button
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(true)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md bg-white hover:bg-[#f6f8fa]"
               >
                 Open Repository Menu
               </button>
             </div>
           </div>
         ) : (
-          <div className="w-full h-full min-h-0">
-            {/* Header & Tabs */}
-            <div className="mb-6 pb-4 border-b border-gray-200">
-              {/* Repo Name and Branch Selector */}
-              <div className="flex flex-col gap-2">
-                {/* Repo Name */}
-                <h2 className="text-2xl font-semibold text-gray-800 flex items-center">
-                  <BookOpen size={24} className="mr-3 text-gray-400" />
-                  {selectedRepo.name}
-                </h2>
-
-                {/* Navigation among branches */}
-                {branches.length > 0 && (
-                  <BranchMenu
-                    branches={branches}
-                    currentBranch={currentBranch}
-                    onSelectBranch={setCurrentBranch}
-                    onCreateBranch={handleCreateBranch}
-                  />
-                )}
+          <div className="w-full h-full min-h-0 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <BookOpen size={20} className="text-[#57606a]" />
+                <h2 className="text-2xl font-semibold text-[#0969da] truncate">{selectedRepo.name}</h2>
+                <span className="text-xs font-medium text-[#57606a] border border-[#d1d9e0] rounded-full px-2 py-0.5">
+                  Public
+                </span>
               </div>
 
-              {/* Navigation between files, commits, and pull requests */}
-              <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg mt-4">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setActiveTab('files')}
-                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === 'files' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  type="button"
+                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa]"
                 >
-                  <Code size={16} className="mr-2" /> Code
+                  Unwatch
                 </button>
                 <button
-                  onClick={() => setActiveTab('commits')}
-                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === 'commits' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  type="button"
+                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2"
                 >
-                  <History size={16} className="mr-2" /> Commits
+                  <GitFork size={14} />
+                  Fork
                 </button>
                 <button
-                  onClick={() => setActiveTab('pulls')}
-                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === 'pulls' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  type="button"
+                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2"
                 >
-                  <GitPullRequest size={16} className="mr-2" /> Pull Requests
-                </button>
-                <button
-                  onClick={() => setActiveTab('issues')}
-                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === 'issues' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <CircleDot size={16} className="mr-2" /> Issues
-                </button>
-                <button
-                  onClick={() => setActiveTab('insights')}
-                  className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-                    activeTab === 'insights' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <BarChart3 size={16} className="mr-2" /> Insights
+                  <Star size={14} />
+                  Star
                 </button>
               </div>
             </div>
 
+            {branches.length > 0 && (
+              <BranchMenu
+                branches={branches}
+                currentBranch={currentBranch}
+                onSelectBranch={setCurrentBranch}
+                onCreateBranch={handleCreateBranch}
+              />
+            )}
+
             {/* Dynamic Content Area */}
-            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' || activeTab === 'files' ? 'p-0' : 'p-6'}`}>
-              {activeTab === 'files' && <FileExplorer repoId={selectedRepo.id} branch={currentBranch} />}
+            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' || activeTab === 'files' ? 'p-0' : 'p-6 bg-white border border-[#d1d9e0] rounded-md'}`}>
+              {activeTab === 'files' && (
+                <FileExplorer
+                  repoId={selectedRepo.id}
+                  repoName={selectedRepo.name}
+                  branch={currentBranch}
+                  branchCount={branches.length}
+                />
+              )}
               {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
               {activeTab === 'pulls' && (
                 <PullRequestList
@@ -233,6 +300,7 @@ function App () {
             </div>
           </div>
         )}
+        </div>
       </main>
 
       {isRepoDrawerOpen && (
@@ -244,20 +312,28 @@ function App () {
             className="absolute inset-0 bg-black/35"
           />
 
-          <aside className="absolute left-0 top-0 h-full w-[320px] bg-white border-r border-gray-200 shadow-xl flex flex-col">
-            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Repositories</h3>
+          <aside className="absolute left-0 top-0 h-full w-[320px] bg-white border-r border-[#d1d9e0] shadow-xl flex flex-col">
+            <div className="px-4 py-3 border-b border-[#d1d9e0] flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[#57606a] uppercase tracking-wider">Menu</h3>
               <button
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(false)}
-                className="h-8 w-8 rounded-md border border-gray-300 hover:bg-gray-50 flex items-center justify-center"
+                className="h-8 w-8 rounded-md border border-[#d1d9e0] hover:bg-[#f6f8fa] flex items-center justify-center"
                 aria-label="Close"
               >
-                <X size={16} className="text-gray-600" />
+                <X size={16} className="text-[#57606a]" />
               </button>
             </div>
 
+            <div className="px-3 py-2 border-b border-[#d1d9e0] text-sm text-[#57606a] space-y-1">
+              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">Home</button>
+              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">Issues</button>
+              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">Pull requests</button>
+              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">Repositories</button>
+            </div>
+
             <div className="p-3 overflow-y-auto">
+              <h4 className="text-xs font-semibold text-[#57606a] uppercase tracking-wider mb-2">Your repositories</h4>
               <ul className="space-y-1">
                 {repos.map((repo) => (
                   <li key={repo.id}>
@@ -270,11 +346,11 @@ function App () {
                       }}
                       className={`w-full flex items-center p-2 rounded-md text-sm font-medium transition-colors ${
                         selectedRepoId === repo.id
-                          ? 'bg-gray-200 text-gray-900'
-                          : 'text-gray-700 hover:bg-gray-100'
+                          ? 'bg-[#ddf4ff] text-[#0969da]'
+                          : 'text-[#24292f] hover:bg-[#f6f8fa]'
                       }`}
                     >
-                      <BookOpen size={16} className="mr-2 text-gray-500" />
+                      <BookOpen size={16} className="mr-2 text-[#57606a]" />
                       <span className="truncate">{repo.name}</span>
                     </button>
                   </li>
