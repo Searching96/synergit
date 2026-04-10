@@ -20,7 +20,6 @@ import CommitHistory from "./components/CommitHistory";
 import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/Auth";
 import PullRequestList from "./components/PullRequestList";
-import BranchMenu from "./components/BranchMenu";
 import RepoInsights from "./components/RepoInsights";
 import IssueBoard from "./components/IssueBoard";
 
@@ -135,7 +134,7 @@ function App () {
   return (
     <div className="h-screen bg-[#f6f8fa] font-sans text-[#1f2328] flex flex-col">
       <header className="border-b border-[#d1d9e0] bg-white">
-        <div className="h-14 max-w-[1400px] mx-auto px-4 flex items-center justify-between gap-4">
+        <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -151,8 +150,9 @@ function App () {
             </div>
 
             <div className="hidden md:block min-w-0">
-              <p className="text-sm font-semibold text-[#24292f] truncate">
-                {selectedRepo ? selectedRepo.name : 'Select repository'}
+              <p className="text-sm text-[#57606a] truncate">
+                Searching96 <span className="text-[#8c959f]">/</span>{" "}
+                <span className="font-semibold text-[#24292f]">{selectedRepo ? selectedRepo.name : 'select-repository'}</span>
               </p>
             </div>
           </div>
@@ -194,7 +194,7 @@ function App () {
           </div>
         </div>
 
-        <div className="h-12 border-t border-[#f0f2f5] max-w-[1400px] mx-auto px-4 flex items-end overflow-x-auto">
+        <div className="h-12 border-t border-[#f0f2f5] px-4 md:px-6 flex items-end overflow-x-auto">
           {MAIN_TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -268,15 +268,6 @@ function App () {
               </div>
             </div>
 
-            {branches.length > 0 && (
-              <BranchMenu
-                branches={branches}
-                currentBranch={currentBranch}
-                onSelectBranch={setCurrentBranch}
-                onCreateBranch={handleCreateBranch}
-              />
-            )}
-
             {/* Dynamic Content Area */}
             <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' || activeTab === 'files' ? 'p-0' : 'p-6 bg-white border border-[#d1d9e0] rounded-md'}`}>
               {activeTab === 'files' && (
@@ -284,7 +275,9 @@ function App () {
                   repoId={selectedRepo.id}
                   repoName={selectedRepo.name}
                   branch={currentBranch}
-                  branchCount={branches.length}
+                  branches={branches}
+                  onSelectBranch={setCurrentBranch}
+                  onCreateBranch={handleCreateBranch}
                 />
               )}
               {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}

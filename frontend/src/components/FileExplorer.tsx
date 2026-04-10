@@ -1,19 +1,28 @@
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import {
+  Code,
   ChevronDown,
   ChevronRight,
+  Copy,
   FileText,
   Folder,
+  GitBranch,
+  Link,
+  Pencil,
   Search,
+  Tag,
+  Upload,
 } from "lucide-react";
-import type { RepoFile } from "../types";
+import type { Branch, RepoFile } from "../types";
 import { reposApi } from "../services/api";
 
 interface FileExplorerProps {
   repoId: string;
   repoName: string;
   branch: string;
-  branchCount: number;
+  branches: Branch[];
+  onSelectBranch: (branchName: string) => void;
+  onCreateBranch: (branchName: string) => Promise<void>;
 }
 
 function sortEntries(entries: RepoFile[]): RepoFile[] {
@@ -38,7 +47,9 @@ export default function FileExplorer({
   repoId,
   repoName,
   branch,
-  branchCount,
+  branches,
+  onSelectBranch,
+  onCreateBranch,
 }: FileExplorerProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -59,7 +70,11 @@ export default function FileExplorer({
   const [draftContent, setDraftContent] = useState<string>("");
   const [commitMessage, setCommitMessage] = useState<string>("");
   const [isCommitting, setIsCommitting] = useState<boolean>(false);
+  const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [branchCreateInput, setBranchCreateInput] = useState<string>("");
+  const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
+  const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
 
   const rootEntries = useMemo(() => sortEntries(entriesByPath[""] || []), [entriesByPath]);
   const currentEntries = useMemo(
@@ -68,6 +83,7 @@ export default function FileExplorer({
   );
 
   const isRootMode = selectedFilePath === null && currentDirPath === "";
+  const cloneUrl = `https://github.com/Searching96/${repoName}.git`;
 
   const loadDir = useCallback(
     async (path: string, isRoot: boolean) => {
@@ -249,6 +265,23 @@ export default function FileExplorer({
     }
   };
 
+  const handleCreateBranchFromDropdown = async () => {
+    const nextBranch = branchCreateInput.trim();
+    if (!nextBranch) return;
+
+    try {
+      setIsCreatingBranch(true);
+      await onCreateBranch(nextBranch);
+      setBranchCreateInput("");
+      setIsBranchMenuOpen(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create branch";
+      setLoadError(message);
+    } finally {
+      setIsCreatingBranch(false);
+    }
+  };
+
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Tab") return;
     e.preventDefault();
@@ -336,15 +369,93 @@ export default function FileExplorer({
       {isRootMode ? (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <section className="space-y-4 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-medium text-[#24292f]">
-                {branch || "master"}
-                <ChevronDown size={14} />
+            <div className="relative flex flex-wrap items-center gap-2">
+              {(isBranchMenuOpen || isCodeMenuOpen) && (
+                <button
+                  type="button"
+                  aria-label="Close dropdown"
+                  onClick={() => {
+                    setIsBranchMenuOpen(false);
+                    setIsCodeMenuOpen(false);
+                  }}
+                  className="fixed inset-0 z-10"
+                />
+              )}
+
+              <div className="relative z-20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBranchMenuOpen((prev) => !prev);
+                    setIsCodeMenuOpen(false);
+                  }}
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#24292f] hover:bg-[#eaedf1]"
+                >
+                  <GitBranch size={14} className="text-[#57606a]" />
+                  {branch || "master"}
+                  <ChevronDown size={14} className="text-[#57606a]" />
+                </button>
+
+                {isBranchMenuOpen && (
+                  <div className="absolute left-0 top-[calc(100%+6px)] w-[280px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
+                    <div className="px-3 py-2 border-b border-[#d1d9e0] text-xs font-semibold uppercase tracking-wide text-[#57606a]">
+                      Switch branch
+                    </div>
+
+                    <div className="max-h-56 overflow-auto py-1">
+                      {branches.map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => {
+                            onSelectBranch(item.name);
+                            setIsBranchMenuOpen(false);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-[#f6f8fa] ${
+                            item.name === branch ? "text-[#0969da] font-medium" : "text-[#24292f]"
+                          }`}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="px-3 py-2 border-t border-[#d1d9e0] space-y-2">
+                      <p className="text-xs text-[#57606a]">Create new branch from {branch || "master"}</p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={branchCreateInput}
+                          onChange={(e) => setBranchCreateInput(e.target.value)}
+                          placeholder="new-branch-name"
+                          className="flex-1 h-8 rounded-md border border-[#d1d9e0] px-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleCreateBranchFromDropdown()}
+                          disabled={isCreatingBranch || !branchCreateInput.trim()}
+                          className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b] disabled:opacity-50"
+                        >
+                          {isCreatingBranch ? "..." : "Create"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#57606a] hover:bg-[#eaedf1] inline-flex items-center gap-2"
+              >
+                <GitBranch size={14} />
+                {branches.length} Branches
               </button>
-              <button className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]">
-                {branchCount} Branches
-              </button>
-              <button className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]">
+
+              <button
+                type="button"
+                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#57606a] hover:bg-[#eaedf1] inline-flex items-center gap-2"
+              >
+                <Tag size={14} />
                 0 Tags
               </button>
 
@@ -361,9 +472,72 @@ export default function FileExplorer({
                 <button className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-medium text-[#24292f]">
                   Add file
                 </button>
-                <button className="h-9 px-4 rounded-md border border-[#2da44e] bg-[#2da44e] text-sm font-medium text-white">
-                  Code
-                </button>
+
+                <div className="relative z-20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCodeMenuOpen((prev) => !prev);
+                      setIsBranchMenuOpen(false);
+                    }}
+                    className="h-9 px-4 rounded-md border border-[#2da44e] bg-[#2da44e] text-sm font-semibold text-white inline-flex items-center gap-2 hover:bg-[#2c974b]"
+                  >
+                    <Code size={14} />
+                    Code
+                    <ChevronDown size={14} />
+                  </button>
+
+                  {isCodeMenuOpen && (
+                    <div className="absolute right-0 top-[calc(100%+8px)] w-[460px] rounded-lg border border-[#d1d9e0] bg-white shadow-2xl overflow-hidden">
+                      <div className="grid grid-cols-2 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0]">
+                        <button type="button" className="h-11 bg-[#f6f8fa] text-[#24292f]">Local</button>
+                        <button type="button" className="h-11 hover:bg-[#f6f8fa]">Codespaces</button>
+                      </div>
+
+                      <div className="p-4 space-y-4">
+                        <div className="text-sm font-semibold text-[#24292f]">Clone</div>
+
+                        <div className="flex items-center gap-4 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0] pb-2">
+                          <button type="button" className="text-[#24292f] border-b-2 border-[#fd8c73] pb-1">HTTPS</button>
+                          <button type="button">SSH</button>
+                          <button type="button">GitHub CLI</button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            readOnly
+                            value={cloneUrl}
+                            className="flex-1 h-9 rounded-md border border-[#d1d9e0] px-3 text-sm text-[#24292f]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void navigator.clipboard.writeText(cloneUrl)}
+                            className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+                            aria-label="Copy clone URL"
+                          >
+                            <Copy size={15} className="text-[#57606a]" />
+                          </button>
+                        </div>
+
+                        <p className="text-sm text-[#57606a]">Clone using the web URL.</p>
+
+                        <div className="space-y-1 text-sm text-[#24292f]">
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2">
+                            <Upload size={14} className="text-[#57606a]" />
+                            Open with GitHub Desktop
+                          </button>
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2">
+                            <Link size={14} className="text-[#57606a]" />
+                            Open with Visual Studio
+                          </button>
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">
+                            Download ZIP
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -409,9 +583,10 @@ export default function FileExplorer({
                 <h3 className="text-lg font-semibold text-[#24292f]">README</h3>
                 <button
                   type="button"
-                  className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+                  className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a] hover:bg-[#f6f8fa] flex items-center justify-center"
+                  aria-label="Edit README"
                 >
-                  Edit
+                  <Pencil size={15} />
                 </button>
               </div>
 
