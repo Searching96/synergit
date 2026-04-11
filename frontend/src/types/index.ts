@@ -3,6 +3,19 @@ export interface Repository {
 	name: string;
 	path: string;
 	created_at: string;
+	owner?: string;
+	clone_url?: string;
+}
+
+export type RepositoryVisibility = 'public' | 'private';
+
+export interface CreateRepositoryPayload {
+	name: string;
+	description?: string;
+	visibility?: RepositoryVisibility;
+	initialize_readme?: boolean;
+	gitignore_template?: string;
+	license_template?: string;
 }
 
 export interface RepoFile {

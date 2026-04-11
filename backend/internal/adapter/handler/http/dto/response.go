@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 // ErrorResponse is the standard error payload for JSON APIs.
 type ErrorResponse struct {
 	Error string `json:"error"`
@@ -13,4 +15,14 @@ type MessageResponse struct {
 // TokenResponse is the auth response payload.
 type TokenResponse struct {
 	Token string `json:"token"`
+}
+
+// RepoResponse is the repository payload returned by repository APIs.
+type RepoResponse struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	CreatedAt time.Time `json:"created_at"`
+	Owner     string    `json:"owner"`
+	CloneURL  string    `json:"clone_url"`
 }

@@ -2,6 +2,7 @@ import { fetcher } from './client';
 import type {
   Branch,
   Commit,
+  CreateRepositoryPayload,
   RepoInsightsSnapshot,
   CommitFileChangePayload,
   CreateBranchPayload,
@@ -11,6 +12,13 @@ import type {
 
 export const reposApi = {
   getRepos: () => fetcher<Repository[]>('/repos'),
+
+  createRepo: (payload: CreateRepositoryPayload) =>
+    fetcher<Repository>('/repos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
 
   createBranch: (repoId: string, payload: CreateBranchPayload) =>
     fetcher<Branch>(`/repos/${repoId}/branches`, {

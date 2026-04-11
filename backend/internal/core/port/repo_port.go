@@ -15,6 +15,7 @@ type RepoRepository interface {
 
 type RepoUsecase interface {
 	CreateRepository(name string, ownerID uuid.UUID) (*domain.Repo, error)
+	CreateRepositoryWithOptions(name string, ownerID uuid.UUID, options domain.CreateRepositoryOptions) (*domain.Repo, error)
 	// Deprecated: use GetIntoRefsByOwnerAndName for username/repo clone flow.
 	GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error)
 	GetIntoRefsByOwnerAndName(ownerUsername string, repoName string, service string) ([]byte, error)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Repository } from "../../types";
 import {
   Bell,
@@ -28,7 +28,11 @@ import {
 
 interface GithubProfilePagesProps {
   repositories: Repository[];
+  username: string;
+  activeTab: ProfileTabKey;
+  onTabChange: (tab: ProfileTabKey) => void;
   onOpenWorkspace: (repoName: string) => void;
+  onCreateRepository: () => void;
   onLogout: () => void;
 }
 
@@ -47,11 +51,13 @@ const PROFILE_TABS: Array<{
 
 export default function GithubProfilePages({
   repositories,
+  username,
+  activeTab,
+  onTabChange,
   onOpenWorkspace,
+  onCreateRepository,
   onLogout,
 }: GithubProfilePagesProps) {
-  const [activeTab, setActiveTab] = useState<ProfileTabKey>("overview");
-
   const profileRepositories = useMemo(
     () => buildDefaultRepositories(repositories),
     [repositories],
@@ -99,6 +105,7 @@ export default function GithubProfilePages({
       <ProfileRepositoriesPage
         profileRepositories={profileRepositories}
         onOpenWorkspace={onOpenWorkspace}
+        onCreateRepository={onCreateRepository}
         languageColor={languageColor}
       />
     ) : activeTab === "projects" ? (
@@ -123,7 +130,7 @@ export default function GithubProfilePages({
             <div className="h-8 w-8 rounded-full bg-[#24292f] text-white font-bold text-xs inline-flex items-center justify-center">
               GH
             </div>
-            <p className="text-sm font-semibold text-[#24292f] truncate">Searching96</p>
+            <p className="text-sm font-semibold text-[#24292f] truncate">{username}</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -140,6 +147,7 @@ export default function GithubProfilePages({
             </div>
             <button
               type="button"
+              onClick={onCreateRepository}
               className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-[#57606a] inline-flex items-center justify-center hover:bg-[#f3f4f6]"
             >
               <Plus size={14} />
@@ -167,7 +175,7 @@ export default function GithubProfilePages({
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => onTabChange(tab.key)}
                 className={tabClass(tab.key)}
               >
                 <Icon size={15} />
@@ -183,18 +191,18 @@ export default function GithubProfilePages({
         </div>
       </header>
 
-      <main className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[296px_minmax(0,1fr)] gap-6">
-        <aside className="w-full lg:w-[296px]">
-          <div className="w-[280px] max-w-full mx-auto lg:mx-0">
+      <main className="w-full max-w-[1480px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
+        <aside className="w-full lg:w-[340px]">
+          <div className="w-[320px] max-w-full mx-auto lg:mx-0">
             <img
-              src="https://github.com/Searching96.png"
-              alt="Searching96 avatar"
+              src={`https://github.com/${encodeURIComponent(username)}.png`}
+              alt={`${username} avatar`}
               className="w-full aspect-square object-cover rounded-full border border-[#d1d9e0]"
             />
             <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[#24292f]">
               Nguyễn Phúc Thịnh
             </h1>
-            <p className="text-[30px] leading-[34px] font-light text-[#57606a]">Searching96</p>
+            <p className="text-[30px] leading-[34px] font-light text-[#57606a]">{username}</p>
             <button
               type="button"
               className="mt-4 h-8 w-full rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-sm font-semibold text-[#24292f] hover:bg-[#eef1f4]"
@@ -211,7 +219,7 @@ export default function GithubProfilePages({
       </main>
 
       <footer className="border-t border-[#d8dee4] mt-8 py-6 text-xs text-[#57606a]">
-        <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
+        <div className="max-w-[1480px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
           <span>© 2026 GitHub, Inc.</span>
           <span>Terms</span>
           <span>Privacy</span>

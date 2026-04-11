@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -25,6 +26,16 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, relying on environment variables")
 	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	host := strings.TrimSpace(os.Getenv("HOST"))
+	if host == "" {
+		host = "localhost"
+	}
+	publicBaseURL := fmt.Sprintf("http://%s:%s", host, port)
 
 	// 1. Connect to database
 	connStr := os.Getenv("DATABASE_URL")
@@ -70,7 +81,7 @@ func main() {
 		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
-	repoHandler := httpHandler.NewRepoHandler(repoUsecase)
+	repoHandler := httpHandler.NewRepoHandler(repoUsecase, publicBaseURL)
 	authHandler := httpHandler.NewAuthHandler(authUsecase)
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUsecase)
 	issueHandler := httpHandler.NewIssueHandler(issueUsecase)
@@ -149,11 +160,6 @@ func main() {
 	}
 
 	// 6. Start the server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080" // Fallback if not set
-	}
-
 	fmt.Printf("Synergit backend running on port %s...\n", port)
 	log.Fatal(router.Run(":" + port))
 }

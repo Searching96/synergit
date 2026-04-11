@@ -14,9 +14,36 @@ type Repo struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type RepoVisibility string
+
+const (
+	RepoVisibilityPublic  RepoVisibility = "public"
+	RepoVisibilityPrivate RepoVisibility = "private"
+)
+
+type CreateRepositoryOptions struct {
+	Description       string
+	Visibility        RepoVisibility
+	InitializeReadme  bool
+	GitignoreTemplate string
+	LicenseTemplate   string
+}
+
 func ValidateRepoName(name string) error {
 	if strings.TrimSpace(name) == "" {
 		return errors.New("repository name cannot be empty")
+	}
+
+	return nil
+}
+
+func ValidateRepoVisibility(visibility RepoVisibility) error {
+	if visibility == "" {
+		return nil
+	}
+
+	if visibility != RepoVisibilityPublic && visibility != RepoVisibilityPrivate {
+		return errors.New("invalid visibility")
 	}
 
 	return nil

@@ -7,6 +7,8 @@ import (
 type GitManager interface {
 	// Init a bare repo at a relative storage slug (for example: username/repo)
 	InitBareRepo(repoSlug string) (string, error)
+	BootstrapRepository(repoPath string, branch string, authorName string,
+		files map[string]string, commitMessage string) error
 
 	// Methods for smart http
 	AdvertiseRefs(repoPath string, service string) ([]byte, error)

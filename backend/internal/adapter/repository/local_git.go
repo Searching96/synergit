@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path" // Use path instead filepath to guarantee forward slashes (/)
 	"path/filepath"
+	"sort"
 	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -73,6 +74,95 @@ func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
 	}
 
 	return fullPath, nil
+}
+
+func (g *LocalGitAdapter) BootstrapRepository(repoPath string, branch string,
+	authorName string, files map[string]string, commitMessage string) error {
+
+	if len(files) == 0 {
+		return nil
+	}
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+
+	tempDir, err := os.MkdirTemp("", "synergit-bootstrap-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp bootstrap directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+
+		return nil
+	}
+
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return fmt.Errorf("failed to clone repository for bootstrap: %w", err)
+	}
+
+	if err := runGit("checkout", "--orphan", branch); err != nil {
+		if checkoutErr := runGit("checkout", branch); checkoutErr != nil {
+			return fmt.Errorf("failed to create initial branch: %w", err)
+		}
+	}
+
+	email := fmt.Sprintf("%s@synergit.local", authorName)
+	if err := runGit("config", "user.name", authorName); err != nil {
+		return err
+	}
+
+	if err := runGit("config", "user.email", email); err != nil {
+		return err
+	}
+
+	filePaths := make([]string, 0, len(files))
+	for filePath := range files {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		cleanPath := filepath.Clean(filepath.FromSlash(filePath))
+		if cleanPath == "." || filepath.IsAbs(cleanPath) {
+			return errors.New("invalid bootstrap file path")
+		}
+
+		fullPath := filepath.Join(tempDir, cleanPath)
+		relPath, err := filepath.Rel(tempDir, fullPath)
+		if err != nil || strings.HasPrefix(relPath, "..") {
+			return errors.New("invalid bootstrap file path")
+		}
+
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			return fmt.Errorf("failed to create bootstrap file directory: %w", err)
+		}
+
+		if err := os.WriteFile(fullPath, []byte(files[filePath]), 0644); err != nil {
+			return fmt.Errorf("failed to write bootstrap file: %w", err)
+		}
+	}
+
+	if err := runGit("add", "."); err != nil {
+		return fmt.Errorf("failed to stage bootstrap files: %w", err)
+	}
+
+	if err := runGit("commit", "-m", commitMessage); err != nil {
+		return fmt.Errorf("failed to create bootstrap commit: %w", err)
+	}
+
+	if err := runGit("push", "origin", branch); err != nil {
+		return fmt.Errorf("failed to push bootstrap branch: %w", err)
+	}
+
+	return nil
 }
 
 func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte, error) {

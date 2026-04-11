@@ -1,15 +1,38 @@
 import { Star } from "lucide-react";
 import type { ShowcaseRepo } from "./profileTypes";
 
+function buildSparklinePoints(values: number[], width: number, height: number, padding = 2): string {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+
+  return values
+    .map((value, index) => {
+      const x = padding + (index * usableWidth) / Math.max(values.length - 1, 1);
+      const normalized = (value - min) / range;
+      const y = padding + (1 - normalized) * usableHeight;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
 interface ProfileRepositoriesPageProps {
   profileRepositories: ShowcaseRepo[];
   onOpenWorkspace: (repoName: string) => void;
+  onCreateRepository: () => void;
   languageColor: (language: string) => string;
 }
 
 export default function ProfileRepositoriesPage({
   profileRepositories,
   onOpenWorkspace,
+  onCreateRepository,
   languageColor,
 }: ProfileRepositoriesPageProps) {
   return (
@@ -25,7 +48,13 @@ export default function ProfileRepositoriesPage({
           <button type="button" className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-xs text-[#24292f]">Type</button>
           <button type="button" className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-xs text-[#24292f]">Language</button>
           <button type="button" className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-xs text-[#24292f]">Sort</button>
-          <button type="button" className="h-8 px-3 rounded-md bg-[#238636] text-xs font-semibold text-white">New</button>
+          <button
+            type="button"
+            onClick={onCreateRepository}
+            className="h-8 px-3 rounded-md bg-[#238636] text-xs font-semibold text-white"
+          >
+            New
+          </button>
         </div>
       </div>
 
@@ -59,15 +88,22 @@ export default function ProfileRepositoriesPage({
               </div>
             </div>
 
-            <div className="shrink-0 flex items-center gap-3">
+            <div className="shrink-0 flex flex-col items-end gap-2">
               <button type="button" className="h-7 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-xs text-[#24292f] inline-flex items-center gap-2">
                 <Star size={12} />
                 Star
               </button>
-              <div className="h-6 w-[90px] flex items-end gap-[2px]">
-                {repo.sparkline.map((height, idx) => (
-                  <span key={`spark-${repo.name}-${idx}`} className="w-[3px] rounded-sm bg-[#2ea043]" style={{ height: `${height * 2}px`, opacity: 0.8 }} />
-                ))}
+              <div className="h-6 w-[92px]">
+                <svg viewBox="0 0 92 24" className="h-full w-full" role="img" aria-label={`${repo.name} commit trend`}>
+                  <polyline
+                    points={buildSparklinePoints(repo.sparkline, 92, 24)}
+                    fill="none"
+                    stroke="#2ea043"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
             </div>
           </article>

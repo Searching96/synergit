@@ -19,9 +19,18 @@ import {
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 
+type ExplorerLocation = {
+  type: "root" | "file" | "dir";
+  path?: string;
+};
+
 interface FileExplorerProps {
   repoId: string;
   repoName: string;
+  repoOwner?: string;
+  cloneUrl?: string;
+  initialLocation?: ExplorerLocation;
+  onNavigateLocation?: (location: ExplorerLocation) => void;
   branch: string;
   branches: Branch[];
   onSelectBranch: (branchName: string) => void;
@@ -49,6 +58,10 @@ function commitMessagePlaceholder(item: RepoFile): string {
 export default function FileExplorer({
   repoId,
   repoName,
+  repoOwner,
+  cloneUrl: backendCloneUrl,
+  initialLocation,
+  onNavigateLocation,
   branch,
   branches,
   onSelectBranch,
@@ -82,6 +95,13 @@ export default function FileExplorer({
   const [branchPickerTab, setBranchPickerTab] = useState<"branches" | "tags">("branches");
   const [isBranchesPageOpen, setIsBranchesPageOpen] = useState<boolean>(false);
 
+  const normalizedInitialPath = useMemo(() => {
+    return (initialLocation?.path || "")
+      .split("/")
+      .filter(Boolean)
+      .join("/");
+  }, [initialLocation?.path]);
+
   const rootEntries = useMemo(() => sortEntries(entriesByPath[""] || []), [entriesByPath]);
   const currentEntries = useMemo(
     () => sortEntries(entriesByPath[currentDirPath] || []),
@@ -89,7 +109,49 @@ export default function FileExplorer({
   );
 
   const isRootMode = selectedFilePath === null && currentDirPath === "";
-  const cloneUrl = `https://github.com/Searching96/${repoName}.git`;
+  const cloneUrl = useMemo(() => {
+    if (backendCloneUrl && backendCloneUrl.trim()) {
+      return backendCloneUrl.trim();
+    }
+
+    const owner = (repoOwner || "owner").trim();
+    const explicitCloneBase = (import.meta.env.VITE_CLONE_BASE_URL as string | undefined)?.trim();
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+
+    if (explicitCloneBase) {
+      return `${explicitCloneBase.replace(/\/$/, "")}/${owner}/${repoName}.git`;
+    }
+
+    if (apiBase) {
+      const normalizedApiBase = apiBase.replace(/\/$/, "");
+      const apiOrigin = normalizedApiBase.replace(/\/api\/v\d+$/, "");
+      return `${apiOrigin}/${owner}/${repoName}.git`;
+    }
+
+    return `http://localhost:8080/${owner}/${repoName}.git`;
+  }, [backendCloneUrl, repoOwner, repoName]);
+  const quickSetupCreateCommands = useMemo(
+    () =>
+      [
+        `echo "# ${repoName}" >> README.md`,
+        "git init",
+        "git add README.md",
+        'git commit -m "Initial commit"',
+        "git branch -M main",
+        `git remote add origin ${cloneUrl}`,
+        "git push -u origin main",
+      ].join("\n"),
+    [repoName, cloneUrl],
+  );
+  const quickSetupPushCommands = useMemo(
+    () =>
+      [
+        `git remote add origin ${cloneUrl}`,
+        "git branch -M main",
+        "git push -u origin main",
+      ].join("\n"),
+    [cloneUrl],
+  );
   const defaultBranch = branches.find((item) => item.is_default) || branches[0] || null;
   const nonDefaultBranches = defaultBranch
     ? branches.filter((item) => item.name !== defaultBranch.name)
@@ -219,7 +281,30 @@ export default function FileExplorer({
     });
   };
 
-  const openDirectory = (path: string) => {
+  const notifyLocation = useCallback((location: ExplorerLocation) => {
+    onNavigateLocation?.(location);
+  }, [onNavigateLocation]);
+
+  const openRoot = useCallback((syncLocation: boolean = true) => {
+    setCurrentDirPath("");
+    setSelectedFilePath(null);
+    setFileContent(null);
+    setCommitError(null);
+    setIsEditing(false);
+    setIsBranchesPageOpen(false);
+    expandPathAncestors("");
+
+    if (syncLocation) {
+      notifyLocation({ type: "root", path: "" });
+    }
+  }, [notifyLocation]);
+
+  const openDirectory = useCallback((path: string, syncLocation: boolean = true) => {
+    if (path === "") {
+      openRoot(syncLocation);
+      return;
+    }
+
     setCurrentDirPath(path);
     setSelectedFilePath(null);
     setFileContent(null);
@@ -231,9 +316,12 @@ export default function FileExplorer({
     if (!entriesByPath[path]) {
       void loadDir(path, false);
     }
-  };
+    if (syncLocation) {
+      notifyLocation({ type: "dir", path });
+    }
+  }, [entriesByPath, loadDir, notifyLocation, openRoot]);
 
-  const openFile = (path: string) => {
+  const openFile = useCallback((path: string, syncLocation: boolean = true) => {
     setSelectedFilePath(path);
     setCurrentDirPath(getParentPath(path));
     setIsBranchesPageOpen(false);
@@ -242,7 +330,28 @@ export default function FileExplorer({
       void loadDir(getParentPath(path), false);
     }
     void loadBlob(path);
-  };
+    if (syncLocation) {
+      notifyLocation({ type: "file", path });
+    }
+  }, [entriesByPath, loadBlob, loadDir, notifyLocation]);
+
+  useEffect(() => {
+    if (!initialLocation) {
+      return;
+    }
+
+    if (initialLocation.type === "root" || !normalizedInitialPath) {
+      openRoot(false);
+      return;
+    }
+
+    if (initialLocation.type === "file") {
+      openFile(normalizedInitialPath, false);
+      return;
+    }
+
+    openDirectory(normalizedInitialPath, false);
+  }, [initialLocation?.type, normalizedInitialPath, repoId, branch]);
 
   const toggleExpand = (path: string) => {
     setExpandedDirs((prev) => {
@@ -497,6 +606,109 @@ export default function FileExplorer({
               ))}
             </div>
           </div>
+        ) : rootLoading ? (
+          <div className="rounded-md border border-[#d1d9e0] bg-white p-6 text-sm text-[#57606a]">
+            Loading repository files...
+          </div>
+        ) : rootEntries.length === 0 ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div className="rounded-md border border-[#d1d9e0] bg-white p-4">
+                <FileText size={16} className="text-[#57606a]" />
+                <h3 className="mt-3 text-[22px] font-semibold text-[#24292f]">Start coding with Codespaces</h3>
+                <p className="mt-2 text-sm text-[#57606a] leading-6">
+                  Add a README file and start coding in a secure, configurable, and dedicated development environment.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                >
+                  Create a codespace
+                </button>
+              </div>
+
+              <div className="rounded-md border border-[#d1d9e0] bg-white p-4">
+                <Plus size={16} className="text-[#57606a]" />
+                <h3 className="mt-3 text-[22px] font-semibold text-[#24292f]">Add collaborators to this repository</h3>
+                <p className="mt-2 text-sm text-[#57606a] leading-6">
+                  Search for people using their GitHub username or email address.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                >
+                  Invite collaborators
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-[#d1d9e0] overflow-hidden bg-white">
+              <div className="px-4 py-4 bg-[#ddf4ff] border-b border-[#d1d9e0]">
+                <h3 className="text-[30px] leading-[1.2] font-semibold text-[#24292f]">
+                  Quick setup - if you&apos;ve done this kind of thing before
+                </h3>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                  >
+                    Set up in Desktop
+                  </button>
+                  <p>or</p>
+                  <button
+                    type="button"
+                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs font-semibold text-[#24292f]"
+                  >
+                    HTTPS
+                  </button>
+                  <button
+                    type="button"
+                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#57606a]"
+                  >
+                    SSH
+                  </button>
+                  <div className="min-w-[260px] flex-1 flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={cloneUrl}
+                      className="h-8 w-full rounded-md border border-[#d1d9e0] bg-white px-3 text-xs text-[#24292f]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void navigator.clipboard.writeText(cloneUrl)}
+                      className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] inline-flex items-center justify-center"
+                      aria-label="Copy quick setup URL"
+                    >
+                      <Copy size={14} className="text-[#57606a]" />
+                    </button>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-sm text-[#57606a] leading-6">
+                  Get started by creating a new file or uploading an existing file. We recommend every repository include a README, LICENSE, and .gitignore.
+                </p>
+              </div>
+
+              <div className="px-4 py-4 border-b border-[#d1d9e0]">
+                <h4 className="text-[32px] leading-[1.2] font-semibold text-[#24292f]">
+                  ...or create a new repository on the command line
+                </h4>
+                <pre className="mt-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] p-3 text-sm text-[#24292f] font-mono whitespace-pre-wrap">
+                  {quickSetupCreateCommands}
+                </pre>
+              </div>
+
+              <div className="px-4 py-4">
+                <h4 className="text-[32px] leading-[1.2] font-semibold text-[#24292f]">
+                  ...or push an existing repository from the command line
+                </h4>
+                <pre className="mt-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] p-3 text-sm text-[#24292f] font-mono whitespace-pre-wrap">
+                  {quickSetupPushCommands}
+                </pre>
+              </div>
+            </div>
+          </div>
         ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <section className="space-y-4 min-w-0">
@@ -747,34 +959,28 @@ export default function FileExplorer({
                 <span className="text-right">Last commit date</span>
               </div>
 
-              {rootLoading ? (
-                <div className="p-5 text-sm text-[#57606a]">Loading repository files...</div>
-              ) : rootEntries.length === 0 ? (
-                <div className="p-5 text-sm text-[#57606a]">Repository is empty.</div>
-              ) : (
-                <ul>
-                  {rootEntries.map((item) => (
-                    <li key={item.path} className="border-t border-[#d8dee4] first:border-t-0">
-                      <button
-                        type="button"
-                        onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                        className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[#f6f8fa]"
-                      >
-                        <span className="min-w-0 flex items-center gap-2 text-left">
-                          {item.type === "DIR" ? (
-                            <Folder size={16} className="text-[#57606a] shrink-0" />
-                          ) : (
-                            <FileText size={16} className="text-[#8c959f] shrink-0" />
-                          )}
-                          <span className="truncate text-[#0969da]">{item.name}</span>
-                        </span>
-                        <span className="truncate text-left text-[#57606a]">{commitMessagePlaceholder(item)}</span>
-                        <span className="text-right text-[#57606a]">just now</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <ul>
+                {rootEntries.map((item) => (
+                  <li key={item.path} className="border-t border-[#d8dee4] first:border-t-0">
+                    <button
+                      type="button"
+                      onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
+                      className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[#f6f8fa]"
+                    >
+                      <span className="min-w-0 flex items-center gap-2 text-left">
+                        {item.type === "DIR" ? (
+                          <Folder size={16} className="text-[#57606a] shrink-0" />
+                        ) : (
+                          <FileText size={16} className="text-[#8c959f] shrink-0" />
+                        )}
+                        <span className="truncate text-[#0969da]">{item.name}</span>
+                      </span>
+                      <span className="truncate text-left text-[#57606a]">{commitMessagePlaceholder(item)}</span>
+                      <span className="text-right text-[#57606a]">just now</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <div className="border border-[#d1d9e0] rounded-md overflow-hidden bg-white">
@@ -849,11 +1055,7 @@ export default function FileExplorer({
                 <li>
                   <button
                     type="button"
-                    onClick={() => {
-                      setCurrentDirPath("");
-                      setSelectedFilePath(null);
-                      setFileContent(null);
-                    }}
+                    onClick={() => openRoot()}
                     className={`w-full text-left px-3 py-1.5 text-sm font-medium ${
                       currentDirPath === "" && !selectedFilePath
                         ? "bg-[#ddf4ff] text-[#0969da]"
@@ -872,11 +1074,7 @@ export default function FileExplorer({
             <div className="px-4 py-3 border-b border-[#d1d9e0] bg-[#f6f8fa] text-sm text-[#57606a] flex items-center gap-1 flex-wrap">
               <button
                 type="button"
-                onClick={() => {
-                  setCurrentDirPath("");
-                  setSelectedFilePath(null);
-                  setFileContent(null);
-                }}
+                onClick={() => openRoot()}
                 className="hover:text-[#24292f]"
               >
                 root
@@ -896,12 +1094,7 @@ export default function FileExplorer({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setCurrentDirPath(path);
-                            setSelectedFilePath(null);
-                            setFileContent(null);
-                            if (!entriesByPath[path]) void loadDir(path, false);
-                          }}
+                          onClick={() => openDirectory(path)}
                           className="hover:text-[#24292f]"
                         >
                           {part}
@@ -919,12 +1112,7 @@ export default function FileExplorer({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedFilePath(null);
-                        setFileContent(null);
-                        setIsEditing(false);
-                        setCommitError(null);
-                      }}
+                      onClick={() => openDirectory(getParentPath(selectedFilePath))}
                       className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
                     >
                       Back

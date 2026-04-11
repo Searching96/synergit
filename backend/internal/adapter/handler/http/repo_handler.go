@@ -3,8 +3,10 @@ package http
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
+	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
 	"github.com/gin-gonic/gin"
@@ -12,12 +14,14 @@ import (
 )
 
 type RepoHandler struct {
-	repoUsecase port.RepoUsecase
+	repoUsecase   port.RepoUsecase
+	publicBaseURL string
 }
 
-func NewRepoHandler(uc port.RepoUsecase) *RepoHandler {
+func NewRepoHandler(uc port.RepoUsecase, publicBaseURL string) *RepoHandler {
 	return &RepoHandler{
-		repoUsecase: uc,
+		repoUsecase:   uc,
+		publicBaseURL: strings.TrimSpace(publicBaseURL),
 	}
 }
 
@@ -45,6 +49,79 @@ func parseCloneCoordinates(c *gin.Context) (string, string, bool) {
 	return owner, repo, true
 }
 
+func requestBaseURL(c *gin.Context, configuredBaseURL string) string {
+	configured := strings.TrimSpace(configuredBaseURL)
+	if configured != "" {
+		return strings.TrimSuffix(configured, "/")
+	}
+
+	proto := strings.TrimSpace(c.GetHeader("X-Forwarded-Proto"))
+	if proto != "" {
+		proto = strings.TrimSpace(strings.Split(proto, ",")[0])
+	}
+	if proto == "" {
+		if c.Request.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	host := strings.TrimSpace(c.GetHeader("X-Forwarded-Host"))
+	if host != "" {
+		host = strings.TrimSpace(strings.Split(host, ",")[0])
+	}
+	if host == "" {
+		host = strings.TrimSpace(c.Request.Host)
+	}
+	if host == "" {
+		host = "localhost"
+	}
+
+	return strings.TrimSuffix(fmt.Sprintf("%s://%s", proto, host), "/")
+}
+
+func inferOwnerFromRepoPath(repoPath string) string {
+	normalized := strings.Trim(filepath.ToSlash(strings.TrimSpace(repoPath)), "/")
+	if normalized == "" {
+		return ""
+	}
+
+	segments := strings.Split(normalized, "/")
+	if len(segments) < 2 {
+		return ""
+	}
+
+	return strings.TrimSpace(segments[len(segments)-2])
+}
+
+func buildCloneURL(baseURL string, owner string, repoName string) string {
+	cleanBase := strings.TrimSuffix(strings.TrimSpace(baseURL), "/")
+	cleanOwner := strings.Trim(strings.TrimSpace(owner), "/")
+	cleanRepo := strings.Trim(strings.TrimSpace(repoName), "/")
+	cleanRepo = strings.TrimSuffix(cleanRepo, ".git")
+
+	if cleanBase == "" || cleanOwner == "" || cleanRepo == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s/%s/%s.git", cleanBase, cleanOwner, cleanRepo)
+}
+
+func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string) dto.RepoResponse {
+	owner := inferOwnerFromRepoPath(repo.Path)
+	baseURL := requestBaseURL(c, configuredBaseURL)
+
+	return dto.RepoResponse{
+		ID:        repo.ID,
+		Name:      repo.Name,
+		Path:      repo.Path,
+		CreatedAt: repo.CreatedAt,
+		Owner:     owner,
+		CloneURL:  buildCloneURL(baseURL, owner, repo.Name),
+	}
+}
+
 func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 	var req dto.CreateRepoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,15 +134,23 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 		return
 	}
 
+	options := domain.CreateRepositoryOptions{
+		Description:       req.Description,
+		Visibility:        domain.RepoVisibility(req.Visibility),
+		InitializeReadme:  req.InitializeReadme,
+		GitignoreTemplate: req.GitignoreTemplate,
+		LicenseTemplate:   req.LicenseTemplate,
+	}
+
 	// Call the business logic
-	repo, err := h.repoUsecase.CreateRepository(req.Name, requesterID)
+	repo, err := h.repoUsecase.CreateRepositoryWithOptions(req.Name, requesterID, options)
 	if err != nil {
 		respondUsecaseError(c, err)
 		return
 	}
 
 	// Gin handles writing the JSON response and headers
-	c.JSON(http.StatusCreated, repo)
+	c.JSON(http.StatusCreated, toRepoResponse(c, repo, h.publicBaseURL))
 }
 
 // Deprecated: use HandleInfoRefsPublic (/:username/:repo.git/info/refs).
@@ -206,7 +291,15 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, repos)
+	responses := make([]dto.RepoResponse, 0, len(repos))
+	for _, repo := range repos {
+		if repo == nil {
+			continue
+		}
+		responses = append(responses, toRepoResponse(c, repo, h.publicBaseURL))
+	}
+
+	c.JSON(http.StatusOK, responses)
 }
 
 func (h *RepoHandler) HandleGetTree(c *gin.Context) {
