@@ -86,12 +86,12 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-[#57606a]">Loading insights...</div>;
+    return <div className="p-8 text-center text-[var(--text-secondary)]">Loading insights...</div>;
   }
 
   if (error) {
     return (
-      <div className="p-6 border border-[#ff818266] bg-[#ffebe9] text-[#cf222e] rounded-md space-y-3">
+      <div className="p-6 border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md space-y-3">
         <p className="font-medium">{error}</p>
         <button
           type="button"
@@ -99,7 +99,7 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
             setError(null);
             void loadInsights();
           }}
-          className="px-3 py-1.5 text-sm rounded-md border border-[#f7c6c7] bg-white hover:bg-[#ffebe9]"
+          className="px-3 py-1.5 text-sm rounded-md border border-[var(--border-danger-muted)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-danger-subtle)]"
         >
           Retry
         </button>
@@ -108,12 +108,12 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
   }
 
   if (!snapshot) {
-    return <div className="p-8 text-center text-[#57606a]">No insights available.</div>;
+    return <div className="p-8 text-center text-[var(--text-secondary)]">No insights available.</div>;
   }
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[240px_minmax(0,1fr)] gap-4">
-      <aside className="border border-[#d8dee4] rounded-md bg-white py-2 h-fit">
+      <aside className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] py-2 h-fit">
         {[
           "Pulse",
           "Contributors",
@@ -133,8 +133,8 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
             type="button"
             className={`w-full px-4 py-2 text-left text-sm ${
               index === 0
-                ? "text-[#24292f] bg-[#f6f8fa] border-l-2 border-[#fd8c73] font-semibold"
-                : "text-[#57606a] hover:bg-[#f6f8fa]"
+                ? "text-[var(--text-primary)] bg-[var(--surface-subtle)] border-l-2 border-[var(--border-tab-active)] font-semibold"
+                : "text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
             }`}
           >
             {item}
@@ -144,108 +144,108 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
 
       <section className="space-y-4 min-w-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[40px] leading-[1.2] font-semibold text-[#24292f]">
+          <h2 className="text-[40px] leading-[1.2] font-semibold text-[var(--text-primary)]">
             {new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toLocaleDateString()} - {new Date().toLocaleDateString()}
           </h2>
           <button
             type="button"
             onClick={() => void loadInsights()}
-            className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-sm text-[#24292f] hover:bg-[#eef1f4] inline-flex items-center gap-2"
+            className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] inline-flex items-center gap-2"
           >
             <Calendar size={14} />
             Period: 1 week
           </button>
         </div>
 
-        <div className="border border-[#d8dee4] rounded-md bg-white overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#d8dee4] text-base font-semibold text-[#24292f]">Overview</div>
+        <div className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border-muted)] text-base font-semibold text-[var(--text-primary)]">Overview</div>
 
           <div className="px-4 py-4 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <div className="h-2 rounded bg-[#eaeef2] overflow-hidden">
+              <div className="h-2 rounded bg-[var(--surface-badge)] overflow-hidden">
                 <div
-                  className="h-full bg-[#8c959f]"
+                  className="h-full bg-[var(--text-muted)]"
                   style={{ width: `${Math.round((openPulls / totalOpenItems) * 100)}%` }}
                 />
               </div>
-              <p className="mt-2 text-base text-[#24292f]">{openPulls} Active pull requests</p>
+              <p className="mt-2 text-base text-[var(--text-primary)]">{openPulls} Active pull requests</p>
             </div>
             <div>
-              <div className="h-2 rounded bg-[#eaeef2] overflow-hidden">
+              <div className="h-2 rounded bg-[var(--surface-badge)] overflow-hidden">
                 <div
-                  className="h-full bg-[#1f883d]"
+                  className="h-full bg-[var(--accent-line)]"
                   style={{ width: `${Math.round((openIssues / totalOpenItems) * 100)}%` }}
                 />
               </div>
-              <p className="mt-2 text-base text-[#24292f]">{openIssues} Active issues</p>
+              <p className="mt-2 text-base text-[var(--text-primary)]">{openIssues} Active issues</p>
             </div>
           </div>
 
-          <div className="border-t border-[#d8dee4] grid grid-cols-2 lg:grid-cols-4">
-            <div className="px-4 py-4 border-r border-[#d8dee4]">
-              <p className="text-2xl font-semibold text-[#8250df] inline-flex items-center gap-2">
+          <div className="border-t border-[var(--border-muted)] grid grid-cols-2 lg:grid-cols-4">
+            <div className="px-4 py-4 border-r border-[var(--border-muted)]">
+              <p className="text-2xl font-semibold text-[var(--text-accent-purple)] inline-flex items-center gap-2">
                 <GitMerge size={18} />
                 {mergedPulls}
               </p>
-              <p className="text-sm text-[#57606a] mt-1">Merged pull requests</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">Merged pull requests</p>
             </div>
-            <div className="px-4 py-4 border-r border-[#d8dee4]">
-              <p className="text-2xl font-semibold text-[#1f883d] inline-flex items-center gap-2">
+            <div className="px-4 py-4 border-r border-[var(--border-muted)]">
+              <p className="text-2xl font-semibold text-[var(--accent-line)] inline-flex items-center gap-2">
                 <GitPullRequest size={18} />
                 {openPulls}
               </p>
-              <p className="text-sm text-[#57606a] mt-1">Open pull requests</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">Open pull requests</p>
             </div>
-            <div className="px-4 py-4 border-r border-[#d8dee4]">
-              <p className="text-2xl font-semibold text-[#8250df] inline-flex items-center gap-2">
+            <div className="px-4 py-4 border-r border-[var(--border-muted)]">
+              <p className="text-2xl font-semibold text-[var(--text-accent-purple)] inline-flex items-center gap-2">
                 <CircleDot size={18} />
                 {closedIssues}
               </p>
-              <p className="text-sm text-[#57606a] mt-1">Closed issues</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">Closed issues</p>
             </div>
             <div className="px-4 py-4">
-              <p className="text-2xl font-semibold text-[#1f883d] inline-flex items-center gap-2">
+              <p className="text-2xl font-semibold text-[var(--accent-line)] inline-flex items-center gap-2">
                 <CircleDot size={18} />
                 {openIssues}
               </p>
-              <p className="text-sm text-[#57606a] mt-1">New issues</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">New issues</p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <article className="border border-[#d8dee4] rounded-md bg-white p-4">
-            <h3 className="text-lg font-semibold text-[#24292f]">Summary</h3>
-            <p className="mt-3 text-lg text-[#57606a] leading-8">
+          <article className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] p-4">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Summary</h3>
+            <p className="mt-3 text-lg text-[var(--text-secondary)] leading-8">
               Excluding merges, {snapshot.top_contributors.length || 1} author has pushed {commitTotal} commits to master and {snapshot.branch_activity.length} branches.
             </p>
-            <p className="mt-2 text-lg text-[#57606a] leading-8">
-              In the last 30 days, there were <span className="font-semibold text-[#24292f]">{snapshot.commits_last_30d} commits</span> and <span className="font-semibold text-[#24292f]">{openIssues + closedIssues} issues</span> tracked.
+            <p className="mt-2 text-lg text-[var(--text-secondary)] leading-8">
+              In the last 30 days, there were <span className="font-semibold text-[var(--text-primary)]">{snapshot.commits_last_30d} commits</span> and <span className="font-semibold text-[var(--text-primary)]">{openIssues + closedIssues} issues</span> tracked.
             </p>
           </article>
 
-          <article className="border border-[#d8dee4] rounded-md bg-white p-4">
+          <article className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] p-4">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-semibold text-[#24292f]">Top Committers</h3>
-              <button type="button" className="h-7 w-7 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] inline-flex items-center justify-center text-[#57606a]">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Top Committers</h3>
+              <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] inline-flex items-center justify-center text-[var(--text-secondary)]">
                 <Settings2 size={14} />
               </button>
             </div>
 
             {snapshot.top_contributors.length === 0 ? (
-              <p className="mt-4 text-sm text-[#57606a]">No contributor data yet.</p>
+              <p className="mt-4 text-sm text-[var(--text-secondary)]">No contributor data yet.</p>
             ) : (
               <ul className="mt-4 space-y-3">
                 {snapshot.top_contributors.map((item) => {
                   const width = Math.max(Math.round((item.commit_count / maxContributorCommits) * 100), 6);
                   return (
                     <li key={item.author_name}>
-                      <div className="flex items-center justify-between text-sm text-[#57606a]">
+                      <div className="flex items-center justify-between text-sm text-[var(--text-secondary)]">
                         <span className="truncate pr-3">{item.author_name}</span>
-                        <span className="font-semibold text-[#24292f]">{item.commit_count}</span>
+                        <span className="font-semibold text-[var(--text-primary)]">{item.commit_count}</span>
                       </div>
-                      <div className="mt-1 h-2 rounded bg-[#eaeef2] overflow-hidden">
-                        <div className="h-full bg-[#1f883d]" style={{ width: `${width}%` }} />
+                      <div className="mt-1 h-2 rounded bg-[var(--surface-badge)] overflow-hidden">
+                        <div className="h-full bg-[var(--accent-line)]" style={{ width: `${width}%` }} />
                       </div>
                     </li>
                   );
@@ -255,17 +255,17 @@ export default function RepoInsights({ repoId }: RepoInsightsProps) {
           </article>
         </div>
 
-        <div className="border-t border-[#d8dee4] pt-4">
-          <p className="text-xl text-[#57606a] text-center">
+        <div className="border-t border-[var(--border-muted)] pt-4">
+          <p className="text-xl text-[var(--text-secondary)] text-center">
             {openIssues} issues opened by {snapshot.top_contributors.length || 1} person
           </p>
           <ul className="mt-4 space-y-3">
             {recentIssues.map((issue) => (
               <li key={issue.id} className="flex items-start gap-2 text-sm">
-                <CircleDot size={15} className="text-[#1f883d] mt-0.5" />
+                <CircleDot size={15} className="text-[var(--accent-line)] mt-0.5" />
                 <div>
-                  <p className="text-[#24292f] font-semibold">{issue.title}</p>
-                  <p className="text-[#57606a]">#{issue.id.slice(0, 6)} opened {toRelativeTime(issue.created_at)}</p>
+                  <p className="text-[var(--text-primary)] font-semibold">{issue.title}</p>
+                  <p className="text-[var(--text-secondary)]">#{issue.id.slice(0, 6)} opened {toRelativeTime(issue.created_at)}</p>
                 </div>
               </li>
             ))}

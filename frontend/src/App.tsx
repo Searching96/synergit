@@ -810,6 +810,7 @@ function App () {
         username={currentUsername}
         activeTab={profileTab}
         onTabChange={(tab) => navigateToProfileTab(tab)}
+        onNavigateToPath={navigateToPath}
         onOpenWorkspace={handleOpenWorkspaceFromProfile}
         onCreateRepository={handleOpenCreateRepository}
         onLogout={handleLogout}
@@ -831,25 +832,25 @@ function App () {
 
   if (viewMode === 'global') {
     return (
-      <div className="min-h-screen bg-[#f6f8fa] text-[#1f2328]">
+      <div className="min-h-screen bg-[var(--surface-subtle)] text-[var(--text-primary)]">
         <div className="max-w-[1100px] mx-auto px-6 py-10">
-          <div className="rounded-xl border border-[#d1d9e0] bg-white p-8">
-            <h1 className="text-3xl font-semibold text-[#24292f]">{currentGlobalTitle}</h1>
-            <p className="mt-3 text-sm text-[#57606a]">
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8">
+            <h1 className="text-3xl font-semibold text-[var(--text-primary)]">{currentGlobalTitle}</h1>
+            <p className="mt-3 text-sm text-[var(--text-secondary)]">
               This page is currently a placeholder route and will be implemented next.
             </p>
             <div className="mt-6 flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigateToProfileTab('overview')}
-                className="h-9 px-4 rounded-md border border-[#d0d7de] bg-white text-sm text-[#24292f] hover:bg-[#f6f8fa]"
+                className="h-9 px-4 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
               >
                 Back to profile
               </button>
               <button
                 type="button"
                 onClick={handleOpenCreateRepository}
-                className="h-9 px-4 rounded-md bg-[#2da44e] text-sm font-semibold text-white hover:bg-[#2c974b]"
+                className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] hover:bg-[var(--accent-primary-hover)]"
               >
                 New repository
               </button>
@@ -883,39 +884,39 @@ function App () {
   ];
 
   return (
-    <div className="h-screen bg-[#f6f8fa] font-sans text-[#1f2328] flex flex-col">
-      <header className="border-b border-[#d1d9e0] bg-white">
+    <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
+      <header className="border-b border-[var(--border-default)] bg-[var(--surface-canvas)]">
         <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsRepoDrawerOpen(true)}
-              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
               aria-label="Open repository menu"
             >
-              <Menu size={18} className="text-[#57606a]" />
+              <Menu size={18} className="text-[var(--text-secondary)]" />
             </button>
 
-            <div className="h-8 w-8 rounded-full bg-[#24292f] text-white text-sm font-semibold flex items-center justify-center">
+            <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] text-sm font-semibold flex items-center justify-center">
               S
             </div>
 
             <div className="hidden md:block min-w-0">
-              <p className="text-sm text-[#57606a] truncate">
-                {selectedRepo?.owner || currentUsername} <span className="text-[#8c959f]">/</span>{" "}
-                <span className="font-semibold text-[#24292f]">{selectedRepo ? selectedRepo.name : 'select-repository'}</span>
+              <p className="text-sm text-[var(--text-secondary)] truncate">
+                {selectedRepo?.owner || currentUsername} <span className="text-[var(--text-muted)]">/</span>{" "}
+                <span className="font-semibold text-[var(--text-primary)]">{selectedRepo ? selectedRepo.name : 'select-repository'}</span>
               </p>
             </div>
           </div>
 
           <div className="hidden lg:block flex-1 max-w-xl">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
                 readOnly
                 placeholder="Type / to search"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
               />
             </div>
           </div>
@@ -924,36 +925,36 @@ function App () {
             <button
               type="button"
               onClick={handleOpenCreateRepository}
-              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
               aria-label="Create"
             >
-              <Plus size={16} className="text-[#57606a]" />
+              <Plus size={16} className="text-[var(--text-secondary)]" />
             </button>
             <button
               type="button"
-              className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
               aria-label="Notifications"
             >
-              <Bell size={16} className="text-[#57606a]" />
+              <Bell size={16} className="text-[var(--text-secondary)]" />
             </button>
             <button
               type="button"
               onClick={() => navigateToProfileTab('overview')}
-              className="px-3 py-1.5 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md hover:bg-[#f6f8fa]"
+              className="px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
             >
               Profile
             </button>
             <button
               type="button"
               onClick={handleLogout}
-              className="px-3 py-1.5 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md hover:bg-[#f6f8fa]"
+              className="px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
             >
               Logout
             </button>
           </div>
         </div>
 
-        <div className="h-12 border-t border-[#f0f2f5] px-4 md:px-6 flex items-end overflow-x-auto">
+        <div className="h-12 border-t border-[var(--surface-muted)] px-4 md:px-6 flex items-end overflow-x-auto">
           {MAIN_TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -968,8 +969,8 @@ function App () {
                 }}
                 className={`h-11 px-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${
                   active
-                    ? 'border-[#fd8c73] text-[#24292f]'
-                    : 'border-transparent text-[#57606a] hover:text-[#24292f] hover:border-[#d1d9e0]'
+                    ? 'border-[var(--border-tab-active)] text-[var(--text-primary)]'
+                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]'
                 }`}
               >
                 <Icon size={16} />
@@ -983,13 +984,13 @@ function App () {
       <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto px-4 py-6 h-full">
         {!selectedRepo ? (
-          <div className="flex h-full items-center justify-center text-[#57606a]">
+          <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
             <div className="text-center space-y-3">
               <h2 className="text-xl font-medium">Select a repository to view its content</h2>
               <button
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(true)}
-                className="px-4 py-2 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md bg-white hover:bg-[#f6f8fa]"
+                className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)]"
               >
                 Open Repository Menu
               </button>
@@ -999,9 +1000,9 @@ function App () {
           <div className="w-full h-full min-h-0 flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                <BookOpen size={20} className="text-[#57606a]" />
-                <h2 className="text-2xl font-semibold text-[#0969da] truncate">{selectedRepo.name}</h2>
-                <span className="text-xs font-medium text-[#57606a] border border-[#d1d9e0] rounded-full px-2 py-0.5">
+                <BookOpen size={20} className="text-[var(--text-secondary)]" />
+                <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
+                <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
                   Public
                 </span>
               </div>
@@ -1009,20 +1010,20 @@ function App () {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa]"
+                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)]"
                 >
                   Unwatch
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                 >
                   <GitFork size={14} />
                   Fork
                 </button>
                 <button
                   type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[#d1d9e0] bg-white rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                 >
                   <Star size={14} />
                   Star
@@ -1073,23 +1074,23 @@ function App () {
             type="button"
             aria-label="Close repository menu"
             onClick={() => setIsRepoDrawerOpen(false)}
-            className="absolute inset-0 bg-black/35"
+            className="absolute inset-0 bg-[var(--overlay-backdrop)]"
           />
 
-          <aside className="absolute left-0 top-0 h-full w-[320px] bg-white border-r border-[#d1d9e0] shadow-xl flex flex-col">
+          <aside className="absolute left-0 top-0 h-full w-[320px] bg-[var(--surface-canvas)] border-r border-[var(--border-default)] shadow-xl flex flex-col">
             <div className="px-4 py-4 flex items-center justify-between">
-              <Github size={30} className="text-[#24292f]" />
+              <Github size={30} className="text-[var(--text-primary)]" />
               <button
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(false)}
-                className="h-8 w-8 rounded-md text-[#57606a] hover:bg-[#f6f8fa] flex items-center justify-center"
+                className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                 aria-label="Close"
               >
-                <X size={16} className="text-[#57606a]" />
+                <X size={16} className="text-[var(--text-secondary)]" />
               </button>
             </div>
 
-            <div className="px-3 py-2 text-sm text-[#24292f] space-y-1">
+            <div className="px-3 py-2 text-sm text-[var(--text-primary)] space-y-1">
               {primarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1097,18 +1098,18 @@ function App () {
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-3"
+                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
                   >
-                    <Icon size={17} className="text-[#57606a]" />
-                    <span className="text-base text-[#24292f]">{item.label}</span>
+                    <Icon size={17} className="text-[var(--text-secondary)]" />
+                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="mx-4 my-2 border-t border-[#d8dee4]" />
+            <div className="mx-4 my-2 border-t border-[var(--border-muted)]" />
 
-            <div className="px-3 py-1 text-sm text-[#24292f] space-y-1">
+            <div className="px-3 py-1 text-sm text-[var(--text-primary)] space-y-1">
               {secondarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1116,10 +1117,10 @@ function App () {
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-3"
+                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
                   >
-                    <Icon size={17} className="text-[#57606a]" />
-                    <span className="text-base text-[#24292f]">{item.label}</span>
+                    <Icon size={17} className="text-[var(--text-secondary)]" />
+                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
                   </button>
                 );
               })}

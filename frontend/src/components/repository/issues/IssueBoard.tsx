@@ -143,41 +143,41 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="p-3 text-sm border border-[#ff818266] bg-[#ffebe9] text-[#cf222e] rounded-md">
+        <div className="p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
           {error}
         </div>
       )}
 
       {message && (
-        <div className="p-3 text-sm border border-[#d0ebff] bg-[#ddf4ff] text-[#0969da] rounded-md">
+        <div className="p-3 text-sm border border-[var(--border-info-muted)] bg-[var(--surface-info-subtle)] text-[var(--text-link)] rounded-md">
           {message}
         </div>
       )}
 
       <div className="flex flex-col xl:flex-row xl:items-center gap-2">
         <div className="relative flex-1 min-w-0">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
             readOnly
             value="is:issue state:open"
-            className="h-9 w-full rounded-md border border-[#d1d9e0] bg-white pl-9 pr-3 text-sm text-[#57606a]"
+            className="h-9 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2 xl:justify-end xl:shrink-0">
-          <button type="button" className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-sm text-[#24292f] inline-flex items-center gap-2">
+          <button type="button" className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
             <Tag size={14} />
             Labels
           </button>
-          <button type="button" className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-sm text-[#24292f] inline-flex items-center gap-2">
+          <button type="button" className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
             <Milestone size={14} />
             Milestones
           </button>
           <button
             type="button"
             onClick={() => setShowCreateForm((prev) => !prev)}
-            className="h-9 px-3 rounded-md bg-[#2da44e] text-white text-sm font-semibold inline-flex items-center gap-2 hover:bg-[#2c974b]"
+            className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
           >
             <Plus size={14} />
             New issue
@@ -186,33 +186,33 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
       </div>
 
       {showCreateForm && (
-        <form onSubmit={handleCreateIssue} className="border border-[#d8dee4] rounded-md bg-white p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-[#24292f]">Create a new issue</h3>
+        <form onSubmit={handleCreateIssue} className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Create a new issue</h3>
           <input
             value={createTitle}
             onChange={(e) => setCreateTitle(e.target.value)}
             placeholder="Title"
-            className="w-full h-9 rounded-md border border-[#d1d9e0] bg-white px-3 text-sm text-[#24292f]"
+            className="w-full h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
             required
           />
           <textarea
             value={createDescription}
             onChange={(e) => setCreateDescription(e.target.value)}
             placeholder="Description"
-            className="w-full min-h-24 rounded-md border border-[#d1d9e0] bg-white px-3 py-2 text-sm text-[#24292f]"
+            className="w-full min-h-24 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
           />
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={() => setShowCreateForm(false)}
-              className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#24292f]"
+              className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={creatingIssue || !createTitle.trim()}
-              className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-semibold hover:bg-[#2c974b] disabled:opacity-50"
+              className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
             >
               {creatingIssue ? 'Creating...' : 'Create issue'}
             </button>
@@ -220,48 +220,48 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         </form>
       )}
 
-      <section className="border border-[#d8dee4] rounded-md bg-white overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#d8dee4] flex items-center gap-4 text-sm">
+      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--border-muted)] flex items-center gap-4 text-sm">
           <button
             type="button"
             onClick={() => setActiveFilter("OPEN")}
-            className={`${activeFilter === "OPEN" ? "text-[#24292f] font-semibold" : "text-[#57606a] hover:text-[#24292f]"}`}
+            className={`${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Open <span className="ml-1 rounded-full bg-[#eaeef2] px-2 py-0.5 text-xs">{openCount}</span>
+            Open <span className="ml-1 rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{openCount}</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveFilter("CLOSED")}
-            className={`${activeFilter === "CLOSED" ? "text-[#24292f] font-semibold" : "text-[#57606a] hover:text-[#24292f]"}`}
+            className={`${activeFilter === "CLOSED" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Closed <span className="ml-1 rounded-full bg-[#eaeef2] px-2 py-0.5 text-xs">{closedCount}</span>
+            Closed <span className="ml-1 rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{closedCount}</span>
           </button>
         </div>
 
         {listLoading ? (
-          <div className="p-5 text-sm text-[#57606a]">Loading issues...</div>
+          <div className="p-5 text-sm text-[var(--text-secondary)]">Loading issues...</div>
         ) : filteredIssues.length === 0 ? (
           <div className="py-16 text-center">
-            <CircleDot size={24} className="mx-auto text-[#8c959f]" />
-            <p className="mt-3 text-2xl font-semibold text-[#24292f]">No {activeFilter.toLowerCase()} issues found</p>
-            <p className="text-sm text-[#57606a] mt-1">Create an issue or switch filters to see other results.</p>
+            <CircleDot size={24} className="mx-auto text-[var(--text-muted)]" />
+            <p className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">No {activeFilter.toLowerCase()} issues found</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Create an issue or switch filters to see other results.</p>
           </div>
         ) : (
           <ul>
             {filteredIssues.map((issue) => {
               const issueNo = issueNumberMap.get(issue.id) || 0;
               return (
-                <li key={issue.id} className="border-t border-[#d8dee4] first:border-t-0 px-4 py-4">
+                <li key={issue.id} className="border-t border-[var(--border-muted)] first:border-t-0 px-4 py-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-base font-semibold text-[#24292f] hover:text-[#0969da] truncate">
+                      <p className="text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] truncate">
                         {issue.title}
                       </p>
-                      <p className="mt-1 text-sm text-[#57606a] flex items-center gap-2 flex-wrap">
+                      <p className="mt-1 text-sm text-[var(--text-secondary)] flex items-center gap-2 flex-wrap">
                         {issue.status === 'OPEN' ? (
-                          <CircleDot size={14} className="text-[#1f883d]" />
+                          <CircleDot size={14} className="text-[var(--accent-line)]" />
                         ) : (
-                          <CheckCircle2 size={14} className="text-[#8250df]" />
+                          <CheckCircle2 size={14} className="text-[var(--text-accent-purple)]" />
                         )}
                         <span>
                           #{issueNo} {issue.status === 'OPEN' ? 'opened' : 'closed'} {toRelativeTime(issue.created_at)}
@@ -275,11 +275,11 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                         type="button"
                         disabled={updatingIssueId === issue.id}
                         onClick={() => void handleToggleIssueStatus(issue)}
-                        className="h-7 px-2.5 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-xs text-[#24292f] hover:bg-[#eef1f4] disabled:opacity-50"
+                        className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
                       >
                         {issue.status === 'OPEN' ? 'Close' : 'Reopen'}
                       </button>
-                      <span className="text-xs text-[#57606a] inline-flex items-center gap-1">
+                      <span className="text-xs text-[var(--text-secondary)] inline-flex items-center gap-1">
                         <MessageSquare size={13} />
                         {issue.assignees?.length || 0}
                       </span>
@@ -294,3 +294,4 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     </div>
   );
 }
+

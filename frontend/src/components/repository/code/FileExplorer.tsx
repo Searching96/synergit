@@ -441,7 +441,7 @@ export default function FileExplorer({
         <li key={item.path}>
           <div
             className={`w-full flex items-center gap-1 py-1 pr-2 text-sm ${
-              isActiveFile || isActiveDir ? "bg-[#ddf4ff] text-[#0969da]" : "text-[#24292f] hover:bg-[#f6f8fa]"
+              isActiveFile || isActiveDir ? "bg-[var(--surface-info-subtle)] text-[var(--text-link)]" : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             }`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
           >
@@ -449,13 +449,13 @@ export default function FileExplorer({
               <button
                 type="button"
                 onClick={() => toggleExpand(item.path)}
-                className="h-5 w-5 flex items-center justify-center rounded hover:bg-[#eaeef2]"
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-[var(--surface-badge)]"
                 aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
               >
                 {isExpanded ? (
-                  <ChevronDown size={14} className="text-[#57606a]" />
+                  <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                 ) : (
-                  <ChevronRight size={14} className="text-[#57606a]" />
+                  <ChevronRight size={14} className="text-[var(--text-secondary)]" />
                 )}
               </button>
             ) : (
@@ -468,9 +468,9 @@ export default function FileExplorer({
               className="min-w-0 flex items-center gap-2 py-0.5 text-left"
             >
               {isDir ? (
-                <Folder size={15} className="text-[#57606a] shrink-0" />
+                <Folder size={15} className="text-[var(--text-secondary)] shrink-0" />
               ) : (
-                <FileText size={15} className="text-[#8c959f] shrink-0" />
+                <FileText size={15} className="text-[var(--text-muted)] shrink-0" />
               )}
               <span className="truncate">{item.name}</span>
             </button>
@@ -489,7 +489,7 @@ export default function FileExplorer({
   return (
     <div className="h-full min-h-0">
       {loadError && (
-        <div className="mb-3 p-3 text-sm border border-[#ff818266] bg-[#ffebe9] text-[#cf222e] rounded-md">
+        <div className="mb-3 p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
           {loadError}
         </div>
       )}
@@ -498,12 +498,12 @@ export default function FileExplorer({
         isBranchesPageOpen ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-[40px] leading-[48px] font-normal text-[#24292f]">Branches</h2>
+              <h2 className="text-[40px] leading-[48px] font-normal text-[var(--text-primary)]">Branches</h2>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setIsBranchesPageOpen(false)}
-                  className="h-8 px-3 rounded-md text-sm text-[#57606a] hover:bg-[#eaedf1]"
+                  className="h-8 px-3 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-code)]"
                 >
                   Back to code
                 </button>
@@ -514,22 +514,22 @@ export default function FileExplorer({
                     setIsBranchMenuOpen(true);
                     setBranchPickerTab("branches");
                   }}
-                  className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b]"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)]"
                 >
                   New branch
                 </button>
               </div>
             </div>
 
-            <div className="border-b border-[#d1d9e0] flex items-end gap-2 text-sm text-[#57606a]">
+            <div className="border-b border-[var(--border-default)] flex items-end gap-2 text-sm text-[var(--text-secondary)]">
               {["Overview", "Yours", "Active", "Stale", "All"].map((tab, index) => (
                 <button
                   key={tab}
                   type="button"
                   className={`h-10 px-3 rounded-t-md ${
                     index === 0
-                      ? "bg-[#f6f8fa] border border-[#d1d9e0] border-b-transparent text-[#24292f]"
-                      : "hover:text-[#24292f]"
+                      ? "bg-[var(--surface-subtle)] border border-[var(--border-default)] border-b-transparent text-[var(--text-primary)]"
+                      : "hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {tab}
@@ -538,12 +538,12 @@ export default function FileExplorer({
             </div>
 
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
                 readOnly
                 placeholder="Search branches..."
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
               />
             </div>
 
@@ -554,10 +554,10 @@ export default function FileExplorer({
                 { title: "Active branches", rows: activeBranches },
               ].map((section) => (
                 <section key={section.title} className="space-y-2">
-                  <h3 className="text-xl font-semibold text-[#24292f]">{section.title}</h3>
+                  <h3 className="text-xl font-semibold text-[var(--text-primary)]">{section.title}</h3>
 
-                  <div className="border border-[#d1d9e0] rounded-md overflow-hidden bg-white">
-                    <div className="px-4 py-3 border-b border-[#d1d9e0] text-xs font-semibold text-[#57606a] uppercase tracking-wide grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4">
+                  <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+                    <div className="px-4 py-3 border-b border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4">
                       <span>Branch</span>
                       <span>Updated</span>
                       <span>Check status</span>
@@ -568,32 +568,32 @@ export default function FileExplorer({
                     </div>
 
                     {section.rows.length === 0 ? (
-                      <div className="px-4 py-4 text-sm text-[#57606a]">No branches in this section.</div>
+                      <div className="px-4 py-4 text-sm text-[var(--text-secondary)]">No branches in this section.</div>
                     ) : (
                       <ul>
                         {section.rows.map((item) => (
                           <li
                             key={`${section.title}-${item.name}`}
-                            className="px-4 py-3 border-t border-[#d8dee4] first:border-t-0 grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4 items-center text-sm"
+                            className="px-4 py-3 border-t border-[var(--border-muted)] first:border-t-0 grid grid-cols-[minmax(220px,1.7fr)_180px_140px_70px_70px_140px_100px] gap-4 items-center text-sm"
                           >
                             <div className="min-w-0 flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full bg-[#ddf4ff] text-[#0969da] px-2 py-0.5 text-xs font-semibold">
+                              <span className="inline-flex items-center rounded-full bg-[var(--surface-info-subtle)] text-[var(--text-link)] px-2 py-0.5 text-xs font-semibold">
                                 {item.name}
                               </span>
-                              <button type="button" className="text-[#57606a] hover:text-[#24292f]" aria-label="Copy branch name">
+                              <button type="button" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]" aria-label="Copy branch name">
                                 <Copy size={14} />
                               </button>
                             </div>
-                            <span className="text-[#57606a]">just now</span>
-                            <span className="text-[#8c959f]">-</span>
-                            <span className="text-[#57606a]">0</span>
-                            <span className="text-[#57606a]">0</span>
-                            <span className="text-[#8c959f]">-</span>
-                            <div className="flex items-center justify-end gap-2 text-[#57606a]">
-                              <button type="button" className="hover:text-[#24292f]" aria-label="Delete branch">
+                            <span className="text-[var(--text-secondary)]">just now</span>
+                            <span className="text-[var(--text-muted)]">-</span>
+                            <span className="text-[var(--text-secondary)]">0</span>
+                            <span className="text-[var(--text-secondary)]">0</span>
+                            <span className="text-[var(--text-muted)]">-</span>
+                            <div className="flex items-center justify-end gap-2 text-[var(--text-secondary)]">
+                              <button type="button" className="hover:text-[var(--text-primary)]" aria-label="Delete branch">
                                 <Trash2 size={14} />
                               </button>
-                              <button type="button" className="hover:text-[#24292f]" aria-label="More branch actions">
+                              <button type="button" className="hover:text-[var(--text-primary)]" aria-label="More branch actions">
                                 <Ellipsis size={14} />
                               </button>
                             </div>
@@ -607,64 +607,64 @@ export default function FileExplorer({
             </div>
           </div>
         ) : rootLoading ? (
-          <div className="rounded-md border border-[#d1d9e0] bg-white p-6 text-sm text-[#57606a]">
+          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-6 text-sm text-[var(--text-secondary)]">
             Loading repository files...
           </div>
         ) : rootEntries.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div className="rounded-md border border-[#d1d9e0] bg-white p-4">
-                <FileText size={16} className="text-[#57606a]" />
-                <h3 className="mt-3 text-[22px] font-semibold text-[#24292f]">Start coding with Codespaces</h3>
-                <p className="mt-2 text-sm text-[#57606a] leading-6">
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4">
+                <FileText size={16} className="text-[var(--text-secondary)]" />
+                <h3 className="mt-3 text-[22px] font-semibold text-[var(--text-primary)]">Start coding with Codespaces</h3>
+                <p className="mt-2 text-sm text-[var(--text-secondary)] leading-6">
                   Add a README file and start coding in a secure, configurable, and dedicated development environment.
                 </p>
                 <button
                   type="button"
-                  className="mt-3 h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                  className="mt-3 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                 >
                   Create a codespace
                 </button>
               </div>
 
-              <div className="rounded-md border border-[#d1d9e0] bg-white p-4">
-                <Plus size={16} className="text-[#57606a]" />
-                <h3 className="mt-3 text-[22px] font-semibold text-[#24292f]">Add collaborators to this repository</h3>
-                <p className="mt-2 text-sm text-[#57606a] leading-6">
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4">
+                <Plus size={16} className="text-[var(--text-secondary)]" />
+                <h3 className="mt-3 text-[22px] font-semibold text-[var(--text-primary)]">Add collaborators to this repository</h3>
+                <p className="mt-2 text-sm text-[var(--text-secondary)] leading-6">
                   Search for people using their GitHub username or email address.
                 </p>
                 <button
                   type="button"
-                  className="mt-3 h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                  className="mt-3 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                 >
                   Invite collaborators
                 </button>
               </div>
             </div>
 
-            <div className="rounded-md border border-[#d1d9e0] overflow-hidden bg-white">
-              <div className="px-4 py-4 bg-[#ddf4ff] border-b border-[#d1d9e0]">
-                <h3 className="text-[30px] leading-[1.2] font-semibold text-[#24292f]">
+            <div className="rounded-md border border-[var(--border-default)] overflow-hidden bg-[var(--surface-canvas)]">
+              <div className="px-4 py-4 bg-[var(--surface-info-subtle)] border-b border-[var(--border-default)]">
+                <h3 className="text-[30px] leading-[1.2] font-semibold text-[var(--text-primary)]">
                   Quick setup - if you&apos;ve done this kind of thing before
                 </h3>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                   >
                     Set up in Desktop
                   </button>
                   <p>or</p>
                   <button
                     type="button"
-                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs font-semibold text-[#24292f]"
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs font-semibold text-[var(--text-primary)]"
                   >
                     HTTPS
                   </button>
                   <button
                     type="button"
-                    className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#57606a]"
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-secondary)]"
                   >
                     SSH
                   </button>
@@ -672,38 +672,38 @@ export default function FileExplorer({
                     <input
                       readOnly
                       value={cloneUrl}
-                      className="h-8 w-full rounded-md border border-[#d1d9e0] bg-white px-3 text-xs text-[#24292f]"
+                      className="h-8 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-xs text-[var(--text-primary)]"
                     />
                     <button
                       type="button"
                       onClick={() => void navigator.clipboard.writeText(cloneUrl)}
-                      className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] inline-flex items-center justify-center"
+                      className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
                       aria-label="Copy quick setup URL"
                     >
-                      <Copy size={14} className="text-[#57606a]" />
+                      <Copy size={14} className="text-[var(--text-secondary)]" />
                     </button>
                   </div>
                 </div>
 
-                <p className="mt-3 text-sm text-[#57606a] leading-6">
+                <p className="mt-3 text-sm text-[var(--text-secondary)] leading-6">
                   Get started by creating a new file or uploading an existing file. We recommend every repository include a README, LICENSE, and .gitignore.
                 </p>
               </div>
 
-              <div className="px-4 py-4 border-b border-[#d1d9e0]">
-                <h4 className="text-[32px] leading-[1.2] font-semibold text-[#24292f]">
+              <div className="px-4 py-4 border-b border-[var(--border-default)]">
+                <h4 className="text-[32px] leading-[1.2] font-semibold text-[var(--text-primary)]">
                   ...or create a new repository on the command line
                 </h4>
-                <pre className="mt-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] p-3 text-sm text-[#24292f] font-mono whitespace-pre-wrap">
+                <pre className="mt-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-sm text-[var(--text-primary)] font-mono whitespace-pre-wrap">
                   {quickSetupCreateCommands}
                 </pre>
               </div>
 
               <div className="px-4 py-4">
-                <h4 className="text-[32px] leading-[1.2] font-semibold text-[#24292f]">
+                <h4 className="text-[32px] leading-[1.2] font-semibold text-[var(--text-primary)]">
                   ...or push an existing repository from the command line
                 </h4>
-                <pre className="mt-3 rounded-md border border-[#d1d9e0] bg-[#f6f8fa] p-3 text-sm text-[#24292f] font-mono whitespace-pre-wrap">
+                <pre className="mt-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-sm text-[var(--text-primary)] font-mono whitespace-pre-wrap">
                   {quickSetupPushCommands}
                 </pre>
               </div>
@@ -735,23 +735,23 @@ export default function FileExplorer({
                     setIsAddFileMenuOpen(false);
                     setBranchPickerTab("branches");
                   }}
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-semibold text-[#24292f] hover:bg-[#f6f8fa]"
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                 >
-                  <GitBranch size={14} className="text-[#57606a]" />
+                  <GitBranch size={14} className="text-[var(--text-secondary)]" />
                   {branch || "master"}
-                  <ChevronDown size={14} className="text-[#57606a]" />
+                  <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                 </button>
 
                 {isBranchMenuOpen && (
-                  <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
-                    <div className="grid grid-cols-2 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0]">
+                  <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
+                    <div className="grid grid-cols-2 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)]">
                       <button
                         type="button"
                         onClick={() => setBranchPickerTab("branches")}
                         className={`h-10 ${
                           branchPickerTab === "branches"
-                            ? "bg-[#f6f8fa] text-[#24292f]"
-                            : "hover:bg-[#f6f8fa]"
+                            ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
+                            : "hover:bg-[var(--surface-subtle)]"
                         }`}
                       >
                         Branches
@@ -761,8 +761,8 @@ export default function FileExplorer({
                         onClick={() => setBranchPickerTab("tags")}
                         className={`h-10 ${
                           branchPickerTab === "tags"
-                            ? "bg-[#f6f8fa] text-[#24292f]"
-                            : "hover:bg-[#f6f8fa]"
+                            ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
+                            : "hover:bg-[var(--surface-subtle)]"
                         }`}
                       >
                         Tags
@@ -780,8 +780,8 @@ export default function FileExplorer({
                                 onSelectBranch(item.name);
                                 setIsBranchMenuOpen(false);
                               }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-[#f6f8fa] ${
-                                item.name === branch ? "text-[#0969da] font-medium" : "text-[#24292f]"
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-subtle)] ${
+                                item.name === branch ? "text-[var(--text-link)] font-medium" : "text-[var(--text-primary)]"
                               }`}
                             >
                               {item.name}
@@ -789,20 +789,20 @@ export default function FileExplorer({
                           ))}
                         </div>
 
-                        <div className="px-3 py-2 border-t border-[#d1d9e0] space-y-2">
-                          <p className="text-xs text-[#57606a]">Create new branch from {branch || "master"}</p>
+                        <div className="px-3 py-2 border-t border-[var(--border-default)] space-y-2">
+                          <p className="text-xs text-[var(--text-secondary)]">Create new branch from {branch || "master"}</p>
                           <div className="flex items-center gap-2">
                             <input
                               value={branchCreateInput}
                               onChange={(e) => setBranchCreateInput(e.target.value)}
                               placeholder="new-branch-name"
-                              className="flex-1 h-8 rounded-md border border-[#d1d9e0] px-2 text-sm"
+                              className="flex-1 h-8 rounded-md border border-[var(--border-default)] px-2 text-sm"
                             />
                             <button
                               type="button"
                               onClick={() => void handleCreateBranchFromDropdown()}
                               disabled={isCreatingBranch || !branchCreateInput.trim()}
-                              className="h-8 px-3 rounded-md bg-[#2da44e] text-white text-sm font-medium hover:bg-[#2c974b] disabled:opacity-50"
+                              className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
                             >
                               {isCreatingBranch ? "..." : "Create"}
                             </button>
@@ -810,7 +810,7 @@ export default function FileExplorer({
                         </div>
                       </>
                     ) : (
-                      <div className="px-3 py-6 text-sm text-[#57606a]">No tags found.</div>
+                      <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No tags found.</div>
                     )}
                   </div>
                 )}
@@ -824,7 +824,7 @@ export default function FileExplorer({
                   setIsCodeMenuOpen(false);
                   setIsAddFileMenuOpen(false);
                 }}
-                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#57606a] hover:bg-[#eaedf1] inline-flex items-center gap-2"
+                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
               >
                 <GitBranch size={14} />
                 {branches.length} Branches
@@ -832,7 +832,7 @@ export default function FileExplorer({
 
               <button
                 type="button"
-                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[#57606a] hover:bg-[#eaedf1] inline-flex items-center gap-2"
+                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
               >
                 <Tag size={14} />
                 0 Tags
@@ -840,12 +840,12 @@ export default function FileExplorer({
 
               <div className="ml-auto flex items-center gap-2 min-w-[340px] max-w-full">
                 <div className="relative flex-1 min-w-[180px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
                     type="text"
                     readOnly
                     placeholder="Go to file"
-                    className="w-full h-9 pl-9 pr-3 rounded-md border border-[#d1d9e0] bg-white text-sm text-[#57606a]"
+                    className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
                   />
                 </div>
 
@@ -857,26 +857,26 @@ export default function FileExplorer({
                       setIsCodeMenuOpen(false);
                       setIsBranchMenuOpen(false);
                     }}
-                    className="h-9 px-3 rounded-md border border-[#d1d9e0] bg-white text-sm font-medium text-[#24292f] inline-flex items-center gap-2 hover:bg-[#f6f8fa]"
+                    className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-subtle)]"
                   >
                     Add file
-                    <ChevronDown size={14} className="text-[#57606a]" />
+                    <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                   </button>
 
                   {isAddFileMenuOpen && (
-                    <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[#d1d9e0] bg-white shadow-lg overflow-hidden">
+                    <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
                       <button
                         type="button"
-                        className="w-full px-3 py-2.5 text-left text-sm text-[#24292f] hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                        className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                       >
-                        <Plus size={14} className="text-[#57606a]" />
+                        <Plus size={14} className="text-[var(--text-secondary)]" />
                         Create new file
                       </button>
                       <button
                         type="button"
-                        className="w-full px-3 py-2.5 text-left text-sm text-[#24292f] hover:bg-[#f6f8fa] inline-flex items-center gap-2"
+                        className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                       >
-                        <Upload size={14} className="text-[#57606a]" />
+                        <Upload size={14} className="text-[var(--text-secondary)]" />
                         Upload files
                       </button>
                     </div>
@@ -891,7 +891,7 @@ export default function FileExplorer({
                       setIsBranchMenuOpen(false);
                       setIsAddFileMenuOpen(false);
                     }}
-                    className="h-9 px-4 rounded-md border border-[#2da44e] bg-[#2da44e] text-sm font-semibold text-white inline-flex items-center gap-2 hover:bg-[#2c974b]"
+                    className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
                   >
                     <Code size={14} />
                     Code
@@ -899,17 +899,17 @@ export default function FileExplorer({
                   </button>
 
                   {isCodeMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+8px)] w-[460px] rounded-lg border border-[#d1d9e0] bg-white shadow-2xl overflow-hidden">
-                      <div className="grid grid-cols-2 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0]">
-                        <button type="button" className="h-11 bg-[#f6f8fa] text-[#24292f]">Local</button>
-                        <button type="button" className="h-11 hover:bg-[#f6f8fa]">Codespaces</button>
+                    <div className="absolute right-0 top-[calc(100%+8px)] w-[460px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
+                      <div className="grid grid-cols-2 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)]">
+                        <button type="button" className="h-11 bg-[var(--surface-subtle)] text-[var(--text-primary)]">Local</button>
+                        <button type="button" className="h-11 hover:bg-[var(--surface-subtle)]">Codespaces</button>
                       </div>
 
                       <div className="p-4 space-y-4">
-                        <div className="text-sm font-semibold text-[#24292f]">Clone</div>
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">Clone</div>
 
-                        <div className="flex items-center gap-4 text-sm font-semibold text-[#57606a] border-b border-[#d1d9e0] pb-2">
-                          <button type="button" className="text-[#24292f] border-b-2 border-[#fd8c73] pb-1">HTTPS</button>
+                        <div className="flex items-center gap-4 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)] pb-2">
+                          <button type="button" className="text-[var(--text-primary)] border-b-2 border-[var(--border-tab-active)] pb-1">HTTPS</button>
                           <button type="button">SSH</button>
                           <button type="button">GitHub CLI</button>
                         </div>
@@ -918,30 +918,30 @@ export default function FileExplorer({
                           <input
                             readOnly
                             value={cloneUrl}
-                            className="flex-1 h-9 rounded-md border border-[#d1d9e0] px-3 text-sm text-[#24292f]"
+                            className="flex-1 h-9 rounded-md border border-[var(--border-default)] px-3 text-sm text-[var(--text-primary)]"
                           />
                           <button
                             type="button"
                             onClick={() => void navigator.clipboard.writeText(cloneUrl)}
-                            className="h-9 w-9 rounded-md border border-[#d1d9e0] bg-white hover:bg-[#f6f8fa] flex items-center justify-center"
+                            className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                             aria-label="Copy clone URL"
                           >
-                            <Copy size={15} className="text-[#57606a]" />
+                            <Copy size={15} className="text-[var(--text-secondary)]" />
                           </button>
                         </div>
 
-                        <p className="text-sm text-[#57606a]">Clone using the web URL.</p>
+                        <p className="text-sm text-[var(--text-secondary)]">Clone using the web URL.</p>
 
-                        <div className="space-y-1 text-sm text-[#24292f]">
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2">
-                            <Upload size={14} className="text-[#57606a]" />
+                        <div className="space-y-1 text-sm text-[var(--text-primary)]">
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
+                            <Upload size={14} className="text-[var(--text-secondary)]" />
                             Open with GitHub Desktop
                           </button>
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa] inline-flex items-center gap-2">
-                            <Link size={14} className="text-[#57606a]" />
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
+                            <Link size={14} className="text-[var(--text-secondary)]" />
                             Open with Visual Studio
                           </button>
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#f6f8fa]">
+                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)]">
                             Download ZIP
                           </button>
                         </div>
@@ -952,8 +952,8 @@ export default function FileExplorer({
               </div>
             </div>
 
-            <div className="border border-[#d1d9e0] rounded-md overflow-hidden bg-white">
-              <div className="px-4 py-3 bg-[#f6f8fa] border-b border-[#d1d9e0] grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-xs font-semibold text-[#57606a] uppercase tracking-wide">
+            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+              <div className="px-4 py-3 bg-[var(--surface-subtle)] border-b border-[var(--border-default)] grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
                 <span>Name</span>
                 <span>Last commit message</span>
                 <span className="text-right">Last commit date</span>
@@ -961,34 +961,34 @@ export default function FileExplorer({
 
               <ul>
                 {rootEntries.map((item) => (
-                  <li key={item.path} className="border-t border-[#d8dee4] first:border-t-0">
+                  <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
                     <button
                       type="button"
                       onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                      className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[#f6f8fa]"
+                      className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                     >
                       <span className="min-w-0 flex items-center gap-2 text-left">
                         {item.type === "DIR" ? (
-                          <Folder size={16} className="text-[#57606a] shrink-0" />
+                          <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
                         ) : (
-                          <FileText size={16} className="text-[#8c959f] shrink-0" />
+                          <FileText size={16} className="text-[var(--text-muted)] shrink-0" />
                         )}
-                        <span className="truncate text-[#0969da]">{item.name}</span>
+                        <span className="truncate text-[var(--text-link)]">{item.name}</span>
                       </span>
-                      <span className="truncate text-left text-[#57606a]">{commitMessagePlaceholder(item)}</span>
-                      <span className="text-right text-[#57606a]">just now</span>
+                      <span className="truncate text-left text-[var(--text-secondary)]">{commitMessagePlaceholder(item)}</span>
+                      <span className="text-right text-[var(--text-secondary)]">just now</span>
                     </button>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="border border-[#d1d9e0] rounded-md overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-[#d1d9e0] flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[#24292f]">README</h3>
+            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
                 <button
                   type="button"
-                  className="h-8 w-8 rounded-md bg-transparent text-sm text-[#57606a] hover:bg-[#f6f8fa] flex items-center justify-center"
+                  className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                   aria-label="Edit README"
                 >
                   <Pencil size={15} />
@@ -997,13 +997,13 @@ export default function FileExplorer({
 
               <div className="p-4">
                 {readmeLoading ? (
-                  <p className="text-sm text-[#57606a]">Loading README...</p>
+                  <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
                 ) : readmeContent ? (
-                  <pre className="whitespace-pre-wrap text-sm text-[#24292f] font-mono leading-6 max-h-[420px] overflow-auto">
+                  <pre className="whitespace-pre-wrap text-sm text-[var(--text-primary)] font-mono leading-6 max-h-[420px] overflow-auto">
                     {readmeContent}
                   </pre>
                 ) : (
-                  <p className="text-sm text-[#57606a]">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     README content is not available. This section is shown to mimic GitHub repository layout.
                   </p>
                 )}
@@ -1013,13 +1013,13 @@ export default function FileExplorer({
 
           <aside className="xl:pl-2 space-y-6">
             <div>
-              <h3 className="text-2xl font-semibold text-[#24292f] mb-3">About</h3>
-              <p className="text-sm text-[#57606a] leading-6">
+              <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-3">About</h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-6">
                 {repoName} repository overview. Metadata sections are currently UI placeholders to mimic GitHub layout.
               </p>
             </div>
 
-            <div className="border-t border-[#d8dee4] pt-4 space-y-2 text-sm text-[#57606a]">
+            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
               <p>Readme</p>
               <p>Activity</p>
               <p>0 stars</p>
@@ -1027,27 +1027,27 @@ export default function FileExplorer({
               <p>0 forks</p>
             </div>
 
-            <div className="border-t border-[#d8dee4] pt-4 space-y-2 text-sm text-[#57606a]">
-              <p className="font-semibold text-[#24292f]">Releases</p>
+            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+              <p className="font-semibold text-[var(--text-primary)]">Releases</p>
               <p>No releases published</p>
             </div>
 
-            <div className="border-t border-[#d8dee4] pt-4 space-y-2 text-sm text-[#57606a]">
-              <p className="font-semibold text-[#24292f]">Packages</p>
+            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+              <p className="font-semibold text-[var(--text-primary)]">Packages</p>
               <p>No packages published</p>
             </div>
           </aside>
         </div>
         )
       ) : (
-        <div className="h-full min-h-[560px] border border-[#d1d9e0] rounded-md overflow-hidden bg-white flex">
-          <aside className="w-[320px] border-r border-[#d1d9e0] bg-white flex flex-col">
-            <div className="px-4 py-3 border-b border-[#d1d9e0] text-sm font-semibold text-[#24292f]">
+        <div className="h-full min-h-[560px] border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)] flex">
+          <aside className="w-[320px] border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
+            <div className="px-4 py-3 border-b border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)]">
               Files
             </div>
 
-            <div className="px-3 py-2 border-b border-[#d1d9e0] text-sm text-[#57606a] flex items-center gap-2">
-              <span className="px-2 py-1 rounded-md border border-[#d1d9e0] bg-[#f6f8fa]">{branch || "master"}</span>
+            <div className="px-3 py-2 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] flex items-center gap-2">
+              <span className="px-2 py-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)]">{branch || "master"}</span>
             </div>
 
             <div className="flex-1 overflow-auto py-2">
@@ -1058,8 +1058,8 @@ export default function FileExplorer({
                     onClick={() => openRoot()}
                     className={`w-full text-left px-3 py-1.5 text-sm font-medium ${
                       currentDirPath === "" && !selectedFilePath
-                        ? "bg-[#ddf4ff] text-[#0969da]"
-                        : "text-[#24292f] hover:bg-[#f6f8fa]"
+                        ? "bg-[var(--surface-info-subtle)] text-[var(--text-link)]"
+                        : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                     }`}
                   >
                     / (root)
@@ -1071,11 +1071,11 @@ export default function FileExplorer({
           </aside>
 
           <section className="flex-1 min-w-0 flex flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#d1d9e0] bg-[#f6f8fa] text-sm text-[#57606a] flex items-center gap-1 flex-wrap">
+            <div className="px-4 py-3 border-b border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-secondary)] flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => openRoot()}
-                className="hover:text-[#24292f]"
+                className="hover:text-[var(--text-primary)]"
               >
                 root
               </button>
@@ -1088,14 +1088,14 @@ export default function FileExplorer({
                   const isLast = index === all.length - 1;
                   return (
                     <span key={`${part}-${path}`} className="flex items-center gap-1">
-                      <ChevronRight size={14} className="text-[#8c959f]" />
+                      <ChevronRight size={14} className="text-[var(--text-muted)]" />
                       {selectedFilePath && isLast ? (
-                        <span className="font-mono text-[#24292f]">{part}</span>
+                        <span className="font-mono text-[var(--text-primary)]">{part}</span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => openDirectory(path)}
-                          className="hover:text-[#24292f]"
+                          className="hover:text-[var(--text-primary)]"
                         >
                           {part}
                         </button>
@@ -1107,13 +1107,13 @@ export default function FileExplorer({
 
             {selectedFilePath ? (
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="px-4 py-2 border-b border-[#d1d9e0] bg-white flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-[#24292f] truncate">{selectedFilePath}</div>
+                <div className="px-4 py-2 border-b border-[var(--border-default)] bg-[var(--surface-canvas)] flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-[var(--text-primary)] truncate">{selectedFilePath}</div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => openDirectory(getParentPath(selectedFilePath))}
-                      className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                     >
                       Back
                     </button>
@@ -1124,7 +1124,7 @@ export default function FileExplorer({
                         setDraftContent(fileContent || "");
                         setCommitError(null);
                       }}
-                      className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs text-[#24292f] hover:bg-[#f6f8fa]"
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                     >
                       {isEditing ? "Cancel" : "Edit"}
                     </button>
@@ -1132,11 +1132,11 @@ export default function FileExplorer({
                 </div>
 
                 {fileLoading ? (
-                  <div className="p-6 text-sm text-[#57606a]">Loading file...</div>
+                  <div className="p-6 text-sm text-[var(--text-secondary)]">Loading file...</div>
                 ) : isEditing ? (
                   <div className="p-4 space-y-3 overflow-auto">
                     <textarea
-                      className="w-full min-h-[360px] border border-[#d1d9e0] rounded-md p-3 font-mono text-sm"
+                      className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
                       value={draftContent}
                       onChange={(e) => setDraftContent(e.target.value)}
                       onKeyDown={handleTextareaKeyDown}
@@ -1148,25 +1148,25 @@ export default function FileExplorer({
                       value={commitMessage}
                       onChange={(e) => setCommitMessage(e.target.value)}
                       placeholder="Commit message"
-                      className="w-full border border-[#d1d9e0] rounded-md px-3 py-2 text-sm"
+                      className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
                     />
 
-                    {commitError && <div className="text-sm text-[#cf222e]">{commitError}</div>}
+                    {commitError && <div className="text-sm text-[var(--text-danger)]">{commitError}</div>}
 
                     <div className="flex justify-end">
                       <button
                         type="button"
                         disabled={isCommitting || !commitMessage.trim()}
                         onClick={handleCommitChanges}
-                        className="px-4 py-2 text-sm font-medium text-white bg-[#2da44e] rounded-md hover:bg-[#2c974b] disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
                       >
                         {isCommitting ? "Committing..." : "Commit Changes"}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-auto bg-white p-4">
-                    <pre className="text-sm font-mono text-[#24292f] leading-relaxed whitespace-pre-wrap">
+                  <div className="flex-1 overflow-auto bg-[var(--surface-canvas)] p-4">
+                    <pre className="text-sm font-mono text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
                       <code>{fileContent || ""}</code>
                     </pre>
                   </div>
@@ -1174,50 +1174,50 @@ export default function FileExplorer({
               </div>
             ) : (
               <div className="flex-1 min-h-0 overflow-auto">
-                <div className="px-4 py-3 bg-[#f6f8fa] border-b border-[#d1d9e0] grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-xs font-semibold text-[#57606a] uppercase tracking-wide">
+                <div className="px-4 py-3 bg-[var(--surface-subtle)] border-b border-[var(--border-default)] grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
                   <span>Name</span>
                   <span>Last commit message</span>
                   <span className="text-right">Last commit date</span>
                 </div>
 
                 {dirLoading && currentEntries.length === 0 ? (
-                  <div className="p-5 text-sm text-[#57606a]">Loading directory...</div>
+                  <div className="p-5 text-sm text-[var(--text-secondary)]">Loading directory...</div>
                 ) : (
                   <ul>
                     {currentDirPath !== "" && (
-                      <li className="border-t border-[#d8dee4] first:border-t-0">
+                      <li className="border-t border-[var(--border-muted)] first:border-t-0">
                         <button
                           type="button"
                           onClick={() => openDirectory(getParentPath(currentDirPath))}
-                          className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[#f6f8fa]"
+                          className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                         >
-                          <span className="min-w-0 flex items-center gap-2 text-left text-[#24292f]">
-                            <Folder size={16} className="text-[#57606a] shrink-0" />
+                          <span className="min-w-0 flex items-center gap-2 text-left text-[var(--text-primary)]">
+                            <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
                             ..
                           </span>
-                          <span className="text-left text-[#57606a]">Up one level</span>
-                          <span className="text-right text-[#57606a]">-</span>
+                          <span className="text-left text-[var(--text-secondary)]">Up one level</span>
+                          <span className="text-right text-[var(--text-secondary)]">-</span>
                         </button>
                       </li>
                     )}
 
                     {currentEntries.map((item) => (
-                      <li key={item.path} className="border-t border-[#d8dee4] first:border-t-0">
+                      <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
                         <button
                           type="button"
                           onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                          className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[#f6f8fa]"
+                          className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                         >
                           <span className="min-w-0 flex items-center gap-2 text-left">
                             {item.type === "DIR" ? (
-                              <Folder size={16} className="text-[#57606a] shrink-0" />
+                              <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
                             ) : (
-                              <FileText size={16} className="text-[#8c959f] shrink-0" />
+                              <FileText size={16} className="text-[var(--text-muted)] shrink-0" />
                             )}
-                            <span className="truncate text-[#0969da]">{item.name}</span>
+                            <span className="truncate text-[var(--text-link)]">{item.name}</span>
                           </span>
-                          <span className="truncate text-left text-[#57606a]">{commitMessagePlaceholder(item)}</span>
-                          <span className="text-right text-[#57606a]">just now</span>
+                          <span className="truncate text-left text-[var(--text-secondary)]">{commitMessagePlaceholder(item)}</span>
+                          <span className="text-right text-[var(--text-secondary)]">just now</span>
                         </button>
                       </li>
                     ))}
@@ -1231,3 +1231,4 @@ export default function FileExplorer({
     </div>
   );
 }
+

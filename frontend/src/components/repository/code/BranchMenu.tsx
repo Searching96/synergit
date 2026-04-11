@@ -55,18 +55,18 @@ export default function BranchMenu({
           setIsOpen((prev) => !prev);
           setError(null);
         }}
-        className="flex w-full items-center justify-between rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200"
+        className="flex w-full items-center justify-between rounded-md border border-[var(--border-input)] bg-[var(--surface-muted)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
       >
         <span className="flex items-center gap-2 truncate">
-          <GitBranch size={16} className="text-gray-500" />
+          <GitBranch size={16} className="text-[var(--text-muted)]" />
           <span className="truncate">{currentBranch || "Select branch"}</span>
         </span>
-        <ChevronDown size={16} className="text-gray-500" />
+        <ChevronDown size={16} className="text-[var(--text-muted)]" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-2 w-full rounded-md border border-gray-200 bg-white p-3 shadow-lg">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <div className="absolute z-20 mt-2 w-full rounded-md border border-[var(--border-muted)] bg-[var(--surface-canvas)] p-3 shadow-lg">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Switch branches
           </div>
 
@@ -74,10 +74,10 @@ export default function BranchMenu({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find or create branch..."
-            className="mb-2 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            className="mb-2 w-full rounded-md border border-[var(--border-input)] px-2 py-1.5 text-sm"
           />
 
-          <div className="max-h-44 overflow-y-auto rounded-md border border-gray-200">
+          <div className="max-h-44 overflow-y-auto rounded-md border border-[var(--border-muted)]">
             {filteredBranches.length > 0 ? (
               filteredBranches.map((b) => (
                 <button
@@ -89,20 +89,20 @@ export default function BranchMenu({
                     setQuery("");
                     setError(null);
                   }}
-                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[var(--surface-subtle)] ${
                     currentBranch === b.name
-                      ? "bg-gray-50 font-semibold text-gray-900"
-                      : "text-gray-700"
+                      ? "bg-[var(--surface-subtle)] font-semibold text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)]"
                   }`}
                 >
                   <span>{b.name}</span>
                   {b.is_default && (
-                    <span className="text-xs text-gray-500">default</span>
+                    <span className="text-xs text-[var(--text-muted)]">default</span>
                   )}
                 </button>
               ))
             ) : (
-              <div className="px-3 py-2 text-sm text-gray-500">No branches found.</div>
+              <div className="px-3 py-2 text-sm text-[var(--text-muted)]">No branches found.</div>
             )}
           </div>
 
@@ -111,7 +111,7 @@ export default function BranchMenu({
               type="button"
               disabled={isSubmitting}
               onClick={handleCreate}
-              className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+              className="mt-2 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] px-3 py-2 text-left text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
             >
               {isSubmitting
                 ? "Creating branch..."
@@ -119,9 +119,10 @@ export default function BranchMenu({
             </button>
           )}
 
-          {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+          {error && <div className="mt-2 text-sm text-[var(--text-danger)]">{error}</div>}
         </div>
       )}
     </div>
   );
 }
+

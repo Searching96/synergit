@@ -99,28 +99,28 @@ export default function CreateRepositoryPage({
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#24292f]">
-      <header className="h-14 border-b border-[#d8dee4] bg-white px-4 lg:px-6 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <header className="h-14 border-b border-[var(--border-muted)] bg-[var(--surface-canvas)] px-4 lg:px-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onCancel}
-            className="h-8 w-8 rounded-md border border-[#d0d7de] bg-white inline-flex items-center justify-center hover:bg-[#f6f8fa]"
+            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             aria-label="Back"
           >
             <Menu size={16} />
           </button>
-          <Github size={20} className="text-[#24292f]" />
+          <Github size={20} className="text-[var(--text-primary)]" />
           <span className="text-sm font-semibold truncate">New repository</span>
         </div>
 
         <div className="hidden md:flex items-center gap-2 flex-1 max-w-[360px]">
           <div className="relative w-full">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8c959f]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
               readOnly
               value="Type / to search"
-              className="h-8 w-full rounded-md border border-[#d0d7de] bg-white pl-9 pr-3 text-sm text-[#57606a]"
+              className="h-8 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
             />
           </div>
         </div>
@@ -128,20 +128,20 @@ export default function CreateRepositoryPage({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="h-8 w-8 rounded-md border border-[#d0d7de] bg-white inline-flex items-center justify-center hover:bg-[#f6f8fa]"
+            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
           >
             <Plus size={14} />
           </button>
           <button
             type="button"
-            className="h-8 w-8 rounded-md border border-[#d0d7de] bg-white inline-flex items-center justify-center hover:bg-[#f6f8fa]"
+            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
           >
             <Bell size={14} />
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="h-8 px-3 rounded-md border border-[#d0d7de] bg-white text-xs font-semibold hover:bg-[#f6f8fa]"
+            className="h-8 px-3 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-xs font-semibold hover:bg-[var(--surface-subtle)]"
           >
             Cancel
           </button>
@@ -151,126 +151,126 @@ export default function CreateRepositoryPage({
       <main className="max-w-[980px] mx-auto px-4 py-8">
         <form onSubmit={handleSubmit} className="max-w-[980px] mx-auto">
           <h1 className="text-2xl font-semibold">Create a new repository</h1>
-          <p className="mt-1 text-sm text-[#57606a]">
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             Repositories contain a project&apos;s files and version history. Have a project elsewhere?{" "}
-            <button type="button" className="text-[#0969da] hover:underline">
+            <button type="button" className="text-[var(--text-link)] hover:underline">
               Import a repository.
             </button>
           </p>
-          <p className="mt-1 text-xs text-[#57606a]">Required fields are marked with an asterisk (*).</p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">Required fields are marked with an asterisk (*).</p>
 
           {error && (
-            <div className="mt-4 rounded-md border border-[#cf222e] bg-[#ffebe9] px-3 py-2 text-sm text-[#cf222e]">
+            <div className="mt-4 rounded-md border border-[var(--text-danger)] bg-[var(--surface-danger-subtle)] px-3 py-2 text-sm text-[var(--text-danger)]">
               {error}
             </div>
           )}
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-[44px_minmax(0,1fr)] gap-x-4 gap-y-0">
             <aside className="hidden md:flex flex-col items-center pt-1">
-              <span className="h-8 w-8 rounded-full border border-[#d8dee4] bg-white text-sm font-semibold text-[#57606a] inline-flex items-center justify-center">
+              <span className="h-8 w-8 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-secondary)] inline-flex items-center justify-center">
                 1
               </span>
-              <span className="mt-2 w-px flex-1 bg-[#d8dee4]" />
+              <span className="mt-2 w-px flex-1 bg-[var(--border-muted)]" />
             </aside>
 
             <section className="pb-8">
-              <h2 className="text-[34px] leading-[1.2] font-semibold text-[#24292f]">General</h2>
+              <h2 className="text-[34px] leading-[1.2] font-semibold text-[var(--text-primary)]">General</h2>
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-[170px_24px_minmax(0,1fr)] gap-2 items-end">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-[#57606a] mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-1">
                     Owner *
                   </label>
                   <button
                     type="button"
-                    className="h-9 w-full rounded-md border border-[#d0d7de] bg-[#f6f8fa] px-3 text-sm text-left inline-flex items-center justify-between"
+                    className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm text-left inline-flex items-center justify-between"
                   >
                     <span>{ownerName}</span>
-                    <ChevronDown size={14} className="text-[#57606a]" />
+                    <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                   </button>
                 </div>
 
-                <div className="h-9 flex items-center justify-center text-[#57606a] text-2xl">/</div>
+                <div className="h-9 flex items-center justify-center text-[var(--text-secondary)] text-2xl">/</div>
 
                 <div>
-                  <label htmlFor="repo-name" className="block text-xs font-semibold uppercase tracking-wide text-[#57606a] mb-1">
+                  <label htmlFor="repo-name" className="block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-1">
                     Repository name *
                   </label>
                   <input
                     id="repo-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-9 w-full rounded-md border border-[#d0d7de] bg-white px-3 text-sm"
+                    className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] px-3 text-sm"
                     required
                   />
                 </div>
               </div>
 
-              <p className="mt-3 text-sm text-[#57606a]">
+              <p className="mt-3 text-sm text-[var(--text-secondary)]">
                 Great repository names are short and memorable.
               </p>
 
               <div className="mt-5">
-                <label htmlFor="repo-description" className="block text-xs font-semibold uppercase tracking-wide text-[#57606a] mb-1">
+                <label htmlFor="repo-description" className="block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-1">
                   Description
                 </label>
                 <input
                   id="repo-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="h-9 w-full rounded-md border border-[#d0d7de] bg-white px-3 text-sm"
+                  className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] px-3 text-sm"
                 />
-                <p className="mt-2 text-xs text-[#57606a]">{description.length} / 350 characters</p>
+                <p className="mt-2 text-xs text-[var(--text-secondary)]">{description.length} / 350 characters</p>
               </div>
             </section>
 
             <aside className="hidden md:flex flex-col items-center pt-1">
-              <span className="h-8 w-8 rounded-full border border-[#d8dee4] bg-white text-sm font-semibold text-[#57606a] inline-flex items-center justify-center">
+              <span className="h-8 w-8 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-secondary)] inline-flex items-center justify-center">
                 2
               </span>
-              <span className="mt-2 w-px flex-1 bg-[#d8dee4]" />
+              <span className="mt-2 w-px flex-1 bg-[var(--border-muted)]" />
             </aside>
 
             <section>
-              <h2 className="text-[34px] leading-[1.2] font-semibold text-[#24292f]">Configuration</h2>
+              <h2 className="text-[34px] leading-[1.2] font-semibold text-[var(--text-primary)]">Configuration</h2>
 
-              <div className="mt-4 border border-[#d8dee4] rounded-md overflow-visible">
-                <div className="p-4 border-b border-[#d8dee4] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_140px] gap-3 items-center">
+              <div className="mt-4 border border-[var(--border-muted)] rounded-md overflow-visible">
+                <div className="p-4 border-b border-[var(--border-muted)] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_140px] gap-3 items-center">
                   <div>
                     <p className="text-sm font-semibold">Choose visibility *</p>
-                    <p className="text-sm text-[#57606a]">Choose who can see and commit to this repository</p>
+                    <p className="text-sm text-[var(--text-secondary)]">Choose who can see and commit to this repository</p>
                   </div>
 
                   <div className="relative" ref={visibilityDropdownRef}>
                     <button
                       type="button"
                       onClick={() => setIsVisibilityOpen((prev) => !prev)}
-                      className="h-9 w-full rounded-md border border-[#d0d7de] bg-[#f6f8fa] px-3 text-sm inline-flex items-center justify-between"
+                      className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm inline-flex items-center justify-between"
                     >
-                      <span className="inline-flex items-center gap-2 font-medium text-[#24292f]">
+                      <span className="inline-flex items-center gap-2 font-medium text-[var(--text-primary)]">
                         {visibility === "public" ? <Monitor size={15} /> : <Lock size={15} />}
                         {visibility === "public" ? "Public" : "Private"}
                       </span>
-                      <ChevronDown size={14} className="text-[#57606a]" />
+                      <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                     </button>
 
                     {isVisibilityOpen && (
-                      <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[360px] rounded-xl border border-[#d8dee4] bg-white shadow-xl overflow-hidden">
+                      <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[360px] rounded-xl border border-[var(--border-muted)] bg-[var(--surface-canvas)] shadow-xl overflow-hidden">
                         <button
                           type="button"
                           onClick={() => {
                             setVisibility("public");
                             setIsVisibilityOpen(false);
                           }}
-                          className="w-full px-4 py-3 text-left hover:bg-[#f6f8fa] flex items-start gap-3"
+                          className="w-full px-4 py-3 text-left hover:bg-[var(--surface-subtle)] flex items-start gap-3"
                         >
-                          <span className="w-4 mt-0.5 text-[#57606a]">
+                          <span className="w-4 mt-0.5 text-[var(--text-secondary)]">
                             {visibility === "public" ? <Check size={15} /> : null}
                           </span>
-                          <Monitor size={16} className="mt-0.5 text-[#57606a] shrink-0" />
+                          <Monitor size={16} className="mt-0.5 text-[var(--text-secondary)] shrink-0" />
                           <span>
-                            <span className="block text-[22px] leading-[1.2] font-semibold text-[#24292f]">Public</span>
-                            <span className="block mt-1 text-sm text-[#57606a] leading-5">
+                            <span className="block text-[22px] leading-[1.2] font-semibold text-[var(--text-primary)]">Public</span>
+                            <span className="block mt-1 text-sm text-[var(--text-secondary)] leading-5">
                               Anyone on the internet can see this repository. You choose who can commit.
                             </span>
                           </span>
@@ -282,15 +282,15 @@ export default function CreateRepositoryPage({
                             setVisibility("private");
                             setIsVisibilityOpen(false);
                           }}
-                          className="w-full px-4 py-3 text-left hover:bg-[#f6f8fa] border-t border-[#d8dee4] flex items-start gap-3"
+                          className="w-full px-4 py-3 text-left hover:bg-[var(--surface-subtle)] border-t border-[var(--border-muted)] flex items-start gap-3"
                         >
-                          <span className="w-4 mt-0.5 text-[#57606a]">
+                          <span className="w-4 mt-0.5 text-[var(--text-secondary)]">
                             {visibility === "private" ? <Check size={15} /> : null}
                           </span>
-                          <Lock size={16} className="mt-0.5 text-[#57606a] shrink-0" />
+                          <Lock size={16} className="mt-0.5 text-[var(--text-secondary)] shrink-0" />
                           <span>
-                            <span className="block text-[22px] leading-[1.2] font-semibold text-[#24292f]">Private</span>
-                            <span className="block mt-1 text-sm text-[#57606a] leading-5">
+                            <span className="block text-[22px] leading-[1.2] font-semibold text-[var(--text-primary)]">Private</span>
+                            <span className="block mt-1 text-sm text-[var(--text-secondary)] leading-5">
                               You choose who can see and commit to this repository.
                             </span>
                           </span>
@@ -300,32 +300,32 @@ export default function CreateRepositoryPage({
                   </div>
                 </div>
 
-                <div className="p-4 border-b border-[#d8dee4] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-3 items-center">
+                <div className="p-4 border-b border-[var(--border-muted)] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_120px] gap-3 items-center">
                   <div>
                     <p className="text-sm font-semibold">Add README</p>
-                    <p className="text-sm text-[#57606a]">READMEs can be used as longer descriptions.</p>
+                    <p className="text-sm text-[var(--text-secondary)]">READMEs can be used as longer descriptions.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setAddReadme((prev) => !prev)}
-                    className="h-9 rounded-md border border-[#d0d7de] bg-[#f6f8fa] px-3 inline-flex items-center justify-between text-sm text-[#57606a]"
+                    className="h-9 rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 inline-flex items-center justify-between text-sm text-[var(--text-secondary)]"
                   >
                     <span>{addReadme ? "On" : "Off"}</span>
-                    <span className={`ml-3 relative inline-flex h-5 w-9 items-center rounded-full ${addReadme ? "bg-[#2da44e]" : "bg-[#d0d7de]"}`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${addReadme ? "translate-x-4" : "translate-x-0.5"}`} />
+                    <span className={`ml-3 relative inline-flex h-5 w-9 items-center rounded-full ${addReadme ? "bg-[var(--accent-primary)]" : "bg-[var(--border-input)]"}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--surface-canvas)] transition ${addReadme ? "translate-x-4" : "translate-x-0.5"}`} />
                     </span>
                   </button>
                 </div>
 
-                <div className="p-4 border-b border-[#d8dee4] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-3 items-center">
+                <div className="p-4 border-b border-[var(--border-muted)] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-3 items-center">
                   <div>
                     <p className="text-sm font-semibold">Add .gitignore</p>
-                    <p className="text-sm text-[#57606a]">.gitignore tells git which files not to track.</p>
+                    <p className="text-sm text-[var(--text-secondary)]">.gitignore tells git which files not to track.</p>
                   </div>
                   <select
                     value={gitignoreTemplate}
                     onChange={(e) => setGitignoreTemplate(e.target.value)}
-                    className="h-9 rounded-md border border-[#d0d7de] bg-[#f6f8fa] px-3 text-sm"
+                    className="h-9 rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm"
                   >
                     {GITIGNORE_OPTIONS.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -338,12 +338,12 @@ export default function CreateRepositoryPage({
                 <div className="p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-3 items-center">
                   <div>
                     <p className="text-sm font-semibold">Add license</p>
-                    <p className="text-sm text-[#57606a]">Licenses explain how others can use your code.</p>
+                    <p className="text-sm text-[var(--text-secondary)]">Licenses explain how others can use your code.</p>
                   </div>
                   <select
                     value={licenseTemplate}
                     onChange={(e) => setLicenseTemplate(e.target.value)}
-                    className="h-9 rounded-md border border-[#d0d7de] bg-[#f6f8fa] px-3 text-sm"
+                    className="h-9 rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm"
                   >
                     {LICENSE_OPTIONS.map((item) => (
                       <option key={item.value} value={item.value}>
@@ -360,14 +360,14 @@ export default function CreateRepositoryPage({
             <button
               type="button"
               onClick={onCancel}
-              className="h-9 px-4 rounded-md border border-[#d0d7de] bg-white text-sm font-medium text-[#24292f] hover:bg-[#f6f8fa]"
+              className="h-9 px-4 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="h-9 px-4 rounded-md bg-[#2da44e] text-white text-sm font-semibold hover:bg-[#2c974b] disabled:opacity-60"
+              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
             >
               {submitting ? "Creating..." : "Create repository"}
             </button>
@@ -377,3 +377,4 @@ export default function CreateRepositoryPage({
     </div>
   );
 }
+

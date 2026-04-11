@@ -36,3 +36,4 @@ export async function fetcher<T>(endpoint: string, options?: RequestInit): Promi
 
 	return response.json();
 }
+

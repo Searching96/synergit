@@ -20,3 +20,4 @@ export interface StarredRepo {
   forks: string;
   updatedText: string;
 }
+

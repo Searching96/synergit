@@ -179,17 +179,17 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 		}
 	};
 
-	if (loading) return <div className="p-4 text-gray-500">Scanning for conflicts...</div>
-	if (error) return <div className="p-4 text-red-500 bg-red-50 border border-red-200 rounded-md">{error}</div>
-	if (conflicts.length === 0) return <div className="p-4 text-green-600 flex items-center gap-2">
+	if (loading) return <div className="p-4 text-[var(--text-muted)]">Scanning for conflicts...</div>
+	if (error) return <div className="p-4 text-[var(--text-danger)] bg-[var(--surface-danger-subtle)] border border-[var(--border-danger-muted)] rounded-md">{error}</div>
+	if (conflicts.length === 0) return <div className="p-4 text-[var(--text-success)] flex items-center gap-2">
 		<CheckCircle />  No conflicts found!
 	</div>
 
 	return (
-		<div className="flex flex-col h-[800px] border border-gray-200 rounded-lg overflow-hidden bg-white">
+		<div className="flex flex-col h-[800px] border border-[var(--border-muted)] rounded-lg overflow-hidden bg-[var(--surface-canvas)]">
 			{/* Header */}
-			<div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2 text-amber-600 font-semibold">
+			<div className="flex items-center justify-between p-4 border-b border-[var(--border-muted)] bg-[var(--surface-subtle)]">
+        <div className="flex items-center gap-2 text-[var(--text-warning)] font-semibold">
           <AlertTriangle size={20} />
           <span>Resolve {conflicts.length} Conflicting File(s)</span>
         </div>
@@ -197,61 +197,61 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 
 			<div className="flex flex-1 overflow-hidden">
         {/* Sidebar: File List */}
-        <div className="w-64 border-r border-gray-200 bg-gray-50 overflow-y-auto">
+        <div className="w-64 border-r border-[var(--border-muted)] bg-[var(--surface-subtle)] overflow-y-auto">
           {conflicts.map((file) => {
             const isResolved = !resolutions[file.path].includes('<<<<<<<');
             return (
               <button
                 key={file.path}
                 onClick={() => setActiveFile(file.path)}
-                className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-gray-200 hover:bg-gray-100 transition-colors ${
-                  activeFile === file.path ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                className={`w-full text-left px-4 py-3 text-sm flex items-center justify-between border-b border-[var(--border-muted)] hover:bg-[var(--surface-muted)] transition-colors ${
+                  activeFile === file.path ? 'bg-[var(--surface-info-subtle)] border-l-4 border-l-[var(--border-focus)]' : ''
                 }`}
               >
                 <div className="flex items-center gap-2 truncate">
-                  <FileCode size={16} className="text-gray-400" />
+                  <FileCode size={16} className="text-[var(--text-muted)]" />
                   <span className="truncate" title={file.path}>{file.path}</span>
                 </div>
-                {isResolved && <CheckCircle size={16} className="text-green-500 flex-shrink-0" />}
+                {isResolved && <CheckCircle size={16} className="text-[var(--text-success)] flex-shrink-0" />}
               </button>
             );
           })}
 				</div>
 
 				{/* Main Editor Area */}
-				<div className="flex-1 flex flex-col bg-white">
+				<div className="flex-1 flex flex-col bg-[var(--surface-canvas)]">
 					{activeFile && activeBlocks.length > 0 && (
-						<div className="border-b border-gray-200 p-3 bg-gray-50 space-y-2">
+						<div className="border-b border-[var(--border-muted)] p-3 bg-[var(--surface-subtle)] space-y-2">
 							<div className="flex items-center justify-between">
-								<span className="text-sm font-medium text-gray-700">
+								<span className="text-sm font-medium text-[var(--text-secondary)]">
 									{activeBlocks.length} conflict block(s)
 								</span>
 								<div className="flex gap-2">
 									<button
 										type="button"
 										onClick={() => setRawEditMode((prev) => !prev)}
-										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+										className="px-2 py-1 text-xs border border-[var(--border-input)] rounded hover:bg-[var(--surface-muted)]"
 									>
 										{rawEditMode ? 'Merge view' : 'Raw editor'}
 									</button>
 									<button
 										type="button"
 										onClick={() => applyResolutionToAll('current')}
-										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+										className="px-2 py-1 text-xs border border-[var(--border-input)] rounded hover:bg-[var(--surface-muted)]"
 									>
 										Accept all current
 									</button>
 									<button
 										type="button"
 										onClick={() => applyResolutionToAll('incoming')}
-										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+										className="px-2 py-1 text-xs border border-[var(--border-input)] rounded hover:bg-[var(--surface-muted)]"
 									>
 										Accept all incoming
 									</button>
 									<button
 										type="button"
 										onClick={() => applyResolutionToAll('both')}
-										className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100"
+										className="px-2 py-1 text-xs border border-[var(--border-input)] rounded hover:bg-[var(--surface-muted)]"
 									>
 										Accept all both
 									</button>
@@ -261,13 +261,13 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 					)}
 
 					{activeFile && !rawEditMode && activeBlocks.length > 0 && (
-						<div className="flex-1 overflow-auto bg-white text-[#24292f] font-mono text-sm">
+						<div className="flex-1 overflow-auto bg-[var(--surface-canvas)] text-[var(--text-primary)] font-mono text-sm">
 							{(() => {
 								let conflictIndex = -1;
 								return activeSegments.map((segment, idx) => {
 									if (segment.type === 'text') {
 										return (
-											<pre key={`text-${idx}`} className="whitespace-pre-wrap px-4 py-3 leading-6 bg-white">
+											<pre key={`text-${idx}`} className="whitespace-pre-wrap px-4 py-3 leading-6 bg-[var(--surface-canvas)]">
 												{segment.text}
 											</pre>
 										);
@@ -277,23 +277,23 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 									const block = segment.block;
 
 									return (
-										<div key={`conflict-${idx}`} className="border-y border-gray-200">
-											<div className="px-4 py-2 text-xs bg-white text-gray-600 border-b border-gray-200">
-												<button type="button" onClick={() => applyResolutionToBlock('current', conflictIndex)} className="text-blue-600 hover:underline">Accept Current Change</button>
+										<div key={`conflict-${idx}`} className="border-y border-[var(--border-muted)]">
+											<div className="px-4 py-2 text-xs bg-[var(--surface-canvas)] text-[var(--text-secondary)] border-b border-[var(--border-muted)]">
+												<button type="button" onClick={() => applyResolutionToBlock('current', conflictIndex)} className="text-[var(--text-link)] hover:underline">Accept Current Change</button>
 												<span className="mx-2">|</span>
-												<button type="button" onClick={() => applyResolutionToBlock('incoming', conflictIndex)} className="text-blue-600 hover:underline">Accept Incoming Change</button>
+												<button type="button" onClick={() => applyResolutionToBlock('incoming', conflictIndex)} className="text-[var(--text-link)] hover:underline">Accept Incoming Change</button>
 												<span className="mx-2">|</span>
-												<button type="button" onClick={() => applyResolutionToBlock('both', conflictIndex)} className="text-blue-600 hover:underline">Accept Both Changes</button>
+												<button type="button" onClick={() => applyResolutionToBlock('both', conflictIndex)} className="text-[var(--text-link)] hover:underline">Accept Both Changes</button>
 											</div>
 
-											<div className="bg-[#e6ffec] border-b border-[#b7ebc0]">
-												<div className="px-4 py-1 text-xs text-[#1a7f37]">&lt;&lt;&lt;&lt;&lt;&lt;&lt; {block.currentRef} (Current Change)</div>
+											<div className="bg-[var(--surface-success-subtle)] border-b border-[var(--border-success-muted)]">
+												<div className="px-4 py-1 text-xs text-[var(--text-success)]">&lt;&lt;&lt;&lt;&lt;&lt;&lt; {block.currentRef} (Current Change)</div>
 												<pre className="whitespace-pre-wrap px-4 pb-3 leading-6">{block.current}</pre>
 											</div>
 
-											<div className="bg-[#eaf5ff]">
+											<div className="bg-[var(--status-link-subtle)]">
 												<pre className="whitespace-pre-wrap px-4 pt-3 leading-6">{block.incoming}</pre>
-												<div className="px-4 py-1 text-xs text-[#0969da]">&gt;&gt;&gt;&gt;&gt;&gt;&gt; {block.incomingRef} (Incoming Change)</div>
+												<div className="px-4 py-1 text-xs text-[var(--text-link)]">&gt;&gt;&gt;&gt;&gt;&gt;&gt; {block.incomingRef} (Incoming Change)</div>
 											</div>
 										</div>
 									);
@@ -316,18 +316,18 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 
 
 			{/* Footer: Commit Message & Submit */}
-			<div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center gap-4">
+			<div className="p-4 border-t border-[var(--border-muted)] bg-[var(--surface-subtle)] flex items-center gap-4">
 				<input
 					type="text"
 					placeholder="Commit message (e.g., Fix styling conflicts in main layout)"
 					value={commitMessage}
 					onChange={(e) => setCommitMessage(e.target.value)}
-					className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+					className="flex-1 px-3 py-2 border border-[var(--border-input)] rounded-md focus:ring-2 focus:ring-[var(--ring-focus)] focus:outline-none text-sm"
 				/>
 				<button
 					onClick={handleSubmit}
 					disabled={submitting}
-					className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium text-sm"
+					className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-link)] text-[var(--text-on-accent)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 transition-colors font-medium text-sm"
 				>
 					<Save size={16} />
 					{submitting ? 'Committing...' : 'Commit Resolutions'}
@@ -336,3 +336,4 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 		</div>
 	);
 }
+

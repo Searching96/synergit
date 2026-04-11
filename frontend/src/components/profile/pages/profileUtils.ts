@@ -3,21 +3,21 @@ import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
 
 const LANGUAGE_COLORS: Record<string, string> = {
-  "TypeScript": "#3178c6",
-  "JavaScript": "#f1e05a",
-  "Python": "#3572A5",
-  "Go": "#00ADD8",
-  "Rust": "#dea584",
-  "Java": "#b07219",
-  "HTML": "#e34c26",
-  "Jupyter Notebook": "#DA5B0B",
-  "C": "#555555",
-  "C++": "#f34b7d",
-  "GDScript": "#355570",
+  "TypeScript": "var(--language-typescript)",
+  "JavaScript": "var(--language-javascript)",
+  "Python": "var(--language-python)",
+  "Go": "var(--language-go)",
+  "Rust": "var(--language-rust)",
+  "Java": "var(--language-java)",
+  "HTML": "var(--language-html)",
+  "Jupyter Notebook": "var(--language-jupyter)",
+  "C": "var(--language-c)",
+  "C++": "var(--language-cpp)",
+  "GDScript": "var(--language-gdscript)",
 };
 
 export function languageColor(language: string): string {
-  return LANGUAGE_COLORS[language] || "#57606a";
+  return LANGUAGE_COLORS[language] || "var(--text-secondary)";
 }
 
 export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRepo[] {
@@ -43,6 +43,59 @@ export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRe
   return [...liveRepos, ...filler];
 }
 
+function normalizeOwner(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function inferOwnerFromPath(pathValue: string): string {
+  const parts = pathValue
+    .replace(/\\/g, "/")
+    .split("/")
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return normalizeOwner(parts[parts.length - 2]);
+  }
+
+  return "";
+}
+
+function inferOwnerFromCloneURL(cloneURL: string): string {
+  try {
+    const url = new URL(cloneURL);
+    const parts = url.pathname.split("/").filter(Boolean);
+
+    if (parts.length >= 2) {
+      return normalizeOwner(parts[parts.length - 2]);
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+export function isRepositoryOwnedByUser(repo: Repository, username: string): boolean {
+  const expectedOwner = normalizeOwner(username);
+  if (!expectedOwner) {
+    return false;
+  }
+
+  if (repo.owner && repo.owner.trim()) {
+    return normalizeOwner(repo.owner) === expectedOwner;
+  }
+
+  if (repo.path && repo.path.trim()) {
+    return inferOwnerFromPath(repo.path) === expectedOwner;
+  }
+
+  if (repo.clone_url && repo.clone_url.trim()) {
+    return inferOwnerFromCloneURL(repo.clone_url) === expectedOwner;
+  }
+
+  return false;
+}
+
 export function buildContributionMatrix(): number[][] {
   return Array.from({ length: 53 }, (_, week) =>
     Array.from({ length: 7 }, (_, day) => {
@@ -59,14 +112,15 @@ export function buildContributionMatrix(): number[][] {
 export function contributionColor(level: number): string {
   switch (level) {
     case 0:
-      return "#ebedf0";
+      return "var(--contrib-level-0)";
     case 1:
-      return "#9be9a8";
+      return "var(--contrib-level-1)";
     case 2:
-      return "#40c463";
+      return "var(--contrib-level-2)";
     case 3:
-      return "#30a14e";
+      return "var(--contrib-level-3)";
     default:
-      return "#216e39";
+      return "var(--contrib-level-4)";
   }
 }
+
