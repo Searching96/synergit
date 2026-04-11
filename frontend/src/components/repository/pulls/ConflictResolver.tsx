@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ConflictFile } from "../types";
-import { pullsApi } from "../services/api/pull";
+import type { ConflictFile } from "../../../types";
+import { pullsApi } from "../../../services/api/pull";
 import { AlertTriangle, CheckCircle, FileCode, Save } from "lucide-react";
 
 type ConflictBlock = {

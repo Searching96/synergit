@@ -16,8 +16,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import type { Branch, RepoFile } from "../types";
-import { reposApi } from "../services/api";
+import type { Branch, RepoFile } from "../../../types";
+import { reposApi } from "../../../services/api";
 
 interface FileExplorerProps {
   repoId: string;

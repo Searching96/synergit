@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { Commit } from "../types";
+import type { Commit } from "../../../types";
 import { Clock, GitCommit, User } from "lucide-react";
-import { reposApi } from "../services/api"
+import { reposApi } from "../../../services/api"
 
 interface CommitHistoryProps {
 	repoId: string;

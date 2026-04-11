@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Repository } from "../types";
+import type { Repository } from "../../types";
 import {
   Bell,
   FolderGit2,
@@ -12,19 +12,19 @@ import {
   Table2,
   Users,
 } from "lucide-react";
-import ProfileOverviewPage from "./profile-pages/ProfileOverviewPage";
-import ProfileRepositoriesPage from "./profile-pages/ProfileRepositoriesPage";
-import ProfileProjectsPage from "./profile-pages/ProfileProjectsPage";
-import ProfilePackagesPage from "./profile-pages/ProfilePackagesPage";
-import ProfileStarsPage from "./profile-pages/ProfileStarsPage";
-import { PINNED_ORDER, STARRED_REPOS } from "./profile-pages/profileData";
-import type { ProfileTabKey, ShowcaseRepo } from "./profile-pages/profileTypes";
+import ProfileOverviewPage from "./pages/ProfileOverviewPage";
+import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
+import ProfileProjectsPage from "./pages/ProfileProjectsPage";
+import ProfilePackagesPage from "./pages/ProfilePackagesPage";
+import ProfileStarsPage from "./pages/ProfileStarsPage";
+import { PINNED_ORDER, STARRED_REPOS } from "./pages/profileData";
+import type { ProfileTabKey, ShowcaseRepo } from "./pages/profileTypes";
 import {
   buildContributionMatrix,
   buildDefaultRepositories,
   contributionColor,
   languageColor,
-} from "./profile-pages/profileUtils";
+} from "./pages/profileUtils";
 
 interface GithubProfilePagesProps {
   repositories: Repository[];

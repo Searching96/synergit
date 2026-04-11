@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Branch } from "../types";
+import type { Branch } from "../../../types";
 import { ChevronDown, GitBranch } from "lucide-react";
 
 interface BranchMenuProps {

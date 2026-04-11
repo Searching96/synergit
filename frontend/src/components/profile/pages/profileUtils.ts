@@ -1,4 +1,4 @@
-import type { Repository } from "../../types";
+import type { Repository } from "../../../types";
 import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
 

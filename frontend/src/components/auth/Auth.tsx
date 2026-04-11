@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { authApi } from "../services/api";
+import { authApi } from "../../services/api";
 import { BookOpen } from "lucide-react";
 
 interface AuthProps {

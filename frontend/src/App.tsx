@@ -3,28 +3,47 @@ import type { Branch, Repository } from "./types/index";
 import {
   BarChart3,
   Bell,
+  Bot,
   BookOpen,
   CircleDot,
   Code,
+  FolderKanban,
   GitFork,
   GitPullRequest,
-  History,
   Menu,
   Plus,
   Search,
+  Settings,
+  ShieldCheck,
   Star,
+  Workflow,
   X,
 } from "lucide-react";
-import FileExplorer from "./components/FileExplorer";
-import CommitHistory from "./components/CommitHistory";
+import FileExplorer from "./components/repository/code/FileExplorer";
 import { ApiError, reposApi } from "./services/api";
-import Auth from "./components/Auth";
-import PullRequestList from "./components/PullRequestList";
-import RepoInsights from "./components/RepoInsights";
-import IssueBoard from "./components/IssueBoard";
-import GithubProfilePages from "./components/GithubProfilePages";
+import Auth from "./components/auth/Auth";
+import PullRequestList from "./components/repository/pulls/PullRequestList";
+import RepoInsights from "./components/repository/insights/RepoInsights";
+import IssueBoard from "./components/repository/issues/IssueBoard";
+import GithubProfilePages from "./components/profile/GithubProfilePages";
+import RepoAgentsPage from "./components/repository/pages/RepoAgentsPage";
+import RepoActionsPage from "./components/repository/pages/RepoActionsPage";
+import RepoProjectsPage from "./components/repository/pages/RepoProjectsPage";
+import RepoWikiPage from "./components/repository/pages/RepoWikiPage";
+import RepoSecurityPage from "./components/repository/pages/RepoSecurityPage";
+import RepoSettingsPage from "./components/repository/pages/RepoSettingsPage";
 
-type TabKey = 'files' | 'commits' | 'pulls' | 'issues' | 'insights';
+type TabKey =
+  | 'files'
+  | 'issues'
+  | 'pulls'
+  | 'agents'
+  | 'actions'
+  | 'projects'
+  | 'wiki'
+  | 'security'
+  | 'insights'
+  | 'settings';
 
 interface MainTab {
   key: TabKey;
@@ -36,8 +55,13 @@ const MAIN_TABS: MainTab[] = [
   { key: 'files', label: 'Code', icon: Code },
   { key: 'issues', label: 'Issues', icon: CircleDot },
   { key: 'pulls', label: 'Pull requests', icon: GitPullRequest },
-  { key: 'commits', label: 'Commits', icon: History },
+  { key: 'agents', label: 'Agents', icon: Bot },
+  { key: 'actions', label: 'Actions', icon: Workflow },
+  { key: 'projects', label: 'Projects', icon: FolderKanban },
+  { key: 'wiki', label: 'Wiki', icon: BookOpen },
+  { key: 'security', label: 'Security and quality', icon: ShieldCheck },
   { key: 'insights', label: 'Insights', icon: BarChart3 },
+  { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
 function App () {
@@ -306,7 +330,7 @@ function App () {
             </div>
 
             {/* Dynamic Content Area */}
-            <div className={`flex-1 overflow-hidden ${activeTab === 'pulls' || activeTab === 'issues' || activeTab === 'files' ? 'p-0' : 'p-6 bg-white border border-[#d1d9e0] rounded-md'}`}>
+            <div className="flex-1 min-h-0">
               {activeTab === 'files' && (
                 <FileExplorer
                   repoId={selectedRepo.id}
@@ -317,7 +341,7 @@ function App () {
                   onCreateBranch={handleCreateBranch}
                 />
               )}
-              {activeTab === 'commits' && <CommitHistory repoId={selectedRepo.id} branch={currentBranch} />}
+              {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}
               {activeTab === 'pulls' && (
                 <PullRequestList
                   repoId={selectedRepo.id}
@@ -325,8 +349,13 @@ function App () {
                   defaultSourceBranch={currentBranch}
                 />
               )}
-              {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}
+              {activeTab === 'agents' && <RepoAgentsPage />}
+              {activeTab === 'actions' && <RepoActionsPage />}
+              {activeTab === 'projects' && <RepoProjectsPage />}
+              {activeTab === 'wiki' && <RepoWikiPage repoName={selectedRepo.name} />}
+              {activeTab === 'security' && <RepoSecurityPage />}
               {activeTab === 'insights' && <RepoInsights repoId={selectedRepo.id} />}
+              {activeTab === 'settings' && <RepoSettingsPage />}
             </div>
           </div>
         )}
