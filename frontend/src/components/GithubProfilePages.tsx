@@ -1,0 +1,227 @@
+import { useMemo, useState } from "react";
+import type { Repository } from "../types";
+import {
+  Bell,
+  FolderGit2,
+  LayoutGrid,
+  Menu,
+  Package,
+  Plus,
+  Search,
+  Star,
+  Table2,
+  Users,
+} from "lucide-react";
+import ProfileOverviewPage from "./profile-pages/ProfileOverviewPage";
+import ProfileRepositoriesPage from "./profile-pages/ProfileRepositoriesPage";
+import ProfileProjectsPage from "./profile-pages/ProfileProjectsPage";
+import ProfilePackagesPage from "./profile-pages/ProfilePackagesPage";
+import ProfileStarsPage from "./profile-pages/ProfileStarsPage";
+import { PINNED_ORDER, STARRED_REPOS } from "./profile-pages/profileData";
+import type { ProfileTabKey, ShowcaseRepo } from "./profile-pages/profileTypes";
+import {
+  buildContributionMatrix,
+  buildDefaultRepositories,
+  contributionColor,
+  languageColor,
+} from "./profile-pages/profileUtils";
+
+interface GithubProfilePagesProps {
+  repositories: Repository[];
+  onOpenWorkspace: (repoName: string) => void;
+  onLogout: () => void;
+}
+
+const PROFILE_TABS: Array<{
+  key: ProfileTabKey;
+  label: string;
+  icon: typeof LayoutGrid;
+  count?: number;
+}> = [
+  { key: "overview", label: "Overview", icon: LayoutGrid },
+  { key: "repositories", label: "Repositories", icon: FolderGit2, count: 41 },
+  { key: "projects", label: "Projects", icon: Table2 },
+  { key: "packages", label: "Packages", icon: Package },
+  { key: "stars", label: "Stars", icon: Star, count: 4 },
+];
+
+export default function GithubProfilePages({
+  repositories,
+  onOpenWorkspace,
+  onLogout,
+}: GithubProfilePagesProps) {
+  const [activeTab, setActiveTab] = useState<ProfileTabKey>("overview");
+
+  const profileRepositories = useMemo(
+    () => buildDefaultRepositories(repositories),
+    [repositories],
+  );
+
+  const pinnedRepositories = useMemo(() => {
+    const ordered: ShowcaseRepo[] = [];
+
+    for (const name of PINNED_ORDER) {
+      const found = profileRepositories.find(
+        (repo) => repo.name.toLowerCase() === name.toLowerCase(),
+      );
+      if (found) ordered.push(found);
+    }
+
+    for (const repo of profileRepositories) {
+      if (ordered.length >= 6) break;
+      if (!ordered.some((item) => item.name === repo.name)) {
+        ordered.push(repo);
+      }
+    }
+
+    return ordered.slice(0, 6);
+  }, [profileRepositories]);
+
+  const contributions = useMemo(() => buildContributionMatrix(), []);
+
+  const tabClass = (key: ProfileTabKey) =>
+    `h-10 px-3 md:px-4 text-sm font-medium border-b-2 inline-flex items-center gap-2 whitespace-nowrap ${
+      activeTab === key
+        ? "border-[#f78166] text-[#f0f6fc]"
+        : "border-transparent text-[#8b949e] hover:text-[#c9d1d9] hover:border-[#30363d]"
+    }`;
+
+  const content =
+    activeTab === "overview" ? (
+      <ProfileOverviewPage
+        pinnedRepositories={pinnedRepositories}
+        contributions={contributions}
+        onOpenWorkspace={onOpenWorkspace}
+        languageColor={languageColor}
+        contributionColor={contributionColor}
+      />
+    ) : activeTab === "repositories" ? (
+      <ProfileRepositoriesPage
+        profileRepositories={profileRepositories}
+        onOpenWorkspace={onOpenWorkspace}
+        languageColor={languageColor}
+      />
+    ) : activeTab === "projects" ? (
+      <ProfileProjectsPage />
+    ) : activeTab === "packages" ? (
+      <ProfilePackagesPage />
+    ) : (
+      <ProfileStarsPage starredRepos={STARRED_REPOS} languageColor={languageColor} />
+    );
+
+  return (
+    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
+      <header className="border-b border-[#21262d] bg-[#010409]">
+        <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+            >
+              <Menu size={16} />
+            </button>
+            <div className="h-8 w-8 rounded-full bg-[#f0f6fc] text-[#0d1117] font-bold text-xs inline-flex items-center justify-center">
+              GH
+            </div>
+            <p className="text-sm font-semibold text-[#f0f6fc] truncate">Searching96</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden md:block relative w-[260px] lg:w-[360px]">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]"
+              />
+              <input
+                readOnly
+                value="Type / to search"
+                className="h-8 w-full rounded-md border border-[#30363d] bg-[#0d1117] pl-9 pr-3 text-sm text-[#8b949e]"
+              />
+            </div>
+            <button
+              type="button"
+              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+            >
+              <Plus size={14} />
+            </button>
+            <button
+              type="button"
+              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+            >
+              <Bell size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="h-8 px-3 rounded-md border border-[#30363d] bg-[#161b22] text-xs font-semibold text-[#c9d1d9]"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <div className="h-11 px-4 md:px-6 flex items-end gap-1 overflow-x-auto">
+          {PROFILE_TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={tabClass(tab.key)}
+              >
+                <Icon size={15} />
+                {tab.label}
+                {tab.count ? (
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#30363d] text-[10px] leading-none">
+                    {tab.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      <main className="max-w-[1280px] mx-auto px-4 md:px-6 py-6 flex flex-col lg:flex-row gap-6">
+        <aside className="w-full lg:w-[296px] shrink-0">
+          <div className="w-[280px] max-w-full mx-auto lg:mx-0">
+            <img
+              src="https://github.com/Searching96.png"
+              alt="Searching96 avatar"
+              className="w-full aspect-square object-cover rounded-full border border-[#30363d]"
+            />
+            <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[#f0f6fc]">
+              Nguyễn Phúc Thịnh
+            </h1>
+            <p className="text-[30px] leading-[34px] font-light text-[#8b949e]">Searching96</p>
+            <button
+              type="button"
+              className="mt-4 h-8 w-full rounded-md border border-[#30363d] bg-[#21262d] text-sm font-semibold text-[#c9d1d9]"
+            >
+              Edit profile
+            </button>
+            <p className="mt-4 text-sm text-[#8b949e] inline-flex items-center gap-2">
+              <Users size={14} /> 1 follower · 0 following
+            </p>
+          </div>
+        </aside>
+
+        <section className="flex-1 min-w-0">{content}</section>
+      </main>
+
+      <footer className="border-t border-[#21262d] mt-8 py-6 text-xs text-[#8b949e]">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
+          <span>© 2026 GitHub, Inc.</span>
+          <span>Terms</span>
+          <span>Privacy</span>
+          <span>Security</span>
+          <span>Status</span>
+          <span>Community</span>
+          <span>Docs</span>
+          <span>Contact</span>
+        </div>
+      </footer>
+    </div>
+  );
+}

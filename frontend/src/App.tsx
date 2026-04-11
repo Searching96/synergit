@@ -22,6 +22,7 @@ import Auth from "./components/Auth";
 import PullRequestList from "./components/PullRequestList";
 import RepoInsights from "./components/RepoInsights";
 import IssueBoard from "./components/IssueBoard";
+import GithubProfilePages from "./components/GithubProfilePages";
 
 type TabKey = 'files' | 'commits' | 'pulls' | 'issues' | 'insights';
 
@@ -45,6 +46,7 @@ function App () {
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('files');
+  const [isProfileView, setIsProfileView] = useState<boolean>(true);
   const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
 
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -119,16 +121,44 @@ function App () {
     setCurrentBranch(branchName.trim());
   };
 
+  const handleOpenWorkspaceFromProfile = (repoName: string) => {
+    if (repos.length === 0) {
+      setIsRepoDrawerOpen(true);
+      return;
+    }
+
+    const target =
+      repos.find((repo) => repo.name.toLowerCase() === repoName.toLowerCase()) ||
+      repos[0];
+
+    if (!target) return;
+
+    setSelectedRepoId(target.id);
+    setActiveTab('files');
+    setIsProfileView(false);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     setSelectedRepoId(null);
+    setIsProfileView(true);
   };
 
   const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
 
   if (!isAuthenticated) {
     return <Auth onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
+  if (isProfileView) {
+    return (
+      <GithubProfilePages
+        repositories={repos}
+        onOpenWorkspace={handleOpenWorkspaceFromProfile}
+        onLogout={handleLogout}
+      />
+    );
   }
 
   return (
@@ -183,6 +213,13 @@ function App () {
               aria-label="Notifications"
             >
               <Bell size={16} className="text-[#57606a]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsProfileView(true)}
+              className="px-3 py-1.5 text-sm font-medium text-[#24292f] border border-[#d1d9e0] rounded-md hover:bg-[#f6f8fa]"
+            >
+              Profile
             </button>
             <button
               type="button"
@@ -335,6 +372,7 @@ function App () {
                       onClick={() => {
                         setSelectedRepoId(repo.id);
                         setActiveTab('files');
+                        setIsProfileView(false);
                         setIsRepoDrawerOpen(false);
                       }}
                       className={`w-full flex items-center p-2 rounded-md text-sm font-medium transition-colors ${
