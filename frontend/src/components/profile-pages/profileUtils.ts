@@ -3,21 +3,21 @@ import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
 
 const LANGUAGE_COLORS: Record<string, string> = {
-  TypeScript: "#3178c6",
-  JavaScript: "#f1e05a",
-  Python: "#3572A5",
-  Go: "#00ADD8",
-  Rust: "#dea584",
-  Java: "#b07219",
-  HTML: "#e34c26",
+  "TypeScript": "#3178c6",
+  "JavaScript": "#f1e05a",
+  "Python": "#3572A5",
+  "Go": "#00ADD8",
+  "Rust": "#dea584",
+  "Java": "#b07219",
+  "HTML": "#e34c26",
   "Jupyter Notebook": "#DA5B0B",
-  C: "#555555",
+  "C": "#555555",
   "C++": "#f34b7d",
-  GDScript: "#355570",
+  "GDScript": "#355570",
 };
 
 export function languageColor(language: string): string {
-  return LANGUAGE_COLORS[language] || "#8b949e";
+  return LANGUAGE_COLORS[language] || "#57606a";
 }
 
 export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRepo[] {
@@ -59,14 +59,14 @@ export function buildContributionMatrix(): number[][] {
 export function contributionColor(level: number): string {
   switch (level) {
     case 0:
-      return "#161b22";
+      return "#ebedf0";
     case 1:
-      return "#0e4429";
+      return "#9be9a8";
     case 2:
-      return "#006d32";
+      return "#40c463";
     case 3:
-      return "#26a641";
+      return "#30a14e";
     default:
-      return "#39d353";
+      return "#216e39";
   }
 }

@@ -82,8 +82,8 @@ export default function GithubProfilePages({
   const tabClass = (key: ProfileTabKey) =>
     `h-10 px-3 md:px-4 text-sm font-medium border-b-2 inline-flex items-center gap-2 whitespace-nowrap ${
       activeTab === key
-        ? "border-[#f78166] text-[#f0f6fc]"
-        : "border-transparent text-[#8b949e] hover:text-[#c9d1d9] hover:border-[#30363d]"
+        ? "border-[#fd8c73] text-[#24292f]"
+        : "border-transparent text-[#57606a] hover:text-[#24292f] hover:border-[#d1d9e0]"
     }`;
 
   const content =
@@ -110,50 +110,50 @@ export default function GithubProfilePages({
     );
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9]">
-      <header className="border-b border-[#21262d] bg-[#010409]">
+    <div className="min-h-screen bg-[#ffffff] text-[#24292f]">
+      <header className="border-b border-[#d1d9e0] bg-[#f6f8fa]">
         <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+              className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-[#57606a] inline-flex items-center justify-center hover:bg-[#f3f4f6]"
             >
               <Menu size={16} />
             </button>
-            <div className="h-8 w-8 rounded-full bg-[#f0f6fc] text-[#0d1117] font-bold text-xs inline-flex items-center justify-center">
+            <div className="h-8 w-8 rounded-full bg-[#24292f] text-white font-bold text-xs inline-flex items-center justify-center">
               GH
             </div>
-            <p className="text-sm font-semibold text-[#f0f6fc] truncate">Searching96</p>
+            <p className="text-sm font-semibold text-[#24292f] truncate">Searching96</p>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="hidden md:block relative w-[260px] lg:w-[360px]">
               <Search
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8b949e]"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#57606a]"
               />
               <input
                 readOnly
                 value="Type / to search"
-                className="h-8 w-full rounded-md border border-[#30363d] bg-[#0d1117] pl-9 pr-3 text-sm text-[#8b949e]"
+                className="h-8 w-full rounded-md border border-[#d1d9e0] bg-white pl-9 pr-3 text-sm text-[#57606a]"
               />
             </div>
             <button
               type="button"
-              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+              className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-[#57606a] inline-flex items-center justify-center hover:bg-[#f3f4f6]"
             >
               <Plus size={14} />
             </button>
             <button
               type="button"
-              className="h-8 w-8 rounded-md border border-[#30363d] bg-[#161b22] text-[#8b949e] inline-flex items-center justify-center"
+              className="h-8 w-8 rounded-md border border-[#d1d9e0] bg-white text-[#57606a] inline-flex items-center justify-center hover:bg-[#f3f4f6]"
             >
               <Bell size={14} />
             </button>
             <button
               type="button"
               onClick={onLogout}
-              className="h-8 px-3 rounded-md border border-[#30363d] bg-[#161b22] text-xs font-semibold text-[#c9d1d9]"
+              className="h-8 px-3 rounded-md border border-[#d1d9e0] bg-white text-xs font-semibold text-[#24292f] hover:bg-[#f3f4f6]"
             >
               Logout
             </button>
@@ -173,7 +173,7 @@ export default function GithubProfilePages({
                 <Icon size={15} />
                 {tab.label}
                 {tab.count ? (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[#30363d] text-[10px] leading-none">
+                  <span className="px-1.5 py-0.5 rounded-full bg-[#eaeef2] text-[#57606a] text-[10px] leading-none">
                     {tab.count}
                   </span>
                 ) : null}
@@ -183,34 +183,34 @@ export default function GithubProfilePages({
         </div>
       </header>
 
-      <main className="max-w-[1280px] mx-auto px-4 md:px-6 py-6 flex flex-col lg:flex-row gap-6">
-        <aside className="w-full lg:w-[296px] shrink-0">
+      <main className="w-full max-w-[1280px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[296px_minmax(0,1fr)] gap-6">
+        <aside className="w-full lg:w-[296px]">
           <div className="w-[280px] max-w-full mx-auto lg:mx-0">
             <img
               src="https://github.com/Searching96.png"
               alt="Searching96 avatar"
-              className="w-full aspect-square object-cover rounded-full border border-[#30363d]"
+              className="w-full aspect-square object-cover rounded-full border border-[#d1d9e0]"
             />
-            <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[#f0f6fc]">
+            <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[#24292f]">
               Nguyễn Phúc Thịnh
             </h1>
-            <p className="text-[30px] leading-[34px] font-light text-[#8b949e]">Searching96</p>
+            <p className="text-[30px] leading-[34px] font-light text-[#57606a]">Searching96</p>
             <button
               type="button"
-              className="mt-4 h-8 w-full rounded-md border border-[#30363d] bg-[#21262d] text-sm font-semibold text-[#c9d1d9]"
+              className="mt-4 h-8 w-full rounded-md border border-[#d1d9e0] bg-[#f6f8fa] text-sm font-semibold text-[#24292f] hover:bg-[#eef1f4]"
             >
               Edit profile
             </button>
-            <p className="mt-4 text-sm text-[#8b949e] inline-flex items-center gap-2">
+            <p className="mt-4 text-sm text-[#57606a] inline-flex items-center gap-2">
               <Users size={14} /> 1 follower · 0 following
             </p>
           </div>
         </aside>
 
-        <section className="flex-1 min-w-0">{content}</section>
+        <section className="min-w-0 w-full">{content}</section>
       </main>
 
-      <footer className="border-t border-[#21262d] mt-8 py-6 text-xs text-[#8b949e]">
+      <footer className="border-t border-[#d8dee4] mt-8 py-6 text-xs text-[#57606a]">
         <div className="max-w-[1280px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
           <span>© 2026 GitHub, Inc.</span>
           <span>Terms</span>

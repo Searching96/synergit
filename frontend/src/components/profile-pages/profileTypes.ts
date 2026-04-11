@@ -2,7 +2,7 @@ export type ProfileTabKey = "overview" | "repositories" | "projects" | "packages
 
 export interface ShowcaseRepo {
   name: string;
-  visibility: "Public" | "Private" | "Public archive" | "Private archive";
+  visibility: "Public" | "Private";
   description: string;
   language: string;
   updatedText: string;

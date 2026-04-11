@@ -20,28 +20,28 @@ export default function ProfileOverviewPage({
     <div className="space-y-6">
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[#f0f6fc]">Pinned</h2>
-          <button type="button" className="text-xs text-[#58a6ff] hover:underline">Customize your pins</button>
+          <h2 className="text-base font-semibold text-[#24292f]">Pinned</h2>
+          <button type="button" className="text-xs text-[#0969da] hover:underline">Customize your pins</button>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {pinnedRepositories.map((repo) => (
-            <article key={`pin-${repo.name}`} className="border border-[#30363d] rounded-md p-4 bg-[#0d1117]">
+            <article key={`pin-${repo.name}`} className="border border-[#d1d9e0] rounded-md p-4 bg-white">
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => onOpenWorkspace(repo.name)}
-                  className="text-sm font-semibold text-[#58a6ff] hover:underline inline-flex items-center gap-2"
+                  className="text-sm font-semibold text-[#0969da] hover:underline inline-flex items-center gap-2"
                 >
-                  <Book size={14} className="text-[#8b949e]" />
+                  <Book size={14} className="text-[#57606a]" />
                   {repo.name}
                 </button>
-                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-full border border-[#30363d] text-[#8b949e]">
+                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-full border border-[#d1d9e0] text-[#57606a]">
                   {repo.visibility}
                 </span>
               </div>
-              <p className="mt-3 text-sm text-[#8b949e] min-h-[36px]">{repo.description || "No description provided."}</p>
-              <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#8b949e]">
+              <p className="mt-3 text-sm text-[#57606a] min-h-[36px]">{repo.description || "No description provided."}</p>
+              <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#57606a]">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
                 {repo.language}
               </div>
@@ -50,12 +50,12 @@ export default function ProfileOverviewPage({
         </div>
       </section>
 
-      <section className="border border-[#30363d] rounded-md p-4 bg-[#0d1117]">
-        <div className="flex items-center justify-between text-sm text-[#8b949e]">
+      <section className="border border-[#d1d9e0] rounded-md p-4 bg-white">
+        <div className="flex items-center justify-between text-sm text-[#57606a]">
           <p>
-            <span className="font-semibold text-[#f0f6fc]">1,134 contributions</span> in the last year
+            <span className="font-semibold text-[#24292f]">1,134 contributions</span> in the last year
           </p>
-          <button type="button" className="text-xs text-[#58a6ff] hover:underline">Contribution settings</button>
+          <button type="button" className="text-xs text-[#0969da] hover:underline">Contribution settings</button>
         </div>
 
         <div className="mt-4 overflow-x-auto">
@@ -74,7 +74,7 @@ export default function ProfileOverviewPage({
           </div>
         </div>
 
-        <div className="mt-4 text-xs text-[#8b949e] flex items-center justify-between">
+        <div className="mt-4 text-xs text-[#57606a] flex items-center justify-between">
           <span>Learn how we count contributions</span>
           <div className="inline-flex items-center gap-2">
             <span>Less</span>
@@ -88,38 +88,38 @@ export default function ProfileOverviewPage({
         </div>
       </section>
 
-      <section className="border border-[#30363d] rounded-md p-4 bg-[#0d1117]">
-        <h3 className="text-base font-semibold text-[#f0f6fc]">Activity overview</h3>
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-5 text-sm text-[#8b949e]">
-          <div className="border border-[#21262d] rounded-md p-4 bg-[#0b0f14]">
+      <section className="border border-[#d1d9e0] rounded-md p-4 bg-white">
+        <h3 className="text-base font-semibold text-[#24292f]">Activity overview</h3>
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-5 text-sm text-[#57606a]">
+          <div className="border border-[#d8dee4] rounded-md p-4 bg-[#f6f8fa]">
             <p className="text-xs uppercase tracking-wide mb-2">Contributed to</p>
-            <p className="text-[#58a6ff]">Searching96/synergyit</p>
-            <p className="text-[#58a6ff]">ci-cd-demo-next-js</p>
+            <p className="text-[#0969da]">Searching96/synergyit</p>
+            <p className="text-[#0969da]">ci-cd-demo-next-js</p>
             <p className="mt-2">and 35 other repositories</p>
           </div>
-          <div className="border border-[#21262d] rounded-md p-4 bg-[#0b0f14] flex flex-col items-center justify-center">
+          <div className="border border-[#d8dee4] rounded-md p-4 bg-[#f6f8fa] flex flex-col items-center justify-center">
             <div className="w-full max-w-[220px] h-[120px] relative">
-              <span className="absolute top-2 left-8 text-xs text-[#8b949e]">57%</span>
-              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-[#8b949e]">3%</span>
-              <span className="absolute top-1/2 right-6 -translate-y-1/2 text-xs text-[#8b949e]">Issues</span>
+              <span className="absolute top-2 left-8 text-xs text-[#57606a]">57%</span>
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-[#57606a]">3%</span>
+              <span className="absolute top-1/2 right-6 -translate-y-1/2 text-xs text-[#57606a]">Issues</span>
               <div className="absolute left-1/2 top-4 bottom-4 w-px bg-[#238636]" />
               <div className="absolute top-1/2 left-6 right-6 h-px bg-[#238636]" />
             </div>
-            <p className="text-xs text-[#8b949e]">Code review</p>
+            <p className="text-xs text-[#57606a]">Code review</p>
           </div>
         </div>
       </section>
 
-      <section className="space-y-3 text-sm text-[#8b949e]">
-        <h3 className="text-base font-semibold text-[#f0f6fc]">Contribution activity</h3>
-        <div className="border border-[#30363d] rounded-md p-4 bg-[#0d1117] space-y-4">
+      <section className="space-y-3 text-sm text-[#57606a]">
+        <h3 className="text-base font-semibold text-[#24292f]">Contribution activity</h3>
+        <div className="border border-[#d1d9e0] rounded-md p-4 bg-white space-y-4">
           <div>
-            <p className="text-[#f0f6fc]">April 2026</p>
+            <p className="text-[#24292f]">April 2026</p>
             <p className="mt-1">Created 21 commits in 2 repositories</p>
-            <p className="text-[#58a6ff] mt-1">Searching96/synergyit</p>
-            <p className="text-[#58a6ff]">Searching96/htmlol</p>
+            <p className="text-[#0969da] mt-1">Searching96/synergyit</p>
+            <p className="text-[#0969da]">Searching96/htmlol</p>
           </div>
-          <button type="button" className="w-full h-8 rounded-md border border-[#30363d] text-xs text-[#58a6ff] hover:bg-[#161b22]">
+          <button type="button" className="w-full h-8 rounded-md border border-[#d1d9e0] text-xs text-[#0969da] hover:bg-[#f6f8fa]">
             Show more activity
           </button>
         </div>
