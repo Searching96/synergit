@@ -155,7 +155,7 @@ export default function GithubProfilePages({
   const contributions = useMemo(() => buildContributionMatrix(), []);
 
   const tabClass = (key: ProfileTabKey) =>
-    `h-10 px-3 md:px-4 text-sm font-medium border-b-2 inline-flex items-center gap-2 whitespace-nowrap ${
+    `h-11 px-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${
       activeTab === key
         ? "border-[var(--border-tab-active)] text-[var(--text-primary)]"
         : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]"
@@ -187,58 +187,59 @@ export default function GithubProfilePages({
 
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="border-b border-[var(--border-default)] bg-[var(--surface-subtle)]">
+      <header className="border-b border-[var(--border-default)] bg-[var(--surface-canvas)]">
         <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsMenuOpen(true)}
-              className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             >
               <Menu size={16} />
             </button>
-            <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] font-bold text-xs inline-flex items-center justify-center">
+            <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center justify-center">
               GH
             </div>
             <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{username}</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="hidden md:block relative w-[260px] lg:w-[360px]">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
-              />
+          <div className="hidden lg:block flex-1 max-w-xl">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
+                type="text"
                 readOnly
-                value="Type / to search"
-                className="h-8 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
+                placeholder="Type / to search"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
               />
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onCreateRepository}
-              className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             >
-              <Plus size={14} />
+              <Plus size={16} />
             </button>
             <button
               type="button"
-              className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             >
-              <Bell size={14} />
+              <Bell size={16} />
             </button>
             <button
               type="button"
               onClick={onLogout}
-              className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+              className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Logout
             </button>
           </div>
         </div>
 
-        <div className="h-11 px-4 md:px-6 flex items-end gap-1 overflow-x-auto">
+        <div className="h-12 border-t border-[var(--surface-muted)] px-4 md:px-6 flex items-end overflow-x-auto">
           {profileTabs.map((tab) => {
             const Icon = tab.icon;
             return (
