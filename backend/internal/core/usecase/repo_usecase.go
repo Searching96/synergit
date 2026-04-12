@@ -133,7 +133,7 @@ func buildInitialRepositoryFiles(repoName string, ownerName string, options doma
 	files := map[string]string{}
 
 	if options.InitializeReadme {
-		files["README.md"] = buildReadmeContent(repoName)
+		files["README.md"] = buildReadmeContent(repoName, options.Description)
 	}
 
 	if gitignore, ok := gitignoreTemplateContent(options.GitignoreTemplate); ok {
@@ -147,8 +147,13 @@ func buildInitialRepositoryFiles(repoName string, ownerName string, options doma
 	return files
 }
 
-func buildReadmeContent(repoName string) string {
-	return fmt.Sprintf("# %s", repoName)
+func buildReadmeContent(repoName string, description string) string {
+	trimmedDescription := strings.TrimSpace(description)
+	if trimmedDescription == "" {
+		return fmt.Sprintf("# %s", repoName)
+	}
+
+	return fmt.Sprintf("# %s\n\n%s", repoName, trimmedDescription)
 }
 
 func gitignoreTemplateContent(templateName string) (string, bool) {

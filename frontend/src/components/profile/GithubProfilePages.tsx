@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import type { Repository } from "../../types";
 import {
   Bell,
@@ -8,7 +8,6 @@ import {
   Gift,
   Github,
   Home,
-  FolderGit2,
   GitPullRequest,
   LayoutGrid,
   Link2,
@@ -23,6 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { RepoIcon } from "@primer/octicons-react";
 import ProfileOverviewPage from "./pages/ProfileOverviewPage";
 import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
 import ProfileProjectsPage from "./pages/ProfileProjectsPage";
@@ -52,15 +52,19 @@ interface GithubProfilePagesProps {
 const PROFILE_TABS: Array<{
   key: ProfileTabKey;
   label: string;
-  icon: typeof LayoutGrid;
+  icon: ComponentType<{ size?: number; className?: string }>;
   count?: number;
 }> = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
-  { key: "repositories", label: "Repositories", icon: FolderGit2 },
+  { key: "repositories", label: "Repositories", icon: RepoIconGlyph },
   { key: "projects", label: "Projects", icon: Table2 },
   { key: "packages", label: "Packages", icon: Package },
   { key: "stars", label: "Stars", icon: Star, count: 4 },
 ];
+
+function RepoIconGlyph({ size = 16, className }: { size?: number; className?: string }) {
+  return <RepoIcon size={size} className={className} />;
+}
 
 export default function GithubProfilePages({
   repositories,
@@ -98,13 +102,13 @@ export default function GithubProfilePages({
   const primarySidebarItems: Array<{
     key: string;
     label: string;
-    icon: typeof LayoutGrid;
+    icon: ComponentType<{ size?: number; className?: string }>;
     path: string;
   }> = [
     { key: "home", label: "Home", icon: Home, path: profileBasePath },
     { key: "issues", label: "Issues", icon: CircleDot, path: "/issues" },
     { key: "pulls", label: "Pull requests", icon: GitPullRequest, path: "/pulls" },
-    { key: "repositories", label: "Repositories", icon: FolderGit2, path: `${profileBasePath}?tab=repositories` },
+    { key: "repositories", label: "Repositories", icon: RepoIconGlyph, path: `${profileBasePath}?tab=repositories` },
     { key: "projects", label: "Projects", icon: LayoutGrid, path: "/projects" },
     { key: "discussions", label: "Discussions", icon: MessageCircle, path: "/discussions" },
     { key: "codespaces", label: "Codespaces", icon: Monitor, path: "/codespaces" },
@@ -114,7 +118,7 @@ export default function GithubProfilePages({
   const secondarySidebarItems: Array<{
     key: string;
     label: string;
-    icon: typeof LayoutGrid;
+    icon: ComponentType<{ size?: number; className?: string }>;
     path: string;
   }> = [
     { key: "explore", label: "Explore", icon: Compass, path: "/explore" },

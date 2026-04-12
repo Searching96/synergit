@@ -1,4 +1,5 @@
-import { Search, Star } from "lucide-react";
+import { Search } from "lucide-react";
+import { RepoForkedIcon, RepoIcon, StarFillIcon, StarIcon } from "@primer/octicons-react";
 import type { StarredRepo } from "./profileTypes";
 
 interface ProfileStarsPageProps {
@@ -49,7 +50,10 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
             <article key={`${repo.owner}/${repo.name}`} className="py-6 border-b border-[var(--border-muted)] flex items-start justify-between gap-4">
               <div>
                 <p className="text-[28px] leading-[32px] text-[var(--text-link)] font-semibold">
-                  {repo.owner} / {repo.name}
+                  <span className="inline-flex items-center gap-2">
+                    <RepoIcon size={16} className="text-[var(--text-secondary)]" />
+                    {repo.owner} / {repo.name}
+                  </span>
                 </p>
                 <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-[760px]">{repo.description}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[var(--text-secondary)]">
@@ -59,14 +63,20 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
                       {repo.language}
                     </span>
                   ) : null}
-                  <span>★ {repo.stars}</span>
-                  <span>⑂ {repo.forks}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <StarIcon size={12} />
+                    {repo.stars}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <RepoForkedIcon size={12} />
+                    {repo.forks}
+                  </span>
                   <span>{repo.updatedText}</span>
                 </div>
               </div>
 
               <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-2">
-                <Star size={12} />
+                <StarFillIcon size={12} />
                 Starred
               </button>
             </article>

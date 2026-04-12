@@ -16,6 +16,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 
@@ -27,6 +28,7 @@ type ExplorerLocation = {
 interface FileExplorerProps {
   repoId: string;
   repoName: string;
+  repoDescription?: string;
   repoOwner?: string;
   cloneUrl?: string;
   initialLocation?: ExplorerLocation;
@@ -55,9 +57,71 @@ function commitMessagePlaceholder(item: RepoFile): string {
   return item.type === "DIR" ? "Updated folder structure" : "Updated file";
 }
 
+function extractAboutTextFromReadme(readme: string | null): string | null {
+  if (!readme) {
+    return null;
+  }
+
+  const lines = readme.split(/\r?\n/);
+  const chunks: string[] = [];
+  let collecting = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!collecting) {
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
+
+      collecting = true;
+      chunks.push(trimmed);
+      continue;
+    }
+
+    if (!trimmed || trimmed.startsWith("#")) {
+      break;
+    }
+
+    chunks.push(trimmed);
+  }
+
+  if (chunks.length === 0) {
+    return null;
+  }
+
+  return chunks.join(" ");
+}
+
+function normalizeReadmeMarkdown(readme: string | null, repoName: string): string | null {
+  if (!readme) {
+    return null;
+  }
+
+  const lines = readme.split(/\r?\n/);
+  const firstNonEmptyLineIndex = lines.findIndex((line) => line.trim().length > 0);
+
+  if (firstNonEmptyLineIndex === -1) {
+    return `# ${repoName}`;
+  }
+
+  const firstLine = lines[firstNonEmptyLineIndex].trim();
+  if (firstLine.startsWith("#")) {
+    return readme;
+  }
+
+  if (firstLine.toLowerCase() === repoName.trim().toLowerCase()) {
+    lines[firstNonEmptyLineIndex] = `# ${firstLine}`;
+    return lines.join("\n");
+  }
+
+  return `# ${repoName}\n\n${readme}`;
+}
+
 export default function FileExplorer({
   repoId,
   repoName,
+  repoDescription,
   repoOwner,
   cloneUrl: backendCloneUrl,
   initialLocation,
@@ -106,6 +170,10 @@ export default function FileExplorer({
   const currentEntries = useMemo(
     () => sortEntries(entriesByPath[currentDirPath] || []),
     [entriesByPath, currentDirPath],
+  );
+  const readmeEntry = useMemo(
+    () => rootEntries.find((entry) => entry.type === "FILE" && entry.name.toLowerCase() === "readme.md") || null,
+    [rootEntries],
   );
 
   const isRootMode = selectedFilePath === null && currentDirPath === "";
@@ -230,10 +298,6 @@ export default function FileExplorer({
   }, [repoId, branch, loadDir]);
 
   useEffect(() => {
-    const readmeEntry = (entriesByPath[""] || []).find(
-      (entry) => entry.type === "FILE" && entry.name.toLowerCase().startsWith("readme"),
-    );
-
     if (!readmeEntry) {
       setReadmeContent(null);
       setReadmeLoading(false);
@@ -262,7 +326,19 @@ export default function FileExplorer({
     return () => {
       active = false;
     };
-  }, [entriesByPath, repoId, branch]);
+  }, [readmeEntry, repoId, branch]);
+
+  const normalizedReadmeContent = useMemo(
+    () => normalizeReadmeMarkdown(readmeContent, repoName),
+    [readmeContent, repoName],
+  );
+
+  const fallbackAboutText = "No description, website, or topics provided.";
+  const derivedReadmeAboutText = useMemo(
+    () => extractAboutTextFromReadme(normalizedReadmeContent),
+    [normalizedReadmeContent],
+  );
+  const aboutText = (repoDescription || "").trim() || derivedReadmeAboutText || fallbackAboutText;
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -983,44 +1059,87 @@ export default function FileExplorer({
               </ul>
             </div>
 
-            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
-              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
-                <button
-                  type="button"
-                  className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-                  aria-label="Edit README"
-                >
-                  <Pencil size={15} />
-                </button>
-              </div>
+            {readmeEntry ? (
+              <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+                <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
+                  <button
+                    type="button"
+                    className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
+                    aria-label="Edit README"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                </div>
 
-              <div className="p-4">
-                {readmeLoading ? (
-                  <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
-                ) : readmeContent ? (
-                  <pre className="whitespace-pre-wrap text-sm text-[var(--text-primary)] font-mono leading-6 max-h-[420px] overflow-auto">
-                    {readmeContent}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    README content is not available. This section is shown to mimic GitHub repository layout.
-                  </p>
-                )}
+                <div className="p-4">
+                  {readmeLoading ? (
+                    <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
+                  ) : normalizedReadmeContent ? (
+                    <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({ children }) => (
+                            <h1 className="mb-4 text-3xl font-semibold text-[var(--text-primary)]">{children}</h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="mb-3 mt-6 text-2xl font-semibold text-[var(--text-primary)]">{children}</h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="mb-2 mt-5 text-xl font-semibold text-[var(--text-primary)]">{children}</h3>
+                          ),
+                          p: ({ children }) => (
+                            <p className="mb-4 text-sm leading-7 text-[var(--text-primary)]">{children}</p>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="mb-4 list-disc space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="mb-4 list-decimal space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ol>
+                          ),
+                          a: ({ children, href }) => (
+                            <a href={href} className="text-[var(--text-link)] underline" target="_blank" rel="noreferrer">
+                              {children}
+                            </a>
+                          ),
+                          code: ({ children }) => (
+                            <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-xs text-[var(--text-primary)]">{children}</code>
+                          ),
+                          pre: ({ children }) => (
+                            <pre className="mb-4 overflow-x-auto rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-xs text-[var(--text-primary)]">
+                              {children}
+                            </pre>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="mb-4 border-l-4 border-[var(--border-default)] pl-4 text-sm text-[var(--text-secondary)]">
+                              {children}
+                            </blockquote>
+                          ),
+                        }}
+                      >
+                        {normalizedReadmeContent}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      README.md is present, but the content could not be loaded.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
           </section>
 
           <aside className="xl:pl-2 space-y-6">
             <div>
               <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-3">About</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-6">
-                {repoName} repository overview. Metadata sections are currently UI placeholders to mimic GitHub layout.
+                {aboutText}
               </p>
             </div>
 
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-              <p>Readme</p>
+              {readmeEntry ? <p>Readme</p> : null}
               <p>Activity</p>
               <p>0 stars</p>
               <p>1 watching</p>

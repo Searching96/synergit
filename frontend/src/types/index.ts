@@ -3,8 +3,15 @@ export interface Repository {
 	name: string;
 	path: string;
 	created_at: string;
+	description?: string;
+	visibility?: RepositoryVisibility | string;
 	owner?: string;
 	clone_url?: string;
+	language?: string;
+	primary_language?: string;
+	stars?: number;
+	forks?: number;
+	updated_at?: string;
 }
 
 export type RepositoryVisibility = 'public' | 'private';

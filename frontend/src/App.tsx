@@ -12,7 +12,6 @@ import {
   Github,
   Home,
   FolderKanban,
-  GitFork,
   GitPullRequest,
   LayoutGrid,
   Link2,
@@ -23,10 +22,10 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Star,
   Workflow,
   X,
 } from "lucide-react";
+import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
 import FileExplorer from "./components/repository/code/FileExplorer";
 import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
@@ -82,6 +81,14 @@ const PROFILE_TAB_SET = new Set<ProfileTabKey>([
   'packages',
   'stars',
 ]);
+
+function RepositoryIcon({ size = 16, className }: { size?: number; className?: string }) {
+  return <RepoIcon size={size} className={className} />;
+}
+
+function formatVisibilityLabel(rawVisibility?: string): "Public" | "Private" {
+  return (rawVisibility || "").trim().toLowerCase() === 'private' ? 'Private' : 'Public';
+}
 
 function normalizeProfileTab(search: string): ProfileTabKey {
   const params = new URLSearchParams(search);
@@ -619,6 +626,7 @@ function App () {
   }, [isRepoDrawerOpen]);
 
   const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
+  const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -779,7 +787,12 @@ function App () {
       setCreateRepoSubmitting(true);
       setCreateRepoError(null);
 
-      const createdRepo = await reposApi.createRepo(payload);
+      const createdRepoResponse = await reposApi.createRepo(payload);
+      const createdRepo: Repository = {
+        ...createdRepoResponse,
+        description: createdRepoResponse.description ?? payload.description,
+        visibility: createdRepoResponse.visibility ?? payload.visibility ?? 'public',
+      };
 
       setRepos((prev) => {
         const withoutCreated = prev.filter((repo) => repo.id !== createdRepo.id);
@@ -870,7 +883,7 @@ function App () {
     { key: 'home', label: 'Home', icon: Home, path: buildProfilePath(currentUsername, 'overview') },
     { key: 'issues', label: 'Issues', icon: CircleDot, path: '/issues' },
     { key: 'pulls', label: 'Pull requests', icon: GitPullRequest, path: '/pulls' },
-    { key: 'repositories', label: 'Repositories', icon: BookOpen, path: buildProfilePath(currentUsername, 'repositories') },
+    { key: 'repositories', label: 'Repositories', icon: RepositoryIcon, path: buildProfilePath(currentUsername, 'repositories') },
     { key: 'projects', label: 'Projects', icon: LayoutGrid, path: '/projects' },
     { key: 'discussions', label: 'Discussions', icon: MessageCircle, path: '/discussions' },
     { key: 'codespaces', label: 'Codespaces', icon: Monitor, path: '/codespaces' },
@@ -1000,10 +1013,10 @@ function App () {
           <div className="w-full h-full min-h-0 flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                <BookOpen size={20} className="text-[var(--text-secondary)]" />
+                <RepositoryIcon size={20} className="text-[var(--text-secondary)]" />
                 <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
                 <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
-                  Public
+                  {selectedRepoVisibility}
                 </span>
               </div>
 
@@ -1018,14 +1031,14 @@ function App () {
                   type="button"
                   className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                 >
-                  <GitFork size={14} />
+                  <RepoForkedIcon size={14} />
                   Fork
                 </button>
                 <button
                   type="button"
                   className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                 >
-                  <Star size={14} />
+                  <StarIcon size={14} />
                   Star
                 </button>
               </div>
@@ -1037,6 +1050,7 @@ function App () {
                 <FileExplorer
                   repoId={selectedRepo.id}
                   repoName={selectedRepo.name}
+                  repoDescription={selectedRepo.description}
                   repoOwner={selectedRepo.owner || currentUsername}
                   cloneUrl={selectedRepo.clone_url}
                   branch={currentBranch}

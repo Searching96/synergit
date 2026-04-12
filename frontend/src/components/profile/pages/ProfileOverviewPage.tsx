@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Book } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RepoIcon } from "@primer/octicons-react";
 import type { ShowcaseRepo } from "./profileTypes";
 
 interface ProfileOverviewPageProps {
@@ -21,8 +21,9 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
 const CURRENT_YEAR = new Date().getFullYear();
 const AVAILABLE_YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 const DAY_MS = 24 * 60 * 60 * 1000;
-const CELL_SIZE = 10;
+const MIN_CELL_SIZE = 10;
 const CELL_GAP = 3;
+const MONTH_LABEL_MIN_GAP_PX = 24;
 const LEVEL_TO_COUNT = [0, 1, 3, 6, 10];
 const ACTIVITY_SPLIT = {
   commits: 40,
@@ -138,7 +139,9 @@ export default function ProfileOverviewPage({
   languageColor,
   contributionColor,
 }: ProfileOverviewPageProps) {
+  const matrixHostRef = useRef<HTMLDivElement | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [matrixHostWidth, setMatrixHostWidth] = useState(0);
 
   const contributionSeed = useMemo(
     () => contributions.flat().map((level) => Math.min(4, Math.max(0, level))),
@@ -162,22 +165,104 @@ export default function ProfileOverviewPage({
     [selectedYear, contributionSeed],
   );
 
-  const matrixWidth = yearContributions.length * (CELL_SIZE + CELL_GAP);
+  const weekCount = yearContributions.length;
+
+  useEffect(() => {
+    const host = matrixHostRef.current;
+    if (!host) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setMatrixHostWidth(host.clientWidth);
+    };
+
+    updateWidth();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => updateWidth());
+      observer.observe(host);
+    }
+
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      window.removeEventListener("resize", updateWidth);
+      observer?.disconnect();
+    };
+  }, [weekCount]);
+
+  const cellSize = useMemo(() => {
+    if (weekCount === 0 || matrixHostWidth <= 0) {
+      return MIN_CELL_SIZE;
+    }
+
+    const availableWidth = matrixHostWidth - Math.max(weekCount - 1, 0) * CELL_GAP;
+    return Math.max(MIN_CELL_SIZE, Math.floor(availableWidth / weekCount));
+  }, [matrixHostWidth, weekCount]);
+
+  const matrixWidth = weekCount * cellSize + Math.max(weekCount - 1, 0) * CELL_GAP;
+  const matrixHeight = 7 * cellSize + 6 * CELL_GAP;
+
+  const displayMonthAnchors = useMemo(() => {
+    const visible: Array<MonthAnchor & { left: number }> = [];
+
+    for (const anchor of monthAnchors) {
+      const left = anchor.weekIndex * (cellSize + CELL_GAP);
+      const previous = visible[visible.length - 1];
+
+      if (!previous || left - previous.left >= MONTH_LABEL_MIN_GAP_PX) {
+        visible.push({ ...anchor, left });
+      }
+    }
+
+    return visible;
+  }, [cellSize, monthAnchors]);
+
   const contributionCountText = `${totalContributions.toLocaleString()} contributions`;
   const contributionSuffix = selectedYear === null ? "in the last year" : `in ${selectedYear}`;
 
   const activityGraphCenter = 90;
   const activityGraphRadius = 72;
-  const leftPointX = activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.commits) / 100;
-  const rightPointX = activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.issues) / 100;
-  const topPointY = activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.codeReview) / 100;
-  const bottomPointY = activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.pullRequests) / 100;
-  const activityPolygonPoints = [
-    `${activityGraphCenter},${topPointY}`,
-    `${rightPointX},${activityGraphCenter}`,
-    `${activityGraphCenter},${bottomPointY}`,
-    `${leftPointX},${activityGraphCenter}`,
-  ].join(" ");
+  const activityPoints = {
+    codeReview: {
+      value: ACTIVITY_SPLIT.codeReview,
+      x: activityGraphCenter,
+      y: activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.codeReview) / 100,
+    },
+    issues: {
+      value: ACTIVITY_SPLIT.issues,
+      x: activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.issues) / 100,
+      y: activityGraphCenter,
+    },
+    pullRequests: {
+      value: ACTIVITY_SPLIT.pullRequests,
+      x: activityGraphCenter,
+      y: activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.pullRequests) / 100,
+    },
+    commits: {
+      value: ACTIVITY_SPLIT.commits,
+      x: activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.commits) / 100,
+      y: activityGraphCenter,
+    },
+  };
+
+  const activityOrder = ["codeReview", "issues", "pullRequests", "commits"] as const;
+
+  const activityPolygonPoints = activityOrder
+    .map((axis) => {
+      const point = activityPoints[axis];
+      if (point.value <= 0) {
+        return `${activityGraphCenter},${activityGraphCenter}`;
+      }
+      return `${point.x},${point.y}`;
+    })
+    .join(" ");
+
+  const visibleActivityPoints = activityOrder
+    .map((axis) => ({ axis, ...activityPoints[axis] }))
+    .filter((point) => point.value > 0);
 
   return (
     <div className="space-y-6">
@@ -196,14 +281,16 @@ export default function ProfileOverviewPage({
                   onClick={() => onOpenWorkspace(repo.name)}
                   className="text-sm font-semibold text-[var(--text-link)] hover:underline inline-flex items-center gap-2"
                 >
-                  <Book size={14} className="text-[var(--text-secondary)]" />
+                  <RepoIcon size={14} className="text-[var(--text-secondary)]" />
                   {repo.name}
                 </button>
-                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+                <span className="text-[10px] tracking-wide px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
                   {repo.visibility}
                 </span>
               </div>
-              <p className="mt-3 text-sm text-[var(--text-secondary)] min-h-[36px]">{repo.description || "No description provided."}</p>
+              {repo.description ? (
+                <p className="mt-3 text-sm text-[var(--text-secondary)] min-h-[36px]">{repo.description}</p>
+              ) : null}
               <div className="mt-3 inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
                 {repo.language}
@@ -229,15 +316,16 @@ export default function ProfileOverviewPage({
                 </div>
               </div>
 
-              <div className="mt-3 overflow-x-auto">
-                <div className="min-w-[760px]">
+              <div className="mt-3">
+                <div ref={matrixHostRef} className="w-full overflow-x-auto">
+                  <div className="min-w-[620px] w-full">
                   <div className="pl-10 pr-2">
                     <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
-                      {monthAnchors.map((month) => (
+                      {displayMonthAnchors.map((month, index) => (
                         <span
-                          key={`month-${month.label}`}
+                          key={`month-${month.label}-${month.weekIndex}-${index}`}
                           className="absolute top-0"
-                          style={{ left: `${month.weekIndex * (CELL_SIZE + CELL_GAP)}px` }}
+                          style={{ left: `${month.left}px` }}
                         >
                           {month.label}
                         </span>
@@ -246,26 +334,30 @@ export default function ProfileOverviewPage({
                   </div>
 
                   <div className="mt-1 flex items-start gap-2">
-                    <div className="relative w-8 h-[88px] shrink-0 text-xs text-[var(--text-secondary)]">
+                    <div className="relative w-8 shrink-0 text-xs text-[var(--text-secondary)]" style={{ height: `${matrixHeight}px` }}>
                       {DAY_ROW_LABELS.map((item) => (
                         <span
                           key={item.label}
                           className="absolute left-0"
-                          style={{ top: `${item.row * (CELL_SIZE + CELL_GAP)}px` }}
+                          style={{ top: `${item.row * (cellSize + CELL_GAP)}px` }}
                         >
                           {item.label}
                         </span>
                       ))}
                     </div>
 
-                    <div className="inline-flex gap-[3px]">
+                    <div className="inline-flex" style={{ gap: `${CELL_GAP}px`, width: `${matrixWidth}px` }}>
                       {yearContributions.map((week, index) => (
-                        <div key={`week-${index}`} className="flex flex-col gap-[3px]">
+                        <div key={`week-${index}`} className="flex flex-col" style={{ gap: `${CELL_GAP}px`, width: `${cellSize}px` }}>
                           {week.map((level, dayIndex) => (
                             <span
                               key={`cell-${index}-${dayIndex}`}
-                              className="h-[10px] w-[10px] rounded-[2px]"
-                              style={{ backgroundColor: contributionColor(level) }}
+                              className="rounded-[2px]"
+                              style={{
+                                width: `${cellSize}px`,
+                                height: `${cellSize}px`,
+                                backgroundColor: contributionColor(level),
+                              }}
                             />
                           ))}
                         </div>
@@ -273,6 +365,7 @@ export default function ProfileOverviewPage({
                     </div>
                   </div>
                 </div>
+              </div>
               </div>
 
               <div className="mt-4 text-xs text-[var(--text-secondary)] flex items-center justify-between">
@@ -328,18 +421,32 @@ export default function ProfileOverviewPage({
                       <line x1={activityGraphCenter} y1={18} x2={activityGraphCenter} y2={162} stroke="var(--border-default)" strokeWidth="2" />
                       <line x1={18} y1={activityGraphCenter} x2={162} y2={activityGraphCenter} stroke="var(--border-default)" strokeWidth="2" />
 
-                      <line x1={activityGraphCenter} y1={activityGraphCenter} x2={activityGraphCenter} y2={topPointY} stroke="var(--accent-line)" strokeWidth="3" strokeLinecap="round" />
-                      <line x1={activityGraphCenter} y1={activityGraphCenter} x2={rightPointX} y2={activityGraphCenter} stroke="var(--accent-line)" strokeWidth="3" strokeLinecap="round" />
-                      <line x1={activityGraphCenter} y1={activityGraphCenter} x2={activityGraphCenter} y2={bottomPointY} stroke="var(--accent-line)" strokeWidth="3" strokeLinecap="round" />
-                      <line x1={activityGraphCenter} y1={activityGraphCenter} x2={leftPointX} y2={activityGraphCenter} stroke="var(--accent-line)" strokeWidth="3" strokeLinecap="round" />
+                      {visibleActivityPoints.map((point) => (
+                        <line
+                          key={`activity-line-${point.axis}`}
+                          x1={activityGraphCenter}
+                          y1={activityGraphCenter}
+                          x2={point.x}
+                          y2={point.y}
+                          stroke="var(--accent-line)"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                        />
+                      ))}
 
-                      <polygon points={activityPolygonPoints} fill="none" stroke="var(--accent-line)" strokeWidth="2" />
+                      <polygon points={activityPolygonPoints} fill="var(--contrib-level-1)" fillOpacity="0.65" stroke="var(--accent-line)" strokeWidth="2" />
 
-                      <circle cx={leftPointX} cy={activityGraphCenter} r="3.5" fill="var(--surface-canvas)" stroke="var(--accent-line)" strokeWidth="2" />
-                      <circle cx={activityGraphCenter} cy={topPointY} r="3.5" fill="var(--surface-canvas)" stroke="var(--accent-line)" strokeWidth="2" />
-                      <circle cx={rightPointX} cy={activityGraphCenter} r="3.5" fill="var(--surface-canvas)" stroke="var(--accent-line)" strokeWidth="2" />
-                      <circle cx={activityGraphCenter} cy={bottomPointY} r="3.5" fill="var(--surface-canvas)" stroke="var(--accent-line)" strokeWidth="2" />
-                      <circle cx={activityGraphCenter} cy={activityGraphCenter} r="3.5" fill="var(--surface-canvas)" stroke="var(--accent-line)" strokeWidth="2" />
+                      {visibleActivityPoints.map((point) => (
+                        <circle
+                          key={`activity-point-${point.axis}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r="3.5"
+                          fill="var(--surface-canvas)"
+                          stroke="var(--accent-line)"
+                          strokeWidth="2"
+                        />
+                      ))}
                     </svg>
                   </div>
                 </div>

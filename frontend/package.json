@@ -11,10 +11,12 @@
     "postinstall": "node scripts/patch-locator-runtime-tsconfig.mjs"
   },
   "dependencies": {
+    "@primer/octicons-react": "^19.23.1",
     "@tailwindcss/vite": "^4.2.1",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {

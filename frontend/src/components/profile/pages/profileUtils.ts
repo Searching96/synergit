@@ -20,6 +20,16 @@ export function languageColor(language: string): string {
   return LANGUAGE_COLORS[language] || "var(--text-secondary)";
 }
 
+export function formatRepositoryVisibilityLabel(rawVisibility?: string): "Public" | "Private" {
+  const normalized = (rawVisibility || "").trim().toLowerCase();
+  return normalized === "private" ? "Private" : "Public";
+}
+
+function normalizeRepositoryDescription(description?: string): string | undefined {
+  const trimmed = (description || "").trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRepo[] {
   if (repositories.length === 0) return SAMPLE_REPOSITORIES;
 
@@ -27,12 +37,12 @@ export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRe
 
   const liveRepos = repositories.map((repo, index) => ({
     name: repo.name,
-    visibility: "Public" as const,
-    description: `Repository at ${repo.path}`,
-    language: languageCycle[index % languageCycle.length],
+    visibility: formatRepositoryVisibilityLabel(repo.visibility),
+    description: normalizeRepositoryDescription(repo.description),
+    language: (repo.language || repo.primary_language || languageCycle[index % languageCycle.length] || "TypeScript").trim(),
     updatedText: "Updated recently",
-    stars: 0,
-    forks: 0,
+    stars: typeof repo.stars === "number" ? repo.stars : 0,
+    forks: typeof repo.forks === "number" ? repo.forks : 0,
     sparkline: [1, 1, 2, 2, 2, 3, 3, 2, 2, 2, 3, 4, 3, 2, 2, 1],
   }));
 
