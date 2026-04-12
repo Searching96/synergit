@@ -76,9 +76,11 @@ func (s *RepoService) CreateRepositoryWithOptions(name string, ownerID uuid.UUID
 	}
 
 	repo := &domain.Repo{
-		Name:      name,
-		Path:      fullPath,
-		CreatedAt: time.Now(),
+		Name:        name,
+		Path:        fullPath,
+		CreatedAt:   time.Now(),
+		Description: normalizedOptions.Description,
+		Visibility:  normalizedOptions.Visibility,
 	}
 
 	// Save the metadata to database
@@ -99,6 +101,8 @@ func (s *RepoService) CreateRepositoryWithOptions(name string, ownerID uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+
+	s.enqueueInsights(repoUUID, "repo_created")
 
 	return repo, nil
 }
@@ -301,7 +305,61 @@ func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName s
 }
 
 func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
-	return s.repoStore.FindAll()
+	repos, err := s.repoStore.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, repo := range repos {
+		if repo == nil {
+			continue
+		}
+
+		if strings.TrimSpace(repo.Description) == "" {
+			repo.Description = inferDescriptionFromReadme(s.gitManager, repo.Path)
+		}
+
+		if strings.TrimSpace(repo.PrimaryLanguage) != "" {
+			continue
+		}
+
+		repoUUID, parseErr := uuid.Parse(repo.ID)
+		if parseErr != nil {
+			continue
+		}
+
+		s.enqueueInsights(repoUUID, "repo_list_missing_primary_language")
+	}
+
+	return repos, nil
+}
+
+func inferDescriptionFromReadme(gitManager port.GitManager, repoPath string) string {
+	content, err := gitManager.GetBlob(repoPath, "README.md", "")
+	if err != nil {
+		content, err = gitManager.GetBlob(repoPath, "readme.md", "")
+		if err != nil {
+			return ""
+		}
+	}
+
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "[!") {
+			continue
+		}
+
+		if len(trimmed) > 180 {
+			return strings.TrimSpace(trimmed[:180]) + "..."
+		}
+
+		return trimmed
+	}
+
+	return ""
 }
 
 func (s *RepoService) GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error) {
@@ -371,8 +429,14 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return errors.New("requester user not found")
 	}
 
-	return s.gitManager.CommitFileChange(repoPath, branch, filePath, content,
-		user.Username, commitMessage)
+	if err := s.gitManager.CommitFileChange(repoPath, branch, filePath, content,
+		user.Username, commitMessage); err != nil {
+		return err
+	}
+
+	s.enqueueInsights(repoID, "commit_file_change")
+
+	return nil
 }
 
 func (s *RepoService) enqueueInsights(repoID uuid.UUID, trigger string) {

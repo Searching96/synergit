@@ -100,7 +100,85 @@ export default function ConflictResolver({ repoId, pullId, onResolved }: Conflic
 		setResolutions(prev => ({ ...prev, [activeFile]: content }));
 	};
 
+	const hasSelection = (textarea: HTMLTextAreaElement) =>
+		textarea.selectionStart !== textarea.selectionEnd;
+
+	const getCurrentLineBounds = (value: string, cursorPosition: number) => {
+		const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+		const lineStart = value.lastIndexOf('\n', Math.max(0, safeCursor - 1)) + 1;
+		const nextBreak = value.indexOf('\n', safeCursor);
+		const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+
+		return { lineStart, lineEnd };
+	};
+
+	const insertLineBelowAtCursor = (textarea: HTMLTextAreaElement) => {
+		if (hasSelection(textarea)) {
+			return false;
+		}
+
+		const value = textarea.value;
+		const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+		const currentLine = value.slice(lineStart, lineEnd);
+		const indentation = (currentLine.match(/^\s*/) || [''])[0];
+		const updated = `${value.slice(0, lineEnd)}\n${indentation}${value.slice(lineEnd)}`;
+		const nextCursor = lineEnd + 1 + indentation.length;
+
+		handleContentChange(updated);
+
+		requestAnimationFrame(() => {
+			textarea.selectionStart = textarea.selectionEnd = nextCursor;
+		});
+
+		return true;
+	};
+
+	const cutCurrentLineAtCursor = (textarea: HTMLTextAreaElement) => {
+		if (hasSelection(textarea)) {
+			return false;
+		}
+
+		const value = textarea.value;
+		if (value.length === 0) {
+			return false;
+		}
+
+		const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+		const cutEnd = lineEnd < value.length ? lineEnd + 1 : lineEnd;
+		const cutChunk = value.slice(lineStart, cutEnd);
+		const updated = `${value.slice(0, lineStart)}${value.slice(cutEnd)}`;
+		const nextCursor = Math.min(lineStart, updated.length);
+
+		handleContentChange(updated);
+
+		requestAnimationFrame(() => {
+			textarea.selectionStart = textarea.selectionEnd = nextCursor;
+		});
+
+		if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+			void navigator.clipboard.writeText(cutChunk).catch(() => undefined);
+		}
+
+		return true;
+	};
+
 	const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+		if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'x') {
+			if (!hasSelection(e.currentTarget)) {
+				e.preventDefault();
+				cutCurrentLineAtCursor(e.currentTarget);
+			}
+			return;
+		}
+
+		if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === 'Enter') {
+			if (!hasSelection(e.currentTarget)) {
+				e.preventDefault();
+				insertLineBelowAtCursor(e.currentTarget);
+			}
+			return;
+		}
+
 		if (e.key !== 'Tab') return;
 		e.preventDefault();
 

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 
@@ -36,10 +37,16 @@ func (p *PostgresRepoInsightsStore) SaveLatest(snapshot *domain.RepoInsightsSnap
 		return err
 	}
 
+	languageBreakdownJSON, err := json.Marshal(snapshot.LanguageBreakdown)
+	if err != nil {
+		return err
+	}
+
 	query := `
 		INSERT INTO repo_insights (
-			repo_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity, last_error)
-		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7)
+			repo_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity,
+			primary_language, language_breakdown, last_error)
+		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8::jsonb, $9)
 		ON CONFLICT (repo_id) 
 		DO UPDATE SET
 			computed_at = EXCLUDED.computed_at,
@@ -47,6 +54,8 @@ func (p *PostgresRepoInsightsStore) SaveLatest(snapshot *domain.RepoInsightsSnap
 			commit_trend = EXCLUDED.commit_trend,
 			top_contributors = EXCLUDED.top_contributors,
 			branch_activity = EXCLUDED.branch_activity,
+			primary_language = EXCLUDED.primary_language,
+			language_breakdown = EXCLUDED.language_breakdown,
 			last_error = EXCLUDED.last_error`
 
 	_, err = p.db.Exec(
@@ -57,6 +66,8 @@ func (p *PostgresRepoInsightsStore) SaveLatest(snapshot *domain.RepoInsightsSnap
 		commitTrendJSON,
 		topContributorsJSON,
 		branchActivityJSON,
+		strings.TrimSpace(snapshot.PrimaryLanguage),
+		languageBreakdownJSON,
 		nullableLastError(snapshot.LastError),
 	)
 
@@ -65,7 +76,8 @@ func (p *PostgresRepoInsightsStore) SaveLatest(snapshot *domain.RepoInsightsSnap
 
 func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain.RepoInsightsSnapshot, error) {
 	query := `
-		SELECT repo_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity, last_error
+		SELECT repo_id, computed_at, commits_last_30d, commit_trend, top_contributors, branch_activity,
+			primary_language, language_breakdown, last_error
 		FROM repo_insights
 		WHERE repo_id = $1`
 
@@ -73,6 +85,8 @@ func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain
 	var commitTrendRaw []byte
 	var topContributorsRaw []byte
 	var branchActivityRaw []byte
+	var languageBreakdownRaw []byte
+	var primaryLanguage sql.NullString
 	var lastError sql.NullString
 
 	err := p.db.QueryRow(query, repoID).Scan(
@@ -82,6 +96,8 @@ func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain
 		&commitTrendRaw,
 		&topContributorsRaw,
 		&branchActivityRaw,
+		&primaryLanguage,
+		&languageBreakdownRaw,
 		&lastError,
 	)
 
@@ -110,6 +126,12 @@ func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain
 		}
 	}
 
+	if len(languageBreakdownRaw) > 0 {
+		if err := json.Unmarshal(languageBreakdownRaw, &snapshot.LanguageBreakdown); err != nil {
+			return nil, errors.New("failed to parse language breakdown data")
+		}
+	}
+
 	if snapshot.CommitTrend == nil {
 		snapshot.CommitTrend = []domain.CommitTrendPoint{}
 	}
@@ -118,6 +140,13 @@ func (p *PostgresRepoInsightsStore) GetLatestByRepoID(repoID uuid.UUID) (*domain
 	}
 	if snapshot.BranchActivity == nil {
 		snapshot.BranchActivity = []domain.BranchActivityStat{}
+	}
+	if snapshot.LanguageBreakdown == nil {
+		snapshot.LanguageBreakdown = []domain.LanguageStat{}
+	}
+
+	if primaryLanguage.Valid {
+		snapshot.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
 	}
 
 	if lastError.Valid {

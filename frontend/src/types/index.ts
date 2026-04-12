@@ -60,6 +60,12 @@ export interface BranchActivityStat {
 	commit_count: number;
 }
 
+export interface LanguageBreakdownStat {
+	language: string;
+	bytes: number;
+	percentage: number;
+}
+
 export interface RepoInsightsSnapshot {
 	repo_id: string;
 	computed_at: string;
@@ -67,6 +73,8 @@ export interface RepoInsightsSnapshot {
 	commit_trend: CommitTrendPoint[];
 	top_contributors: ContributorStat[];
 	branch_activity: BranchActivityStat[];
+	primary_language?: string;
+	language_breakdown: LanguageBreakdownStat[];
 	last_error?: string;
 }
 

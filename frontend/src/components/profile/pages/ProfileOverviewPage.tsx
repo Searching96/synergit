@@ -291,10 +291,12 @@ export default function ProfileOverviewPage({
               {repo.description ? (
                 <p className="mt-3 text-sm text-[var(--text-secondary)] min-h-[36px]">{repo.description}</p>
               ) : null}
-              <div className="mt-3 inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
-                {repo.language}
-              </div>
+              {repo.language ? (
+                <div className="mt-3 inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
+                  {repo.language}
+                </div>
+              ) : null}
             </article>
           ))}
         </div>

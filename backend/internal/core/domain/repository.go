@@ -8,10 +8,13 @@ import (
 
 // Repo represents the core entity of our SCM module
 type Repo struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Path            string         `json:"path"`
+	CreatedAt       time.Time      `json:"created_at"`
+	Description     string         `json:"description,omitempty"`
+	Visibility      RepoVisibility `json:"visibility"`
+	PrimaryLanguage string         `json:"primary_language,omitempty"`
 }
 
 type RepoVisibility string

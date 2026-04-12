@@ -17,7 +17,7 @@ import {
   Upload,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import type { Branch, RepoFile } from "../../../types";
+import type { Branch, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 
 type ExplorerLocation = {
@@ -118,6 +118,128 @@ function normalizeReadmeMarkdown(readme: string | null, repoName: string): strin
   return `# ${repoName}\n\n${readme}`;
 }
 
+const LANGUAGE_GRAPH_FALLBACK_COLORS = [
+  "#b07219",
+  "#3178c6",
+  "#f1e05a",
+  "#00add8",
+  "#3572a5",
+  "#178600",
+  "#f34b7d",
+  "#563d7c",
+];
+
+const LANGUAGE_GRAPH_OVERRIDES: Record<string, string> = {
+  Assembly: "#6e4c13",
+  Batchfile: "#c1f12e",
+  C: "#555555",
+  "C#": "#178600",
+  "C++": "#f34b7d",
+  CSS: "#563d7c",
+  Dockerfile: "#384d54",
+  GDScript: "#355570",
+  Go: "#00add8",
+  HTML: "#e34c26",
+  Haskell: "#5e5086",
+  Java: "#b07219",
+  JavaScript: "#f1e05a",
+  Python: "#3572a5",
+  Rust: "#dea584",
+  Shell: "#89e051",
+  TypeScript: "#3178c6",
+};
+
+function languageGraphColor(language: string, index: number): string {
+  const normalized = language.trim();
+  return LANGUAGE_GRAPH_OVERRIDES[normalized] || LANGUAGE_GRAPH_FALLBACK_COLORS[index % LANGUAGE_GRAPH_FALLBACK_COLORS.length];
+}
+
+function hasSelection(textarea: HTMLTextAreaElement): boolean {
+  return textarea.selectionStart !== textarea.selectionEnd;
+}
+
+function getCurrentLineBounds(value: string, cursorPosition: number): { lineStart: number; lineEnd: number } {
+  const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+  const lineStart = value.lastIndexOf("\n", Math.max(0, safeCursor - 1)) + 1;
+  const nextBreak = value.indexOf("\n", safeCursor);
+  const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+
+  return { lineStart, lineEnd };
+}
+
+function insertTabAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): void {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const value = textarea.value;
+  const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + 1;
+  });
+}
+
+function insertLineBelowAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): boolean {
+  if (hasSelection(textarea)) {
+    return false;
+  }
+
+  const value = textarea.value;
+  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+  const currentLine = value.slice(lineStart, lineEnd);
+  const indentation = (currentLine.match(/^\s*/) || [""])[0];
+
+  const updated = `${value.slice(0, lineEnd)}\n${indentation}${value.slice(lineEnd)}`;
+  const nextCursor = lineEnd + 1 + indentation.length;
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = nextCursor;
+  });
+
+  return true;
+}
+
+function cutCurrentLineAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): boolean {
+  if (hasSelection(textarea)) {
+    return false;
+  }
+
+  const value = textarea.value;
+  if (value.length === 0) {
+    return false;
+  }
+
+  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+  const cutEnd = lineEnd < value.length ? lineEnd + 1 : lineEnd;
+  const cutChunk = value.slice(lineStart, cutEnd);
+  const updated = `${value.slice(0, lineStart)}${value.slice(cutEnd)}`;
+  const nextCursor = Math.min(lineStart, updated.length);
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = nextCursor;
+  });
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(cutChunk).catch(() => undefined);
+  }
+
+  return true;
+}
+
 export default function FileExplorer({
   repoId,
   repoName,
@@ -150,6 +272,13 @@ export default function FileExplorer({
   const [draftContent, setDraftContent] = useState<string>("");
   const [commitMessage, setCommitMessage] = useState<string>("");
   const [isCommitting, setIsCommitting] = useState<boolean>(false);
+  const [isEditingReadme, setIsEditingReadme] = useState<boolean>(false);
+  const [readmeDraft, setReadmeDraft] = useState<string>("");
+  const [readmeCommitMessage, setReadmeCommitMessage] = useState<string>("Update README");
+  const [isCommittingReadme, setIsCommittingReadme] = useState<boolean>(false);
+  const [readmeEditError, setReadmeEditError] = useState<string | null>(null);
+  const [languageBreakdown, setLanguageBreakdown] = useState<LanguageBreakdownStat[]>([]);
+  const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [branchCreateInput, setBranchCreateInput] = useState<string>("");
@@ -289,6 +418,12 @@ export default function FileExplorer({
     setDraftContent("");
     setCommitMessage("");
     setCommitError(null);
+    setIsEditingReadme(false);
+    setReadmeDraft("");
+    setReadmeCommitMessage("Update README");
+    setReadmeEditError(null);
+    setLanguageBreakdown([]);
+    setLanguageBreakdownLoading(false);
     setIsAddFileMenuOpen(false);
     setIsBranchMenuOpen(false);
     setIsCodeMenuOpen(false);
@@ -328,6 +463,35 @@ export default function FileExplorer({
     };
   }, [readmeEntry, repoId, branch]);
 
+  useEffect(() => {
+    let active = true;
+    setLanguageBreakdownLoading(true);
+
+    reposApi
+      .getInsights(repoId)
+      .then((snapshot) => {
+        if (!active) return;
+
+        const normalized = [...(snapshot.language_breakdown || [])]
+          .filter((item) => item && item.language && item.percentage > 0)
+          .sort((a, b) => b.percentage - a.percentage);
+
+        setLanguageBreakdown(normalized);
+      })
+      .catch(() => {
+        if (!active) return;
+        setLanguageBreakdown([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setLanguageBreakdownLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [repoId]);
+
   const normalizedReadmeContent = useMemo(
     () => normalizeReadmeMarkdown(readmeContent, repoName),
     [readmeContent, repoName],
@@ -339,6 +503,10 @@ export default function FileExplorer({
     [normalizedReadmeContent],
   );
   const aboutText = (repoDescription || "").trim() || derivedReadmeAboutText || fallbackAboutText;
+  const displayedLanguageBreakdown = useMemo(
+    () => languageBreakdown.slice(0, 6),
+    [languageBreakdown],
+  );
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -469,6 +637,30 @@ export default function FileExplorer({
     }
   };
 
+  const handleCommitReadmeChanges = async () => {
+    if (!readmeEntry || !readmeCommitMessage.trim()) return;
+
+    try {
+      setIsCommittingReadme(true);
+      setReadmeEditError(null);
+
+      await reposApi.commitFileChange(repoId, {
+        branch,
+        path: readmeEntry.path,
+        content: readmeDraft,
+        commit_message: readmeCommitMessage.trim(),
+      });
+
+      setReadmeContent(readmeDraft);
+      setIsEditingReadme(false);
+      setReadmeCommitMessage("Update README");
+    } catch (err: unknown) {
+      setReadmeEditError(err instanceof Error ? err.message : "Failed to commit README changes");
+    } finally {
+      setIsCommittingReadme(false);
+    }
+  };
+
   const handleCreateBranchFromDropdown = async () => {
     const nextBranch = branchCreateInput.trim();
     if (!nextBranch) return;
@@ -486,21 +678,48 @@ export default function FileExplorer({
     }
   };
 
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleCodeTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "x") {
+      if (!hasSelection(e.currentTarget)) {
+        e.preventDefault();
+        cutCurrentLineAtCursor(e.currentTarget, setDraftContent);
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "Enter") {
+      if (!hasSelection(e.currentTarget)) {
+        e.preventDefault();
+        insertLineBelowAtCursor(e.currentTarget, setDraftContent);
+      }
+      return;
+    }
+
     if (e.key !== "Tab") return;
     e.preventDefault();
+    insertTabAtCursor(e.currentTarget, setDraftContent);
+  };
 
-    const textarea = e.currentTarget;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const value = textarea.value;
+  const handleReadmeTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "x") {
+      if (!hasSelection(e.currentTarget)) {
+        e.preventDefault();
+        cutCurrentLineAtCursor(e.currentTarget, setReadmeDraft);
+      }
+      return;
+    }
 
-    const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
-    setDraftContent(updated);
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "Enter") {
+      if (!hasSelection(e.currentTarget)) {
+        e.preventDefault();
+        insertLineBelowAtCursor(e.currentTarget, setReadmeDraft);
+      }
+      return;
+    }
 
-    requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = start + 1;
-    });
+    if (e.key !== "Tab") return;
+    e.preventDefault();
+    insertTabAtCursor(e.currentTarget, setReadmeDraft);
   };
 
   const renderTree = (path: string, depth: number = 0): ReactElement[] => {
@@ -1065,6 +1284,18 @@ export default function FileExplorer({
                   <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
                   <button
                     type="button"
+                    onClick={() => {
+                      if (isEditingReadme) {
+                        setIsEditingReadme(false);
+                        setReadmeEditError(null);
+                        return;
+                      }
+
+                      setReadmeDraft(readmeContent || "");
+                      setReadmeCommitMessage("Update README");
+                      setReadmeEditError(null);
+                      setIsEditingReadme(true);
+                    }}
                     className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                     aria-label="Edit README"
                   >
@@ -1073,7 +1304,51 @@ export default function FileExplorer({
                 </div>
 
                 <div className="p-4">
-                  {readmeLoading ? (
+                  {isEditingReadme ? (
+                    <div className="space-y-3">
+                      <textarea
+                        className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
+                        value={readmeDraft}
+                        onChange={(e) => setReadmeDraft(e.target.value)}
+                        onKeyDown={handleReadmeTextareaKeyDown}
+                        spellCheck={false}
+                      />
+
+                      <input
+                        type="text"
+                        value={readmeCommitMessage}
+                        onChange={(e) => setReadmeCommitMessage(e.target.value)}
+                        placeholder="Commit message"
+                        className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
+                      />
+
+                      {readmeEditError ? <div className="text-sm text-[var(--text-danger)]">{readmeEditError}</div> : null}
+
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingReadme(false);
+                              setReadmeEditError(null);
+                            }}
+                            className="px-3 py-2 text-sm border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isCommittingReadme || !readmeCommitMessage.trim()}
+                            onClick={handleCommitReadmeChanges}
+                            className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                          >
+                            {isCommittingReadme ? "Committing..." : "Commit README"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : readmeLoading ? (
                     <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
                   ) : normalizedReadmeContent ? (
                     <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
@@ -1154,6 +1429,44 @@ export default function FileExplorer({
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
               <p className="font-semibold text-[var(--text-primary)]">Packages</p>
               <p>No packages published</p>
+            </div>
+
+            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+              <p className="font-semibold text-[var(--text-primary)]">Languages</p>
+
+              {languageBreakdownLoading ? (
+                <p>Loading language breakdown...</p>
+              ) : displayedLanguageBreakdown.length > 0 ? (
+                <>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full border border-[var(--border-muted)] bg-[var(--surface-subtle)] flex">
+                    {displayedLanguageBreakdown.map((item, index) => (
+                      <span
+                        key={`language-bar-${item.language}`}
+                        className="h-full"
+                        style={{
+                          width: `${Math.max(item.percentage, 0.8)}%`,
+                          backgroundColor: languageGraphColor(item.language, index),
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
+                    {displayedLanguageBreakdown.map((item, index) => (
+                      <div key={`language-item-${item.language}`} className="inline-flex items-center gap-1.5">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: languageGraphColor(item.language, index) }}
+                        />
+                        <span className="text-[var(--text-primary)]">{item.language}</span>
+                        <span>{item.percentage.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p>No language data available yet.</p>
+              )}
             </div>
           </aside>
         </div>
@@ -1258,7 +1571,7 @@ export default function FileExplorer({
                       className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
                       value={draftContent}
                       onChange={(e) => setDraftContent(e.target.value)}
-                      onKeyDown={handleTextareaKeyDown}
+                      onKeyDown={handleCodeTextareaKeyDown}
                       spellCheck={false}
                     />
 
@@ -1271,6 +1584,7 @@ export default function FileExplorer({
                     />
 
                     {commitError && <div className="text-sm text-[var(--text-danger)]">{commitError}</div>}
+                    <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
 
                     <div className="flex justify-end">
                       <button

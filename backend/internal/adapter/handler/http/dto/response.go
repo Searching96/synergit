@@ -19,10 +19,13 @@ type TokenResponse struct {
 
 // RepoResponse is the repository payload returned by repository APIs.
 type RepoResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Path      string    `json:"path"`
-	CreatedAt time.Time `json:"created_at"`
-	Owner     string    `json:"owner"`
-	CloneURL  string    `json:"clone_url"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Path            string    `json:"path"`
+	CreatedAt       time.Time `json:"created_at"`
+	Description     string    `json:"description,omitempty"`
+	Visibility      string    `json:"visibility"`
+	PrimaryLanguage string    `json:"primary_language,omitempty"`
+	Owner           string    `json:"owner"`
+	CloneURL        string    `json:"clone_url"`
 }

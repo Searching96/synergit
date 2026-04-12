@@ -397,10 +397,12 @@ export default function ProfileRepositoriesPage({
               {repo.description && <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-[760px]">{repo.description}</p>}
 
               <div className="mt-3 flex items-center gap-4 text-xs text-[var(--text-secondary)] flex-wrap">
-                <span className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
-                  {repo.language}
-                </span>
+                {repo.language ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: languageColor(repo.language) }} />
+                    {repo.language}
+                  </span>
+                ) : null}
                 <span className="inline-flex items-center gap-1.5">
                   <StarIcon size={12} />
                   {repo.stars}

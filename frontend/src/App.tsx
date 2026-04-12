@@ -591,10 +591,76 @@ function App () {
       .catch(console.error);
   };
 
+  const hydratePrimaryLanguagesFromInsights = useCallback(async (repositories: Repository[]) => {
+    const missingLanguageRepos = repositories.filter((repo) => {
+      const resolved = (repo.primary_language || repo.language || "").trim();
+      return resolved.length === 0;
+    });
+
+    if (missingLanguageRepos.length === 0) {
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      missingLanguageRepos.map(async (repo) => {
+        const snapshot = await reposApi.getInsights(repo.id);
+        const primaryLanguage = (
+          snapshot.primary_language ||
+          snapshot.language_breakdown?.[0]?.language ||
+          ""
+        ).trim();
+
+        if (!primaryLanguage) {
+          return null;
+        }
+
+        return {
+          repoId: repo.id,
+          primaryLanguage,
+        };
+      }),
+    );
+
+    const primaryLanguageByRepoId = new Map<string, string>();
+    for (const result of results) {
+      if (result.status !== 'fulfilled' || !result.value) {
+        continue;
+      }
+
+      primaryLanguageByRepoId.set(result.value.repoId, result.value.primaryLanguage);
+    }
+
+    if (primaryLanguageByRepoId.size === 0) {
+      return;
+    }
+
+    setRepos((prev) => prev.map((repo) => {
+      const primaryLanguage = primaryLanguageByRepoId.get(repo.id);
+      if (!primaryLanguage) {
+        return repo;
+      }
+
+      const existingPrimary = (repo.primary_language || "").trim();
+      if (existingPrimary === primaryLanguage) {
+        return repo;
+      }
+
+      return {
+        ...repo,
+        primary_language: primaryLanguage,
+        language: (repo.language || primaryLanguage).trim(),
+      };
+    }));
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated) {
       reposApi.getRepos()
-        .then((data) => setRepos(data || [])) // Just to ensure handling null value for data 
+        .then((data) => {
+          const repositories = data || [];
+          setRepos(repositories); // Just to ensure handling null value for data
+          void hydratePrimaryLanguagesFromInsights(repositories);
+        })
                                               // since we do not know the backend will handle empty list or not
         .catch((err) => {
           console.error(err);
@@ -604,7 +670,7 @@ function App () {
           }
         });
     }
-  }, [isAuthenticated]);
+  }, [hydratePrimaryLanguagesFromInsights, isAuthenticated]);
 
   useEffect(() => {
     if (selectedRepoId && isAuthenticated) {

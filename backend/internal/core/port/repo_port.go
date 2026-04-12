@@ -11,6 +11,7 @@ type RepoRepository interface {
 	FindAll() ([]*domain.Repo, error)
 	FindByID(id uuid.UUID) (*domain.Repo, error)
 	FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error)
+	UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage string) error
 }
 
 type RepoUsecase interface {

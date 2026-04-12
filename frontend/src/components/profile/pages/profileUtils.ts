@@ -3,17 +3,24 @@ import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
 
 const LANGUAGE_COLORS: Record<string, string> = {
+  "Assembly": "#6e4c13",
+  "Batchfile": "#c1f12e",
+  "C#": "#178600",
   "TypeScript": "var(--language-typescript)",
   "JavaScript": "var(--language-javascript)",
   "Python": "var(--language-python)",
   "Go": "var(--language-go)",
   "Rust": "var(--language-rust)",
   "Java": "var(--language-java)",
+  "Shell": "#89e051",
+  "CSS": "#563d7c",
   "HTML": "var(--language-html)",
   "Jupyter Notebook": "var(--language-jupyter)",
   "C": "var(--language-c)",
   "C++": "var(--language-cpp)",
+  "Dockerfile": "#384d54",
   "GDScript": "var(--language-gdscript)",
+  "Haskell": "#5e5086",
 };
 
 export function languageColor(language: string): string {
@@ -33,13 +40,11 @@ function normalizeRepositoryDescription(description?: string): string | undefine
 export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRepo[] {
   if (repositories.length === 0) return SAMPLE_REPOSITORIES;
 
-  const languageCycle = ["TypeScript", "Go", "Rust", "Python", "JavaScript", "HTML"];
-
-  const liveRepos = repositories.map((repo, index) => ({
+  const liveRepos = repositories.map((repo) => ({
     name: repo.name,
     visibility: formatRepositoryVisibilityLabel(repo.visibility),
     description: normalizeRepositoryDescription(repo.description),
-    language: (repo.language || repo.primary_language || languageCycle[index % languageCycle.length] || "TypeScript").trim(),
+    language: (repo.primary_language || repo.language || "").trim(),
     updatedText: "Updated recently",
     stars: typeof repo.stars === "number" ? repo.stars : 0,
     forks: typeof repo.forks === "number" ? repo.forks : 0,
