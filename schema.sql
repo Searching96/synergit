@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS repositories (
     path VARCHAR(1024) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     description TEXT NOT NULL DEFAULT '',
-    visibility VARCHAR(16) NOT NULL DEFAULT 'public'
-        CHECK (visibility IN ('public', 'private')),
+    visibility VARCHAR(16) NOT NULL DEFAULT 'PUBLIC'
+        CHECK (visibility IN ('PUBLIC', 'PRIVATE')),
     primary_language VARCHAR(64) NOT NULL DEFAULT ''
 );
 
