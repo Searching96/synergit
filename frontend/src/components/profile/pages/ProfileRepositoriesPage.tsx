@@ -31,7 +31,7 @@ interface ProfileRepositoriesPageProps {
   languageColor: (language: string) => string;
 }
 
-type RepositoryTypeFilter = "all" | "public" | "private";
+type RepositoryTypeFilter = "all" | string;
 type RepositorySortFilter = "updated" | "name" | "stars";
 
 const POPULAR_LANGUAGE_OPTIONS = [
@@ -124,6 +124,19 @@ export default function ProfileRepositoriesPage({
     return Array.from(uniqueLanguages);
   }, [profileRepositories]);
 
+  const visibilityOptions = useMemo(() => {
+    const uniqueVisibility = new Set<string>();
+
+    for (const repo of profileRepositories) {
+      const visibility = (repo.visibility || "").trim();
+      if (visibility) {
+        uniqueVisibility.add(visibility);
+      }
+    }
+
+    return Array.from(uniqueVisibility).sort((a, b) => a.localeCompare(b));
+  }, [profileRepositories]);
+
   const filteredRepositories = useMemo(() => {
     const searched = searchRepositoriesByName(profileRepositories, searchQuery);
     const byType = searched.filter((repo) => {
@@ -131,7 +144,7 @@ export default function ProfileRepositoriesPage({
         return true;
       }
 
-      return repo.visibility.toLowerCase() === typeFilter;
+      return repo.visibility === typeFilter;
     });
 
     const byLanguage = byType.filter((repo) => {
@@ -241,11 +254,10 @@ export default function ProfileRepositoriesPage({
 
             {isTypeDropdownOpen ? (
               <div className="absolute left-0 mt-2 w-[170px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg z-20 py-1">
-                {([
+                {[
                   { value: "all", label: "All" },
-                  { value: "public", label: "Public" },
-                  { value: "private", label: "Private" },
-                ] as const).map((option) => (
+                  ...visibilityOptions.map((visibility) => ({ value: visibility, label: visibility })),
+                ].map((option) => (
                   <button
                     key={option.value}
                     type="button"

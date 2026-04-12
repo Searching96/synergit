@@ -14,7 +14,7 @@ export interface Repository {
 	updated_at?: string;
 }
 
-export type RepositoryVisibility = 'public' | 'private';
+export type RepositoryVisibility = 'PUBLIC' | 'PRIVATE';
 
 export interface CreateRepositoryPayload {
 	name: string;

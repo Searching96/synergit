@@ -98,6 +98,7 @@ export default function GithubProfilePages({
   );
 
   const profileBasePath = `/${encodeURIComponent(username)}`;
+  const avatarInitial = (username.trim().charAt(0) || "U").toUpperCase();
 
   const primarySidebarItems: Array<{
     key: string;
@@ -263,13 +264,14 @@ export default function GithubProfilePages({
       <main className="w-full max-w-[1480px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
         <aside className="w-full lg:w-[340px]">
           <div className="w-[320px] max-w-full mx-auto lg:mx-0">
-            <img
-              src={`https://github.com/${encodeURIComponent(username)}.png`}
-              alt={`${username} avatar`}
-              className="w-full aspect-square object-cover rounded-full border border-[var(--border-default)]"
-            />
+            <div
+              className="w-full aspect-square rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[120px] font-semibold text-[var(--text-primary)] flex items-center justify-center"
+              aria-label={`${username} avatar`}
+            >
+              {avatarInitial}
+            </div>
             <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[var(--text-primary)]">
-              Nguyễn Phúc Thịnh
+              My Name
             </h1>
             <p className="text-[30px] leading-[34px] font-light text-[var(--text-secondary)]">{username}</p>
             <button
@@ -279,7 +281,7 @@ export default function GithubProfilePages({
               Edit profile
             </button>
             <p className="mt-4 text-sm text-[var(--text-secondary)] inline-flex items-center gap-2">
-              <Users size={14} /> 1 follower · 0 following
+              <Users size={14} /> 0 follower · 0 following
             </p>
           </div>
         </aside>

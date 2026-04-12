@@ -1,6 +1,7 @@
 import type { Repository } from "../../../types";
 import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
+import { formatVisibilityLabel } from "../../../utils/visibility";
 
 const LANGUAGE_COLORS: Record<string, string> = {
   "Assembly": "#6e4c13",
@@ -27,9 +28,8 @@ export function languageColor(language: string): string {
   return LANGUAGE_COLORS[language] || "var(--text-secondary)";
 }
 
-export function formatRepositoryVisibilityLabel(rawVisibility?: string): "Public" | "Private" {
-  const normalized = (rawVisibility || "").trim().toLowerCase();
-  return normalized === "private" ? "Private" : "Public";
+export function formatRepositoryVisibilityLabel(rawVisibility?: string): string {
+  return formatVisibilityLabel(rawVisibility);
 }
 
 function normalizeRepositoryDescription(description?: string): string | undefined {

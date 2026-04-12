@@ -29,7 +29,10 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 	RETURNING id`
 
 	description := strings.TrimSpace(repo.Description)
-	visibility := string(normalizeVisibility(string(repo.Visibility)))
+	visibility := repo.Visibility
+	if visibility == "" {
+		visibility = domain.RepoVisibilityPublic
+	}
 	primaryLanguage := strings.TrimSpace(repo.PrimaryLanguage)
 
 	err := p.db.QueryRow(
@@ -43,7 +46,7 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 	).Scan(&repo.ID)
 
 	repo.Description = description
-	repo.Visibility = normalizeVisibility(visibility)
+	repo.Visibility = visibility
 	repo.PrimaryLanguage = primaryLanguage
 
 	return err
@@ -158,19 +161,15 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 	if description.Valid {
 		repo.Description = strings.TrimSpace(description.String)
 	}
-	repo.Visibility = normalizeVisibility(visibility.String)
+	if visibility.Valid {
+		repo.Visibility = domain.RepoVisibility(strings.TrimSpace(visibility.String))
+	}
+	if repo.Visibility == "" {
+		repo.Visibility = domain.RepoVisibilityPublic
+	}
 	if primaryLanguage.Valid {
 		repo.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
 	}
 
 	return repo, nil
-}
-
-func normalizeVisibility(raw string) domain.RepoVisibility {
-	normalized := strings.ToLower(strings.TrimSpace(raw))
-	if normalized == string(domain.RepoVisibilityPrivate) {
-		return domain.RepoVisibilityPrivate
-	}
-
-	return domain.RepoVisibilityPublic
 }

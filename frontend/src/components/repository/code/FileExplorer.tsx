@@ -6,7 +6,6 @@ import {
   Copy,
   Ellipsis,
   FileText,
-  Folder,
   GitBranch,
   Link,
   Pencil,
@@ -16,8 +15,9 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { FileDirectoryFillIcon, FileIcon, HistoryIcon } from "@primer/octicons-react";
 import ReactMarkdown from "react-markdown";
-import type { Branch, LanguageBreakdownStat, RepoFile } from "../../../types";
+import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 
 type ExplorerLocation = {
@@ -37,6 +37,7 @@ interface FileExplorerProps {
   branches: Branch[];
   onSelectBranch: (branchName: string) => void;
   onCreateBranch: (branchName: string) => Promise<void>;
+  onOpenCommitHistory?: (branchName: string) => void;
 }
 
 function sortEntries(entries: RepoFile[]): RepoFile[] {
@@ -55,6 +56,49 @@ function getParentPath(path: string): string {
 
 function commitMessagePlaceholder(item: RepoFile): string {
   return item.type === "DIR" ? "Updated folder structure" : "Updated file";
+}
+
+function shortCommitHash(hash: string): string {
+  return hash.trim().slice(0, 7);
+}
+
+function isCommitLikeRef(value: string): boolean {
+  return /^[0-9a-f]{7,40}$/i.test(value.trim());
+}
+
+function formatRelativeCommitTime(dateValue: string): string {
+  const timestamp = new Date(dateValue).getTime();
+  if (Number.isNaN(timestamp)) {
+    return "just now";
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (elapsedSeconds < 60) {
+    return "just now";
+  }
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes} minute${elapsedMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return `${elapsedHours} hour${elapsedHours === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  if (elapsedDays < 30) {
+    return `${elapsedDays} day${elapsedDays === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedMonths = Math.floor(elapsedDays / 30);
+  if (elapsedMonths < 12) {
+    return `${elapsedMonths} month${elapsedMonths === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedYears = Math.floor(elapsedMonths / 12);
+  return `${elapsedYears} year${elapsedYears === 1 ? "" : "s"} ago`;
 }
 
 function extractAboutTextFromReadme(readme: string | null): string | null {
@@ -252,6 +296,7 @@ export default function FileExplorer({
   branches,
   onSelectBranch,
   onCreateBranch,
+  onOpenCommitHistory,
 }: FileExplorerProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -281,6 +326,8 @@ export default function FileExplorer({
   const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
+  const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
+  const [commitsLoading, setCommitsLoading] = useState<boolean>(false);
   const [branchCreateInput, setBranchCreateInput] = useState<string>("");
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
@@ -355,6 +402,16 @@ export default function FileExplorer({
     : branches;
   const yourBranches = nonDefaultBranches.slice(0, 1);
   const activeBranches = nonDefaultBranches.slice(1);
+  const displayedBranchLabel = useMemo(() => {
+    const currentBranch = (branch || "master").trim() || "master";
+    const isKnownBranch = branches.some((item) => item.name === currentBranch);
+
+    if (!isKnownBranch && isCommitLikeRef(currentBranch)) {
+      return shortCommitHash(currentBranch);
+    }
+
+    return currentBranch;
+  }, [branch, branches]);
 
   const loadDir = useCallback(
     async (path: string, isRoot: boolean) => {
@@ -424,6 +481,8 @@ export default function FileExplorer({
     setReadmeEditError(null);
     setLanguageBreakdown([]);
     setLanguageBreakdownLoading(false);
+    setRecentCommits([]);
+    setCommitsLoading(false);
     setIsAddFileMenuOpen(false);
     setIsBranchMenuOpen(false);
     setIsCodeMenuOpen(false);
@@ -492,6 +551,30 @@ export default function FileExplorer({
     };
   }, [repoId]);
 
+  useEffect(() => {
+    let active = true;
+    setCommitsLoading(true);
+
+    reposApi
+      .getCommits(repoId, branch)
+      .then((data) => {
+        if (!active) return;
+        setRecentCommits(data || []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setRecentCommits([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setCommitsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [repoId, branch]);
+
   const normalizedReadmeContent = useMemo(
     () => normalizeReadmeMarkdown(readmeContent, repoName),
     [readmeContent, repoName],
@@ -507,6 +590,10 @@ export default function FileExplorer({
     () => languageBreakdown.slice(0, 6),
     [languageBreakdown],
   );
+  const latestCommit = recentCommits[0] || null;
+  const commitCountLabel = `${recentCommits.length.toLocaleString()} Commit${recentCommits.length === 1 ? "" : "s"}`;
+  const latestCommitMessage = latestCommit?.message?.trim() || "Updated files";
+  const latestCommitRelativeTime = latestCommit ? formatRelativeCommitTime(latestCommit.date) : "just now";
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -763,9 +850,9 @@ export default function FileExplorer({
               className="min-w-0 flex items-center gap-2 py-0.5 text-left"
             >
               {isDir ? (
-                <Folder size={15} className="text-[var(--text-secondary)] shrink-0" />
+                <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
               ) : (
-                <FileText size={15} className="text-[var(--text-muted)] shrink-0" />
+                <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
               )}
               <span className="truncate">{item.name}</span>
             </button>
@@ -1033,7 +1120,7 @@ export default function FileExplorer({
                   className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
                 >
                   <GitBranch size={14} className="text-[var(--text-secondary)]" />
-                  {branch || "master"}
+                  {displayedBranchLabel}
                   <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                 </button>
 
@@ -1085,7 +1172,7 @@ export default function FileExplorer({
                         </div>
 
                         <div className="px-3 py-2 border-t border-[var(--border-default)] space-y-2">
-                          <p className="text-xs text-[var(--text-secondary)]">Create new branch from {branch || "master"}</p>
+                          <p className="text-xs text-[var(--text-secondary)]">Create new branch from {displayedBranchLabel}</p>
                           <div className="flex items-center gap-2">
                             <input
                               value={branchCreateInput}
@@ -1248,10 +1335,34 @@ export default function FileExplorer({
             </div>
 
             <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
-              <div className="px-4 py-3 bg-[var(--surface-subtle)] border-b border-[var(--border-default)] grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-                <span>Name</span>
-                <span>Last commit message</span>
-                <span className="text-right">Last commit date</span>
+              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+                <div className="min-w-0 flex items-center gap-3">
+                  <div className="h-7 w-7 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
+                    {((latestCommit?.author || repoOwner || "U").trim().charAt(0) || "U").toUpperCase()}
+                  </div>
+
+                  {latestCommit ? (
+                    <div className="min-w-0 flex items-center gap-1 text-sm">
+                      <span className="font-semibold text-[var(--text-primary)] truncate max-w-[180px]">{latestCommit.author}</span>
+                      <span className="text-[var(--text-muted)]">·</span>
+                      <span className="text-[var(--text-secondary)] truncate">{latestCommit.message}</span>
+                      <span className="hidden sm:inline text-[var(--text-muted)]">{shortCommitHash(latestCommit.hash)}</span>
+                      <span className="hidden sm:inline text-[var(--text-muted)]">{formatRelativeCommitTime(latestCommit.date)}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--text-secondary)]">No commits yet.</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onOpenCommitHistory?.(branch || "master")}
+                  disabled={commitsLoading}
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60 inline-flex items-center gap-2"
+                >
+                  <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
+                  {commitsLoading ? "Loading..." : commitCountLabel}
+                </button>
               </div>
 
               <ul>
@@ -1264,14 +1375,14 @@ export default function FileExplorer({
                     >
                       <span className="min-w-0 flex items-center gap-2 text-left">
                         {item.type === "DIR" ? (
-                          <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
+                          <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
                         ) : (
-                          <FileText size={16} className="text-[var(--text-muted)] shrink-0" />
+                          <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
                         )}
                         <span className="truncate text-[var(--text-link)]">{item.name}</span>
                       </span>
-                      <span className="truncate text-left text-[var(--text-secondary)]">{commitMessagePlaceholder(item)}</span>
-                      <span className="text-right text-[var(--text-secondary)]">just now</span>
+                      <span className="truncate text-left text-[var(--text-secondary)]">{latestCommit ? latestCommitMessage : commitMessagePlaceholder(item)}</span>
+                      <span className="text-right text-[var(--text-secondary)]">{latestCommitRelativeTime}</span>
                     </button>
                   </li>
                 ))}
@@ -1479,7 +1590,7 @@ export default function FileExplorer({
             </div>
 
             <div className="px-3 py-2 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="px-2 py-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)]">{branch || "master"}</span>
+              <span className="px-2 py-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)]">{displayedBranchLabel}</span>
             </div>
 
             <div className="flex-1 overflow-auto py-2">
@@ -1625,7 +1736,7 @@ export default function FileExplorer({
                           className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                         >
                           <span className="min-w-0 flex items-center gap-2 text-left text-[var(--text-primary)]">
-                            <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
+                            <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
                             ..
                           </span>
                           <span className="text-left text-[var(--text-secondary)]">Up one level</span>
@@ -1643,14 +1754,14 @@ export default function FileExplorer({
                         >
                           <span className="min-w-0 flex items-center gap-2 text-left">
                             {item.type === "DIR" ? (
-                              <Folder size={16} className="text-[var(--text-secondary)] shrink-0" />
+                              <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
                             ) : (
-                              <FileText size={16} className="text-[var(--text-muted)] shrink-0" />
+                              <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
                             )}
                             <span className="truncate text-[var(--text-link)]">{item.name}</span>
                           </span>
-                          <span className="truncate text-left text-[var(--text-secondary)]">{commitMessagePlaceholder(item)}</span>
-                          <span className="text-right text-[var(--text-secondary)]">just now</span>
+                          <span className="truncate text-left text-[var(--text-secondary)]">{latestCommit ? latestCommitMessage : commitMessagePlaceholder(item)}</span>
+                          <span className="text-right text-[var(--text-secondary)]">{latestCommitRelativeTime}</span>
                         </button>
                       </li>
                     ))}

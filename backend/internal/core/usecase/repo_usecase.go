@@ -112,7 +112,7 @@ func normalizeCreateRepositoryOptions(options domain.CreateRepositoryOptions) (d
 	normalized.Description = strings.TrimSpace(options.Description)
 	normalized.GitignoreTemplate = strings.ToLower(strings.TrimSpace(options.GitignoreTemplate))
 	normalized.LicenseTemplate = strings.ToLower(strings.TrimSpace(options.LicenseTemplate))
-	normalized.Visibility = domain.RepoVisibility(strings.ToLower(strings.TrimSpace(string(options.Visibility))))
+	normalized.Visibility = domain.RepoVisibility(strings.TrimSpace(string(options.Visibility)))
 
 	if normalized.Visibility == "" {
 		normalized.Visibility = domain.RepoVisibilityPublic

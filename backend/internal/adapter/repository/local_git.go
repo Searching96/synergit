@@ -377,7 +377,24 @@ func getBranchRef(r *git.Repository, branch string) (*plumbing.Reference, error)
 	if branch == "" {
 		return r.Head()
 	}
-	return r.Reference(plumbing.ReferenceName("refs/heads/"+branch), true)
+
+	trimmed := strings.TrimSpace(branch)
+	branchRef, err := r.Reference(plumbing.ReferenceName("refs/heads/"+trimmed), true)
+	if err == nil {
+		return branchRef, nil
+	}
+
+	if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return nil, err
+	}
+
+	// Support browsing repository state by commit hash or other git revision expressions.
+	resolvedHash, resolveErr := r.ResolveRevision(plumbing.Revision(trimmed))
+	if resolveErr == nil {
+		return plumbing.NewHashReference(plumbing.ReferenceName("refs/revisions/"+trimmed), *resolvedHash), nil
+	}
+
+	return nil, err
 }
 
 func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) {

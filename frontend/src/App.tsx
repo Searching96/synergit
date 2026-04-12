@@ -40,7 +40,9 @@ import RepoWikiPage from "./components/repository/pages/RepoWikiPage";
 import RepoSecurityPage from "./components/repository/pages/RepoSecurityPage";
 import RepoSettingsPage from "./components/repository/pages/RepoSettingsPage";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
+import CommitHistory from "./components/repository/code/CommitHistory";
 import type { ProfileTabKey } from "./components/profile/pages/profileTypes";
+import { formatVisibilityLabel } from "./utils/visibility";
 
 type TabKey =
   | 'files'
@@ -84,10 +86,6 @@ const PROFILE_TAB_SET = new Set<ProfileTabKey>([
 
 function RepositoryIcon({ size = 16, className }: { size?: number; className?: string }) {
   return <RepoIcon size={size} className={className} />;
-}
-
-function formatVisibilityLabel(rawVisibility?: string): "Public" | "Private" {
-  return (rawVisibility || "").trim().toLowerCase() === 'private' ? 'Private' : 'Public';
 }
 
 function normalizeProfileTab(search: string): ProfileTabKey {
@@ -138,7 +136,7 @@ const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-type RepoContentKind = 'root' | 'tree' | 'blob';
+type RepoContentKind = 'root' | 'tree' | 'blob' | 'commits';
 
 type ParsedRoute = {
   viewMode: 'profile' | 'repo' | 'create-repo' | 'global';
@@ -202,6 +200,33 @@ function buildRepoContentPath(
   }
 
   return `${base}/${contentKind}/${branchSegment}/${encodedPath}`;
+}
+
+function buildRepoCommitsPath(owner: string, repoName: string, branch: string): string {
+  const base = buildRepoBasePath(owner, repoName);
+  const safeBranch = branch.trim() || 'master';
+  return `${base}/commits/${encodeURIComponent(safeBranch)}`;
+}
+
+function normalizeCommitFilterSearch(search: string): string {
+  const params = new URLSearchParams(search);
+  const author = (params.get('author') || '').trim();
+  const since = (params.get('since') || '').trim();
+  const until = (params.get('until') || '').trim();
+
+  const normalized = new URLSearchParams();
+  if (author) {
+    normalized.set('author', author);
+  }
+  if (since) {
+    normalized.set('since', since);
+  }
+  if (until) {
+    normalized.set('until', until);
+  }
+
+  const encoded = normalized.toString();
+  return encoded ? `?${encoded}` : '';
 }
 
 function parseAppPath(pathname: string): ParsedRoute {
@@ -302,6 +327,22 @@ function parseAppPath(pathname: string): ParsedRoute {
 
   if (segments.length >= 2 && segments[0] === 'repos') {
     const repoId = decodeURIComponent(segments[1]);
+    if (segments[2] === 'commits') {
+      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
+      return {
+        viewMode: 'repo',
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: 'files',
+        contentKind: 'commits',
+        contentPath: '',
+        branch,
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/commits/${encodeURIComponent(branch)}`,
+      };
+    }
+
     const tabSegment = segments[2] || 'files';
     const tab = TAB_KEY_SET.has(tabSegment as TabKey)
       ? (tabSegment as TabKey)
@@ -366,6 +407,22 @@ function parseAppPath(pathname: string): ParsedRoute {
         branch,
         globalPage: null,
         normalizedPath,
+      };
+    }
+
+    if (third === 'commits') {
+      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
+      return {
+        viewMode: 'repo',
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: 'files',
+        contentKind: 'commits',
+        contentPath: '',
+        branch,
+        globalPage: null,
+        normalizedPath: buildRepoCommitsPath(repoOwner, repoName, branch),
       };
     }
 
@@ -523,18 +580,22 @@ function App () {
 
         const owner = getRepoOwner(targetRepo);
         let canonicalPath = buildRepoTabPath(owner, targetRepo.name, parsed.tab);
+        let canonicalSearch = '';
 
         if (parsed.tab === 'files') {
           if (parsed.contentKind === 'blob') {
             canonicalPath = buildRepoContentPath(owner, targetRepo.name, 'blob', parsed.branch || currentBranch || 'master', parsed.contentPath);
           } else if (parsed.contentKind === 'tree') {
             canonicalPath = buildRepoContentPath(owner, targetRepo.name, 'tree', parsed.branch || currentBranch || 'master', parsed.contentPath);
+          } else if (parsed.contentKind === 'commits') {
+            canonicalPath = buildRepoCommitsPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName);
+            canonicalSearch = normalizeCommitFilterSearch(search);
           } else {
             canonicalPath = buildRepoBasePath(owner, targetRepo.name);
           }
         }
 
-        replaceHistoryIfNeeded(canonicalPath);
+        replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
       } else if (!parsed.repoId) {
         setSelectedRepoId(null);
       }
@@ -549,7 +610,7 @@ function App () {
     replaceHistoryIfNeeded(parsed.normalizedPath);
 
     return parsed;
-  }, [currentBranch, currentUsername, findRepoFromParsedRoute, getRepoOwner]);
+  }, [currentBranch, currentUsername, defaultBranchName, findRepoFromParsedRoute, getRepoOwner]);
 
   const navigateToPath = useCallback((pathname: string, options?: { replace?: boolean }) => {
     const url = new URL(pathname, window.location.origin);
@@ -579,11 +640,25 @@ function App () {
         setBranches(branchList);
 
         const defaultBranch = branchList.find((b) => b.is_default)?.name || branchList[0]?.name || '';
+        const routeRevision = (routeBranch || '').trim();
+        const routePinnedToRevision =
+          !!routeRevision &&
+          (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'commits') &&
+          !branchList.some((b) => b.name === routeRevision);
 
         setCurrentBranch((prev) => {
+          if (routePinnedToRevision) {
+            return routeRevision;
+          }
+
+          if (routeRevision && branchList.some((b) => b.name === routeRevision)) {
+            return routeRevision;
+          }
+
           if (prev && branchList.some((b) => b.name === prev)) {
             return prev;
           }
+
           return defaultBranch;
         });
 
@@ -693,6 +768,7 @@ function App () {
 
   const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
+  const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -721,7 +797,7 @@ function App () {
 
   const navigateToRepoContent = useCallback((
     repo: Repository,
-    contentKind: RepoContentKind,
+    contentKind: Exclude<RepoContentKind, 'commits'>,
     contentPath: string,
     branchName: string,
   ) => {
@@ -745,6 +821,12 @@ function App () {
     navigateToPath(buildRepoContentPath(owner, repo.name, 'tree', branchName, contentPath));
   }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
+  const navigateToRepoCommits = useCallback((repo: Repository, branchName: string, search: string = '') => {
+    const owner = getRepoOwner(repo);
+    const basePath = buildRepoCommitsPath(owner, repo.name, branchName || defaultBranchName);
+    navigateToPath(`${basePath}${normalizeCommitFilterSearch(search)}`);
+  }, [defaultBranchName, getRepoOwner, navigateToPath]);
+
   const handleCreateBranch = async (branchName: string) => {
     if (!selectedRepoId || !branchName.trim()) {
       throw new Error('Invalid branch name');
@@ -760,7 +842,11 @@ function App () {
 
     if (selectedRepo && activeTab === 'files') {
       const nextBranch = branchName.trim();
-      navigateToRepoContent(selectedRepo, routeContentKind, routeContentPath, nextBranch);
+      if (routeContentKind === 'commits') {
+        navigateToRepoCommits(selectedRepo, nextBranch, window.location.search);
+      } else {
+        navigateToRepoContent(selectedRepo, routeContentKind, routeContentPath, nextBranch);
+      }
     }
   };
 
@@ -771,7 +857,22 @@ function App () {
       return;
     }
 
+    if (routeContentKind === 'commits') {
+      navigateToRepoCommits(selectedRepo, branchName, window.location.search);
+      return;
+    }
+
     navigateToRepoContent(selectedRepo, routeContentKind, routeContentPath, branchName);
+  };
+
+  const handleSelectCommitBranch = (branchName: string) => {
+    setCurrentBranch(branchName);
+
+    if (!selectedRepo) {
+      return;
+    }
+
+    navigateToRepoCommits(selectedRepo, branchName, window.location.search);
   };
 
   const explorerInitialLocation = useMemo(() => {
@@ -857,7 +958,7 @@ function App () {
       const createdRepo: Repository = {
         ...createdRepoResponse,
         description: createdRepoResponse.description ?? payload.description,
-        visibility: createdRepoResponse.visibility ?? payload.visibility ?? 'public',
+        visibility: createdRepoResponse.visibility ?? payload.visibility ?? 'PUBLIC',
       };
 
       setRepos((prev) => {
@@ -977,14 +1078,33 @@ function App () {
             </button>
 
             <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] text-sm font-semibold flex items-center justify-center">
-              S
+              {((currentUsername || "U").trim().charAt(0) || "U").toUpperCase()}
             </div>
 
             <div className="hidden md:block min-w-0">
-              <p className="text-sm text-[var(--text-secondary)] truncate">
-                {selectedRepo?.owner || currentUsername} <span className="text-[var(--text-muted)]">/</span>{" "}
-                <span className="font-semibold text-[var(--text-primary)]">{selectedRepo ? selectedRepo.name : 'select-repository'}</span>
-              </p>
+              {selectedRepo ? (
+                <div className="text-sm text-[var(--text-secondary)] truncate flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
+                    className="text-[var(--text-primary)] hover:opacity-80"
+                  >
+                    {selectedRepoOwner}
+                  </button>
+                  <span className="text-[var(--text-muted)]">/</span>
+                  <button
+                    type="button"
+                    onClick={() => navigateToRepoTab(selectedRepo, 'files')}
+                    className="font-semibold text-[var(--text-primary)] hover:opacity-80"
+                  >
+                    {selectedRepo.name}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--text-secondary)] truncate">
+                  <span className="font-semibold text-[var(--text-primary)]">select-repository</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -1112,7 +1232,18 @@ function App () {
 
             {/* Dynamic Content Area */}
             <div className="flex-1 min-h-0">
-              {activeTab === 'files' && (
+              {activeTab === 'files' && routeContentKind === 'commits' && (
+                <CommitHistory
+                  repoId={selectedRepo.id}
+                  repoName={selectedRepo.name}
+                  branch={currentBranch || routeBranch || defaultBranchName}
+                  branches={branches}
+                  onSelectBranch={handleSelectCommitBranch}
+                  onBack={() => navigateToRepoTab(selectedRepo, 'files')}
+                  onBrowseAtCommit={(commitHash) => navigateToRepoContent(selectedRepo, 'tree', '', commitHash)}
+                />
+              )}
+              {activeTab === 'files' && routeContentKind !== 'commits' && (
                 <FileExplorer
                   repoId={selectedRepo.id}
                   repoName={selectedRepo.name}
@@ -1125,6 +1256,7 @@ function App () {
                   onNavigateLocation={handleNavigateRepoLocation}
                   onSelectBranch={handleSelectBranch}
                   onCreateBranch={handleCreateBranch}
+                  onOpenCommitHistory={(branchName) => navigateToRepoCommits(selectedRepo, branchName)}
                 />
               )}
               {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}

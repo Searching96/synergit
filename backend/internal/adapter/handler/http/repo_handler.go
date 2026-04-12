@@ -108,18 +108,13 @@ func buildCloneURL(baseURL string, owner string, repoName string) string {
 	return fmt.Sprintf("%s/%s/%s.git", cleanBase, cleanOwner, cleanRepo)
 }
 
-func normalizedVisibility(raw domain.RepoVisibility) domain.RepoVisibility {
-	if strings.ToLower(strings.TrimSpace(string(raw))) == string(domain.RepoVisibilityPrivate) {
-		return domain.RepoVisibilityPrivate
-	}
-
-	return domain.RepoVisibilityPublic
-}
-
 func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string) dto.RepoResponse {
 	owner := inferOwnerFromRepoPath(repo.Path)
 	baseURL := requestBaseURL(c, configuredBaseURL)
-	visibility := normalizedVisibility(repo.Visibility)
+	visibility := repo.Visibility
+	if visibility == "" {
+		visibility = domain.RepoVisibilityPublic
+	}
 
 	return dto.RepoResponse{
 		ID:              repo.ID,

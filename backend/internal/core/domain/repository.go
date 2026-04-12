@@ -20,8 +20,8 @@ type Repo struct {
 type RepoVisibility string
 
 const (
-	RepoVisibilityPublic  RepoVisibility = "public"
-	RepoVisibilityPrivate RepoVisibility = "private"
+	RepoVisibilityPublic  RepoVisibility = "PUBLIC"
+	RepoVisibilityPrivate RepoVisibility = "PRIVATE"
 )
 
 type CreateRepositoryOptions struct {

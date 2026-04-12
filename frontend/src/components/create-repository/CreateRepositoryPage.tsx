@@ -14,6 +14,7 @@ import type {
   CreateRepositoryPayload,
   RepositoryVisibility,
 } from "../../types";
+import { formatVisibilityLabel } from "../../utils/visibility";
 
 interface CreateRepositoryPageProps {
   ownerName: string;
@@ -39,6 +40,23 @@ const LICENSE_OPTIONS = [
   { label: "GNU GPL v3.0", value: "gpl-3.0" },
 ];
 
+const VISIBILITY_OPTIONS: Array<{
+  value: RepositoryVisibility;
+  icon: typeof Monitor;
+  helper: string;
+}> = [
+  {
+    value: "PUBLIC",
+    icon: Monitor,
+    helper: "Anyone on the internet can see this repository. You choose who can commit.",
+  },
+  {
+    value: "PRIVATE",
+    icon: Lock,
+    helper: "You choose who can see and commit to this repository.",
+  },
+];
+
 export default function CreateRepositoryPage({
   ownerName,
   submitting,
@@ -48,12 +66,15 @@ export default function CreateRepositoryPage({
 }: CreateRepositoryPageProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<RepositoryVisibility>("public");
+  const [visibility, setVisibility] = useState<RepositoryVisibility>("PUBLIC");
   const [isVisibilityOpen, setIsVisibilityOpen] = useState(false);
   const [addReadme, setAddReadme] = useState(false);
   const [gitignoreTemplate, setGitignoreTemplate] = useState("none");
   const [licenseTemplate, setLicenseTemplate] = useState("none");
   const visibilityDropdownRef = useRef<HTMLDivElement | null>(null);
+  const activeVisibilityOption =
+    VISIBILITY_OPTIONS.find((option) => option.value === visibility) ?? VISIBILITY_OPTIONS[0];
+  const ActiveVisibilityIcon = activeVisibilityOption.icon;
 
   useEffect(() => {
     if (!isVisibilityOpen) return;
@@ -248,53 +269,41 @@ export default function CreateRepositoryPage({
                       className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm inline-flex items-center justify-between"
                     >
                       <span className="inline-flex items-center gap-2 font-medium text-[var(--text-primary)]">
-                        {visibility === "public" ? <Monitor size={15} /> : <Lock size={15} />}
-                        {visibility === "public" ? "Public" : "Private"}
+                        <ActiveVisibilityIcon size={15} />
+                        {formatVisibilityLabel(visibility)}
                       </span>
                       <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                     </button>
 
                     {isVisibilityOpen && (
                       <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-[360px] rounded-xl border border-[var(--border-muted)] bg-[var(--surface-canvas)] shadow-xl overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVisibility("public");
-                            setIsVisibilityOpen(false);
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-[var(--surface-subtle)] flex items-start gap-3"
-                        >
-                          <span className="w-4 mt-0.5 text-[var(--text-secondary)]">
-                            {visibility === "public" ? <Check size={15} /> : null}
-                          </span>
-                          <Monitor size={16} className="mt-0.5 text-[var(--text-secondary)] shrink-0" />
-                          <span>
-                            <span className="block text-[22px] leading-[1.2] font-semibold text-[var(--text-primary)]">Public</span>
-                            <span className="block mt-1 text-sm text-[var(--text-secondary)] leading-5">
-                              Anyone on the internet can see this repository. You choose who can commit.
-                            </span>
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVisibility("private");
-                            setIsVisibilityOpen(false);
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-[var(--surface-subtle)] border-t border-[var(--border-muted)] flex items-start gap-3"
-                        >
-                          <span className="w-4 mt-0.5 text-[var(--text-secondary)]">
-                            {visibility === "private" ? <Check size={15} /> : null}
-                          </span>
-                          <Lock size={16} className="mt-0.5 text-[var(--text-secondary)] shrink-0" />
-                          <span>
-                            <span className="block text-[22px] leading-[1.2] font-semibold text-[var(--text-primary)]">Private</span>
-                            <span className="block mt-1 text-sm text-[var(--text-secondary)] leading-5">
-                              You choose who can see and commit to this repository.
-                            </span>
-                          </span>
-                        </button>
+                        {VISIBILITY_OPTIONS.map((option, index) => {
+                          const OptionIcon = option.icon;
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setVisibility(option.value);
+                                setIsVisibilityOpen(false);
+                              }}
+                              className={`w-full px-4 py-3 text-left hover:bg-[var(--surface-subtle)] flex items-start gap-3 ${index > 0 ? "border-t border-[var(--border-muted)]" : ""}`}
+                            >
+                              <span className="w-4 mt-0.5 text-[var(--text-secondary)]">
+                                {visibility === option.value ? <Check size={15} /> : null}
+                              </span>
+                              <OptionIcon size={16} className="mt-0.5 text-[var(--text-secondary)] shrink-0" />
+                              <span>
+                                <span className="block text-[22px] leading-[1.2] font-semibold text-[var(--text-primary)]">
+                                  {formatVisibilityLabel(option.value)}
+                                </span>
+                                <span className="block mt-1 text-sm text-[var(--text-secondary)] leading-5">
+                                  {option.helper}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
