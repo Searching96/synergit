@@ -2,11 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import {
   ChevronDown,
   ChevronRight,
+  Cloud,
+  Copy,
+  Download,
   FileText,
+  FolderOpen,
   History,
+  Maximize2,
+  Pencil,
   Plus,
   Search,
   Upload,
+  Users,
 } from "lucide-react";
 import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, Commit, RepoFile } from "../../../types";
@@ -357,6 +364,18 @@ export default function RepoTreeBrowserPage({
     return fileContent.split("\n");
   }, [fileContent]);
 
+  const fileLocCount = useMemo(() => {
+    return fileLines.filter((line) => line.trim().length > 0).length;
+  }, [fileLines]);
+
+  const fileByteCount = useMemo(() => {
+    try {
+      return new TextEncoder().encode(fileContent).length;
+    } catch {
+      return fileContent.length;
+    }
+  }, [fileContent]);
+
   const renderTreeNodes = useCallback((path: string, depth: number): ReactElement[] => {
     const normalized = normalizePath(path);
     const entries = sortEntries(entriesByPath[normalized] || []);
@@ -369,7 +388,10 @@ export default function RepoTreeBrowserPage({
 
       nodes.push(
         <li key={entry.path}>
-          <div className="flex items-center">
+          <div
+            className="flex items-center"
+            style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
+          >
             {isDirectory ? (
               <button
                 type="button"
@@ -390,13 +412,13 @@ export default function RepoTreeBrowserPage({
                     void loadDir(entry.path);
                   }
                 }}
-                className="h-6 w-5 inline-flex items-center justify-center text-[var(--text-secondary)]"
+                className="h-6 w-5 shrink-0 inline-flex items-center justify-center text-[var(--text-secondary)]"
                 aria-label={isExpanded ? "Collapse directory" : "Expand directory"}
               >
                 {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </button>
             ) : (
-              <span className="h-6 w-5" />
+              <span className="h-6 w-5 shrink-0" />
             )}
 
             <button
@@ -408,7 +430,6 @@ export default function RepoTreeBrowserPage({
                   openFile(entry.path);
                 }
               }}
-              style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
               className={`flex-1 h-6 pr-2 text-left text-sm rounded-sm inline-flex items-center gap-2 ${
                 isActive
                   ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
@@ -441,10 +462,10 @@ export default function RepoTreeBrowserPage({
         className={`grid min-h-[620px] ${isResizingSidebar ? "select-none" : ""}`}
         style={{ gridTemplateColumns: `${sidebarWidth}px 8px minmax(0,1fr)` }}
       >
-        <aside className="border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
-          <div className="px-4 py-3 border-b border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)]">Files</div>
+        <aside className="sticky top-0 self-start h-[calc(100vh-104px)] border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
+          <div className="px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Files</div>
 
-          <div className="px-3 py-2 border-b border-[var(--border-default)] space-y-2">
+          <div className="px-3 py-2 space-y-2">
             <div className="flex items-center gap-2">
               {(isBranchMenuOpen || isAddFileMenuOpen) ? (
                 <button
@@ -541,7 +562,7 @@ export default function RepoTreeBrowserPage({
           </div>
         </aside>
 
-        <div className="relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
+        <div className="w-0 sticky top-0 self-start h-[calc(100vh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
           <button
             type="button"
             aria-label="Resize sidebar"
@@ -550,45 +571,61 @@ export default function RepoTreeBrowserPage({
               setIsResizingSidebar(true);
             }}
             onDoubleClick={() => setSidebarWidth(360)}
-            className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-2 cursor-col-resize hover:bg-[var(--surface-subtle)]"
+            className="w-1 absolute inset-y-0 left-1/2 -translate-x-1/2 cursor-col-resize hover:bg-[var(--surface-subtle)]"
           />
         </div>
 
         <section className="min-w-0 bg-[var(--surface-canvas)]">
-          <div className="px-4 py-3 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] overflow-x-auto whitespace-nowrap">
+          <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
+            <div className="min-w-0 overflow-x-auto whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => {
+                  void openTreeRoot();
+                }}
+                className="font-semibold text-[var(--text-link)] hover:underline"
+              >
+                {repoName}
+              </button>
+              {activePathSegments.map((segment, index) => {
+                const pathUntilSegment = activePathSegments.slice(0, index + 1).join("/");
+                const isLast = index === activePathSegments.length - 1;
+                const isSelectedFileLastSegment = !!selectedFilePath && isLast;
+
+                return (
+                  <span key={pathUntilSegment}>
+                    <span className="mx-1 text-[var(--text-muted)]">/</span>
+                    {isSelectedFileLastSegment ? (
+                      <span className="text-[var(--text-primary)]">{segment}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void openDirectory(pathUntilSegment);
+                        }}
+                        className="text-[var(--text-link)] hover:underline"
+                      >
+                        {segment}
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={() => {
-                void openTreeRoot();
+                const value = [repoName, ...activePathSegments].join("/");
+                if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                  void navigator.clipboard.writeText(value).catch(() => undefined);
+                }
               }}
-              className="font-semibold text-[var(--text-link)] hover:underline"
+              className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] shrink-0"
+              aria-label={selectedFilePath ? "Copy file path" : "Copy directory path"}
             >
-              {repoName}
+              <Copy size={14} />
             </button>
-            {activePathSegments.map((segment, index) => {
-              const pathUntilSegment = activePathSegments.slice(0, index + 1).join("/");
-              const isLast = index === activePathSegments.length - 1;
-              const isSelectedFileLastSegment = !!selectedFilePath && isLast;
-
-              return (
-                <span key={pathUntilSegment}>
-                  <span className="mx-1 text-[var(--text-muted)]">/</span>
-                  {isSelectedFileLastSegment ? (
-                    <span className="text-[var(--text-primary)]">{segment}</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void openDirectory(pathUntilSegment);
-                      }}
-                      className="text-[var(--text-link)] hover:underline"
-                    >
-                      {segment}
-                    </button>
-                  )}
-                </span>
-              );
-            })}
           </div>
 
           {loadError ? (
@@ -598,122 +635,193 @@ export default function RepoTreeBrowserPage({
           ) : null}
 
           {selectedFilePath ? (
-            <div className="min-w-0">
-              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
-                <div className="min-w-0 flex items-center gap-3">
-                  <div className="h-7 w-7 rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
-                    {authorInitial(latestCommit?.author || "")}
+            <div className="px-4 pb-4 space-y-3">
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+                      {authorInitial(latestCommit?.author || "")}
+                    </div>
+                    <div className="min-w-0 text-sm text-[var(--text-secondary)] truncate">
+                      <span className="font-semibold text-[var(--text-primary)] mr-2">{latestCommit?.author || "Unknown"}</span>
+                      <span className="truncate">{latestCommitMessage}</span>
+                    </div>
                   </div>
-                  <div className="min-w-0 text-sm text-[var(--text-secondary)] truncate">
-                    <span className="font-semibold text-[var(--text-primary)] mr-2">{latestCommit?.author || "Unknown"}</span>
-                    <span className="truncate">{latestCommitMessage}</span>
+
+                  <div className="shrink-0 inline-flex items-center gap-2">
+                    {latestCommit ? (
+                      <span className="hidden md:inline text-xs text-[var(--text-secondary)]">
+                        {shortHash(latestCommit.hash)} · {latestCommitWhen}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onOpenCommitHistory?.(activeBranch)}
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
+                    >
+                      <History size={14} className="text-[var(--text-secondary)]" />
+                      History
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="shrink-0 inline-flex items-center gap-2">
-                  {latestCommit ? (
-                    <span className="hidden md:inline text-xs text-[var(--text-secondary)]">
-                      {shortHash(latestCommit.hash)} · {latestCommitWhen}
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
+                <div className="px-2 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-2 text-sm">
+                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] font-medium">
+                      Code
+                    </button>
+                    <button type="button" className="h-7 px-3 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]">
+                      Blame
+                    </button>
+                    <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
+                      {fileLines.length} lines ({fileLocCount} loc) · {fileByteCount.toLocaleString()} Bytes
                     </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => onOpenCommitHistory?.(activeBranch)}
-                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                  >
-                    <History size={14} className="text-[var(--text-secondary)]" />
-                    History
-                  </button>
-                </div>
-              </div>
+                  </div>
 
-              <div className="px-4 py-2 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] inline-flex items-center gap-4">
-                <span className="text-[var(--text-primary)] font-semibold">Code</span>
-                <span>Blame</span>
-                <span>{fileLines.length} lines</span>
-              </div>
-
-              {fileLoading ? (
-                <div className="p-4 text-sm text-[var(--text-secondary)]">Loading file...</div>
-              ) : (
-                <div>
-                  <table className="w-full border-collapse text-sm font-mono">
-                    <tbody>
-                      {fileLines.map((line, index) => (
-                        <tr key={`${index + 1}-${line.slice(0, 12)}`}>
-                          <td className="w-[64px] px-3 py-1 text-right select-none text-[var(--text-muted)] bg-[var(--surface-subtle)] align-top border-r border-[var(--border-muted)]">{index + 1}</td>
-                          <td className="px-4 py-1 text-[var(--text-primary)] align-top">
-                            <pre className="whitespace-pre-wrap break-words">{line || " "}</pre>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Open file tree action">
+                      <FolderOpen size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Collaborators">
+                      <Users size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download from cloud">
+                      <Cloud size={13} />
+                    </button>
+                    <button type="button" className="h-7 px-2 rounded-md border border-[var(--border-default)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]">Raw</button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Copy raw content">
+                      <Copy size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download file">
+                      <Download size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file">
+                      <Pencil size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More file actions">
+                      <ChevronDown size={13} />
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Expand view">
+                      <Maximize2 size={13} />
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                {fileLoading ? (
+                  <div className="p-4 text-sm text-[var(--text-secondary)]">Loading file...</div>
+                ) : (
+                  <div>
+                    <table className="w-full border-collapse text-sm font-mono">
+                      <tbody>
+                        {fileLines.map((line, index) => (
+                          <tr key={`${index + 1}-${line.slice(0, 12)}`}>
+                            <td className="w-[64px] px-3 py-1 text-right select-none text-[var(--text-muted)] bg-[var(--surface-subtle)] align-top border-r border-[var(--border-muted)]">{index + 1}</td>
+                            <td className="px-4 py-1 text-[var(--text-primary)] align-top">
+                              <pre className="m-0 whitespace-pre-wrap break-words">{line || " "}</pre>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="min-w-0">
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 border-b border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
-                <span>Name</span>
-                <span>Last commit message</span>
-                <span className="text-right">Last commit date</span>
+            <div className="px-4 pb-4 space-y-3">
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+                      {authorInitial(latestCommit?.author || "")}
+                    </div>
+                    <div className="min-w-0 text-sm text-[var(--text-secondary)] truncate">
+                      <span className="font-semibold text-[var(--text-primary)] mr-2">{latestCommit?.author || "Unknown"}</span>
+                      <span className="truncate">{latestCommitMessage}</span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 inline-flex items-center gap-2">
+                    {latestCommit ? (
+                      <span className="hidden md:inline text-xs text-[var(--text-secondary)]">
+                        {shortHash(latestCommit.hash)} · {latestCommitWhen}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => onOpenCommitHistory?.(activeBranch)}
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
+                    >
+                      <History size={14} className="text-[var(--text-secondary)]" />
+                      History
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <ul>
-                {currentDirPath ? (
-                  <li className="border-b border-[var(--border-muted)]">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void openDirectory(getParentPath(currentDirPath));
-                      }}
-                      className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
-                    >
-                      <span className="min-w-0 inline-flex items-center gap-2 text-[var(--text-link)]">
-                        <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
-                        ..
-                      </span>
-                      <span className="text-[var(--text-secondary)] truncate">Go to parent directory</span>
-                      <span className="text-right text-[var(--text-secondary)]">-</span>
-                    </button>
-                  </li>
-                ) : null}
+              <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 border-b border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                  <span>Name</span>
+                  <span>Last commit message</span>
+                  <span className="text-right">Last commit date</span>
+                </div>
 
-                {currentEntries.map((entry) => (
-                  <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (entry.type === "DIR") {
-                          void openDirectory(entry.path);
-                        } else {
-                          openFile(entry.path);
-                        }
-                      }}
-                      className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
-                    >
-                      <span className="min-w-0 inline-flex items-center gap-2 text-left">
-                        {entry.type === "DIR" ? (
+                <ul>
+                  {currentDirPath ? (
+                    <li className="border-b border-[var(--border-muted)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void openDirectory(getParentPath(currentDirPath));
+                        }}
+                        className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
+                      >
+                        <span className="min-w-0 inline-flex items-center gap-2 text-[var(--text-link)]">
                           <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
-                        ) : (
-                          <FileIcon size={16} className="text-[var(--text-secondary)]" />
-                        )}
-                        <span className="truncate text-[var(--text-link)]">{entry.name}</span>
-                      </span>
-                      <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
-                        <FileText size={12} className="text-[var(--text-muted)]" />
-                        {latestCommitMessage}
-                      </span>
-                      <span className="text-right text-[var(--text-secondary)]">{latestCommitWhen}</span>
-                    </button>
-                  </li>
-                ))}
+                          ..
+                        </span>
+                        <span className="text-right text-[var(--text-secondary)]">-</span>
+                      </button>
+                    </li>
+                  ) : null}
 
-                {currentEntries.length === 0 && !loadingPathSet.has(normalizePath(currentDirPath)) ? (
-                  <li className="px-4 py-6 text-sm text-[var(--text-secondary)]">No files found in this directory.</li>
-                ) : null}
-              </ul>
+                  {currentEntries.map((entry) => (
+                    <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (entry.type === "DIR") {
+                            void openDirectory(entry.path);
+                          } else {
+                            openFile(entry.path);
+                          }
+                        }}
+                        className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
+                      >
+                        <span className="min-w-0 inline-flex items-center gap-2 text-left">
+                          {entry.type === "DIR" ? (
+                            <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
+                          ) : (
+                            <FileIcon size={16} className="text-[var(--text-secondary)]" />
+                          )}
+                          <span className="truncate text-[var(--text-link)]">{entry.name}</span>
+                        </span>
+                        <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
+                          <FileText size={12} className="text-[var(--text-muted)]" />
+                          {latestCommitMessage}
+                        </span>
+                        <span className="text-right text-[var(--text-secondary)]">{latestCommitWhen}</span>
+                      </button>
+                    </li>
+                  ))}
+
+                  {currentEntries.length === 0 && !loadingPathSet.has(normalizePath(currentDirPath)) ? (
+                    <li className="px-4 py-6 text-sm text-[var(--text-secondary)]">No files found in this directory.</li>
+                  ) : null}
+                </ul>
+              </div>
             </div>
           )}
         </section>

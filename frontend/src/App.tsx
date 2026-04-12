@@ -1309,7 +1309,9 @@ function App () {
                   repoId={selectedRepo.id}
                   repoName={selectedRepo.name}
                   branch={currentBranch || routeBranch || defaultBranchName}
+                  branches={branches}
                   initialDirectoryPath={routeContentPath}
+                  onSelectBranch={handleSelectBranch}
                   onCancel={() => navigateToRepoContent(selectedRepo, 'tree', routeContentPath, currentBranch || routeBranch || defaultBranchName)}
                   onCommitted={(createdFilePath: string) => navigateToRepoContent(selectedRepo, 'blob', createdFilePath, currentBranch || routeBranch || defaultBranchName)}
                 />
