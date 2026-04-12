@@ -57,3 +57,27 @@ func ValidateCommitFileChangeInput(branch string, filePath string,
 
 	return nil
 }
+
+func ValidateCommitFilesChangeInput(branch string, files map[string]string,
+	commitMessage string) error {
+
+	if err := ValidateBranchName(branch); err != nil {
+		return err
+	}
+
+	if len(files) == 0 {
+		return errors.New("at least one file is required")
+	}
+
+	for filePath := range files {
+		if strings.TrimSpace(filePath) == "" {
+			return errors.New("file path is required")
+		}
+	}
+
+	if strings.TrimSpace(commitMessage) == "" {
+		return errors.New("commit message is required")
+	}
+
+	return nil
+}

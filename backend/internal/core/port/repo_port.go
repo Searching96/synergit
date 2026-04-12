@@ -38,4 +38,6 @@ type RepoUsecase interface {
 	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
 	CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,
 		filePath string, content string, commitMessage string) error
+	CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,
+		files map[string]string, commitMessage string) error
 }

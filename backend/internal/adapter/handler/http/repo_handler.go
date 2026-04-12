@@ -421,3 +421,34 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "file committed successfully"})
 }
+
+func (h *RepoHandler) HandleCommitFilesChange(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.CommitFilesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	files := make(map[string]string, len(req.Files))
+	for _, item := range req.Files {
+		files[item.Path] = item.Content
+	}
+
+	err := h.repoUsecase.CommitFilesChange(repoID, requesterID, req.Branch, files, req.CommitMessage)
+	if err != nil {
+		respondUsecaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "files committed successfully"})
+}

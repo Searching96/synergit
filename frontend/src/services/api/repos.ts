@@ -5,6 +5,7 @@ import type {
   CreateRepositoryPayload,
   RepoInsightsSnapshot,
   CommitFileChangePayload,
+  CommitFilesChangePayload,
   CreateBranchPayload,
   RepoFile,
   Repository,
@@ -29,6 +30,13 @@ export const reposApi = {
 
   commitFileChange: (repoId: string, payload: CommitFileChangePayload) =>
     fetcher<{ message: string }>(`/repos/${repoId}/commit-file`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
+  commitFilesChange: (repoId: string, payload: CommitFilesChangePayload) =>
+    fetcher<{ message: string }>(`/repos/${repoId}/commit-files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

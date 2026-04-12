@@ -25,8 +25,9 @@ import {
   Workflow,
   X,
 } from "lucide-react";
-import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
+import { RepoIcon } from "@primer/octicons-react";
 import FileExplorer from "./components/repository/code/FileExplorer";
+import RepoTreeBrowserPage from "./components/repository/code/RepoTreeBrowserPage.tsx";
 import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
 import PullRequestList from "./components/repository/pulls/PullRequestList";
@@ -41,6 +42,8 @@ import RepoSecurityPage from "./components/repository/pages/RepoSecurityPage";
 import RepoSettingsPage from "./components/repository/pages/RepoSettingsPage";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
 import CommitHistory from "./components/repository/code/CommitHistory";
+import NewFilePage from "./components/repository/code/NewFilePage.tsx";
+import UploadFilesPage from "./components/repository/code/UploadFilesPage.tsx";
 import type { ProfileTabKey } from "./components/profile/pages/profileTypes";
 import { formatVisibilityLabel } from "./utils/visibility";
 
@@ -136,7 +139,7 @@ const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-type RepoContentKind = 'root' | 'tree' | 'blob' | 'commits';
+type RepoContentKind = 'root' | 'tree' | 'blob' | 'commits' | 'new' | 'upload';
 
 type ParsedRoute = {
   viewMode: 'profile' | 'repo' | 'create-repo' | 'global';
@@ -206,6 +209,32 @@ function buildRepoCommitsPath(owner: string, repoName: string, branch: string): 
   const base = buildRepoBasePath(owner, repoName);
   const safeBranch = branch.trim() || 'master';
   return `${base}/commits/${encodeURIComponent(safeBranch)}`;
+}
+
+function buildRepoNewFilePath(owner: string, repoName: string, branch: string, contentPath: string = ''): string {
+  const base = buildRepoBasePath(owner, repoName);
+  const safeBranch = branch.trim() || 'master';
+  const encodedPath = encodePathSegments(contentPath);
+  const branchSegment = encodeURIComponent(safeBranch);
+
+  if (!encodedPath) {
+    return `${base}/new/${branchSegment}`;
+  }
+
+  return `${base}/new/${branchSegment}/${encodedPath}`;
+}
+
+function buildRepoUploadFilesPath(owner: string, repoName: string, branch: string, contentPath: string = ''): string {
+  const base = buildRepoBasePath(owner, repoName);
+  const safeBranch = branch.trim() || 'master';
+  const encodedPath = encodePathSegments(contentPath);
+  const branchSegment = encodeURIComponent(safeBranch);
+
+  if (!encodedPath) {
+    return `${base}/upload/${branchSegment}`;
+  }
+
+  return `${base}/upload/${branchSegment}/${encodedPath}`;
 }
 
 function normalizeCommitFilterSearch(search: string): string {
@@ -343,6 +372,30 @@ function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (segments[2] === 'new' || segments[2] === 'upload') {
+      const contentKind = segments[2] as 'new' | 'upload';
+      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
+      const contentPath = decodePathSegments(segments.slice(4));
+      const encodedContentPath = encodePathSegments(contentPath);
+      let normalizedPath = `/repos/${encodeURIComponent(repoId)}/${contentKind}/${encodeURIComponent(branch)}`;
+      if (encodedContentPath) {
+        normalizedPath = `${normalizedPath}/${encodedContentPath}`;
+      }
+
+      return {
+        viewMode: 'repo',
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: 'files',
+        contentKind,
+        contentPath,
+        branch,
+        globalPage: null,
+        normalizedPath,
+      };
+    }
+
     const tabSegment = segments[2] || 'files';
     const tab = TAB_KEY_SET.has(tabSegment as TabKey)
       ? (tabSegment as TabKey)
@@ -423,6 +476,30 @@ function parseAppPath(pathname: string): ParsedRoute {
         branch,
         globalPage: null,
         normalizedPath: buildRepoCommitsPath(repoOwner, repoName, branch),
+      };
+    }
+
+    if (third === 'new' || third === 'upload') {
+      const contentKind = third as 'new' | 'upload';
+      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
+      const contentPath = decodePathSegments(segments.slice(4));
+      const encodedContentPath = encodePathSegments(contentPath);
+      let normalizedPath = `${base}/${contentKind}/${encodeURIComponent(branch)}`;
+      if (encodedContentPath) {
+        normalizedPath = `${normalizedPath}/${encodedContentPath}`;
+      }
+
+      return {
+        viewMode: 'repo',
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: 'files',
+        contentKind,
+        contentPath,
+        branch,
+        globalPage: null,
+        normalizedPath,
       };
     }
 
@@ -590,6 +667,10 @@ function App () {
           } else if (parsed.contentKind === 'commits') {
             canonicalPath = buildRepoCommitsPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName);
             canonicalSearch = normalizeCommitFilterSearch(search);
+          } else if (parsed.contentKind === 'new') {
+            canonicalPath = buildRepoNewFilePath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
+          } else if (parsed.contentKind === 'upload') {
+            canonicalPath = buildRepoUploadFilesPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
           } else {
             canonicalPath = buildRepoBasePath(owner, targetRepo.name);
           }
@@ -769,6 +850,10 @@ function App () {
   const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
   const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
+  const isFullBrowserMode =
+    !!selectedRepo &&
+    activeTab === 'files' &&
+    (routeContentKind === 'tree' || routeContentKind === 'blob');
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -797,7 +882,7 @@ function App () {
 
   const navigateToRepoContent = useCallback((
     repo: Repository,
-    contentKind: Exclude<RepoContentKind, 'commits'>,
+    contentKind: 'root' | 'tree' | 'blob',
     contentPath: string,
     branchName: string,
   ) => {
@@ -827,28 +912,15 @@ function App () {
     navigateToPath(`${basePath}${normalizeCommitFilterSearch(search)}`);
   }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
-  const handleCreateBranch = async (branchName: string) => {
-    if (!selectedRepoId || !branchName.trim()) {
-      throw new Error('Invalid branch name');
-    }
+  const navigateToRepoNewFile = useCallback((repo: Repository, branchName: string, contentPath: string = '') => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoNewFilePath(owner, repo.name, branchName || defaultBranchName, contentPath));
+  }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
-    await reposApi.createBranch(selectedRepoId, {
-      name: branchName.trim(),
-      from_branch: currentBranch || undefined,
-    });
-
-    await refreshBranches();
-    setCurrentBranch(branchName.trim());
-
-    if (selectedRepo && activeTab === 'files') {
-      const nextBranch = branchName.trim();
-      if (routeContentKind === 'commits') {
-        navigateToRepoCommits(selectedRepo, nextBranch, window.location.search);
-      } else {
-        navigateToRepoContent(selectedRepo, routeContentKind, routeContentPath, nextBranch);
-      }
-    }
-  };
+  const navigateToRepoUploadFiles = useCallback((repo: Repository, branchName: string, contentPath: string = '') => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoUploadFilesPath(owner, repo.name, branchName || defaultBranchName, contentPath));
+  }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
   const handleSelectBranch = (branchName: string) => {
     setCurrentBranch(branchName);
@@ -859,6 +931,16 @@ function App () {
 
     if (routeContentKind === 'commits') {
       navigateToRepoCommits(selectedRepo, branchName, window.location.search);
+      return;
+    }
+
+    if (routeContentKind === 'new') {
+      navigateToRepoNewFile(selectedRepo, branchName, routeContentPath);
+      return;
+    }
+
+    if (routeContentKind === 'upload') {
+      navigateToRepoUploadFiles(selectedRepo, branchName, routeContentPath);
       return;
     }
 
@@ -1181,7 +1263,7 @@ function App () {
       </header>
 
       <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto">
-        <div className="max-w-[1400px] mx-auto px-4 py-6 h-full">
+        <div className={isFullBrowserMode ? "w-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
         {!selectedRepo ? (
           <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
             <div className="text-center space-y-3">
@@ -1196,42 +1278,21 @@ function App () {
             </div>
           </div>
         ) : (
-          <div className="w-full h-full min-h-0 flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <RepositoryIcon size={20} className="text-[var(--text-secondary)]" />
-                <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
-                <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
-                  {selectedRepoVisibility}
-                </span>
+          <div className={isFullBrowserMode ? "w-full" : "w-full h-full min-h-0 flex flex-col gap-4"}>
+            {!isFullBrowserMode ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <RepositoryIcon size={20} className="text-[var(--text-secondary)]" />
+                  <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
+                  <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
+                    {selectedRepoVisibility}
+                  </span>
+                </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)]"
-                >
-                  Unwatch
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                >
-                  <RepoForkedIcon size={14} />
-                  Fork
-                </button>
-                <button
-                  type="button"
-                  className="px-3 py-1.5 text-sm font-medium border border-[var(--border-default)] bg-[var(--surface-canvas)] rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                >
-                  <StarIcon size={14} />
-                  Star
-                </button>
-              </div>
-            </div>
+            ) : null}
 
             {/* Dynamic Content Area */}
-            <div className="flex-1 min-h-0">
+            <div className={isFullBrowserMode ? "w-full" : "flex-1 min-h-0"}>
               {activeTab === 'files' && routeContentKind === 'commits' && (
                 <CommitHistory
                   repoId={selectedRepo.id}
@@ -1243,7 +1304,41 @@ function App () {
                   onBrowseAtCommit={(commitHash) => navigateToRepoContent(selectedRepo, 'tree', '', commitHash)}
                 />
               )}
-              {activeTab === 'files' && routeContentKind !== 'commits' && (
+              {activeTab === 'files' && routeContentKind === 'new' && (
+                <NewFilePage
+                  repoId={selectedRepo.id}
+                  repoName={selectedRepo.name}
+                  branch={currentBranch || routeBranch || defaultBranchName}
+                  initialDirectoryPath={routeContentPath}
+                  onCancel={() => navigateToRepoContent(selectedRepo, 'tree', routeContentPath, currentBranch || routeBranch || defaultBranchName)}
+                  onCommitted={(createdFilePath: string) => navigateToRepoContent(selectedRepo, 'blob', createdFilePath, currentBranch || routeBranch || defaultBranchName)}
+                />
+              )}
+              {activeTab === 'files' && routeContentKind === 'upload' && (
+                <UploadFilesPage
+                  repoId={selectedRepo.id}
+                  repoName={selectedRepo.name}
+                  branch={currentBranch || routeBranch || defaultBranchName}
+                  initialDirectoryPath={routeContentPath}
+                  onCancel={() => navigateToRepoContent(selectedRepo, 'tree', routeContentPath, currentBranch || routeBranch || defaultBranchName)}
+                  onCommitted={(targetDirectoryPath: string) => navigateToRepoContent(selectedRepo, 'tree', targetDirectoryPath, currentBranch || routeBranch || defaultBranchName)}
+                />
+              )}
+              {activeTab === 'files' && (routeContentKind === 'tree' || routeContentKind === 'blob') && (
+                <RepoTreeBrowserPage
+                  repoId={selectedRepo.id}
+                  repoName={selectedRepo.name}
+                  branch={currentBranch || routeBranch || defaultBranchName}
+                  branches={branches}
+                  initialLocation={explorerInitialLocation}
+                  onNavigateLocation={handleNavigateRepoLocation}
+                  onSelectBranch={handleSelectBranch}
+                  onOpenCommitHistory={(branchName) => navigateToRepoCommits(selectedRepo, branchName, window.location.search)}
+                  onOpenCreateFile={(branchName, directoryPath) => navigateToRepoNewFile(selectedRepo, branchName, directoryPath)}
+                  onOpenUploadFiles={(branchName, directoryPath) => navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath)}
+                />
+              )}
+              {activeTab === 'files' && routeContentKind === 'root' && (
                 <FileExplorer
                   repoId={selectedRepo.id}
                   repoName={selectedRepo.name}
@@ -1255,8 +1350,9 @@ function App () {
                   initialLocation={explorerInitialLocation}
                   onNavigateLocation={handleNavigateRepoLocation}
                   onSelectBranch={handleSelectBranch}
-                  onCreateBranch={handleCreateBranch}
                   onOpenCommitHistory={(branchName) => navigateToRepoCommits(selectedRepo, branchName)}
+                  onOpenCreateFile={(branchName, directoryPath) => navigateToRepoNewFile(selectedRepo, branchName, directoryPath)}
+                  onOpenUploadFiles={(branchName, directoryPath) => navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath)}
                 />
               )}
               {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}
@@ -1279,6 +1375,26 @@ function App () {
         )}
         </div>
       </main>
+
+      {!isFullBrowserMode ? (
+        <footer className="border-t border-[var(--border-muted)] py-4 text-xs text-[var(--text-secondary)] bg-[var(--surface-canvas)]">
+          <div className="max-w-[1400px] mx-auto px-4 flex flex-wrap gap-4 items-center justify-center">
+            <span className="inline-flex items-center gap-1.5">
+              <Github size={16} className="text-[var(--text-secondary)]" />
+              (c) 2026 GitHub, Inc.
+            </span>
+            <span>Terms</span>
+            <span>Privacy</span>
+            <span>Security</span>
+            <span>Status</span>
+            <span>Community</span>
+            <span>Docs</span>
+            <span>Contact</span>
+            <span>Manage cookies</span>
+            <span>Do not share my personal information</span>
+          </div>
+        </footer>
+      ) : null}
 
       {isRepoDrawerOpen && (
         <div className="fixed inset-0 z-50">

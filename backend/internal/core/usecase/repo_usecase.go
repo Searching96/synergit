@@ -439,6 +439,34 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 	return nil
 }
 
+func (s *RepoService) CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
+	branch string, files map[string]string, commitMessage string) error {
+	if err := domain.ValidateCommitFilesChangeInput(branch, files,
+		commitMessage); err != nil {
+
+		return err
+	}
+
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return err
+	}
+
+	user, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || user == nil {
+		return errors.New("requester user not found")
+	}
+
+	if err := s.gitManager.CommitFilesChange(repoPath, branch, files,
+		user.Username, commitMessage); err != nil {
+		return err
+	}
+
+	s.enqueueInsights(repoID, "commit_files_change")
+
+	return nil
+}
+
 func (s *RepoService) enqueueInsights(repoID uuid.UUID, trigger string) {
 	if s.repoInsightsScheduler == nil {
 		return

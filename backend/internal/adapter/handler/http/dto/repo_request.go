@@ -22,3 +22,14 @@ type CommitFileRequest struct {
 	Content       string `json:"content"`
 	CommitMessage string `json:"commit_message"`
 }
+
+type CommitFileEntryRequest struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+type CommitFilesRequest struct {
+	Branch        string                   `json:"branch"`
+	Files         []CommitFileEntryRequest `json:"files"`
+	CommitMessage string                   `json:"commit_message"`
+}

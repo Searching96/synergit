@@ -157,3 +157,14 @@ export interface CommitFileChangePayload {
 	content: string;
 	commit_message: string;
 }
+
+export interface CommitFileEntryPayload {
+	path: string;
+	content: string;
+}
+
+export interface CommitFilesChangePayload {
+	branch: string;
+	files: CommitFileEntryPayload[];
+	commit_message: string;
+}

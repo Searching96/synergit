@@ -129,6 +129,7 @@ func main() {
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)
 			repos.POST("/:repo_id/commit-file", repoHandler.HandleCommitFileChange)
+			repos.POST("/:repo_id/commit-files", repoHandler.HandleCommitFilesChange)
 			repos.GET("/:repo_id/insights", repoInsightsHandler.HandleGetLatestInsights)
 			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 

@@ -36,6 +36,8 @@ type GitManager interface {
 		fromBranch string) (*domain.Branch, error)
 	CommitFileChange(repoPath string, branch string, filePath string,
 		content string, authorName string, commitMessage string) error
+	CommitFilesChange(repoPath string, branch string, files map[string]string,
+		authorName string, commitMessage string) error
 	MergeBranches(repoPath string, sourceBranch string, targetBranch string,
 		mergerName string, commitMessage string) error
 

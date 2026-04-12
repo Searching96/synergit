@@ -19,6 +19,7 @@ import { FileDirectoryFillIcon, FileIcon, HistoryIcon } from "@primer/octicons-r
 import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
+import BranchTagMenu from "./BranchTagMenu";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -36,8 +37,9 @@ interface FileExplorerProps {
   branch: string;
   branches: Branch[];
   onSelectBranch: (branchName: string) => void;
-  onCreateBranch: (branchName: string) => Promise<void>;
   onOpenCommitHistory?: (branchName: string) => void;
+  onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
+  onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
 }
 
 function sortEntries(entries: RepoFile[]): RepoFile[] {
@@ -60,10 +62,6 @@ function commitMessagePlaceholder(item: RepoFile): string {
 
 function shortCommitHash(hash: string): string {
   return hash.trim().slice(0, 7);
-}
-
-function isCommitLikeRef(value: string): boolean {
-  return /^[0-9a-f]{7,40}$/i.test(value.trim());
 }
 
 function formatRelativeCommitTime(dateValue: string): string {
@@ -290,13 +288,13 @@ export default function FileExplorer({
   repoDescription,
   repoOwner,
   cloneUrl: backendCloneUrl,
-  initialLocation,
   onNavigateLocation,
   branch,
   branches,
   onSelectBranch,
-  onCreateBranch,
   onOpenCommitHistory,
+  onOpenCreateFile,
+  onOpenUploadFiles,
 }: FileExplorerProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -309,7 +307,7 @@ export default function FileExplorer({
 
   const [rootLoading, setRootLoading] = useState<boolean>(true);
   const [dirLoading, setDirLoading] = useState<boolean>(false);
-  const [fileLoading, setFileLoading] = useState<boolean>(false);
+  const [fileLoading] = useState<boolean>(false);
   const [readmeLoading, setReadmeLoading] = useState<boolean>(false);
 
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -324,23 +322,13 @@ export default function FileExplorer({
   const [readmeEditError, setReadmeEditError] = useState<string | null>(null);
   const [languageBreakdown, setLanguageBreakdown] = useState<LanguageBreakdownStat[]>([]);
   const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
-  const [isCreatingBranch, setIsCreatingBranch] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
   const [commitsLoading, setCommitsLoading] = useState<boolean>(false);
-  const [branchCreateInput, setBranchCreateInput] = useState<string>("");
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
   const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
-  const [branchPickerTab, setBranchPickerTab] = useState<"branches" | "tags">("branches");
   const [isBranchesPageOpen, setIsBranchesPageOpen] = useState<boolean>(false);
-
-  const normalizedInitialPath = useMemo(() => {
-    return (initialLocation?.path || "")
-      .split("/")
-      .filter(Boolean)
-      .join("/");
-  }, [initialLocation?.path]);
 
   const rootEntries = useMemo(() => sortEntries(entriesByPath[""] || []), [entriesByPath]);
   const currentEntries = useMemo(
@@ -352,7 +340,7 @@ export default function FileExplorer({
     [rootEntries],
   );
 
-  const isRootMode = selectedFilePath === null && currentDirPath === "";
+  const isRootMode = true;
   const cloneUrl = useMemo(() => {
     if (backendCloneUrl && backendCloneUrl.trim()) {
       return backendCloneUrl.trim();
@@ -397,21 +385,13 @@ export default function FileExplorer({
     [cloneUrl],
   );
   const defaultBranch = branches.find((item) => item.is_default) || branches[0] || null;
+  const activeBranchForAddFile = (branch || defaultBranch?.name || "master").trim() || "master";
+  const displayedBranchLabel = (branch || defaultBranch?.name || "master").trim() || "master";
   const nonDefaultBranches = defaultBranch
     ? branches.filter((item) => item.name !== defaultBranch.name)
     : branches;
   const yourBranches = nonDefaultBranches.slice(0, 1);
   const activeBranches = nonDefaultBranches.slice(1);
-  const displayedBranchLabel = useMemo(() => {
-    const currentBranch = (branch || "master").trim() || "master";
-    const isKnownBranch = branches.some((item) => item.name === currentBranch);
-
-    if (!isKnownBranch && isCommitLikeRef(currentBranch)) {
-      return shortCommitHash(currentBranch);
-    }
-
-    return currentBranch;
-  }, [branch, branches]);
 
   const loadDir = useCallback(
     async (path: string, isRoot: boolean) => {
@@ -434,30 +414,6 @@ export default function FileExplorer({
         } else {
           setDirLoading(false);
         }
-      }
-    },
-    [repoId, branch],
-  );
-
-  const loadBlob = useCallback(
-    async (path: string) => {
-      try {
-        setLoadError(null);
-        setFileLoading(true);
-        setCommitError(null);
-
-        const data = await reposApi.getBlob(repoId, path, branch);
-        const content = typeof data === "string" ? data : data.content;
-
-        setFileContent(content);
-        setDraftContent(content);
-        setIsEditing(false);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to load file";
-        setLoadError(message);
-        setFileContent(null);
-      } finally {
-        setFileLoading(false);
       }
     },
     [repoId, branch],
@@ -487,7 +443,6 @@ export default function FileExplorer({
     setIsBranchMenuOpen(false);
     setIsCodeMenuOpen(false);
     setIsBranchesPageOpen(false);
-    setBranchPickerTab("branches");
     void loadDir("", true);
   }, [repoId, branch, loadDir]);
 
@@ -636,53 +591,20 @@ export default function FileExplorer({
       return;
     }
 
-    setCurrentDirPath(path);
-    setSelectedFilePath(null);
-    setFileContent(null);
-    setCommitError(null);
-    setIsEditing(false);
     setIsBranchesPageOpen(false);
-    expandPathAncestors(path);
 
-    if (!entriesByPath[path]) {
-      void loadDir(path, false);
-    }
     if (syncLocation) {
       notifyLocation({ type: "dir", path });
     }
-  }, [entriesByPath, loadDir, notifyLocation, openRoot]);
+  }, [notifyLocation, openRoot]);
 
   const openFile = useCallback((path: string, syncLocation: boolean = true) => {
-    setSelectedFilePath(path);
-    setCurrentDirPath(getParentPath(path));
     setIsBranchesPageOpen(false);
-    expandPathAncestors(getParentPath(path));
-    if (!entriesByPath[getParentPath(path)]) {
-      void loadDir(getParentPath(path), false);
-    }
-    void loadBlob(path);
+
     if (syncLocation) {
       notifyLocation({ type: "file", path });
     }
-  }, [entriesByPath, loadBlob, loadDir, notifyLocation]);
-
-  useEffect(() => {
-    if (!initialLocation) {
-      return;
-    }
-
-    if (initialLocation.type === "root" || !normalizedInitialPath) {
-      openRoot(false);
-      return;
-    }
-
-    if (initialLocation.type === "file") {
-      openFile(normalizedInitialPath, false);
-      return;
-    }
-
-    openDirectory(normalizedInitialPath, false);
-  }, [initialLocation?.type, normalizedInitialPath, repoId, branch]);
+  }, [notifyLocation]);
 
   const toggleExpand = (path: string) => {
     setExpandedDirs((prev) => {
@@ -745,23 +667,6 @@ export default function FileExplorer({
       setReadmeEditError(err instanceof Error ? err.message : "Failed to commit README changes");
     } finally {
       setIsCommittingReadme(false);
-    }
-  };
-
-  const handleCreateBranchFromDropdown = async () => {
-    const nextBranch = branchCreateInput.trim();
-    if (!nextBranch) return;
-
-    try {
-      setIsCreatingBranch(true);
-      await onCreateBranch(nextBranch);
-      setBranchCreateInput("");
-      setIsBranchMenuOpen(false);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to create branch";
-      setLoadError(message);
-    } finally {
-      setIsCreatingBranch(false);
     }
   };
 
@@ -894,7 +799,6 @@ export default function FileExplorer({
                   onClick={() => {
                     setIsBranchesPageOpen(false);
                     setIsBranchMenuOpen(true);
-                    setBranchPickerTab("branches");
                   }}
                   className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)]"
                 >
@@ -1109,93 +1013,27 @@ export default function FileExplorer({
               )}
 
               <div className="relative z-20">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsBranchMenuOpen((prev) => !prev);
+                <BranchTagMenu
+                  branches={branches}
+                  currentBranch={branch}
+                  isOpen={isBranchMenuOpen}
+                  onOpenChange={(open) => {
+                    setIsBranchMenuOpen(open);
+                    if (open) {
+                      setIsCodeMenuOpen(false);
+                      setIsAddFileMenuOpen(false);
+                    }
+                  }}
+                  onSelectBranch={(nextBranch) => {
+                    onSelectBranch(nextBranch);
+                    setIsBranchMenuOpen(false);
+                  }}
+                  onViewAllBranches={() => {
+                    setIsBranchesPageOpen(true);
                     setIsCodeMenuOpen(false);
                     setIsAddFileMenuOpen(false);
-                    setBranchPickerTab("branches");
                   }}
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                >
-                  <GitBranch size={14} className="text-[var(--text-secondary)]" />
-                  {displayedBranchLabel}
-                  <ChevronDown size={14} className="text-[var(--text-secondary)]" />
-                </button>
-
-                {isBranchMenuOpen && (
-                  <div className="absolute left-0 top-[calc(100%+6px)] w-[320px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
-                    <div className="grid grid-cols-2 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)]">
-                      <button
-                        type="button"
-                        onClick={() => setBranchPickerTab("branches")}
-                        className={`h-10 ${
-                          branchPickerTab === "branches"
-                            ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
-                            : "hover:bg-[var(--surface-subtle)]"
-                        }`}
-                      >
-                        Branches
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBranchPickerTab("tags")}
-                        className={`h-10 ${
-                          branchPickerTab === "tags"
-                            ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
-                            : "hover:bg-[var(--surface-subtle)]"
-                        }`}
-                      >
-                        Tags
-                      </button>
-                    </div>
-
-                    {branchPickerTab === "branches" ? (
-                      <>
-                        <div className="max-h-56 overflow-auto py-1">
-                          {branches.map((item) => (
-                            <button
-                              key={item.name}
-                              type="button"
-                              onClick={() => {
-                                onSelectBranch(item.name);
-                                setIsBranchMenuOpen(false);
-                              }}
-                              className={`w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-subtle)] ${
-                                item.name === branch ? "text-[var(--text-link)] font-medium" : "text-[var(--text-primary)]"
-                              }`}
-                            >
-                              {item.name}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="px-3 py-2 border-t border-[var(--border-default)] space-y-2">
-                          <p className="text-xs text-[var(--text-secondary)]">Create new branch from {displayedBranchLabel}</p>
-                          <div className="flex items-center gap-2">
-                            <input
-                              value={branchCreateInput}
-                              onChange={(e) => setBranchCreateInput(e.target.value)}
-                              placeholder="new-branch-name"
-                              className="flex-1 h-8 rounded-md border border-[var(--border-default)] px-2 text-sm"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => void handleCreateBranchFromDropdown()}
-                              disabled={isCreatingBranch || !branchCreateInput.trim()}
-                              className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-                            >
-                              {isCreatingBranch ? "..." : "Create"}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No tags found.</div>
-                    )}
-                  </div>
-                )}
+                />
               </div>
 
               <button
@@ -1249,6 +1087,10 @@ export default function FileExplorer({
                     <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
                       <button
                         type="button"
+                        onClick={() => {
+                          onOpenCreateFile?.(activeBranchForAddFile, currentDirPath || "");
+                          setIsAddFileMenuOpen(false);
+                        }}
                         className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                       >
                         <Plus size={14} className="text-[var(--text-secondary)]" />
@@ -1256,6 +1098,10 @@ export default function FileExplorer({
                       </button>
                       <button
                         type="button"
+                        onClick={() => {
+                          onOpenUploadFiles?.(activeBranchForAddFile, currentDirPath || "");
+                          setIsAddFileMenuOpen(false);
+                        }}
                         className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                       >
                         <Upload size={14} className="text-[var(--text-secondary)]" />
@@ -1336,33 +1182,42 @@ export default function FileExplorer({
 
             <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
               <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+                {/* LEFT SIDE: Avatar and Message */}
                 <div className="min-w-0 flex items-center gap-3">
-                  <div className="h-7 w-7 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
+                  <div className="h-7 w-7 shrink-0 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
                     {((latestCommit?.author || repoOwner || "U").trim().charAt(0) || "U").toUpperCase()}
                   </div>
 
                   {latestCommit ? (
                     <div className="min-w-0 flex items-center gap-1 text-sm">
                       <span className="font-semibold text-[var(--text-primary)] truncate max-w-[180px]">{latestCommit.author}</span>
-                      <span className="text-[var(--text-muted)]">·</span>
                       <span className="text-[var(--text-secondary)] truncate">{latestCommit.message}</span>
-                      <span className="hidden sm:inline text-[var(--text-muted)]">{shortCommitHash(latestCommit.hash)}</span>
-                      <span className="hidden sm:inline text-[var(--text-muted)]">{formatRelativeCommitTime(latestCommit.date)}</span>
                     </div>
                   ) : (
                     <p className="text-sm text-[var(--text-secondary)]">No commits yet.</p>
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onOpenCommitHistory?.(branch || "master")}
-                  disabled={commitsLoading}
-                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60 inline-flex items-center gap-2"
-                >
-                  <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
-                  {commitsLoading ? "Loading..." : commitCountLabel}
-                </button>
+                {/* RIGHT SIDE: Hash, Time, and Button */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {latestCommit && (
+                    <div className="hidden sm:flex items-center gap-0.5 text-sm text-[var(--text-muted)]">
+                      <span>{shortCommitHash(latestCommit.hash)}</span>
+                      <span className="text-[var(--text-muted)]">·</span>
+                      <span>{formatRelativeCommitTime(latestCommit.date)}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => onOpenCommitHistory?.(branch || "master")}
+                    disabled={commitsLoading}
+                    className="h-8 px-3 rounded-md bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60 inline-flex items-center gap-2"
+                  >
+                    <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
+                    {commitsLoading ? "Loading..." : commitCountLabel}
+                  </button>
+                </div>
               </div>
 
               <ul>

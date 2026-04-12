@@ -544,6 +544,89 @@ func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 	return nil
 }
 
+func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
+	files map[string]string, authorName string, commitMessage string) error {
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+
+	tempDir, err := os.MkdirTemp("", "synergit-edit-commit-many-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	if err := runGit("checkout", "-B", branch, "origin/"+branch); err != nil {
+		return fmt.Errorf("failed to checkout branch: %w", err)
+	}
+
+	filePaths := make([]string, 0, len(files))
+	for filePath := range files {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		cleanPath := filepath.Clean(filepath.FromSlash(filePath))
+		if cleanPath == "." || filepath.IsAbs(cleanPath) {
+			return errors.New("invalid file path")
+		}
+
+		fullPath := filepath.Join(tempDir, cleanPath)
+		relPath, err := filepath.Rel(tempDir, fullPath)
+		if err != nil || strings.HasPrefix(relPath, "..") {
+			return errors.New("invalid file path")
+		}
+
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
+			return fmt.Errorf("failed to create file directory: %w", err)
+		}
+
+		if err := os.WriteFile(fullPath, []byte(files[filePath]), 0644); err != nil {
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+
+		if err := runGit("add", cleanPath); err != nil {
+			return fmt.Errorf("failed to stage file: %w", err)
+		}
+	}
+
+	email := fmt.Sprintf("%s@synergit.local", authorName)
+	if err := runGit("config", "user.name", authorName); err != nil {
+		return err
+	}
+	if err := runGit("config", "user.email", email); err != nil {
+		return err
+	}
+
+	if err := runGit("commit", "-m", commitMessage); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "nothing to commit") {
+			return errors.New("no changes to commit")
+		}
+		return fmt.Errorf("failed to commit changes: %w", err)
+	}
+
+	if err := runGit("push", "origin", branch); err != nil {
+		return fmt.Errorf("failed to push branch: %w", err)
+	}
+
+	return nil
+}
+
 func (g *LocalGitAdapter) MergeBranches(
 	repoPath string, sourceBranch string, targetBranch string,
 	mergerName string, commitMessage string,
