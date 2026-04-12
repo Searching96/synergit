@@ -853,7 +853,7 @@ function App () {
   const isFullBrowserMode =
     !!selectedRepo &&
     activeTab === 'files' &&
-    (routeContentKind === 'tree' || routeContentKind === 'blob');
+    (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new');
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -1263,7 +1263,7 @@ function App () {
       </header>
 
       <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto">
-        <div className={isFullBrowserMode ? "w-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
+        <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
         {!selectedRepo ? (
           <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
             <div className="text-center space-y-3">
@@ -1278,7 +1278,7 @@ function App () {
             </div>
           </div>
         ) : (
-          <div className={isFullBrowserMode ? "w-full" : "w-full h-full min-h-0 flex flex-col gap-4"}>
+          <div className={isFullBrowserMode ? "w-full min-h-full flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
             {!isFullBrowserMode ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -1292,7 +1292,7 @@ function App () {
             ) : null}
 
             {/* Dynamic Content Area */}
-            <div className={isFullBrowserMode ? "w-full" : "flex-1 min-h-0"}>
+            <div className={isFullBrowserMode ? "w-full flex-1 min-h-full" : "flex-1 min-h-0"}>
               {activeTab === 'files' && routeContentKind === 'commits' && (
                 <CommitHistory
                   repoId={selectedRepo.id}

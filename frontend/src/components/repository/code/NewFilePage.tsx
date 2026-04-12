@@ -71,6 +71,180 @@ function sortEntries(entries: RepoFile[]): RepoFile[] {
   });
 }
 
+function hasSelection(textarea: HTMLTextAreaElement): boolean {
+  return textarea.selectionStart !== textarea.selectionEnd;
+}
+
+function leadingIndentation(line: string): string {
+  return (line.match(/^[\t ]*/) || [""])[0];
+}
+
+function getCurrentLineBounds(value: string, cursorPosition: number): { lineStart: number; lineEnd: number } {
+  const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
+  const lineStart = value.lastIndexOf("\n", Math.max(0, safeCursor - 1)) + 1;
+  const nextBreak = value.indexOf("\n", safeCursor);
+  const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+
+  return { lineStart, lineEnd };
+}
+
+function insertTabAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): void {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const value = textarea.value;
+  const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = start + 1;
+  });
+}
+
+function insertLineBelowAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): boolean {
+  if (hasSelection(textarea)) {
+    return false;
+  }
+
+  const value = textarea.value;
+  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+  const currentLine = value.slice(lineStart, lineEnd);
+  const indentation = leadingIndentation(currentLine);
+
+  const updated = `${value.slice(0, lineEnd)}\n${indentation}${value.slice(lineEnd)}`;
+  const nextCursor = lineEnd + 1 + indentation.length;
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = nextCursor;
+  });
+
+  return true;
+}
+
+function outdentSelectionOrLine(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): boolean {
+  const value = textarea.value;
+  if (!value.length) {
+    return false;
+  }
+
+  const selectionStart = textarea.selectionStart;
+  const selectionEnd = textarea.selectionEnd;
+  const hasSelectedText = selectionStart !== selectionEnd;
+
+  const startLineStart = getCurrentLineBounds(value, selectionStart).lineStart;
+  const lastSelectedIndex = hasSelectedText
+    ? Math.max(selectionStart, selectionEnd - 1)
+    : selectionStart;
+  const endLineBounds = getCurrentLineBounds(value, lastSelectedIndex);
+
+  const blockStart = startLineStart;
+  const blockEnd = endLineBounds.lineEnd;
+  const blockText = value.slice(blockStart, blockEnd);
+  const lines = blockText.split("\n");
+
+  const removeIndentLength = (line: string): number => {
+    if (line.startsWith("\t")) {
+      return 1;
+    }
+
+    let leadingSpaces = 0;
+    while (leadingSpaces < line.length && line.charAt(leadingSpaces) === " " && leadingSpaces < 2) {
+      leadingSpaces += 1;
+    }
+
+    return leadingSpaces;
+  };
+
+  let removedBeforeSelectionStart = 0;
+  let removedBeforeSelectionEnd = 0;
+  let cursor = blockStart;
+
+  const updatedLines = lines.map((line) => {
+    const removeCount = removeIndentLength(line);
+    const lineStart = cursor;
+    const lineEnd = lineStart + line.length;
+
+    if (lineStart < selectionStart) {
+      const charsBeforeStart = Math.max(0, Math.min(removeCount, selectionStart - lineStart));
+      removedBeforeSelectionStart += charsBeforeStart;
+    }
+
+    if (lineStart < selectionEnd) {
+      const charsBeforeEnd = Math.max(0, Math.min(removeCount, selectionEnd - lineStart));
+      removedBeforeSelectionEnd += charsBeforeEnd;
+    }
+
+    cursor = lineEnd + 1;
+
+    if (removeCount === 0) {
+      return line;
+    }
+
+    return line.slice(removeCount);
+  });
+
+  const updatedBlock = updatedLines.join("\n");
+  if (updatedBlock === blockText) {
+    return false;
+  }
+
+  const updatedValue = `${value.slice(0, blockStart)}${updatedBlock}${value.slice(blockEnd)}`;
+  const nextSelectionStart = Math.max(blockStart, selectionStart - removedBeforeSelectionStart);
+  const nextSelectionEnd = Math.max(nextSelectionStart, selectionEnd - removedBeforeSelectionEnd);
+
+  setValue(updatedValue);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = nextSelectionStart;
+    textarea.selectionEnd = nextSelectionEnd;
+  });
+
+  return true;
+}
+
+function cutCurrentLineAtCursor(
+  textarea: HTMLTextAreaElement,
+  setValue: (value: string) => void,
+): boolean {
+  if (hasSelection(textarea)) {
+    return false;
+  }
+
+  const value = textarea.value;
+  if (value.length === 0) {
+    return false;
+  }
+
+  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
+  const cutEnd = lineEnd < value.length ? lineEnd + 1 : lineEnd;
+  const cutChunk = value.slice(lineStart, cutEnd);
+  const updated = `${value.slice(0, lineStart)}${value.slice(cutEnd)}`;
+  const nextCursor = Math.min(lineStart, updated.length);
+
+  setValue(updated);
+
+  requestAnimationFrame(() => {
+    textarea.selectionStart = textarea.selectionEnd = nextCursor;
+  });
+
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(cutChunk).catch(() => undefined);
+  }
+
+  return true;
+}
+
 export default function NewFilePage({
   repoId,
   repoName,
@@ -214,7 +388,10 @@ export default function NewFilePage({
 
       nodes.push(
         <li key={entry.path}>
-          <div className="flex items-center">
+          <div
+            className="flex items-center"
+            style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
+          >
             {isDirectory ? (
               <button
                 type="button"
@@ -235,13 +412,13 @@ export default function NewFilePage({
                     void loadDir(entry.path);
                   }
                 }}
-                className="h-6 w-5 inline-flex items-center justify-center text-[var(--text-secondary)]"
+                className="h-6 w-5 shrink-0 inline-flex items-center justify-center text-[var(--text-secondary)]"
                 aria-label={isExpanded ? "Collapse directory" : "Expand directory"}
               >
                 {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </button>
             ) : (
-              <span className="h-6 w-5" />
+              <span className="h-6 w-5 shrink-0" />
             )}
 
             <button
@@ -257,7 +434,6 @@ export default function NewFilePage({
                   setCurrentDirPath(parent);
                 }
               }}
-              style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
               className={`flex-1 h-6 pr-2 text-left text-sm rounded-sm inline-flex items-center gap-2 ${
                 isActive
                   ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
@@ -284,6 +460,10 @@ export default function NewFilePage({
   const baseDirectoryPath = useMemo(() => normalizeRelativePath(currentDirPath || ""), [currentDirPath]);
   const normalizedLeafPath = useMemo(() => normalizeRelativePath(fileName), [fileName]);
   const targetFilePath = useMemo(() => joinPath(baseDirectoryPath, normalizedLeafPath), [baseDirectoryPath, normalizedLeafPath]);
+  const editorLineNumbers = useMemo(() => {
+    const count = Math.max(1, fileContent.split("\n").length);
+    return Array.from({ length: count }, (_, index) => index + 1);
+  }, [fileContent]);
 
   const validationError = useMemo(() => {
     if (!fileName.trim()) {
@@ -331,15 +511,45 @@ export default function NewFilePage({
     }
   };
 
+  const handleEditorTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "x") {
+      if (!hasSelection(event.currentTarget)) {
+        event.preventDefault();
+        cutCurrentLineAtCursor(event.currentTarget, setFileContent);
+      }
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key === "Enter") {
+      if (!hasSelection(event.currentTarget)) {
+        event.preventDefault();
+        insertLineBelowAtCursor(event.currentTarget, setFileContent);
+      }
+      return;
+    }
+
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.shiftKey) {
+      outdentSelectionOrLine(event.currentTarget, setFileContent);
+      return;
+    }
+
+    insertTabAtCursor(event.currentTarget, setFileContent);
+  };
+
   return (
     <>
-      <div className="min-h-[620px] border border-[var(--border-default)] bg-[var(--surface-canvas)]">
+      <div className="min-h-[calc(100dvh-104px)] border border-[var(--border-default)] bg-[var(--surface-canvas)]">
         <div
           ref={layoutRef}
-          className={`grid min-h-[620px] ${isResizingSidebar ? "select-none" : ""}`}
+          className={`grid min-h-[calc(100dvh-104px)] ${isResizingSidebar ? "select-none" : ""}`}
           style={{ gridTemplateColumns: `${sidebarWidth}px 8px minmax(0,1fr)` }}
         >
-          <aside className="sticky top-0 self-start h-[calc(100vh-104px)] border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
+          <aside className="sticky top-0 self-start h-[calc(100dvh-104px)] border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
             <div className="px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Files</div>
 
             <div className="px-3 py-2 space-y-2">
@@ -415,7 +625,7 @@ export default function NewFilePage({
             </div>
           </aside>
 
-          <div className="w-0 sticky top-0 self-start h-[calc(100vh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
+          <div className="w-0 sticky top-0 self-start h-[calc(100dvh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
             <button
               type="button"
               aria-label="Resize sidebar"
@@ -429,7 +639,7 @@ export default function NewFilePage({
           </div>
 
           <section className="min-w-0 bg-[var(--surface-canvas)]">
-            <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+            <div className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm">
                 <span className="font-semibold text-[var(--text-link)]">{repoName}</span>
                 <span className="text-[var(--text-muted)]">/</span>
@@ -470,7 +680,7 @@ export default function NewFilePage({
                     setShowCommitDialog(true);
                   }}
                   disabled={submitting}
-                  className="h-8 px-4 rounded-md bg-[var(--accent-success)] text-[var(--text-on-accent)] text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+                  className="h-8 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
                 >
                   Commit changes...
                 </button>
@@ -519,15 +729,26 @@ export default function NewFilePage({
                 </div>
 
                 {editorMode === "edit" ? (
-                  <textarea
-                    value={fileContent}
-                    onChange={(event) => setFileContent(event.target.value)}
-                    placeholder="Enter file contents here"
-                    spellCheck={false}
-                    className="w-full min-h-[560px] p-4 font-mono text-sm text-[var(--text-primary)] bg-[var(--surface-canvas)]"
-                  />
+                  <div className="grid grid-cols-[56px_minmax(0,1fr)] min-h-[560px]">
+                    <div className="border-r border-[var(--border-muted)] bg-[var(--surface-subtle)] px-2 py-4 text-right text-sm text-[var(--text-muted)] select-none">
+                      {editorLineNumbers.map((lineNumber) => (
+                        <div key={lineNumber} className="font-mono leading-6">
+                          {lineNumber}
+                        </div>
+                      ))}
+                    </div>
+
+                    <textarea
+                      value={fileContent}
+                      onChange={(event) => setFileContent(event.target.value)}
+                      onKeyDown={handleEditorTextareaKeyDown}
+                      placeholder="Enter file contents here"
+                      spellCheck={false}
+                      className="w-full min-h-[560px] p-4 font-mono text-sm leading-6 text-[var(--text-primary)] bg-[var(--surface-canvas)]"
+                    />
+                  </div>
                 ) : (
-                  <pre className="min-h-[560px] p-4 text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words font-mono">
+                  <pre className="min-h-[560px] p-4 text-sm leading-6 text-[var(--text-primary)] whitespace-pre-wrap break-words font-mono">
                     {fileContent || "Nothing to preview."}
                   </pre>
                 )}
@@ -615,7 +836,7 @@ export default function NewFilePage({
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={!canCommit}
-                className="h-9 px-4 rounded-md bg-[var(--accent-success)] text-[var(--text-on-accent)] text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+                className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
               >
                 {submitting ? "Committing..." : "Commit changes"}
               </button>

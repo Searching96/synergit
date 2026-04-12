@@ -272,7 +272,7 @@ export default function UploadFilesPage({
             type="button"
             onClick={handleCommit}
             disabled={!canCommit}
-            className="h-9 px-4 rounded-md bg-[var(--accent-success)] text-[var(--text-on-accent)] text-sm font-semibold hover:opacity-95 disabled:opacity-60"
+            className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
           >
             {submitting ? "Committing..." : "Commit changes"}
           </button>
