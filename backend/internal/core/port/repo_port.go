@@ -33,7 +33,7 @@ type RepoUsecase interface {
 	GetAllRepositories() ([]*domain.Repo, error)
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
-	GetRepoCommits(repoID uuid.UUID, branch string) ([]domain.Commit, error)
+	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)
 	GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
 	CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,

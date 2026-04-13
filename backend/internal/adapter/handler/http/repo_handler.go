@@ -351,8 +351,9 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 		return
 	}
 	branch := c.Query("branch")
+	path := c.Query("path")
 
-	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch)
+	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch, path)
 	if err != nil {
 		respondUsecaseError(c, err)
 		return

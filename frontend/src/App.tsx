@@ -1,551 +1,52 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 import type { Branch, CreateRepositoryPayload, Repository } from "./types/index";
 import {
-  BarChart3,
-  Bell,
   Bot,
-  BookOpen,
   Compass,
   CircleDot,
-  Code,
   Gift,
   Github,
   Home,
-  FolderKanban,
   GitPullRequest,
   LayoutGrid,
   Link2,
-  Menu,
   MessageCircle,
   Monitor,
-  Plus,
-  Search,
-  Settings,
-  ShieldCheck,
-  Workflow,
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
-import FileExplorer from "./components/repository/code/FileExplorer";
-import RepoTreeBrowserPage from "./components/repository/code/RepoTreeBrowserPage.tsx";
 import { ApiError, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
-import PullRequestList from "./components/repository/pulls/PullRequestList";
-import RepoInsights from "./components/repository/insights/RepoInsights";
-import IssueBoard from "./components/repository/issues/IssueBoard";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
-import RepoAgentsPage from "./components/repository/pages/RepoAgentsPage";
-import RepoActionsPage from "./components/repository/pages/RepoActionsPage";
-import RepoProjectsPage from "./components/repository/pages/RepoProjectsPage";
-import RepoWikiPage from "./components/repository/pages/RepoWikiPage";
-import RepoSecurityPage from "./components/repository/pages/RepoSecurityPage";
-import RepoSettingsPage from "./components/repository/pages/RepoSettingsPage";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
-import CommitHistory from "./components/repository/code/CommitHistory";
-import NewFilePage from "./components/repository/code/NewFilePage.tsx";
-import UploadFilesPage from "./components/repository/code/UploadFilesPage.tsx";
+import TopHeader from "./components/layout/TopHeader";
+import RouteButton from "./components/layout/RouteButton";
+import TopNavigationTabs from "./components/layout/TopNavigationTabs";
+import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
+import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
+import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/repoTabs";
+import {
+  GLOBAL_PAGE_TITLES,
+  buildProfilePath,
+  buildRepoBasePath,
+  buildRepoCommitsPath,
+  buildRepoContentPath,
+  buildRepoNewFilePath,
+  buildRepoTabPath,
+  buildRepoUploadFilesPath,
+  normalizeCommitFilterSearch,
+  normalizePathValue,
+  normalizeProfileTab,
+  parseAppPath,
+  type GlobalPageKey,
+  type ParsedRoute,
+  type RepoContentKind,
+} from "./components/repository/workspace/repoRouting";
 import type { ProfileTabKey } from "./components/profile/pages/profileTypes";
 import { formatVisibilityLabel } from "./utils/visibility";
 
-type TabKey =
-  | 'files'
-  | 'issues'
-  | 'pulls'
-  | 'agents'
-  | 'actions'
-  | 'projects'
-  | 'wiki'
-  | 'security'
-  | 'insights'
-  | 'settings';
-
-interface MainTab {
-  key: TabKey;
-  label: string;
-  icon: ComponentType<{ size?: number; className?: string }>;
-}
-
-const MAIN_TABS: MainTab[] = [
-  { key: 'files', label: 'Code', icon: Code },
-  { key: 'issues', label: 'Issues', icon: CircleDot },
-  { key: 'pulls', label: 'Pull requests', icon: GitPullRequest },
-  { key: 'agents', label: 'Agents', icon: Bot },
-  { key: 'actions', label: 'Actions', icon: Workflow },
-  { key: 'projects', label: 'Projects', icon: FolderKanban },
-  { key: 'wiki', label: 'Wiki', icon: BookOpen },
-  { key: 'security', label: 'Security and quality', icon: ShieldCheck },
-  { key: 'insights', label: 'Insights', icon: BarChart3 },
-  { key: 'settings', label: 'Settings', icon: Settings },
-];
-
-const TAB_KEY_SET = new Set<TabKey>(MAIN_TABS.map((tab) => tab.key));
-const PROFILE_TAB_SET = new Set<ProfileTabKey>([
-  'overview',
-  'repositories',
-  'projects',
-  'packages',
-  'stars',
-]);
-
 function RepositoryIcon({ size = 16, className }: { size?: number; className?: string }) {
   return <RepoIcon size={size} className={className} />;
-}
-
-function normalizeProfileTab(search: string): ProfileTabKey {
-  const params = new URLSearchParams(search);
-  const tab = params.get('tab');
-
-  if (tab && PROFILE_TAB_SET.has(tab as ProfileTabKey)) {
-    return tab as ProfileTabKey;
-  }
-
-  return 'overview';
-}
-
-function buildProfilePath(username: string, tab: ProfileTabKey): string {
-  const base = `/${encodeURIComponent(username)}`;
-
-  if (tab === 'overview') {
-    return base;
-  }
-
-  return `${base}?tab=${encodeURIComponent(tab)}`;
-}
-
-type GlobalPageKey =
-  | 'issues'
-  | 'pulls'
-  | 'repositories'
-  | 'projects'
-  | 'discussions'
-  | 'codespaces'
-  | 'copilot'
-  | 'explore'
-  | 'marketplace'
-  | 'mcp-registry';
-
-const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
-  issues: 'Issues',
-  pulls: 'Pull requests',
-  repositories: 'Repositories',
-  projects: 'Projects',
-  discussions: 'Discussions',
-  codespaces: 'Codespaces',
-  copilot: 'Copilot',
-  explore: 'Explore',
-  marketplace: 'Marketplace',
-  'mcp-registry': 'MCP registry',
-};
-
-const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
-
-type RepoContentKind = 'root' | 'tree' | 'blob' | 'commits' | 'new' | 'upload';
-
-type ParsedRoute = {
-  viewMode: 'profile' | 'repo' | 'create-repo' | 'global';
-  repoOwner: string | null;
-  repoName: string | null;
-  repoId: string | null;
-  tab: TabKey;
-  contentKind: RepoContentKind;
-  contentPath: string;
-  branch: string;
-  globalPage: GlobalPageKey | null;
-  normalizedPath: string;
-};
-
-function normalizePathValue(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-function encodePathSegments(path: string): string {
-  return path
-    .split('/')
-    .filter(Boolean)
-    .map((segment) => encodeURIComponent(segment))
-    .join('/');
-}
-
-function decodePathSegments(segments: string[]): string {
-  return segments
-    .filter(Boolean)
-    .map((segment) => decodeURIComponent(segment))
-    .join('/');
-}
-
-function buildRepoBasePath(owner: string, repoName: string): string {
-  return `/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}`;
-}
-
-function buildRepoTabPath(owner: string, repoName: string, tab: TabKey): string {
-  const base = buildRepoBasePath(owner, repoName);
-  if (tab === 'files') {
-    return base;
-  }
-
-  return `${base}/${tab}`;
-}
-
-function buildRepoContentPath(
-  owner: string,
-  repoName: string,
-  contentKind: 'tree' | 'blob',
-  branch: string,
-  contentPath: string,
-): string {
-  const base = buildRepoBasePath(owner, repoName);
-  const safeBranch = branch.trim() || 'master';
-  const encodedPath = encodePathSegments(contentPath);
-  const branchSegment = encodeURIComponent(safeBranch);
-
-  if (!encodedPath) {
-    return `${base}/${contentKind}/${branchSegment}`;
-  }
-
-  return `${base}/${contentKind}/${branchSegment}/${encodedPath}`;
-}
-
-function buildRepoCommitsPath(owner: string, repoName: string, branch: string): string {
-  const base = buildRepoBasePath(owner, repoName);
-  const safeBranch = branch.trim() || 'master';
-  return `${base}/commits/${encodeURIComponent(safeBranch)}`;
-}
-
-function buildRepoNewFilePath(owner: string, repoName: string, branch: string, contentPath: string = ''): string {
-  const base = buildRepoBasePath(owner, repoName);
-  const safeBranch = branch.trim() || 'master';
-  const encodedPath = encodePathSegments(contentPath);
-  const branchSegment = encodeURIComponent(safeBranch);
-
-  if (!encodedPath) {
-    return `${base}/new/${branchSegment}`;
-  }
-
-  return `${base}/new/${branchSegment}/${encodedPath}`;
-}
-
-function buildRepoUploadFilesPath(owner: string, repoName: string, branch: string, contentPath: string = ''): string {
-  const base = buildRepoBasePath(owner, repoName);
-  const safeBranch = branch.trim() || 'master';
-  const encodedPath = encodePathSegments(contentPath);
-  const branchSegment = encodeURIComponent(safeBranch);
-
-  if (!encodedPath) {
-    return `${base}/upload/${branchSegment}`;
-  }
-
-  return `${base}/upload/${branchSegment}/${encodedPath}`;
-}
-
-function normalizeCommitFilterSearch(search: string): string {
-  const params = new URLSearchParams(search);
-  const author = (params.get('author') || '').trim();
-  const since = (params.get('since') || '').trim();
-  const until = (params.get('until') || '').trim();
-
-  const normalized = new URLSearchParams();
-  if (author) {
-    normalized.set('author', author);
-  }
-  if (since) {
-    normalized.set('since', since);
-  }
-  if (until) {
-    normalized.set('until', until);
-  }
-
-  const encoded = normalized.toString();
-  return encoded ? `?${encoded}` : '';
-}
-
-function parseAppPath(pathname: string): ParsedRoute {
-  const normalizedInput = pathname.startsWith('/') ? pathname : `/${pathname}`;
-  const segments = normalizedInput.split('/').filter(Boolean);
-
-  if (segments.length === 0) {
-    return {
-      viewMode: 'profile',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: '/',
-    };
-  }
-
-  if (segments.length === 1 && segments[0] === 'profile') {
-    return {
-      viewMode: 'profile',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: '/profile',
-    };
-  }
-
-  if (segments.length === 1 && segments[0] === 'new') {
-    return {
-      viewMode: 'create-repo',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: '/new',
-    };
-  }
-
-  if (segments.length === 2 && segments[0] === 'repos' && segments[1] === 'new') {
-    return {
-      viewMode: 'create-repo',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: '/new',
-    };
-  }
-
-  if (segments.length === 1 && GLOBAL_PAGE_SET.has(segments[0] as GlobalPageKey)) {
-    const globalPage = segments[0] as GlobalPageKey;
-    return {
-      viewMode: 'global',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage,
-      normalizedPath: `/${globalPage}`,
-    };
-  }
-
-  if (segments.length === 1) {
-    const profileUsername = decodeURIComponent(segments[0]);
-    return {
-      viewMode: 'profile',
-      repoOwner: null,
-      repoName: null,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: `/${encodeURIComponent(profileUsername)}`,
-    };
-  }
-
-  if (segments.length >= 2 && segments[0] === 'repos') {
-    const repoId = decodeURIComponent(segments[1]);
-    if (segments[2] === 'commits') {
-      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
-      return {
-        viewMode: 'repo',
-        repoOwner: null,
-        repoName: null,
-        repoId,
-        tab: 'files',
-        contentKind: 'commits',
-        contentPath: '',
-        branch,
-        globalPage: null,
-        normalizedPath: `/repos/${encodeURIComponent(repoId)}/commits/${encodeURIComponent(branch)}`,
-      };
-    }
-
-    if (segments[2] === 'new' || segments[2] === 'upload') {
-      const contentKind = segments[2] as 'new' | 'upload';
-      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
-      const contentPath = decodePathSegments(segments.slice(4));
-      const encodedContentPath = encodePathSegments(contentPath);
-      let normalizedPath = `/repos/${encodeURIComponent(repoId)}/${contentKind}/${encodeURIComponent(branch)}`;
-      if (encodedContentPath) {
-        normalizedPath = `${normalizedPath}/${encodedContentPath}`;
-      }
-
-      return {
-        viewMode: 'repo',
-        repoOwner: null,
-        repoName: null,
-        repoId,
-        tab: 'files',
-        contentKind,
-        contentPath,
-        branch,
-        globalPage: null,
-        normalizedPath,
-      };
-    }
-
-    const tabSegment = segments[2] || 'files';
-    const tab = TAB_KEY_SET.has(tabSegment as TabKey)
-      ? (tabSegment as TabKey)
-      : 'files';
-
-    return {
-      viewMode: 'repo',
-      repoOwner: null,
-      repoName: null,
-      repoId,
-      tab,
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: `/repos/${encodeURIComponent(repoId)}/${tab}`,
-    };
-  }
-
-  if (segments.length >= 2) {
-    const repoOwner = decodeURIComponent(segments[0]);
-    const repoName = decodeURIComponent(segments[1]);
-    const base = buildRepoBasePath(repoOwner, repoName);
-
-    if (segments.length === 2) {
-      return {
-        viewMode: 'repo',
-        repoOwner,
-        repoName,
-        repoId: null,
-        tab: 'files',
-        contentKind: 'root',
-        contentPath: '',
-        branch: '',
-        globalPage: null,
-        normalizedPath: base,
-      };
-    }
-
-    const third = segments[2];
-    if (third === 'blob' || third === 'tree') {
-      const branch = segments[3] ? decodeURIComponent(segments[3]) : '';
-      const contentPath = decodePathSegments(segments.slice(4));
-      const encodedContentPath = encodePathSegments(contentPath);
-
-      let normalizedPath = base;
-      if (branch) {
-        normalizedPath = `${base}/${third}/${encodeURIComponent(branch)}`;
-        if (encodedContentPath) {
-          normalizedPath = `${normalizedPath}/${encodedContentPath}`;
-        }
-      }
-
-      return {
-        viewMode: 'repo',
-        repoOwner,
-        repoName,
-        repoId: null,
-        tab: 'files',
-        contentKind: third,
-        contentPath,
-        branch,
-        globalPage: null,
-        normalizedPath,
-      };
-    }
-
-    if (third === 'commits') {
-      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
-      return {
-        viewMode: 'repo',
-        repoOwner,
-        repoName,
-        repoId: null,
-        tab: 'files',
-        contentKind: 'commits',
-        contentPath: '',
-        branch,
-        globalPage: null,
-        normalizedPath: buildRepoCommitsPath(repoOwner, repoName, branch),
-      };
-    }
-
-    if (third === 'new' || third === 'upload') {
-      const contentKind = third as 'new' | 'upload';
-      const branch = segments[3] ? decodeURIComponent(segments[3]) : 'master';
-      const contentPath = decodePathSegments(segments.slice(4));
-      const encodedContentPath = encodePathSegments(contentPath);
-      let normalizedPath = `${base}/${contentKind}/${encodeURIComponent(branch)}`;
-      if (encodedContentPath) {
-        normalizedPath = `${normalizedPath}/${encodedContentPath}`;
-      }
-
-      return {
-        viewMode: 'repo',
-        repoOwner,
-        repoName,
-        repoId: null,
-        tab: 'files',
-        contentKind,
-        contentPath,
-        branch,
-        globalPage: null,
-        normalizedPath,
-      };
-    }
-
-    if (TAB_KEY_SET.has(third as TabKey)) {
-      const tab = third as TabKey;
-
-      return {
-        viewMode: 'repo',
-        repoOwner,
-        repoName,
-        repoId: null,
-        tab,
-        contentKind: 'root',
-        contentPath: '',
-        branch: '',
-        globalPage: null,
-        normalizedPath: buildRepoTabPath(repoOwner, repoName, tab),
-      };
-    }
-
-    return {
-      viewMode: 'repo',
-      repoOwner,
-      repoName,
-      repoId: null,
-      tab: 'files',
-      contentKind: 'root',
-      contentPath: '',
-      branch: '',
-      globalPage: null,
-      normalizedPath: base,
-    };
-  }
-
-  return {
-    viewMode: 'profile',
-    repoOwner: null,
-    repoName: null,
-    repoId: null,
-    tab: 'files',
-    contentKind: 'root',
-    contentPath: '',
-    branch: '',
-    globalPage: null,
-    normalizedPath: '/',
-  };
 }
 
 function App () {
@@ -553,7 +54,7 @@ function App () {
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabKey>('files');
+  const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>('profile');
   const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
   const [createRepoSubmitting, setCreateRepoSubmitting] = useState<boolean>(false);
@@ -875,7 +376,7 @@ function App () {
     navigateToPath(buildProfilePath(currentUsername, tab), options);
   }, [currentUsername, navigateToPath]);
 
-  const navigateToRepoTab = useCallback((repo: Repository, tab: TabKey) => {
+  const navigateToRepoTab = useCallback((repo: Repository, tab: RepoTabKey) => {
     const owner = getRepoOwner(repo);
     navigateToPath(buildRepoTabPath(owner, repo.name, tab));
   }, [getRepoOwner, navigateToPath]);
@@ -1094,32 +595,11 @@ function App () {
 
   if (viewMode === 'global') {
     return (
-      <div className="min-h-screen bg-[var(--surface-subtle)] text-[var(--text-primary)]">
-        <div className="max-w-[1100px] mx-auto px-6 py-10">
-          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8">
-            <h1 className="text-3xl font-semibold text-[var(--text-primary)]">{currentGlobalTitle}</h1>
-            <p className="mt-3 text-sm text-[var(--text-secondary)]">
-              This page is currently a placeholder route and will be implemented next.
-            </p>
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigateToProfileTab('overview')}
-                className="h-9 px-4 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-              >
-                Back to profile
-              </button>
-              <button
-                type="button"
-                onClick={handleOpenCreateRepository}
-                className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] hover:bg-[var(--accent-primary-hover)]"
-              >
-                New repository
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <GlobalPlaceholderPage
+        title={currentGlobalTitle}
+        onBackToProfile={() => navigateToProfileTab('overview')}
+        onCreateRepository={handleOpenCreateRepository}
+      />
     );
   }
 
@@ -1148,232 +628,105 @@ function App () {
   return (
     <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
-        <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setIsRepoDrawerOpen(true)}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-              aria-label="Open repository menu"
-            >
-              <Menu size={18} className="text-[var(--text-secondary)]" />
-            </button>
-
-            <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] text-sm font-semibold flex items-center justify-center">
-              {((currentUsername || "U").trim().charAt(0) || "U").toUpperCase()}
-            </div>
-
-            <div className="hidden md:block min-w-0">
-              {selectedRepo ? (
-                <div className="text-sm text-[var(--text-secondary)] truncate flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
-                    className="text-[var(--text-primary)] hover:opacity-80"
-                  >
-                    {selectedRepoOwner}
-                  </button>
-                  <span className="text-[var(--text-muted)]">/</span>
-                  <button
-                    type="button"
-                    onClick={() => navigateToRepoTab(selectedRepo, 'files')}
-                    className="font-semibold text-[var(--text-primary)] hover:opacity-80"
-                  >
-                    {selectedRepo.name}
-                  </button>
-                </div>
-              ) : (
-                <p className="text-sm text-[var(--text-secondary)] truncate">
-                  <span className="font-semibold text-[var(--text-primary)]">select-repository</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                readOnly
-                placeholder="Type / to search"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm text-[var(--text-secondary)]"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleOpenCreateRepository}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-              aria-label="Create"
-            >
-              <Plus size={16} className="text-[var(--text-secondary)]" />
-            </button>
-            <button
-              type="button"
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-              aria-label="Notifications"
-            >
-              <Bell size={16} className="text-[var(--text-secondary)]" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigateToProfileTab('overview')}
-              className="px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
-            >
-              Profile
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div className="h-12 px-4 md:px-6 flex items-end overflow-x-auto">
-          {MAIN_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.key;
-
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                  if (!selectedRepo) return;
-                  navigateToRepoTab(selectedRepo, tab.key);
-                }}
-                className={`h-11 px-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${
-                  active
-                    ? 'border-[var(--border-tab-active)] text-[var(--text-primary)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]'
-                }`}
+        <TopHeader
+          badgeText="GH"
+          leftContent={selectedRepo ? (
+            <div className="min-w-0 flex items-center gap-1 text-sm">
+              <RouteButton
+                onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
+                className="max-w-[180px] truncate"
               >
-                <Icon size={16} />
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+                {selectedRepoOwner}
+              </RouteButton>
+              <span className="text-[var(--text-muted)]">/</span>
+              <RouteButton
+                selected
+                onClick={() => navigateToRepoTab(selectedRepo, 'files')}
+                className="truncate"
+              >
+                {selectedRepo.name}
+              </RouteButton>
+            </div>
+          ) : (
+            <span className="font-semibold text-[var(--text-primary)]">select-repository</span>
+          )}
+          onMenuClick={() => setIsRepoDrawerOpen(true)}
+          menuAriaLabel="Open repository menu"
+          onCreateClick={handleOpenCreateRepository}
+          actions={[
+            { label: 'Profile', onClick: () => navigateToProfileTab('overview') },
+            { label: 'Logout', onClick: handleLogout },
+          ]}
+        />
+
+        <TopNavigationTabs
+          tabs={REPO_TABS}
+          activeKey={activeTab}
+          onSelect={(tab) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoTab(selectedRepo, tab);
+          }}
+        />
       </header>
 
       <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto bg-[var(--surface-canvas)]">
-        <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
-        {!selectedRepo ? (
-          <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
-            <div className="text-center space-y-3">
-              <h2 className="text-xl font-medium">Select a repository to view its content</h2>
-              <button
-                type="button"
-                onClick={() => setIsRepoDrawerOpen(true)}
-                className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)]"
-              >
-                Open Repository Menu
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className={isFullBrowserMode ? "w-full min-h-full flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
-            {!isFullBrowserMode ? (
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <RepositoryIcon size={20} className="text-[var(--text-secondary)]" />
-                  <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
-                  <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
-                    {selectedRepoVisibility}
-                  </span>
-                </div>
-              </div>
-            ) : null}
+        <RepoWorkspaceContent
+          selectedRepo={selectedRepo}
+          currentUsername={currentUsername}
+          selectedRepoVisibility={selectedRepoVisibility}
+          isFullBrowserMode={isFullBrowserMode}
+          activeTab={activeTab}
+          routeContentKind={routeContentKind}
+          routeContentPath={routeContentPath}
+          routeBranch={routeBranch}
+          defaultBranchName={defaultBranchName}
+          currentBranch={currentBranch}
+          branches={branches}
+          explorerInitialLocation={explorerInitialLocation}
+          locationSearch={window.location.search}
+          onOpenRepoDrawer={() => setIsRepoDrawerOpen(true)}
+          onSelectBranch={handleSelectBranch}
+          onSelectCommitBranch={handleSelectCommitBranch}
+          onNavigateRepoLocation={handleNavigateRepoLocation}
+          onBackToFiles={() => {
+            if (!selectedRepo) {
+              return;
+            }
 
-            {/* Dynamic Content Area */}
-            <div className={isFullBrowserMode ? "w-full flex-1 min-h-full" : "flex-1 min-h-0"}>
-              {activeTab === 'files' && routeContentKind === 'commits' && (
-                <CommitHistory
-                  repoId={selectedRepo.id}
-                  repoName={selectedRepo.name}
-                  branch={currentBranch || routeBranch || defaultBranchName}
-                  branches={branches}
-                  onSelectBranch={handleSelectCommitBranch}
-                  onBack={() => navigateToRepoTab(selectedRepo, 'files')}
-                  onBrowseAtCommit={(commitHash) => navigateToRepoContent(selectedRepo, 'tree', '', commitHash)}
-                />
-              )}
-              {activeTab === 'files' && routeContentKind === 'new' && (
-                <NewFilePage
-                  repoId={selectedRepo.id}
-                  repoName={selectedRepo.name}
-                  branch={currentBranch || routeBranch || defaultBranchName}
-                  branches={branches}
-                  initialDirectoryPath={routeContentPath}
-                  onSelectBranch={handleSelectBranch}
-                  onCancel={() => navigateToRepoContent(selectedRepo, 'tree', routeContentPath, currentBranch || routeBranch || defaultBranchName)}
-                  onCommitted={(createdFilePath: string) => navigateToRepoContent(selectedRepo, 'blob', createdFilePath, currentBranch || routeBranch || defaultBranchName)}
-                />
-              )}
-              {activeTab === 'files' && routeContentKind === 'upload' && (
-                <UploadFilesPage
-                  repoId={selectedRepo.id}
-                  repoName={selectedRepo.name}
-                  branch={currentBranch || routeBranch || defaultBranchName}
-                  initialDirectoryPath={routeContentPath}
-                  onCancel={() => navigateToRepoContent(selectedRepo, 'tree', routeContentPath, currentBranch || routeBranch || defaultBranchName)}
-                  onCommitted={(targetDirectoryPath: string) => navigateToRepoContent(selectedRepo, 'tree', targetDirectoryPath, currentBranch || routeBranch || defaultBranchName)}
-                />
-              )}
-              {activeTab === 'files' && (routeContentKind === 'tree' || routeContentKind === 'blob') && (
-                <RepoTreeBrowserPage
-                  repoId={selectedRepo.id}
-                  repoName={selectedRepo.name}
-                  branch={currentBranch || routeBranch || defaultBranchName}
-                  branches={branches}
-                  initialLocation={explorerInitialLocation}
-                  onNavigateLocation={handleNavigateRepoLocation}
-                  onSelectBranch={handleSelectBranch}
-                  onOpenCommitHistory={(branchName) => navigateToRepoCommits(selectedRepo, branchName, window.location.search)}
-                  onOpenCreateFile={(branchName, directoryPath) => navigateToRepoNewFile(selectedRepo, branchName, directoryPath)}
-                  onOpenUploadFiles={(branchName, directoryPath) => navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath)}
-                />
-              )}
-              {activeTab === 'files' && routeContentKind === 'root' && (
-                <FileExplorer
-                  repoId={selectedRepo.id}
-                  repoName={selectedRepo.name}
-                  repoDescription={selectedRepo.description}
-                  repoOwner={selectedRepo.owner || currentUsername}
-                  cloneUrl={selectedRepo.clone_url}
-                  branch={currentBranch}
-                  branches={branches}
-                  initialLocation={explorerInitialLocation}
-                  onNavigateLocation={handleNavigateRepoLocation}
-                  onSelectBranch={handleSelectBranch}
-                  onOpenCommitHistory={(branchName) => navigateToRepoCommits(selectedRepo, branchName)}
-                  onOpenCreateFile={(branchName, directoryPath) => navigateToRepoNewFile(selectedRepo, branchName, directoryPath)}
-                  onOpenUploadFiles={(branchName, directoryPath) => navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath)}
-                />
-              )}
-              {activeTab === 'issues' && <IssueBoard repoId={selectedRepo.id} />}
-              {activeTab === 'pulls' && (
-                <PullRequestList
-                  repoId={selectedRepo.id}
-                  branches={branches}
-                  defaultSourceBranch={currentBranch}
-                />
-              )}
-              {activeTab === 'agents' && <RepoAgentsPage />}
-              {activeTab === 'actions' && <RepoActionsPage />}
-              {activeTab === 'projects' && <RepoProjectsPage />}
-              {activeTab === 'wiki' && <RepoWikiPage repoName={selectedRepo.name} />}
-              {activeTab === 'security' && <RepoSecurityPage />}
-              {activeTab === 'insights' && <RepoInsights repoId={selectedRepo.id} />}
-              {activeTab === 'settings' && <RepoSettingsPage />}
-            </div>
-          </div>
-        )}
-        </div>
+            navigateToRepoTab(selectedRepo, 'files');
+          }}
+          onNavigateRepoContent={(contentKind, contentPath, branchName) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoContent(selectedRepo, contentKind, contentPath, branchName);
+          }}
+          onOpenRepoCommits={(branchName, search = '') => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoCommits(selectedRepo, branchName, search);
+          }}
+          onOpenCreateFile={(branchName, directoryPath) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
+          }}
+          onOpenUploadFiles={(branchName, directoryPath) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
+          }}
+        />
       </main>
 
       {!isFullBrowserMode ? (

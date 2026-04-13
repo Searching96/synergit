@@ -1,7 +1,6 @@
 import { useMemo, useState, type ComponentType } from "react";
 import type { Repository } from "../../types";
 import {
-  Bell,
   Bot,
   CircleDot,
   Compass,
@@ -11,18 +10,16 @@ import {
   GitPullRequest,
   LayoutGrid,
   Link2,
-  Menu,
   MessageCircle,
   Monitor,
   Package,
-  Plus,
-  Search,
   Star,
   Table2,
   Users,
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
+import TopNavigationTabs from "../layout/TopNavigationTabs";
 import ProfileOverviewPage from "./pages/ProfileOverviewPage";
 import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
 import ProfileProjectsPage from "./pages/ProfileProjectsPage";
@@ -37,6 +34,7 @@ import {
   isRepositoryOwnedByUser,
   languageColor,
 } from "./pages/profileUtils";
+import TopHeader from "../layout/TopHeader";
 
 interface GithubProfilePagesProps {
   repositories: Repository[];
@@ -154,13 +152,6 @@ export default function GithubProfilePages({
 
   const contributions = useMemo(() => buildContributionMatrix(), []);
 
-  const tabClass = (key: ProfileTabKey) =>
-    `h-11 text-sm font-medium border-b-2 flex items-center justify-center whitespace-nowrap ${
-      activeTab === key
-        ? "border-[var(--border-tab-active)] text-[var(--text-primary)]"
-        : "border-transparent text-[var(--text-secondary)]"
-    }`;
-
   const content =
     activeTab === "overview" ? (
       <ProfileOverviewPage
@@ -188,77 +179,20 @@ export default function GithubProfilePages({
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
-        <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen(true)}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
-            >
-              <Menu size={16} />
-            </button>
-            <div className="h-8 w-8 rounded-full bg-[var(--text-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center justify-center">
-              GH
-            </div>
-            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{username}</p>
-          </div>
+        <TopHeader
+          badgeText="GH"
+          leftContent={<span className="font-semibold">{username}</span>}
+          onMenuClick={() => setIsMenuOpen(true)}
+          menuAriaLabel="Open navigation menu"
+          onCreateClick={onCreateRepository}
+          actions={[{ label: "Logout", onClick: onLogout }]}
+        />
 
-          <div className="flex items-center gap-2">
-              <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                readOnly
-                placeholder="Type / to search"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm text-[var(--text-secondary)]"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={onCreateRepository}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-            >
-              <Plus size={16} />
-            </button>
-            <button
-              type="button"
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-            >
-              <Bell size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
-        <div className="h-12 px-4 md:px-6 gap-2 flex items-end overflow-x-auto">
-          {profileTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => onTabChange(tab.key)}
-                className={tabClass(tab.key)}
-              >
-                <div className="flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
-                  <Icon size={15} />
-                  {tab.label}
-                  {tab.count ? (
-                    <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] text-[10px] leading-none">
-                      {tab.count}
-                    </span>
-                  ) : null}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <TopNavigationTabs
+          tabs={profileTabs}
+          activeKey={activeTab}
+          onSelect={onTabChange}
+        />
       </header>
 
       <main className="w-full max-w-[1440px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">

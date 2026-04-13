@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
-  Bell,
   Check,
   ChevronDown,
-  Github,
   Lock,
-  Menu,
   Monitor,
-  Plus,
-  Search,
 } from "lucide-react";
 import type {
   CreateRepositoryPayload,
   RepositoryVisibility,
 } from "../../types";
 import { formatVisibilityLabel } from "../../utils/visibility";
+import TopHeader from "../layout/TopHeader";
 
 interface CreateRepositoryPageProps {
   ownerName: string;
@@ -121,41 +117,15 @@ export default function CreateRepositoryPage({
 
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="h-14 border-b border-[var(--border-muted)] bg-[var(--surface-page)] px-4 lg:px-6 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-page)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-            aria-label="Back"
-          >
-            <Menu size={16} />
-          </button>
-          <Github size={20} className="text-[var(--text-primary)]" />
-          <span className="text-sm font-semibold truncate">New repository</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-          >
-            <Plus size={14} />
-          </button>
-          <button
-            type="button"
-            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-          >
-            <Bell size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="h-8 px-3 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-xs font-semibold hover:bg-[var(--surface-subtle)]"
-          >
-            Cancel
-          </button>
-        </div>
+      <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
+        <TopHeader
+          badgeText="GH"
+          leftContent={<span className="font-semibold">New repository</span>}
+          onMenuClick={onCancel}
+          menuAriaLabel="Back"
+          onCreateClick={onCancel}
+          actions={[{ label: "Cancel", onClick: onCancel }]}
+        />
       </header>
 
       <main className="max-w-[980px] mx-auto px-4 py-8">

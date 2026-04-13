@@ -28,8 +28,8 @@ type GitManager interface {
 	// Method for getting file content
 	GetBlob(repoPath string, path string, branch string) (string, error)
 
-	// Method for getting all commits
-	GetCommits(repoPath string, branch string) ([]domain.Commit, error)
+	// Method for getting commits, optionally filtered by path.
+	GetCommits(repoPath string, branch string, path string) ([]domain.Commit, error)
 
 	GetBranches(repoPath string) ([]domain.Branch, error)
 	CreateBranch(repoPath string, newBranch string,

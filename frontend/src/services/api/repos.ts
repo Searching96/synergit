@@ -51,8 +51,16 @@ export const reposApi = {
   getBlob: (repoId: string, path: string, branch: string = '') => 
     fetcher<{ content: string } | string>(`/repos/${repoId}/blob?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`),
     
-  getCommits: (repoId: string, branch: string = '') => 
-    fetcher<Commit[]>(`/repos/${repoId}/commits?branch=${encodeURIComponent(branch)}`),
+  getCommits: (repoId: string, branch: string = '', path: string = '') => {
+    const params = new URLSearchParams();
+    params.set('branch', branch);
+
+    if (path.trim()) {
+      params.set('path', path);
+    }
+
+    return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
+  },
 
   getInsights: (repoId: string) =>
     fetcher<RepoInsightsSnapshot>(`/repos/${repoId}/insights`),

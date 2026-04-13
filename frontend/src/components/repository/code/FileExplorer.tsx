@@ -20,6 +20,8 @@ import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
+import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
+import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -196,91 +198,6 @@ function languageGraphColor(language: string, index: number): string {
   return LANGUAGE_GRAPH_OVERRIDES[normalized] || LANGUAGE_GRAPH_FALLBACK_COLORS[index % LANGUAGE_GRAPH_FALLBACK_COLORS.length];
 }
 
-function hasSelection(textarea: HTMLTextAreaElement): boolean {
-  return textarea.selectionStart !== textarea.selectionEnd;
-}
-
-function getCurrentLineBounds(value: string, cursorPosition: number): { lineStart: number; lineEnd: number } {
-  const safeCursor = Math.max(0, Math.min(cursorPosition, value.length));
-  const lineStart = value.lastIndexOf("\n", Math.max(0, safeCursor - 1)) + 1;
-  const nextBreak = value.indexOf("\n", safeCursor);
-  const lineEnd = nextBreak === -1 ? value.length : nextBreak;
-
-  return { lineStart, lineEnd };
-}
-
-function insertTabAtCursor(
-  textarea: HTMLTextAreaElement,
-  setValue: (value: string) => void,
-): void {
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const value = textarea.value;
-  const updated = `${value.slice(0, start)}\t${value.slice(end)}`;
-
-  setValue(updated);
-
-  requestAnimationFrame(() => {
-    textarea.selectionStart = textarea.selectionEnd = start + 1;
-  });
-}
-
-function insertLineBelowAtCursor(
-  textarea: HTMLTextAreaElement,
-  setValue: (value: string) => void,
-): boolean {
-  if (hasSelection(textarea)) {
-    return false;
-  }
-
-  const value = textarea.value;
-  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
-  const currentLine = value.slice(lineStart, lineEnd);
-  const indentation = (currentLine.match(/^\s*/) || [""])[0];
-
-  const updated = `${value.slice(0, lineEnd)}\n${indentation}${value.slice(lineEnd)}`;
-  const nextCursor = lineEnd + 1 + indentation.length;
-
-  setValue(updated);
-
-  requestAnimationFrame(() => {
-    textarea.selectionStart = textarea.selectionEnd = nextCursor;
-  });
-
-  return true;
-}
-
-function cutCurrentLineAtCursor(
-  textarea: HTMLTextAreaElement,
-  setValue: (value: string) => void,
-): boolean {
-  if (hasSelection(textarea)) {
-    return false;
-  }
-
-  const value = textarea.value;
-  if (value.length === 0) {
-    return false;
-  }
-
-  const { lineStart, lineEnd } = getCurrentLineBounds(value, textarea.selectionStart);
-  const cutEnd = lineEnd < value.length ? lineEnd + 1 : lineEnd;
-  const cutChunk = value.slice(lineStart, cutEnd);
-  const updated = `${value.slice(0, lineStart)}${value.slice(cutEnd)}`;
-  const nextCursor = Math.min(lineStart, updated.length);
-
-  setValue(updated);
-
-  requestAnimationFrame(() => {
-    textarea.selectionStart = textarea.selectionEnd = nextCursor;
-  });
-
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    void navigator.clipboard.writeText(cutChunk).catch(() => undefined);
-  }
-
-  return true;
-}
 
 export default function FileExplorer({
   repoId,
@@ -339,6 +256,23 @@ export default function FileExplorer({
     () => rootEntries.find((entry) => entry.type === "FILE" && entry.name.toLowerCase() === "readme.md") || null,
     [rootEntries],
   );
+  const displayedEntries = useMemo(
+    () => [...rootEntries, ...currentEntries],
+    [currentEntries, rootEntries],
+  );
+  const latestCommitByPath = useLatestCommitMap(
+    repoId,
+    branch,
+    displayedEntries.map((item) => item.path),
+  );
+  const getItemCommitDetails = useCallback((item: RepoFile) => {
+    const itemCommit = latestCommitByPath[item.path] || null;
+
+    return {
+      message: itemCommit?.message?.trim() || commitMessagePlaceholder(item),
+      when: itemCommit ? formatRelativeCommitTime(itemCommit.date) : "-",
+    };
+  }, [latestCommitByPath]);
 
   const isRootMode = true;
   const cloneUrl = useMemo(() => {
@@ -547,8 +481,6 @@ export default function FileExplorer({
   );
   const latestCommit = recentCommits[0] || null;
   const commitCountLabel = `${recentCommits.length.toLocaleString()} Commit${recentCommits.length === 1 ? "" : "s"}`;
-  const latestCommitMessage = latestCommit?.message?.trim() || "Updated files";
-  const latestCommitRelativeTime = latestCommit ? formatRelativeCommitTime(latestCommit.date) : "just now";
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -671,47 +603,11 @@ export default function FileExplorer({
   };
 
   const handleCodeTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "x") {
-      if (!hasSelection(e.currentTarget)) {
-        e.preventDefault();
-        cutCurrentLineAtCursor(e.currentTarget, setDraftContent);
-      }
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "Enter") {
-      if (!hasSelection(e.currentTarget)) {
-        e.preventDefault();
-        insertLineBelowAtCursor(e.currentTarget, setDraftContent);
-      }
-      return;
-    }
-
-    if (e.key !== "Tab") return;
-    e.preventDefault();
-    insertTabAtCursor(e.currentTarget, setDraftContent);
+    applyStandardEditorShortcuts(e, setDraftContent);
   };
 
   const handleReadmeTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "x") {
-      if (!hasSelection(e.currentTarget)) {
-        e.preventDefault();
-        cutCurrentLineAtCursor(e.currentTarget, setReadmeDraft);
-      }
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key === "Enter") {
-      if (!hasSelection(e.currentTarget)) {
-        e.preventDefault();
-        insertLineBelowAtCursor(e.currentTarget, setReadmeDraft);
-      }
-      return;
-    }
-
-    if (e.key !== "Tab") return;
-    e.preventDefault();
-    insertTabAtCursor(e.currentTarget, setReadmeDraft);
+    applyStandardEditorShortcuts(e, setReadmeDraft);
   };
 
   const renderTree = (path: string, depth: number = 0): ReactElement[] => {
@@ -1221,26 +1117,30 @@ export default function FileExplorer({
               </div>
 
               <ul>
-                {rootEntries.map((item) => (
-                  <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
-                    <button
-                      type="button"
-                      onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                      className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
-                    >
-                      <span className="min-w-0 flex items-center gap-2 text-left">
-                        {item.type === "DIR" ? (
-                          <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
-                        ) : (
-                          <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
-                        )}
-                        <span className="truncate text-[var(--text-link)]">{item.name}</span>
-                      </span>
-                      <span className="truncate text-left text-[var(--text-secondary)]">{latestCommit ? latestCommitMessage : commitMessagePlaceholder(item)}</span>
-                      <span className="text-right text-[var(--text-secondary)]">{latestCommitRelativeTime}</span>
-                    </button>
-                  </li>
-                ))}
+                {rootEntries.map((item) => {
+                  const details = getItemCommitDetails(item);
+
+                  return (
+                    <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
+                      <button
+                        type="button"
+                        onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
+                        className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
+                      >
+                        <span className="min-w-0 flex items-center gap-2 text-left">
+                          {item.type === "DIR" ? (
+                            <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
+                          ) : (
+                            <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
+                          )}
+                          <span className="truncate text-[var(--text-link)]">{item.name}</span>
+                        </span>
+                        <span className="truncate text-left text-[var(--text-secondary)]">{details.message}</span>
+                        <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
@@ -1600,26 +1500,30 @@ export default function FileExplorer({
                       </li>
                     )}
 
-                    {currentEntries.map((item) => (
-                      <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
-                        <button
-                          type="button"
-                          onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                          className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
-                        >
-                          <span className="min-w-0 flex items-center gap-2 text-left">
-                            {item.type === "DIR" ? (
-                              <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
-                            ) : (
-                              <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
-                            )}
-                            <span className="truncate text-[var(--text-link)]">{item.name}</span>
-                          </span>
-                          <span className="truncate text-left text-[var(--text-secondary)]">{latestCommit ? latestCommitMessage : commitMessagePlaceholder(item)}</span>
-                          <span className="text-right text-[var(--text-secondary)]">{latestCommitRelativeTime}</span>
-                        </button>
-                      </li>
-                    ))}
+                    {currentEntries.map((item) => {
+                      const details = getItemCommitDetails(item);
+
+                      return (
+                        <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
+                          <button
+                            type="button"
+                            onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
+                            className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
+                          >
+                            <span className="min-w-0 flex items-center gap-2 text-left">
+                              {item.type === "DIR" ? (
+                                <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
+                              ) : (
+                                <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
+                              )}
+                              <span className="truncate text-[var(--text-link)]">{item.name}</span>
+                            </span>
+                            <span className="truncate text-left text-[var(--text-secondary)]">{details.message}</span>
+                            <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

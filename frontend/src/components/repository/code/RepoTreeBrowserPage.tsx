@@ -19,6 +19,7 @@ import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
+import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -359,6 +360,19 @@ export default function RepoTreeBrowserPage({
   const currentEntries = useMemo(() => {
     return sortEntries(entriesByPath[normalizePath(currentDirPath)] || []);
   }, [currentDirPath, entriesByPath]);
+  const latestCommitByPath = useLatestCommitMap(
+    repoId,
+    activeBranch,
+    currentEntries.map((entry) => entry.path),
+  );
+  const getEntryCommitDetails = useCallback((entry: RepoFile) => {
+    const entryCommit = latestCommitByPath[entry.path] || null;
+
+    return {
+      message: entryCommit?.message?.trim() || "Update files",
+      when: entryCommit ? formatRelativeTime(entryCommit.date) : "-",
+    };
+  }, [latestCommitByPath]);
 
   const fileLines = useMemo(() => {
     return fileContent.split("\n");
@@ -787,35 +801,39 @@ export default function RepoTreeBrowserPage({
                     </li>
                   ) : null}
 
-                  {currentEntries.map((entry) => (
-                    <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (entry.type === "DIR") {
-                            void openDirectory(entry.path);
-                          } else {
-                            openFile(entry.path);
-                          }
-                        }}
-                        className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
-                      >
-                        <span className="min-w-0 inline-flex items-center gap-2 text-left">
-                          {entry.type === "DIR" ? (
-                            <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
-                          ) : (
-                            <FileIcon size={16} className="text-[var(--text-secondary)]" />
-                          )}
-                          <span className="truncate text-[var(--text-link)]">{entry.name}</span>
-                        </span>
-                        <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
-                          <FileText size={12} className="text-[var(--text-muted)]" />
-                          {latestCommitMessage}
-                        </span>
-                        <span className="text-right text-[var(--text-secondary)]">{latestCommitWhen}</span>
-                      </button>
-                    </li>
-                  ))}
+                  {currentEntries.map((entry) => {
+                    const details = getEntryCommitDetails(entry);
+
+                    return (
+                      <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (entry.type === "DIR") {
+                              void openDirectory(entry.path);
+                            } else {
+                              openFile(entry.path);
+                            }
+                          }}
+                          className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
+                        >
+                          <span className="min-w-0 inline-flex items-center gap-2 text-left">
+                            {entry.type === "DIR" ? (
+                              <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
+                            ) : (
+                              <FileIcon size={16} className="text-[var(--text-secondary)]" />
+                            )}
+                            <span className="truncate text-[var(--text-link)]">{entry.name}</span>
+                          </span>
+                          <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
+                            <FileText size={12} className="text-[var(--text-muted)]" />
+                            {details.message}
+                          </span>
+                          <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
 
                   {currentEntries.length === 0 && !loadingPathSet.has(normalizePath(currentDirPath)) ? (
                     <li className="px-4 py-6 text-sm text-[var(--text-secondary)]">No files found in this directory.</li>

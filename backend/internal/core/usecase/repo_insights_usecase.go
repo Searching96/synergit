@@ -335,7 +335,7 @@ func (s *RepoInsightsService) buildAnalysisInput(repoPath string, now time.Time)
 	}
 
 	for _, branch := range branches {
-		commits, err := s.gitManager.GetCommits(repoPath, branch.Name)
+		commits, err := s.gitManager.GetCommits(repoPath, branch.Name, "")
 		if err != nil {
 			return nil, err
 		}

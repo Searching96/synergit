@@ -321,7 +321,7 @@ func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string,
 	return content, nil
 }
 
-func (g *LocalGitAdapter) GetCommits(repoPath string, branch string) ([]domain.Commit,
+func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter string) ([]domain.Commit,
 	error) {
 
 	fullPath := g.resolveRepoPath(repoPath)
@@ -343,8 +343,17 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string) ([]domain.C
 		return nil, err
 	}
 
+	logOptions := &git.LogOptions{From: ref.Hash()}
+	trimmedPath := strings.TrimSpace(pathFilter)
+	if trimmedPath != "" {
+		normalizedPath := path.Clean(strings.ReplaceAll(trimmedPath, "\\", "/"))
+		if normalizedPath != "." {
+			logOptions.FileName = &normalizedPath
+		}
+	}
+
 	// 3. Get the commit iterator starting from HEAD
-	commitIter, err := r.Log(&git.LogOptions{From: ref.Hash()})
+	commitIter, err := r.Log(logOptions)
 	if err != nil {
 		return nil, err
 	}
