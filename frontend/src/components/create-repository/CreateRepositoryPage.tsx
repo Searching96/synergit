@@ -121,29 +121,18 @@ export default function CreateRepositoryPage({
 
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="h-14 border-b border-[var(--border-muted)] bg-[var(--surface-canvas)] px-4 lg:px-6 flex items-center justify-between gap-3">
+      <header className="h-14 border-b border-[var(--border-muted)] bg-[var(--surface-page)] px-4 lg:px-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onCancel}
-            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+            className="h-8 w-8 rounded-md border border-[var(--border-input)] bg-[var(--surface-page)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             aria-label="Back"
           >
             <Menu size={16} />
           </button>
           <Github size={20} className="text-[var(--text-primary)]" />
           <span className="text-sm font-semibold truncate">New repository</span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-2 flex-1 max-w-[360px]">
-          <div className="relative w-full">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              readOnly
-              value="Type / to search"
-              className="h-8 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
-            />
-          </div>
         </div>
 
         <div className="flex items-center gap-2">

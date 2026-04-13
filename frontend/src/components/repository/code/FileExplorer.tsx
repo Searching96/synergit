@@ -1180,10 +1180,10 @@ export default function FileExplorer({
               </div>
             </div>
 
-            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
-              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
+            <div className="border border-[var(--border-default)] rounded-md overflow-hidden]">
+              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
                 {/* LEFT SIDE: Avatar and Message */}
-                <div className="min-w-0 flex items-center gap-3">
+                <div className="min-w-0 flex items-center gap-2">
                   <div className="h-7 w-7 shrink-0 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
                     {((latestCommit?.author || repoOwner || "U").trim().charAt(0) || "U").toUpperCase()}
                   </div>
@@ -1212,7 +1212,7 @@ export default function FileExplorer({
                     type="button"
                     onClick={() => onOpenCommitHistory?.(branch || "master")}
                     disabled={commitsLoading}
-                    className="h-8 px-3 rounded-md bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60 inline-flex items-center gap-2"
+                    className="h-8 px-3 rounded-md bg-[var(--surface-page)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-60 inline-flex items-center gap-2"
                   >
                     <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
                     {commitsLoading ? "Loading..." : commitCountLabel}

@@ -1147,7 +1147,7 @@ function App () {
 
   return (
     <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
-      <header className="border-b border-[var(--border-default)] bg-[var(--surface-canvas)]">
+      <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -1197,21 +1197,21 @@ function App () {
                 type="text"
                 readOnly
                 placeholder="Type / to search"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm text-[var(--text-secondary)]"
               />
             </div>
 
             <button
               type="button"
               onClick={handleOpenCreateRepository}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
               aria-label="Create"
             >
               <Plus size={16} className="text-[var(--text-secondary)]" />
             </button>
             <button
               type="button"
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
               aria-label="Notifications"
             >
               <Bell size={16} className="text-[var(--text-secondary)]" />
@@ -1260,7 +1260,7 @@ function App () {
         </div>
       </header>
 
-      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto">
+      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto bg-[var(--surface-canvas)]">
         <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
         {!selectedRepo ? (
           <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">

@@ -187,13 +187,13 @@ export default function GithubProfilePages({
 
   return (
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="border-b border-[var(--border-default)] bg-[var(--surface-canvas)]">
+      <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsMenuOpen(true)}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
             >
               <Menu size={16} />
             </button>
@@ -210,26 +210,26 @@ export default function GithubProfilePages({
                 type="text"
                 readOnly
                 placeholder="Type / to search"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm text-[var(--text-secondary)]"
               />
             </div>
             <button
               type="button"
               onClick={onCreateRepository}
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             >
               <Plus size={16} />
             </button>
             <button
               type="button"
-              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+              className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
             >
               <Bell size={16} />
             </button>
             <button
               type="button"
               onClick={onLogout}
-              className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+              className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Logout
             </button>
@@ -246,7 +246,7 @@ export default function GithubProfilePages({
                 onClick={() => onTabChange(tab.key)}
                 className={tabClass(tab.key)}
               >
-                <div className="flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]">
+                <div className="flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
                   <Icon size={15} />
                   {tab.label}
                   {tab.count ? (
