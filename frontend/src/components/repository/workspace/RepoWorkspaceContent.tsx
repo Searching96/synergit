@@ -158,6 +158,9 @@ export default function RepoWorkspaceContent({
                 repoName={selectedRepo.name}
                 repoDescription={selectedRepo.description}
                 repoOwner={selectedRepo.owner || currentUsername}
+                repoStars={selectedRepo.stars}
+                repoForks={selectedRepo.forks}
+                repoWatchers={0}
                 cloneUrl={selectedRepo.clone_url}
                 branch={currentBranch}
                 branches={branches}

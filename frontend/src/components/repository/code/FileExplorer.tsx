@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import {
+  Activity,
   Code,
   ChevronDown,
   ChevronRight,
   Copy,
+  Eye,
   Ellipsis,
   FileText,
+  GitFork,
   GitBranch,
   Link,
   Pencil,
   Plus,
   Search,
+  Star,
   Tag,
   Trash2,
   Upload,
@@ -33,6 +37,9 @@ interface FileExplorerProps {
   repoName: string;
   repoDescription?: string;
   repoOwner?: string;
+  repoStars?: number;
+  repoForks?: number;
+  repoWatchers?: number;
   cloneUrl?: string;
   initialLocation?: ExplorerLocation;
   onNavigateLocation?: (location: ExplorerLocation) => void;
@@ -204,6 +211,9 @@ export default function FileExplorer({
   repoName,
   repoDescription,
   repoOwner,
+  repoStars,
+  repoForks,
+  repoWatchers,
   cloneUrl: backendCloneUrl,
   onNavigateLocation,
   branch,
@@ -481,6 +491,9 @@ export default function FileExplorer({
   );
   const latestCommit = recentCommits[0] || null;
   const commitCountLabel = `${recentCommits.length.toLocaleString()} Commit${recentCommits.length === 1 ? "" : "s"}`;
+  const starCount = typeof repoStars === "number" ? repoStars : 0;
+  const watchingCount = typeof repoWatchers === "number" ? repoWatchers : 0;
+  const forkCount = typeof repoForks === "number" ? repoForks : 0;
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -1149,10 +1162,10 @@ export default function FileExplorer({
               </ul>
             </div>
 
-            {readmeEntry ? (
-              <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
-                <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
+            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
+                {readmeEntry ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -1172,108 +1185,119 @@ export default function FileExplorer({
                   >
                     <Pencil size={15} />
                   </button>
-                </div>
+                ) : null}
+              </div>
 
-                <div className="p-4">
-                  {isEditingReadme ? (
-                    <div className="space-y-3">
-                      <textarea
-                        className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
-                        value={readmeDraft}
-                        onChange={(e) => setReadmeDraft(e.target.value)}
-                        onKeyDown={handleReadmeTextareaKeyDown}
-                        spellCheck={false}
-                      />
+              <div className="p-4">
+                {!readmeEntry ? (
+                  <div className="space-y-3 text-sm text-[var(--text-secondary)]">
+                    <p className="text-[var(--text-primary)]">Help people interested in this repository understand your project by adding a README.</p>
+                    <button
+                      type="button"
+                      onClick={() => onOpenCreateFile?.(activeBranchForAddFile, "")}
+                      className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-xs font-semibold hover:bg-[var(--accent-primary-hover)]"
+                    >
+                      Add a README
+                    </button>
+                  </div>
+                ) : isEditingReadme ? (
+                  <div className="space-y-3">
+                    <textarea
+                      className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
+                      value={readmeDraft}
+                      onChange={(e) => setReadmeDraft(e.target.value)}
+                      onKeyDown={handleReadmeTextareaKeyDown}
+                      spellCheck={false}
+                    />
 
-                      <input
-                        type="text"
-                        value={readmeCommitMessage}
-                        onChange={(e) => setReadmeCommitMessage(e.target.value)}
-                        placeholder="Commit message"
-                        className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
-                      />
+                    <input
+                      type="text"
+                      value={readmeCommitMessage}
+                      onChange={(e) => setReadmeCommitMessage(e.target.value)}
+                      placeholder="Commit message"
+                      className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
+                    />
 
-                      {readmeEditError ? <div className="text-sm text-[var(--text-danger)]">{readmeEditError}</div> : null}
+                    {readmeEditError ? <div className="text-sm text-[var(--text-danger)]">{readmeEditError}</div> : null}
 
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingReadme(false);
-                              setReadmeEditError(null);
-                            }}
-                            className="px-3 py-2 text-sm border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isCommittingReadme || !readmeCommitMessage.trim()}
-                            onClick={handleCommitReadmeChanges}
-                            className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-                          >
-                            {isCommittingReadme ? "Committing..." : "Commit README"}
-                          </button>
-                        </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingReadme(false);
+                            setReadmeEditError(null);
+                          }}
+                          className="px-3 py-2 text-sm border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isCommittingReadme || !readmeCommitMessage.trim()}
+                          onClick={handleCommitReadmeChanges}
+                          className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                        >
+                          {isCommittingReadme ? "Committing..." : "Commit README"}
+                        </button>
                       </div>
                     </div>
-                  ) : readmeLoading ? (
-                    <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
-                  ) : normalizedReadmeContent ? (
-                    <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
-                      <ReactMarkdown
-                        components={{
-                          h1: ({ children }) => (
-                            <h1 className="mb-4 text-3xl font-semibold text-[var(--text-primary)]">{children}</h1>
-                          ),
-                          h2: ({ children }) => (
-                            <h2 className="mb-3 mt-6 text-2xl font-semibold text-[var(--text-primary)]">{children}</h2>
-                          ),
-                          h3: ({ children }) => (
-                            <h3 className="mb-2 mt-5 text-xl font-semibold text-[var(--text-primary)]">{children}</h3>
-                          ),
-                          p: ({ children }) => (
-                            <p className="mb-4 text-sm leading-7 text-[var(--text-primary)]">{children}</p>
-                          ),
-                          ul: ({ children }) => (
-                            <ul className="mb-4 list-disc space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="mb-4 list-decimal space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ol>
-                          ),
-                          a: ({ children, href }) => (
-                            <a href={href} className="text-[var(--text-link)] underline" target="_blank" rel="noreferrer">
-                              {children}
-                            </a>
-                          ),
-                          code: ({ children }) => (
-                            <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-xs text-[var(--text-primary)]">{children}</code>
-                          ),
-                          pre: ({ children }) => (
-                            <pre className="mb-4 overflow-x-auto rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-xs text-[var(--text-primary)]">
-                              {children}
-                            </pre>
-                          ),
-                          blockquote: ({ children }) => (
-                            <blockquote className="mb-4 border-l-4 border-[var(--border-default)] pl-4 text-sm text-[var(--text-secondary)]">
-                              {children}
-                            </blockquote>
-                          ),
-                        }}
-                      >
-                        {normalizedReadmeContent}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      README.md is present, but the content could not be loaded.
-                    </p>
-                  )}
-                </div>
+                  </div>
+                ) : readmeLoading ? (
+                  <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
+                ) : normalizedReadmeContent ? (
+                  <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="mb-4 text-3xl font-semibold text-[var(--text-primary)]">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="mb-3 mt-6 text-2xl font-semibold text-[var(--text-primary)]">{children}</h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="mb-2 mt-5 text-xl font-semibold text-[var(--text-primary)]">{children}</h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="mb-4 text-sm leading-7 text-[var(--text-primary)]">{children}</p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="mb-4 list-disc space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="mb-4 list-decimal space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ol>
+                        ),
+                        a: ({ children, href }) => (
+                          <a href={href} className="text-[var(--text-link)] underline" target="_blank" rel="noreferrer">
+                            {children}
+                          </a>
+                        ),
+                        code: ({ children }) => (
+                          <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-xs text-[var(--text-primary)]">{children}</code>
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="mb-4 overflow-x-auto rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-xs text-[var(--text-primary)]">
+                            {children}
+                          </pre>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="mb-4 border-l-4 border-[var(--border-default)] pl-4 text-sm text-[var(--text-secondary)]">
+                            {children}
+                          </blockquote>
+                        ),
+                      }}
+                    >
+                      {normalizedReadmeContent}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    README.md is present, but the content could not be loaded.
+                  </p>
+                )}
               </div>
-            ) : null}
+            </div>
           </section>
 
           <aside className="xl:pl-2 space-y-6">
@@ -1286,10 +1310,24 @@ export default function FileExplorer({
 
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
               {readmeEntry ? <p>Readme</p> : null}
-              <p>Activity</p>
-              <p>0 stars</p>
-              <p>1 watching</p>
-              <p>0 forks</p>
+              <p className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                <Activity size={14} className="text-[var(--text-muted)]" />
+                Activity
+              </p>
+              <div className="space-y-1 text-[var(--text-secondary)]">
+                <p className="inline-flex items-center gap-2">
+                  <Star size={14} className="text-[var(--text-muted)]" />
+                  {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
+                </p>
+                <p className="inline-flex items-center gap-2">
+                  <Eye size={14} className="text-[var(--text-muted)]" />
+                  {watchingCount.toLocaleString()} watching
+                </p>
+                <p className="inline-flex items-center gap-2">
+                  <GitFork size={14} className="text-[var(--text-muted)]" />
+                  {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
+                </p>
+              </div>
             </div>
 
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">

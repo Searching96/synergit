@@ -24,6 +24,9 @@ type RepoInsightsService struct {
 	insightsStore  port.RepoInsightsRepository
 	repoStore      port.RepoRepository
 	collabStore    port.CollaboratorRepository
+	issueStore     port.IssueRepository
+	pullStore      port.PullRequestRepository
+	userStore      port.UserRepository
 	gitManager     port.GitManager
 	metricComputer port.RepoInsightsMetricComputer
 
@@ -64,6 +67,9 @@ func NewRepoInsightsService(
 	insightsStore port.RepoInsightsRepository,
 	repoStore port.RepoRepository,
 	collabStore port.CollaboratorRepository,
+	issueStore port.IssueRepository,
+	pullStore port.PullRequestRepository,
+	userStore port.UserRepository,
 	gitManager port.GitManager,
 	metricComputer port.RepoInsightsMetricComputer,
 ) *RepoInsightsService {
@@ -71,6 +77,9 @@ func NewRepoInsightsService(
 		insightsStore:  insightsStore,
 		repoStore:      repoStore,
 		collabStore:    collabStore,
+		issueStore:     issueStore,
+		pullStore:      pullStore,
+		userStore:      userStore,
 		gitManager:     gitManager,
 		metricComputer: metricComputer,
 		jobs:           make(chan insightsJob, defaultInsightsQueueSize),
@@ -79,6 +88,83 @@ func NewRepoInsightsService(
 	s.startWorkers(defaultInsightsWorkerCount)
 
 	return s
+}
+
+func (s *RepoInsightsService) GetProfileActivity(
+	requesterID uuid.UUID,
+	year int,
+) (*domain.ProfileActivitySnapshot, error) {
+	requester, err := s.userStore.GetUserByID(requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if requester == nil {
+		return nil, errors.New("user not found")
+	}
+
+	accessibleRepos, err := s.listAccessibleRepos(requesterID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	commitActivity, err := s.metricComputer.ComputeProfileCommitActivity(
+		ctx,
+		accessibleRepos,
+		requester.Username,
+		year,
+		now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	issuesCount, pullRequestsCount, codeReviewsCount, err := s.computeProfileTicketStats(
+		accessibleRepos,
+		requesterID,
+		now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	availableYears := commitActivity.AvailableYears
+	if availableYears == nil {
+		availableYears = []int{}
+	}
+
+	contributionDays := commitActivity.ContributionDays
+	if contributionDays == nil {
+		contributionDays = []domain.ProfileContributionDay{}
+	}
+
+	topRepositories := commitActivity.TopRepositories
+	if topRepositories == nil {
+		topRepositories = []domain.ProfileRepoContribution{}
+	}
+
+	return &domain.ProfileActivitySnapshot{
+		Username:           requester.Username,
+		ComputedAt:         now,
+		SelectedYear:       commitActivity.SelectedYear,
+		AvailableYears:     availableYears,
+		ContributionDays:   contributionDays,
+		TotalContributions: commitActivity.TotalContributions,
+		ActivityChart: domain.ProfileActivityChart{
+			Commits:      commitActivity.CommitsLast365Days,
+			CodeReviews:  codeReviewsCount,
+			Issues:       issuesCount,
+			PullRequests: pullRequestsCount,
+		},
+		ActivityOverview: domain.ProfileActivityOverview{
+			TopRepositories:    topRepositories,
+			OtherRepoCount:     commitActivity.OtherRepoCount,
+			CommitsLast365Days: commitActivity.CommitsLast365Days,
+		},
+	}, nil
 }
 
 func (s *RepoInsightsService) startWorkers(workerCount int) {
@@ -357,6 +443,96 @@ func filterCommitsSince(commits []domain.Commit, since time.Time) []domain.Commi
 		}
 	}
 	return result
+
+}
+
+func (s *RepoInsightsService) listAccessibleRepos(requesterID uuid.UUID) ([]*domain.Repo, error) {
+	repos, err := s.repoStore.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	accessible := make([]*domain.Repo, 0, len(repos))
+	for _, repo := range repos {
+		if repo == nil {
+			continue
+		}
+
+		repoID, parseErr := uuid.Parse(repo.ID)
+		if parseErr != nil {
+			continue
+		}
+
+		role, roleErr := s.collabStore.GetRole(repoID, requesterID)
+		if roleErr != nil || !role.IsValid() {
+			continue
+		}
+
+		accessible = append(accessible, repo)
+	}
+
+	return accessible, nil
+}
+
+func (s *RepoInsightsService) computeProfileTicketStats(
+	repos []*domain.Repo,
+	requesterID uuid.UUID,
+	now time.Time,
+) (int, int, int, error) {
+	since := now.AddDate(0, 0, -364)
+	issuesCount := 0
+	pullRequestsCount := 0
+	codeReviewsCount := 0
+
+	for _, repo := range repos {
+		if repo == nil {
+			continue
+		}
+
+		repoID, err := uuid.Parse(repo.ID)
+		if err != nil {
+			continue
+		}
+
+		issues, err := s.issueStore.ListByRepo(repoID)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+
+		for _, issue := range issues {
+			if issue.CreatorID == requesterID && isWithinTimeRange(issue.CreatedAt, since, now) {
+				issuesCount++
+			}
+		}
+
+		pullRequests, err := s.pullStore.ListByRepo(repoID)
+		if err != nil {
+			return 0, 0, 0, err
+		}
+
+		for _, pullRequest := range pullRequests {
+			if pullRequest.CreatorID != requesterID {
+				continue
+			}
+
+			if isWithinTimeRange(pullRequest.CreatedAt, since, now) {
+				pullRequestsCount++
+			}
+
+			if pullRequest.Status == domain.PullRequestStatusMerged &&
+				isWithinTimeRange(pullRequest.UpdatedAt, since, now) {
+				codeReviewsCount++
+			}
+		}
+	}
+
+	return issuesCount, pullRequestsCount, codeReviewsCount, nil
+}
+
+func isWithinTimeRange(value time.Time, since time.Time, until time.Time) bool {
+	valueUTC := value.UTC()
+	return (valueUTC.After(since) || valueUTC.Equal(since)) &&
+		(valueUTC.Before(until) || valueUTC.Equal(until))
 }
 
 func (s *RepoInsightsService) computeLanguageBreakdown(ctx context.Context,

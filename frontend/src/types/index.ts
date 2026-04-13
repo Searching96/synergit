@@ -78,6 +78,40 @@ export interface RepoInsightsSnapshot {
 	last_error?: string;
 }
 
+export interface ProfileContributionDay {
+	date: string;
+	commit_count: number;
+}
+
+export interface ProfileActivityChart {
+	commits: number;
+	code_reviews: number;
+	issues: number;
+	pull_requests: number;
+}
+
+export interface ProfileRepoContribution {
+	repository: string;
+	commit_count: number;
+}
+
+export interface ProfileActivityOverview {
+	top_repositories: ProfileRepoContribution[];
+	other_repo_count: number;
+	commits_last_365_days: number;
+}
+
+export interface ProfileActivitySnapshot {
+	username: string;
+	computed_at: string;
+	selected_year: number;
+	available_years: number[];
+	contribution_days: ProfileContributionDay[];
+	total_contributions: number;
+	activity_chart: ProfileActivityChart;
+	activity_overview: ProfileActivityOverview;
+}
+
 export interface ConflictFile {
 	path: string;
 	content: string;

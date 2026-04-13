@@ -3,6 +3,7 @@ import type {
   Branch,
   Commit,
   CreateRepositoryPayload,
+  ProfileActivitySnapshot,
   RepoInsightsSnapshot,
   CommitFileChangePayload,
   CommitFilesChangePayload,
@@ -70,4 +71,9 @@ export const reposApi = {
       `/repos/${repoId}/insights/recompute?trigger=${encodeURIComponent(trigger)}`,
       { method: 'POST' },
     ),
+
+  getProfileActivity: (year?: number) => {
+    const query = typeof year === 'number' ? `?year=${encodeURIComponent(String(year))}` : '';
+    return fetcher<ProfileActivitySnapshot>(`/profile/activity${query}`);
+  },
 };

@@ -43,3 +43,47 @@ type LanguageStat struct {
 	Bytes      int64   `json:"bytes"`
 	Percentage float64 `json:"percentage"`
 }
+
+type ProfileContributionDay struct {
+	Date        string `json:"date"`
+	CommitCount int    `json:"commit_count"`
+}
+
+type ProfileActivityChart struct {
+	Commits      int `json:"commits"`
+	CodeReviews  int `json:"code_reviews"`
+	Issues       int `json:"issues"`
+	PullRequests int `json:"pull_requests"`
+}
+
+type ProfileRepoContribution struct {
+	Repository  string `json:"repository"`
+	CommitCount int    `json:"commit_count"`
+}
+
+type ProfileActivityOverview struct {
+	TopRepositories    []ProfileRepoContribution `json:"top_repositories"`
+	OtherRepoCount     int                       `json:"other_repo_count"`
+	CommitsLast365Days int                       `json:"commits_last_365_days"`
+}
+
+type ProfileCommitActivity struct {
+	SelectedYear       int                       `json:"selected_year"`
+	AvailableYears     []int                     `json:"available_years"`
+	ContributionDays   []ProfileContributionDay  `json:"contribution_days"`
+	TotalContributions int                       `json:"total_contributions"`
+	TopRepositories    []ProfileRepoContribution `json:"top_repositories"`
+	OtherRepoCount     int                       `json:"other_repo_count"`
+	CommitsLast365Days int                       `json:"commits_last_365_days"`
+}
+
+type ProfileActivitySnapshot struct {
+	Username           string                   `json:"username"`
+	ComputedAt         time.Time                `json:"computed_at"`
+	SelectedYear       int                      `json:"selected_year"`
+	AvailableYears     []int                    `json:"available_years"`
+	ContributionDays   []ProfileContributionDay `json:"contribution_days"`
+	TotalContributions int                      `json:"total_contributions"`
+	ActivityChart      ProfileActivityChart     `json:"activity_chart"`
+	ActivityOverview   ProfileActivityOverview  `json:"activity_overview"`
+}

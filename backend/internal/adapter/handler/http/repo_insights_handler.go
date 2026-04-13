@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/port"
@@ -59,4 +60,30 @@ func (h *RepoInsightsHandler) HandleTriggerRecompute(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, dto.MessageResponse{Message: "insights recompute queued"})
+}
+
+func (h *RepoInsightsHandler) HandleGetProfileActivity(c *gin.Context) {
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	year := 0
+	yearQuery := strings.TrimSpace(c.Query("year"))
+	if yearQuery != "" {
+		parsedYear, err := strconv.Atoi(yearQuery)
+		if err != nil || parsedYear < 0 {
+			c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid year"})
+			return
+		}
+		year = parsedYear
+	}
+
+	snapshot, err := h.repoInsightsUseCase.GetProfileActivity(requesterID, year)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, snapshot)
 }

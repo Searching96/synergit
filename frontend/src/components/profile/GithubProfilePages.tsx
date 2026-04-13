@@ -29,7 +29,6 @@ import ProfileStarsPage from "./pages/ProfileStarsPage";
 import { PINNED_ORDER, STARRED_REPOS } from "./pages/utils/profileData";
 import type { ProfileTabKey, ShowcaseRepo } from "./pages/utils/profileTypes";
 import {
-  buildContributionMatrix,
   buildDefaultRepositories,
   contributionColor,
   isRepositoryOwnedByUser,
@@ -151,13 +150,10 @@ export default function GithubProfilePages({
     return ordered.slice(0, 6);
   }, [profileRepositories]);
 
-  const contributions = useMemo(() => buildContributionMatrix(), []);
-
   const content =
     activeTab === "overview" ? (
       <ProfileOverviewPage
         pinnedRepositories={pinnedRepositories}
-        contributions={contributions}
         onOpenWorkspace={onOpenWorkspace}
         languageColor={languageColor}
         contributionColor={contributionColor}

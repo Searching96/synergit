@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RepoIcon } from "@primer/octicons-react";
+import { reposApi } from "../../../services/api/repos";
+import type { ProfileActivitySnapshot } from "../../../types";
 import type { ShowcaseRepo } from "./utils/profileTypes";
 
 interface ProfileOverviewPageProps {
   pinnedRepositories: ShowcaseRepo[];
-  contributions: number[][];
   onOpenWorkspace: (repoName: string) => void;
   languageColor: (language: string) => string;
   contributionColor: (level: number) => string;
@@ -18,19 +19,10 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
   { label: "Fri", row: 5 },
 ];
 
-const CURRENT_YEAR = new Date().getFullYear();
-const AVAILABLE_YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_CELL_SIZE = 10;
 const CELL_GAP = 3;
 const MONTH_LABEL_MIN_GAP_PX = 24;
-const LEVEL_TO_COUNT = [0, 1, 3, 6, 10];
-const ACTIVITY_SPLIT = {
-  commits: 40,
-  codeReview: 10,
-  issues: 20,
-  pullRequests: 30,
-};
 
 type MonthAnchor = {
   label: string;
@@ -65,12 +57,33 @@ function diffInDays(fromDate: Date, toDate: Date): number {
   return Math.floor((toDate.getTime() - fromDate.getTime()) / DAY_MS);
 }
 
-function mapSeedToContributionLevel(seedValue: number, dayOfYear: number, year: number): number {
-  const score = (seedValue + dayOfYear * 7 + year) % 10;
-  if (score < 3) return 0;
-  if (score < 5) return 1;
-  if (score < 7) return 2;
-  if (score < 9) return 3;
+function toDateKey(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function contributionLevel(commitCount: number, maxCommitCount: number): number {
+  if (commitCount <= 0) {
+    return 0;
+  }
+
+  if (maxCommitCount <= 1) {
+    return 1;
+  }
+
+  const levelOneMax = Math.max(1, Math.ceil(maxCommitCount * 0.25));
+  const levelTwoMax = Math.max(levelOneMax + 1, Math.ceil(maxCommitCount * 0.5));
+  const levelThreeMax = Math.max(levelTwoMax + 1, Math.ceil(maxCommitCount * 0.75));
+
+  if (commitCount <= levelOneMax) {
+    return 1;
+  }
+  if (commitCount <= levelTwoMax) {
+    return 2;
+  }
+  if (commitCount <= levelThreeMax) {
+    return 3;
+  }
+
   return 4;
 }
 
@@ -95,14 +108,21 @@ function buildMonthAnchors(rangeStart: Date, rangeEnd: Date, calendarStart: Date
   return monthAnchors;
 }
 
-function buildContributionCalendar(rangeStart: Date, rangeEnd: Date, seedLevels: number[]): ContributionCalendar {
+function buildContributionCalendar(
+  rangeStart: Date,
+  rangeEnd: Date,
+  dayCommitCount: Map<string, number>,
+): ContributionCalendar {
   const startDate = atStartOfDay(rangeStart);
   const endDate = atStartOfDay(rangeEnd);
-
   const calendarStart = startOfWeek(startDate);
   const calendarEnd = endOfWeek(endDate);
 
-  const safeSeed = seedLevels.length > 0 ? seedLevels : [0, 1, 2, 3, 4, 2, 1];
+  const maxCommitCount = Array.from(dayCommitCount.values()).reduce(
+    (maxValue, value) => Math.max(maxValue, value),
+    0,
+  );
+
   const weeks: number[][] = [];
   let currentWeek: number[] = [];
   let totalContributions = 0;
@@ -112,10 +132,9 @@ function buildContributionCalendar(rangeStart: Date, rangeEnd: Date, seedLevels:
     let level = 0;
 
     if (inRange) {
-      const dayOffset = diffInDays(startDate, cursor);
-      const seedValue = safeSeed[(dayOffset + cursor.getFullYear()) % safeSeed.length] ?? 0;
-      level = mapSeedToContributionLevel(seedValue, dayOffset, cursor.getFullYear());
-      totalContributions += LEVEL_TO_COUNT[level] ?? 0;
+      const count = dayCommitCount.get(toDateKey(cursor)) ?? 0;
+      level = contributionLevel(count, maxCommitCount);
+      totalContributions += count;
     }
 
     currentWeek.push(level);
@@ -132,38 +151,89 @@ function buildContributionCalendar(rangeStart: Date, rangeEnd: Date, seedLevels:
   };
 }
 
+function toPercentage(value: number, total: number): number {
+  if (value <= 0 || total <= 0) {
+    return 0;
+  }
+
+  return Math.max(1, Math.round((value / total) * 100));
+}
+
 export default function ProfileOverviewPage({
   pinnedRepositories,
-  contributions,
   onOpenWorkspace,
   languageColor,
   contributionColor,
 }: ProfileOverviewPageProps) {
   const matrixHostRef = useRef<HTMLDivElement | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+
+  const [requestedYear, setRequestedYear] = useState<number | undefined>(undefined);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [matrixHostWidth, setMatrixHostWidth] = useState(0);
+  const [profileActivity, setProfileActivity] = useState<ProfileActivitySnapshot | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const contributionSeed = useMemo(
-    () => contributions.flat().map((level) => Math.min(4, Math.max(0, level))),
-    [contributions],
-  );
+  useEffect(() => {
+    let cancelled = false;
 
-  const { weeks: yearContributions, monthAnchors, totalContributions } = useMemo(
-    () => {
-      const today = atStartOfDay(new Date());
-      if (selectedYear === null) {
-        const start = addDays(today, -364);
-        return buildContributionCalendar(start, today, contributionSeed);
+    const loadProfileActivity = async () => {
+      setIsLoading(true);
+
+      try {
+        const snapshot = await reposApi.getProfileActivity(requestedYear);
+        if (cancelled) {
+          return;
+        }
+
+        setProfileActivity(snapshot);
+        setLoadError(null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : "Failed to load activity.";
+        setLoadError(message);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
+    };
 
-      return buildContributionCalendar(
-        new Date(selectedYear, 0, 1),
-        new Date(selectedYear, 11, 31),
-        contributionSeed,
-      );
-    },
-    [selectedYear, contributionSeed],
+    void loadProfileActivity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedYear, reloadNonce]);
+
+  const selectedYear = profileActivity?.selected_year ?? new Date().getFullYear();
+  const availableYears = profileActivity?.available_years ?? [];
+
+  const dayCommitCount = useMemo(() => {
+    const countByDay = new Map<string, number>();
+
+    for (const day of profileActivity?.contribution_days ?? []) {
+      countByDay.set(day.date, day.commit_count);
+    }
+
+    return countByDay;
+  }, [profileActivity]);
+
+  const { weeks: yearContributions, monthAnchors, totalContributions: matrixTotalContributions } = useMemo(
+    () => buildContributionCalendar(
+      new Date(selectedYear, 0, 1),
+      new Date(selectedYear, 11, 31),
+      dayCommitCount,
+    ),
+    [dayCommitCount, selectedYear],
   );
+
+  const totalContributions = profileActivity?.total_contributions ?? matrixTotalContributions;
+  const contributionCountText = `${totalContributions.toLocaleString()} contributions`;
+  const contributionSuffix = `in ${selectedYear}`;
 
   const weekCount = yearContributions.length;
 
@@ -220,30 +290,46 @@ export default function ProfileOverviewPage({
     return visible;
   }, [cellSize, monthAnchors]);
 
-  const contributionCountText = `${totalContributions.toLocaleString()} contributions`;
-  const contributionSuffix = selectedYear === null ? "in the last year" : `in ${selectedYear}`;
+  const activityChart = profileActivity?.activity_chart ?? {
+    commits: 0,
+    code_reviews: 0,
+    issues: 0,
+    pull_requests: 0,
+  };
+
+  const activityTotal = activityChart.commits +
+    activityChart.code_reviews +
+    activityChart.issues +
+    activityChart.pull_requests;
+
+  const activitySplit = {
+    commits: toPercentage(activityChart.commits, activityTotal),
+    codeReview: toPercentage(activityChart.code_reviews, activityTotal),
+    issues: toPercentage(activityChart.issues, activityTotal),
+    pullRequests: toPercentage(activityChart.pull_requests, activityTotal),
+  };
 
   const activityGraphCenter = 90;
   const activityGraphRadius = 72;
   const activityPoints = {
     codeReview: {
-      value: ACTIVITY_SPLIT.codeReview,
+      value: activitySplit.codeReview,
       x: activityGraphCenter,
-      y: activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.codeReview) / 100,
+      y: activityGraphCenter - (activityGraphRadius * activitySplit.codeReview) / 100,
     },
     issues: {
-      value: ACTIVITY_SPLIT.issues,
-      x: activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.issues) / 100,
+      value: activitySplit.issues,
+      x: activityGraphCenter + (activityGraphRadius * activitySplit.issues) / 100,
       y: activityGraphCenter,
     },
     pullRequests: {
-      value: ACTIVITY_SPLIT.pullRequests,
+      value: activitySplit.pullRequests,
       x: activityGraphCenter,
-      y: activityGraphCenter + (activityGraphRadius * ACTIVITY_SPLIT.pullRequests) / 100,
+      y: activityGraphCenter + (activityGraphRadius * activitySplit.pullRequests) / 100,
     },
     commits: {
-      value: ACTIVITY_SPLIT.commits,
-      x: activityGraphCenter - (activityGraphRadius * ACTIVITY_SPLIT.commits) / 100,
+      value: activitySplit.commits,
+      x: activityGraphCenter - (activityGraphRadius * activitySplit.commits) / 100,
       y: activityGraphCenter,
     },
   };
@@ -263,6 +349,10 @@ export default function ProfileOverviewPage({
   const visibleActivityPoints = activityOrder
     .map((axis) => ({ axis, ...activityPoints[axis] }))
     .filter((point) => point.value > 0);
+
+  const topRepositories = profileActivity?.activity_overview.top_repositories ?? [];
+  const otherRepoCount = profileActivity?.activity_overview.other_repo_count ?? 0;
+  const commitsLast365Days = profileActivity?.activity_overview.commits_last_365_days ?? 0;
 
   return (
     <div className="space-y-6">
@@ -301,7 +391,7 @@ export default function ProfileOverviewPage({
           ))}
         </div>
       </section>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_100px] gap-6 items-start">
         <div className="space-y-6">
           <section className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
@@ -318,57 +408,74 @@ export default function ProfileOverviewPage({
                 </div>
               </div>
 
+              {loadError ? (
+                <div className="mt-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-3 py-2 text-xs text-[var(--text-secondary)] flex items-center justify-between gap-3">
+                  <span>{loadError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setReloadNonce((value) => value + 1)}
+                    className="rounded-md border border-[var(--border-default)] px-2 py-1 text-[var(--text-link)] hover:bg-[var(--surface-hover)]"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+
               <div className="mt-3">
                 <div ref={matrixHostRef} className="w-full overflow-x-auto">
                   <div className="min-w-[620px] w-full">
-                  <div className="pl-10 pr-2">
-                    <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
-                      {displayMonthAnchors.map((month, index) => (
-                        <span
-                          key={`month-${month.label}-${month.weekIndex}-${index}`}
-                          className="absolute top-0"
-                          style={{ left: `${month.left}px` }}
-                        >
-                          {month.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-1 flex items-start gap-2">
-                    <div className="relative w-8 shrink-0 text-xs text-[var(--text-secondary)]" style={{ height: `${matrixHeight}px` }}>
-                      {DAY_ROW_LABELS.map((item) => (
-                        <span
-                          key={item.label}
-                          className="absolute left-0"
-                          style={{ top: `${item.row * (cellSize + CELL_GAP)}px` }}
-                        >
-                          {item.label}
-                        </span>
-                      ))}
+                    <div className="pl-10 pr-2">
+                      <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
+                        {displayMonthAnchors.map((month, index) => (
+                          <span
+                            key={`month-${month.label}-${month.weekIndex}-${index}`}
+                            className="absolute top-0"
+                            style={{ left: `${month.left}px` }}
+                          >
+                            {month.label}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="inline-flex" style={{ gap: `${CELL_GAP}px`, width: `${matrixWidth}px` }}>
-                      {yearContributions.map((week, index) => (
-                        <div key={`week-${index}`} className="flex flex-col" style={{ gap: `${CELL_GAP}px`, width: `${cellSize}px` }}>
-                          {week.map((level, dayIndex) => (
-                            <span
-                              key={`cell-${index}-${dayIndex}`}
-                              className="rounded-[2px]"
-                              style={{
-                                width: `${cellSize}px`,
-                                height: `${cellSize}px`,
-                                backgroundColor: contributionColor(level),
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ))}
+                    <div className="mt-1 flex items-start gap-2">
+                      <div className="relative w-8 shrink-0 text-xs text-[var(--text-secondary)]" style={{ height: `${matrixHeight}px` }}>
+                        {DAY_ROW_LABELS.map((item) => (
+                          <span
+                            key={item.label}
+                            className="absolute left-0"
+                            style={{ top: `${item.row * (cellSize + CELL_GAP)}px` }}
+                          >
+                            {item.label}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="inline-flex" style={{ gap: `${CELL_GAP}px`, width: `${matrixWidth}px` }}>
+                        {yearContributions.map((week, index) => (
+                          <div key={`week-${index}`} className="flex flex-col" style={{ gap: `${CELL_GAP}px`, width: `${cellSize}px` }}>
+                            {week.map((level, dayIndex) => (
+                              <span
+                                key={`cell-${index}-${dayIndex}`}
+                                className="rounded-[2px]"
+                                style={{
+                                  width: `${cellSize}px`,
+                                  height: `${cellSize}px`,
+                                  backgroundColor: contributionColor(level),
+                                }}
+                              />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              </div>
+
+              {isLoading ? (
+                <p className="mt-3 text-xs text-[var(--text-secondary)]">Loading contribution activity...</p>
+              ) : null}
 
               <div className="mt-4 text-xs text-[var(--text-secondary)] flex items-center justify-between">
                 <span>Learn how we count contributions</span>
@@ -389,32 +496,41 @@ export default function ProfileOverviewPage({
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_350px] gap-6">
                 <div className="text-sm text-[var(--text-secondary)] lg:pr-8 lg:border-r lg:border-[var(--border-muted)]">
-                  <p className="text-[var(--text-primary)]">
-                    Contributed to <span className="text-[var(--text-link)]">Searching96/synergyit</span>,
-                  </p>
-                  <p className="text-[var(--text-link)]">ci-cd-demo-next-js</p>
-                  <p className="mt-1">and 35 other repositories</p>
+                  {topRepositories.length > 0 ? (
+                    <p className="text-[var(--text-primary)] leading-6">
+                      Contributed to{" "}
+                      {topRepositories.map((repo, index) => (
+                        <span key={repo.repository}>
+                          <span className="text-[var(--text-link)]">{repo.repository}</span>
+                          {index < topRepositories.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                      {" "}and {otherRepoCount} other {otherRepoCount === 1 ? "repository" : "repositories"} in the last 365 days.
+                    </p>
+                  ) : (
+                    <p className="text-[var(--text-primary)]">No repository contributions in the last 365 days.</p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-center">
                   <div className="relative w-full max-w-[320px] h-[190px] text-[var(--text-secondary)]">
                     <span className="absolute top-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {ACTIVITY_SPLIT.codeReview}%
+                      {activitySplit.codeReview}%
                       <br />
                       Code review
                     </span>
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {ACTIVITY_SPLIT.commits}%
+                      {activitySplit.commits}%
                       <br />
                       Commits
                     </span>
                     <span className="absolute right-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {ACTIVITY_SPLIT.issues}%
+                      {activitySplit.issues}%
                       <br />
                       Issues
                     </span>
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {ACTIVITY_SPLIT.pullRequests}%
+                      {activitySplit.pullRequests}%
                       <br />
                       Pull requests
                     </span>
@@ -458,34 +574,36 @@ export default function ProfileOverviewPage({
 
           <section className="space-y-3 text-sm text-[var(--text-secondary)]">
             <h3 className="text-base font-semibold text-[var(--text-primary)]">Contribution activity</h3>
-            <div className="border border-[var(--border-default)] rounded-md p-4 bg-[var(--surface-canvas)] space-y-4">
-              <div>
-                <p className="text-[var(--text-primary)]">April 2026</p>
-                <p className="mt-1">Created 21 commits in 2 repositories</p>
-                <p className="text-[var(--text-link)] mt-1">Searching96/synergyit</p>
-                <p className="text-[var(--text-link)]">Searching96/htmlol</p>
-              </div>
-              <button type="button" className="w-full h-8 rounded-md border border-[var(--border-default)] text-xs text-[var(--text-link)] hover:bg-[var(--surface-subtle)]">
-                Show more activity
-              </button>
+            <div className="border border-[var(--border-default)] rounded-md p-4 bg-[var(--surface-canvas)] space-y-2">
+              <p className="text-[var(--text-primary)]">Last 365 days</p>
+              <p>Created {commitsLast365Days.toLocaleString()} commits</p>
+              <p>Opened {activityChart.pull_requests.toLocaleString()} pull requests</p>
+              <p>Opened {activityChart.issues.toLocaleString()} issues</p>
+              <p>Completed {activityChart.code_reviews.toLocaleString()} code reviews</p>
             </div>
           </section>
         </div>
 
         <div className="w-full lg:w-[100px] rounded-md bg-[var(--surface-canvas)] overflow-hidden text-sm text-[var(--text-secondary)]">
-          {AVAILABLE_YEARS.map((year) => {
-            const active = selectedYear === year;
-            return (
-              <button
-                key={year}
-                type="button"
-                onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
-                className={`w-full h-10 px-3 text-left ${active ? "bg-[var(--text-link)] text-[var(--text-on-accent)] font-medium" : "hover:bg-[var(--surface-subtle)]"}`}
-              >
-                {year}
-              </button>
-            );
-          })}
+          {availableYears.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-[var(--text-secondary)]">No years</div>
+          ) : (
+            [...availableYears]
+              .sort((a, b) => b - a)
+              .map((year) => {
+                const active = selectedYear === year;
+                return (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => setRequestedYear(year)}
+                    className={`w-full h-10 px-3 text-left ${active ? "bg-[var(--text-link)] text-[var(--text-on-accent)] font-medium" : "hover:bg-[var(--surface-subtle)]"}`}
+                  >
+                    {year}
+                  </button>
+                );
+              })
+          )}
         </div>
       </div>
     </div>

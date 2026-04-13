@@ -73,7 +73,8 @@ func main() {
 	repoInsightsMetricComputer := git_analysis.NewRepoInsightsMetricComputer()
 
 	repoInsightUseCase := usecase.NewRepoInsightsService(dbRepoInsightsAdapter, dbRepoAdapter,
-		dbCollabAdapter, gitAdapter, repoInsightsMetricComputer)
+		dbCollabAdapter, dbIssueAdapter, dbPRAdapter, dbUserAdapter, gitAdapter,
+		repoInsightsMetricComputer)
 	repoUseCase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
 		dbUserAdapter, repoInsightUseCase)
 	authUseCase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
@@ -159,6 +160,12 @@ func main() {
 			// Resolve conflicts routes
 			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)
 			repos.POST("/:repo_id/pulls/:pull_id/conflicts/resolve", prHandler.HandleResolveConflicts)
+		}
+
+		profile := v1.Group("/profile")
+		profile.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			profile.GET("/activity", repoInsightsHandler.HandleGetProfileActivity)
 		}
 	}
 
