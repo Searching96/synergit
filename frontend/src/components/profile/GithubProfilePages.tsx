@@ -155,10 +155,10 @@ export default function GithubProfilePages({
   const contributions = useMemo(() => buildContributionMatrix(), []);
 
   const tabClass = (key: ProfileTabKey) =>
-    `h-11 px-4 text-sm font-medium border-b-2 flex items-center gap-2 whitespace-nowrap ${
+    `h-11 text-sm font-medium border-b-2 flex items-center justify-center whitespace-nowrap ${
       activeTab === key
         ? "border-[var(--border-tab-active)] text-[var(--text-primary)]"
-        : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]"
+        : "border-transparent text-[var(--text-secondary)]"
     }`;
 
   const content =
@@ -203,8 +203,8 @@ export default function GithubProfilePages({
             <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{username}</p>
           </div>
 
-          <div className="hidden lg:block flex-1 max-w-xl">
-            <div className="relative">
+          <div className="flex items-center gap-2">
+              <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
                 type="text"
@@ -213,9 +213,6 @@ export default function GithubProfilePages({
                 className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onCreateRepository}
@@ -239,7 +236,7 @@ export default function GithubProfilePages({
           </div>
         </div>
 
-        <div className="h-12 border-t border-[var(--surface-muted)] px-4 md:px-6 flex items-end overflow-x-auto">
+        <div className="h-12 px-4 md:px-6 gap-2 flex items-end overflow-x-auto">
           {profileTabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -249,20 +246,22 @@ export default function GithubProfilePages({
                 onClick={() => onTabChange(tab.key)}
                 className={tabClass(tab.key)}
               >
-                <Icon size={15} />
-                {tab.label}
-                {tab.count ? (
-                  <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] text-[10px] leading-none">
-                    {tab.count}
-                  </span>
-                ) : null}
+                <div className="flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]">
+                  <Icon size={15} />
+                  {tab.label}
+                  {tab.count ? (
+                    <span className="px-1.5 py-0.5 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] text-[10px] leading-none">
+                      {tab.count}
+                    </span>
+                  ) : null}
+                </div>
               </button>
             );
           })}
         </div>
       </header>
 
-      <main className="w-full max-w-[1480px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
+      <main className="w-full max-w-[1440px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
         <aside className="w-full lg:w-[340px]">
           <div className="w-[320px] max-w-full mx-auto lg:mx-0">
             <div

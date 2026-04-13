@@ -358,26 +358,26 @@ export default function ProfileRepositoriesPage({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--text-primary)]">{filteredRepositories.length}</span> results for <span className="font-semibold text-[var(--text-primary)]">{summaryTypeText}</span>
-          {summarySearchText ? (
-            <>
-              {" "}
-              matching <span className="font-semibold text-[var(--text-primary)]">{searchQuery}</span>
-            </>
-          ) : null}
-          {summaryLanguageText ? (
-            <>
-              {" "}
-              written in <span className="font-semibold text-[var(--text-primary)]">{languageFilter}</span>
-            </>
-          ) : null}
-          {" "}
-          sorted by <span className="font-semibold text-[var(--text-primary)]">{sortLabel.toLowerCase()}</span>
-        </p>
+      {hasActiveFilter ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--text-primary)]">{filteredRepositories.length}</span> results for <span className="font-semibold text-[var(--text-primary)]">{summaryTypeText}</span>
+            {summarySearchText ? (
+              <>
+                {" "}
+                matching <span className="font-semibold text-[var(--text-primary)]">{searchQuery}</span>
+              </>
+            ) : null}
+            {summaryLanguageText ? (
+              <>
+                {" "}
+                written in <span className="font-semibold text-[var(--text-primary)]">{languageFilter}</span>
+              </>
+            ) : null}
+            {" "}
+            sorted by <span className="font-semibold text-[var(--text-primary)]">{sortLabel.toLowerCase()}</span>
+          </p>
 
-        {hasActiveFilter ? (
           <button
             type="button"
             onClick={clearFilters}
@@ -386,8 +386,8 @@ export default function ProfileRepositoriesPage({
             <XCircle size={16} />
             Clear filter
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="border-t border-[var(--border-muted)]">
         {filteredRepositories.map((repo) => (

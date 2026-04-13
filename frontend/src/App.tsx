@@ -1190,7 +1190,7 @@ function App () {
             </div>
           </div>
 
-          <div className="hidden lg:block flex-1 max-w-xl">
+          <div className="flex items-center gap-2">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
               <input
@@ -1200,9 +1200,7 @@ function App () {
                 className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
               />
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleOpenCreateRepository}
@@ -1235,7 +1233,7 @@ function App () {
           </div>
         </div>
 
-        <div className="h-12 border-t border-[var(--surface-muted)] px-4 md:px-6 flex items-end overflow-x-auto">
+        <div className="h-12 px-4 md:px-6 flex items-end overflow-x-auto">
           {MAIN_TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
