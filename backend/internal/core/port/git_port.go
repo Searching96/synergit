@@ -30,6 +30,7 @@ type GitManager interface {
 
 	// Method for getting commits, optionally filtered by path.
 	GetCommits(repoPath string, branch string, path string) ([]domain.Commit, error)
+	GetLanguageBreakdown(repoPath string, preferredBranch string) (string, []domain.LanguageStat, error)
 
 	GetBranches(repoPath string) ([]domain.Branch, error)
 	CreateBranch(repoPath string, newBranch string,

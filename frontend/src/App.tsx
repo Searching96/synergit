@@ -648,7 +648,9 @@ function App () {
               </RouteButton>
             </div>
           ) : (
-            <span className="font-semibold text-[var(--text-primary)]">select-repository</span>
+            <RouteButton selected onClick={() => setIsRepoDrawerOpen(true)} className="truncate">
+              select-repository
+            </RouteButton>
           )}
           onMenuClick={() => setIsRepoDrawerOpen(true)}
           menuAriaLabel="Open repository menu"

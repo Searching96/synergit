@@ -10,6 +10,7 @@ import type {
   RepositoryVisibility,
 } from "../../types";
 import { formatVisibilityLabel } from "../../utils/visibility";
+import RouteButton from "../layout/RouteButton";
 import TopHeader from "../layout/TopHeader";
 
 interface CreateRepositoryPageProps {
@@ -120,7 +121,11 @@ export default function CreateRepositoryPage({
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <TopHeader
           badgeText="GH"
-          leftContent={<span className="font-semibold">New repository</span>}
+          leftContent={
+            <RouteButton selected onClick={onCancel} className="truncate">
+              New repository
+            </RouteButton>
+          }
           onMenuClick={onCancel}
           menuAriaLabel="Back"
           onCreateClick={onCancel}

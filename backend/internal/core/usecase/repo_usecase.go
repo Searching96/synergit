@@ -411,6 +411,30 @@ func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromB
 	return s.gitManager.CreateBranch(repoPath, newBranch, fromBranch)
 }
 
+type commitContext struct {
+	RepoPath   string
+	AuthorName string
+}
+
+func (s *RepoService) resolveCommitContext(repoID uuid.UUID,
+	requesterID uuid.UUID) (*commitContext, error) {
+
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || user == nil {
+		return nil, errors.New("requester user not found")
+	}
+
+	return &commitContext{
+		RepoPath:   repoPath,
+		AuthorName: user.Username,
+	}, nil
+}
+
 func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 	branch string, filePath string, content string, commitMessage string) error {
 	if err := domain.ValidateCommitFileChangeInput(branch, filePath,
@@ -419,18 +443,13 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return err
 	}
 
-	repoPath, err := s.resolveRepoPath(repoID)
+	ctx, err := s.resolveCommitContext(repoID, requesterID)
 	if err != nil {
 		return err
 	}
 
-	user, err := s.userStore.GetUserByID(requesterID)
-	if err != nil || user == nil {
-		return errors.New("requester user not found")
-	}
-
-	if err := s.gitManager.CommitFileChange(repoPath, branch, filePath, content,
-		user.Username, commitMessage); err != nil {
+	if err := s.gitManager.CommitFileChange(ctx.RepoPath, branch, filePath, content,
+		ctx.AuthorName, commitMessage); err != nil {
 		return err
 	}
 
@@ -447,18 +466,13 @@ func (s *RepoService) CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return err
 	}
 
-	repoPath, err := s.resolveRepoPath(repoID)
+	ctx, err := s.resolveCommitContext(repoID, requesterID)
 	if err != nil {
 		return err
 	}
 
-	user, err := s.userStore.GetUserByID(requesterID)
-	if err != nil || user == nil {
-		return errors.New("requester user not found")
-	}
-
-	if err := s.gitManager.CommitFilesChange(repoPath, branch, files,
-		user.Username, commitMessage); err != nil {
+	if err := s.gitManager.CommitFilesChange(ctx.RepoPath, branch, files,
+		ctx.AuthorName, commitMessage); err != nil {
 		return err
 	}
 

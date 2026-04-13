@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
+import RouteButton from "../layout/RouteButton";
 import TopNavigationTabs from "../layout/TopNavigationTabs";
 import ProfileOverviewPage from "./pages/ProfileOverviewPage";
 import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
@@ -181,7 +182,11 @@ export default function GithubProfilePages({
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <TopHeader
           badgeText="GH"
-          leftContent={<span className="font-semibold">{username}</span>}
+          leftContent={
+            <RouteButton selected onClick={() => onNavigateToPath(profileBasePath)} className="truncate">
+              {username}
+            </RouteButton>
+          }
           onMenuClick={() => setIsMenuOpen(true)}
           menuAriaLabel="Open navigation menu"
           onCreateClick={onCreateRepository}
