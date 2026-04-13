@@ -1,6 +1,7 @@
 package port
 
 import (
+	"context"
 	"synergit/internal/core/domain"
 
 	"github.com/google/uuid"
@@ -15,9 +16,20 @@ type RepoInsightsScheduler interface {
 	EnqueueRecompute(repoID uuid.UUID, trigger string) error
 }
 
-type RepoInsightsUsecase interface {
+type RepoInsightsMetricComputer interface {
+	ComputeCommitTrend(ctx context.Context,
+		commitsByHash map[string]domain.Commit) ([]domain.CommitTrendPoint, error)
+	ComputeTopContributors(ctx context.Context,
+		commitsByHash map[string]domain.Commit) ([]domain.ContributorStat, error)
+	ComputeBranchActivity(ctx context.Context,
+		commitsByBranch map[string][]domain.Commit) ([]domain.BranchActivityStat, error)
+	ComputeLanguageBreakdown(ctx context.Context,
+		repoPath string, preferredBranch string) (string, []domain.LanguageStat, error)
+}
+
+type RepoInsightsUseCase interface {
 	RepoInsightsScheduler
-	GetLastestInsights(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
+	GetLatestInsights(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
 	TriggerRecompute(repoID uuid.UUID, requesterID uuid.UUID, trigger string) error
 	RecomputeNow(repoID uuid.UUID, trigger string) error
 }

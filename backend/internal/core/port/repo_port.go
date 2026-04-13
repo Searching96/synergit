@@ -14,7 +14,7 @@ type RepoRepository interface {
 	UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage string) error
 }
 
-type RepoUsecase interface {
+type RepoUseCase interface {
 	CreateRepository(name string, ownerID uuid.UUID) (*domain.Repo, error)
 	CreateRepositoryWithOptions(name string, ownerID uuid.UUID, options domain.CreateRepositoryOptions) (*domain.Repo, error)
 	// Deprecated: use GetIntoRefsByOwnerAndName for username/repo clone flow.

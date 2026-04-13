@@ -14,13 +14,13 @@ import (
 )
 
 type RepoHandler struct {
-	repoUsecase   port.RepoUsecase
+	repoUseCase   port.RepoUseCase
 	publicBaseURL string
 }
 
-func NewRepoHandler(uc port.RepoUsecase, publicBaseURL string) *RepoHandler {
+func NewRepoHandler(uc port.RepoUseCase, publicBaseURL string) *RepoHandler {
 	return &RepoHandler{
-		repoUsecase:   uc,
+		repoUseCase:   uc,
 		publicBaseURL: strings.TrimSpace(publicBaseURL),
 	}
 }
@@ -150,9 +150,9 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 	}
 
 	// Call the business logic
-	repo, err := h.repoUsecase.CreateRepositoryWithOptions(req.Name, requesterID, options)
+	repo, err := h.repoUseCase.CreateRepositoryWithOptions(req.Name, requesterID, options)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -173,9 +173,9 @@ func (h *RepoHandler) HandleInfoRefs(c *gin.Context) {
 		return
 	}
 
-	refs, err := h.repoUsecase.GetIntoRefs(repoID, service)
+	refs, err := h.repoUseCase.GetIntoRefs(repoID, service)
 	if err != nil {
-		c.String(statusFromUsecaseError(err), err.Error())
+		c.String(statusFromUseCaseError(err), err.Error())
 		return
 	}
 
@@ -204,10 +204,10 @@ func (h *RepoHandler) HandleReceivePack(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.ReceivePack(repoID, c.Request.Body, c.Writer)
+	err := h.repoUseCase.ReceivePack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
-		c.String(statusFromUsecaseError(err), err.Error())
+		c.String(statusFromUseCaseError(err), err.Error())
 	}
 }
 
@@ -222,10 +222,10 @@ func (h *RepoHandler) HandleUploadPack(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.UploadPack(repoID, c.Request.Body, c.Writer)
+	err := h.repoUseCase.UploadPack(repoID, c.Request.Body, c.Writer)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
-		c.String(statusFromUsecaseError(err), err.Error())
+		c.String(statusFromUseCaseError(err), err.Error())
 	}
 }
 
@@ -241,7 +241,7 @@ func (h *RepoHandler) HandleInfoRefsPublic(c *gin.Context) {
 		return
 	}
 
-	refs, err := h.repoUsecase.GetIntoRefsByOwnerAndName(owner, repo, service)
+	refs, err := h.repoUseCase.GetIntoRefsByOwnerAndName(owner, repo, service)
 	if err != nil {
 		c.String(http.StatusNotFound, err.Error())
 		return
@@ -266,11 +266,11 @@ func (h *RepoHandler) HandleUploadPackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-upload-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.UploadPackByOwnerAndName(owner, repo, c.Request.Body,
+	err := h.repoUseCase.UploadPackByOwnerAndName(owner, repo, c.Request.Body,
 		c.Writer)
 	if err != nil {
 		fmt.Printf("Error uploading pack: %v\n", err)
-		c.String(statusFromUsecaseError(err), err.Error())
+		c.String(statusFromUseCaseError(err), err.Error())
 	}
 }
 
@@ -283,18 +283,18 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUsecase.ReceivePackByOwnerAndName(owner, repo, c.Request.Body,
+	err := h.repoUseCase.ReceivePackByOwnerAndName(owner, repo, c.Request.Body,
 		c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
-		c.String(statusFromUsecaseError(err), err.Error())
+		c.String(statusFromUseCaseError(err), err.Error())
 	}
 }
 
 func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
-	repos, err := h.repoUsecase.GetAllRepositories()
+	repos, err := h.repoUseCase.GetAllRepositories()
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -319,9 +319,9 @@ func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 	path := c.Query("path")
 	branch := c.Query("branch")
 
-	files, err := h.repoUsecase.GetRepoTree(repoID, path, branch)
+	files, err := h.repoUseCase.GetRepoTree(repoID, path, branch)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -336,9 +336,9 @@ func (h *RepoHandler) HandleGetBlob(c *gin.Context) {
 	path := c.Query("path")
 	branch := c.Query("branch")
 
-	content, err := h.repoUsecase.GetRepoBlob(repoID, path, branch)
+	content, err := h.repoUseCase.GetRepoBlob(repoID, path, branch)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -353,9 +353,9 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	branch := c.Query("branch")
 	path := c.Query("path")
 
-	commits, err := h.repoUsecase.GetRepoCommits(repoID, branch, path)
+	commits, err := h.repoUseCase.GetRepoCommits(repoID, branch, path)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -367,9 +367,9 @@ func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
 	if !ok {
 		return
 	}
-	branches, err := h.repoUsecase.GetRepoBranches(repoID)
+	branches, err := h.repoUseCase.GetRepoBranches(repoID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, branches)
@@ -387,9 +387,9 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 		return
 	}
 
-	branch, err := h.repoUsecase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
+	branch, err := h.repoUseCase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -413,10 +413,10 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 		return
 	}
 
-	err := h.repoUsecase.CommitFileChange(repoID, requesterID, req.Branch,
+	err := h.repoUseCase.CommitFileChange(repoID, requesterID, req.Branch,
 		req.Path, req.Content, req.CommitMessage)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -445,9 +445,9 @@ func (h *RepoHandler) HandleCommitFilesChange(c *gin.Context) {
 		files[item.Path] = item.Content
 	}
 
-	err := h.repoUsecase.CommitFilesChange(repoID, requesterID, req.Branch, files, req.CommitMessage)
+	err := h.repoUseCase.CommitFilesChange(repoID, requesterID, req.Branch, files, req.CommitMessage)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

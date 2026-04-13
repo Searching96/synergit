@@ -14,7 +14,7 @@ type PullRequestRepository interface {
 	UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error
 }
 
-type PullRequestUsecase interface {
+type PullRequestUseCase interface {
 	CreatePullRequest(
 		repoID uuid.UUID, creatorID uuid.UUID, title string, description string,
 		sourceBranch string, targetBranch string,

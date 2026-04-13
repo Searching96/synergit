@@ -24,7 +24,7 @@ import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
-import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/repoTabs";
+import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
 import {
   GLOBAL_PAGE_TITLES,
   buildProfilePath,
@@ -41,8 +41,8 @@ import {
   type GlobalPageKey,
   type ParsedRoute,
   type RepoContentKind,
-} from "./components/repository/workspace/repoRouting";
-import type { ProfileTabKey } from "./components/profile/pages/profileTypes";
+} from "./components/repository/workspace/utils/repoRouting";
+import type { ProfileTabKey } from "./components/profile/pages/utils/profileTypes";
 import { formatVisibilityLabel } from "./utils/visibility";
 
 function RepositoryIcon({ size = 16, className }: { size?: number; className?: string }) {

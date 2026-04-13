@@ -31,7 +31,7 @@ func parseRequesterID(c *gin.Context) (uuid.UUID, bool) {
 	return requesterID, true
 }
 
-func statusFromUsecaseError(err error) int {
+func statusFromUseCaseError(err error) int {
 	if err == nil {
 		return http.StatusInternalServerError
 	}
@@ -74,6 +74,6 @@ func statusFromUsecaseError(err error) int {
 	}
 }
 
-func respondUsecaseError(c *gin.Context, err error) {
-	c.JSON(statusFromUsecaseError(err), dto.ErrorResponse{Error: err.Error()})
+func respondUseCaseError(c *gin.Context, err error) {
+	c.JSON(statusFromUseCaseError(err), dto.ErrorResponse{Error: err.Error()})
 }

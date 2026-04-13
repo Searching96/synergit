@@ -1,7 +1,7 @@
-import type { Repository } from "../../../types";
+import type { Repository } from "../../../../types";
 import type { ShowcaseRepo } from "./profileTypes";
 import { SAMPLE_REPOSITORIES } from "./profileData";
-import { formatVisibilityLabel } from "../../../utils/visibility";
+import { formatVisibilityLabel } from "../../../../utils/visibility";
 
 const LANGUAGE_COLORS: Record<string, string> = {
   "Assembly": "#6e4c13",

@@ -10,11 +10,11 @@ import (
 )
 
 type IssueHandler struct {
-	issueUsecase port.IssueUsecase
+	issueUseCase port.IssueUseCase
 }
 
-func NewIssueHandler(uc port.IssueUsecase) *IssueHandler {
-	return &IssueHandler{issueUsecase: uc}
+func NewIssueHandler(uc port.IssueUseCase) *IssueHandler {
+	return &IssueHandler{issueUseCase: uc}
 }
 
 func parseIssueID(c *gin.Context) (uuid.UUID, bool) {
@@ -44,10 +44,10 @@ func (h *IssueHandler) HandleCreateIssue(c *gin.Context) {
 		return
 	}
 
-	issue, err := h.issueUsecase.CreateIssue(repoID, requesterID,
+	issue, err := h.issueUseCase.CreateIssue(repoID, requesterID,
 		req.Title, req.Description)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -65,9 +65,9 @@ func (h *IssueHandler) HandleListIssues(c *gin.Context) {
 		return
 	}
 
-	issues, err := h.issueUsecase.ListIssuesForRepo(repoID, requesterID)
+	issues, err := h.issueUseCase.ListIssuesForRepo(repoID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -90,9 +90,9 @@ func (h *IssueHandler) HandleGetIssue(c *gin.Context) {
 		return
 	}
 
-	issue, err := h.issueUsecase.GetIssue(repoID, issueID, requesterID)
+	issue, err := h.issueUseCase.GetIssue(repoID, issueID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -121,10 +121,10 @@ func (h *IssueHandler) HandleUpdateIssueStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.issueUsecase.TransitionIssueStatus(repoID, issueID,
+	if err := h.issueUseCase.TransitionIssueStatus(repoID, issueID,
 		requesterID, req.Status); err != nil {
 
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -159,10 +159,10 @@ func (h *IssueHandler) HandleAssignIssue(c *gin.Context) {
 		return
 	}
 
-	if err := h.issueUsecase.AssignIssue(repoID, issueID, assigneeID,
+	if err := h.issueUseCase.AssignIssue(repoID, issueID, assigneeID,
 		requesterID); err != nil {
 
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -191,10 +191,10 @@ func (h *IssueHandler) HandleUnassignIssue(c *gin.Context) {
 		return
 	}
 
-	if err := h.issueUsecase.UnassignIssue(repoID, issueID, assigneeID,
+	if err := h.issueUseCase.UnassignIssue(repoID, issueID, assigneeID,
 		requesterID); err != nil {
 
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -217,10 +217,10 @@ func (h *IssueHandler) HandleListIssueAssignees(c *gin.Context) {
 		return
 	}
 
-	assignees, err := h.issueUsecase.ListIssueAssignees(repoID, issueID,
+	assignees, err := h.issueUseCase.ListIssueAssignees(repoID, issueID,
 		requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

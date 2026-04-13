@@ -10,10 +10,10 @@ import (
 )
 
 type RepoInsightsHandler struct {
-	repoInsightsUseCase port.RepoInsightsUsecase
+	repoInsightsUseCase port.RepoInsightsUseCase
 }
 
-func NewRepoInsightsHandler(uc port.RepoInsightsUsecase) *RepoInsightsHandler {
+func NewRepoInsightsHandler(uc port.RepoInsightsUseCase) *RepoInsightsHandler {
 	return &RepoInsightsHandler{repoInsightsUseCase: uc}
 }
 
@@ -28,9 +28,9 @@ func (h *RepoInsightsHandler) HandleGetLatestInsights(c *gin.Context) {
 		return
 	}
 
-	snapshot, err := h.repoInsightsUseCase.GetLastestInsights(repoID, requesterID)
+	snapshot, err := h.repoInsightsUseCase.GetLatestInsights(repoID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h *RepoInsightsHandler) HandleTriggerRecompute(c *gin.Context) {
 	}
 
 	if err := h.repoInsightsUseCase.TriggerRecompute(repoID, requesterID, trigger); err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

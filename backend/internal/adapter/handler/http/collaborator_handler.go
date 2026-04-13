@@ -11,12 +11,12 @@ import (
 )
 
 type CollaboratorHandler struct {
-	collaboratorUsecase port.CollaboratorUsecase
+	collaboratorUseCase port.CollaboratorUseCase
 }
 
-func NewCollaboratorHandler(uc port.CollaboratorUsecase) *CollaboratorHandler {
+func NewCollaboratorHandler(uc port.CollaboratorUseCase) *CollaboratorHandler {
 	return &CollaboratorHandler{
-		collaboratorUsecase: uc,
+		collaboratorUseCase: uc,
 	}
 }
 
@@ -46,11 +46,11 @@ func (h *CollaboratorHandler) HandleAddCollaborator(c *gin.Context) {
 		return
 	}
 
-	err = h.collaboratorUsecase.AddCollaborator(repoID, targetUserID,
+	err = h.collaboratorUseCase.AddCollaborator(repoID, targetUserID,
 		domain.CollaboratorRole(req.Role),
 		requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -78,9 +78,9 @@ func (h *CollaboratorHandler) HandleRemoveCollaborator(c *gin.Context) {
 		return
 	}
 
-	err = h.collaboratorUsecase.RemoveCollaborator(repoID, targetUserID, requesterID)
+	err = h.collaboratorUseCase.RemoveCollaborator(repoID, targetUserID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -101,9 +101,9 @@ func (h *CollaboratorHandler) HandleGetCollaborators(c *gin.Context) {
 		return
 	}
 
-	collabs, err := h.collaboratorUsecase.GetCollaborators(repoID, requesterID)
+	collabs, err := h.collaboratorUseCase.GetCollaborators(repoID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

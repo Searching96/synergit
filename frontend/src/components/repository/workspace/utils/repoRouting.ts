@@ -1,4 +1,4 @@
-import type { ProfileTabKey } from "../../profile/pages/profileTypes";
+import type { ProfileTabKey } from "../../../profile/pages/utils/profileTypes";
 import { REPO_TAB_KEY_SET, type RepoTabKey } from "./repoTabs";
 
 const PROFILE_TAB_SET = new Set<ProfileTabKey>([

@@ -1077,7 +1077,7 @@ export default function FileExplorer({
             </div>
 
             <div className="border border-[var(--border-default)] rounded-md overflow-hidden]">
-              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
+              <div className="px-4 py-3 rounded-t-md border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
                 {/* LEFT SIDE: Avatar and Message */}
                 <div className="min-w-0 flex items-center gap-2">
                   <div className="h-7 w-7 shrink-0 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
@@ -1117,15 +1117,20 @@ export default function FileExplorer({
               </div>
 
               <ul>
-                {rootEntries.map((item) => {
+                {rootEntries.map((item, index) => {
                   const details = getItemCommitDetails(item);
+
+                  // 1. Check if this is the very last item in the array
+                  const isLast = index === rootEntries.length - 1;
 
                   return (
                     <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
                       <button
                         type="button"
                         onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                        className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
+                        // 2. Conditionally apply rounded-b-md if isLast is true
+                        className={`w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)] ${isLast ? "rounded-b-md" : ""
+                          }`}
                       >
                         <span className="min-w-0 flex items-center gap-2 text-left">
                           {item.type === "DIR" ? (
@@ -1273,7 +1278,7 @@ export default function FileExplorer({
 
           <aside className="xl:pl-2 space-y-6">
             <div>
-              <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-3">About</h3>
+              <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4">About</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-6">
                 {aboutText}
               </p>

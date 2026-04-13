@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sort"
 	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -14,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var _ port.RepoInsightsUsecase = (*RepoInsightsService)(nil)
+var _ port.RepoInsightsUseCase = (*RepoInsightsService)(nil)
 
 const (
 	defaultInsightsWorkerCount = 4
@@ -22,10 +21,11 @@ const (
 )
 
 type RepoInsightsService struct {
-	insightsStore port.RepoInsightsRepository
-	repoStore     port.RepoRepository
-	collabStore   port.CollaboratorRepository
-	gitManager    port.GitManager
+	insightsStore  port.RepoInsightsRepository
+	repoStore      port.RepoRepository
+	collabStore    port.CollaboratorRepository
+	gitManager     port.GitManager
+	metricComputer port.RepoInsightsMetricComputer
 
 	jobs chan insightsJob
 }
@@ -65,13 +65,15 @@ func NewRepoInsightsService(
 	repoStore port.RepoRepository,
 	collabStore port.CollaboratorRepository,
 	gitManager port.GitManager,
+	metricComputer port.RepoInsightsMetricComputer,
 ) *RepoInsightsService {
 	s := &RepoInsightsService{
-		insightsStore: insightsStore,
-		repoStore:     repoStore,
-		collabStore:   collabStore,
-		gitManager:    gitManager,
-		jobs:          make(chan insightsJob, defaultInsightsQueueSize),
+		insightsStore:  insightsStore,
+		repoStore:      repoStore,
+		collabStore:    collabStore,
+		gitManager:     gitManager,
+		metricComputer: metricComputer,
+		jobs:           make(chan insightsJob, defaultInsightsQueueSize),
 	}
 
 	s.startWorkers(defaultInsightsWorkerCount)
@@ -93,7 +95,7 @@ func (s *RepoInsightsService) workerLoop(workerID int) {
 	}
 }
 
-func (s *RepoInsightsService) GetLastestInsights(
+func (s *RepoInsightsService) GetLatestInsights(
 	repoID uuid.UUID,
 	requesterID uuid.UUID,
 ) (*domain.RepoInsightsSnapshot, error) {
@@ -279,19 +281,19 @@ func (s *RepoInsightsService) metricTasks() []metricTask {
 		{
 			Name: "commit_trend",
 			Run: func(ctx context.Context, input *analysisInput) (any, error) {
-				return s.computeCommitTrend(ctx, input)
+				return s.metricComputer.ComputeCommitTrend(ctx, input.CommitsByHash)
 			},
 		},
 		{
 			Name: "top_contributors",
 			Run: func(ctx context.Context, input *analysisInput) (any, error) {
-				return s.computeTopContributors(ctx, input)
+				return s.metricComputer.ComputeTopContributors(ctx, input.CommitsByHash)
 			},
 		},
 		{
 			Name: "branch_activity",
 			Run: func(ctx context.Context, input *analysisInput) (any, error) {
-				return s.computeBranchActivity(ctx, input)
+				return s.metricComputer.ComputeBranchActivity(ctx, input.CommitsByBranch)
 			},
 		},
 		{
@@ -357,107 +359,6 @@ func filterCommitsSince(commits []domain.Commit, since time.Time) []domain.Commi
 	return result
 }
 
-func (s *RepoInsightsService) computeCommitTrend(ctx context.Context,
-	input *analysisInput) ([]domain.CommitTrendPoint, error) {
-
-	byDay := map[string]int{}
-	for _, commit := range input.CommitsByHash {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		day := commit.Date.UTC().Format("2006-01-02")
-		byDay[day]++
-	}
-
-	days := make([]string, 0, len(byDay))
-	for day := range byDay {
-		days = append(days, day)
-	}
-	sort.Strings(days)
-
-	points := make([]domain.CommitTrendPoint, 0, len(days))
-	for _, day := range days {
-		points = append(points, domain.CommitTrendPoint{
-			Date:        day,
-			CommitCount: byDay[day],
-		})
-	}
-
-	return points, nil
-}
-
-func (s *RepoInsightsService) computeTopContributors(ctx context.Context,
-	input *analysisInput) ([]domain.ContributorStat, error) {
-
-	byAuthor := map[string]int{}
-
-	for _, commit := range input.CommitsByHash {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		author := strings.TrimSpace(commit.Author)
-		if author == "" {
-			author = "Unknown"
-		}
-		byAuthor[author]++
-	}
-
-	stats := make([]domain.ContributorStat, 0, len(byAuthor))
-	for author, count := range byAuthor {
-		stats = append(stats, domain.ContributorStat{
-			AuthorName:  author,
-			CommitCount: count,
-		})
-	}
-
-	sort.Slice(stats, func(i int, j int) bool {
-		if stats[i].CommitCount == stats[j].CommitCount {
-			return stats[i].AuthorName < stats[j].AuthorName
-		}
-		return stats[i].CommitCount > stats[j].CommitCount
-	})
-
-	if len(stats) > 5 {
-		stats = stats[:5]
-	}
-
-	return stats, nil
-}
-
-func (s *RepoInsightsService) computeBranchActivity(ctx context.Context,
-	input *analysisInput) ([]domain.BranchActivityStat, error) {
-
-	stats := make([]domain.BranchActivityStat, 0, len(input.CommitsByBranch))
-
-	for branchName, commits := range input.CommitsByBranch {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		stats = append(stats, domain.BranchActivityStat{
-			BranchName:  branchName,
-			CommitCount: len(commits),
-		})
-	}
-
-	sort.Slice(stats, func(i int, j int) bool {
-		if stats[i].CommitCount == stats[j].CommitCount {
-			return stats[i].BranchName < stats[j].BranchName
-		}
-		return stats[i].CommitCount > stats[j].CommitCount
-	})
-
-	return stats, nil
-}
-
 func (s *RepoInsightsService) computeLanguageBreakdown(ctx context.Context,
 	input *analysisInput) (languageMetricResult, error) {
 
@@ -473,7 +374,7 @@ func (s *RepoInsightsService) computeLanguageBreakdown(ctx context.Context,
 		return result, nil
 	}
 
-	primaryLanguage, breakdown, err := s.gitManager.GetLanguageBreakdown(repoPath, input.DefaultBranch)
+	primaryLanguage, breakdown, err := s.metricComputer.ComputeLanguageBreakdown(ctx, repoPath, input.DefaultBranch)
 	if err != nil {
 		return result, err
 	}

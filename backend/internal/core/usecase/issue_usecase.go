@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var _ port.IssueUsecase = (*IssueService)(nil)
+var _ port.IssueUseCase = (*IssueService)(nil)
 
 type IssueService struct {
 	issueStore  port.IssueRepository

@@ -1,4 +1,4 @@
-package repository
+package git_analysis
 
 import (
 	"errors"
@@ -96,17 +96,15 @@ var ignoredLanguageDirs = map[string]struct{}{
 	"vendor":       {},
 }
 
-func (g *LocalGitAdapter) GetLanguageBreakdown(repoPath string,
+func AnalyzeLanguageBreakdown(repoPath string,
 	preferredBranch string) (string, []domain.LanguageStat, error) {
 
-	fullPath := g.resolveRepoPath(repoPath)
-
-	repo, err := git.PlainOpen(fullPath)
+	repo, err := git.PlainOpen(repoPath)
 	if err != nil {
 		return "", nil, err
 	}
 
-	ref, err := resolveInsightsBranchReference(repo, preferredBranch)
+	ref, err := resolvePreferredBranchReference(repo, preferredBranch)
 	if err != nil {
 		if errors.Is(err, plumbing.ErrReferenceNotFound) {
 			return "", []domain.LanguageStat{}, nil
@@ -171,7 +169,7 @@ func (g *LocalGitAdapter) GetLanguageBreakdown(repoPath string,
 	return breakdown[0].Language, breakdown, nil
 }
 
-func resolveInsightsBranchReference(repo *git.Repository,
+func resolvePreferredBranchReference(repo *git.Repository,
 	preferredBranch string) (*plumbing.Reference, error) {
 
 	candidates := []string{strings.TrimSpace(preferredBranch), "master", "main", ""}
@@ -183,7 +181,7 @@ func resolveInsightsBranchReference(repo *git.Repository,
 		}
 		seen[candidate] = struct{}{}
 
-		ref, err := getBranchRef(repo, candidate)
+		ref, err := resolveBranchReference(repo, candidate)
 		if err == nil {
 			return ref, nil
 		}
@@ -195,6 +193,29 @@ func resolveInsightsBranchReference(repo *git.Repository,
 	}
 
 	return nil, plumbing.ErrReferenceNotFound
+}
+
+func resolveBranchReference(repo *git.Repository, branch string) (*plumbing.Reference, error) {
+	if branch == "" {
+		return repo.Head()
+	}
+
+	trimmed := strings.TrimSpace(branch)
+	branchRef, err := repo.Reference(plumbing.ReferenceName("refs/heads/"+trimmed), true)
+	if err == nil {
+		return branchRef, nil
+	}
+
+	if !errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return nil, err
+	}
+
+	resolvedHash, resolveErr := repo.ResolveRevision(plumbing.Revision(trimmed))
+	if resolveErr == nil {
+		return plumbing.NewHashReference(plumbing.ReferenceName("refs/revisions/"+trimmed), *resolvedHash), nil
+	}
+
+	return nil, err
 }
 
 func classifyProgrammingLanguage(filePath string) string {

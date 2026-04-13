@@ -9,11 +9,11 @@ import (
 )
 
 type AuthHandler struct {
-	authUsecase port.AuthUsecase
+	authUseCase port.AuthUseCase
 }
 
-func NewAuthHandler(uc port.AuthUsecase) *AuthHandler {
-	return &AuthHandler{authUsecase: uc}
+func NewAuthHandler(uc port.AuthUseCase) *AuthHandler {
+	return &AuthHandler{authUseCase: uc}
 }
 
 // Handle new user creation
@@ -25,9 +25,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	err := h.authUsecase.Register(req.Username, req.Email, req.Password)
+	err := h.authUseCase.Register(req.Username, req.Email, req.Password)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -42,9 +42,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.authUsecase.Login(req.Username, req.Password)
+	token, err := h.authUseCase.Login(req.Username, req.Password)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

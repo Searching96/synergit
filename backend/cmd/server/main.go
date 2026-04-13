@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"synergit/internal/adapter/git_analysis"
 	httpHandler "synergit/internal/adapter/handler/http"
 	"synergit/internal/adapter/handler/http/middleware"
 	"synergit/internal/adapter/repository"
@@ -69,24 +70,25 @@ func main() {
 	jwtSecret := os.Getenv("JWT_SECRET")
 	passwordHasher := security.NewBcryptPasswordHasher(0)
 	tokenManager := security.NewJWTTokenManager(jwtSecret)
+	repoInsightsMetricComputer := git_analysis.NewRepoInsightsMetricComputer()
 
-	repoInsightUsecase := usecase.NewRepoInsightsService(dbRepoInsightsAdapter, dbRepoAdapter,
-		dbCollabAdapter, gitAdapter)
-	repoUsecase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
-		dbUserAdapter, repoInsightUsecase)
-	authUsecase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
-	collabUsecase := usecase.NewCollaboratorService(dbCollabAdapter)
-	issueUsecase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
-	prUsecase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
+	repoInsightUseCase := usecase.NewRepoInsightsService(dbRepoInsightsAdapter, dbRepoAdapter,
+		dbCollabAdapter, gitAdapter, repoInsightsMetricComputer)
+	repoUseCase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
+		dbUserAdapter, repoInsightUseCase)
+	authUseCase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
+	collabUseCase := usecase.NewCollaboratorService(dbCollabAdapter)
+	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
+	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
-	repoHandler := httpHandler.NewRepoHandler(repoUsecase, publicBaseURL)
-	authHandler := httpHandler.NewAuthHandler(authUsecase)
-	collabHandler := httpHandler.NewCollaboratorHandler(collabUsecase)
-	issueHandler := httpHandler.NewIssueHandler(issueUsecase)
-	prHandler := httpHandler.NewPullRequestHandler(prUsecase)
-	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUsecase)
+	repoHandler := httpHandler.NewRepoHandler(repoUseCase, publicBaseURL)
+	authHandler := httpHandler.NewAuthHandler(authUseCase)
+	collabHandler := httpHandler.NewCollaboratorHandler(collabUseCase)
+	issueHandler := httpHandler.NewIssueHandler(issueUseCase)
+	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
+	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
 	router := gin.Default()

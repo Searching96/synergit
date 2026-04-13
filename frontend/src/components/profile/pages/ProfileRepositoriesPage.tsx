@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, XCircle } from "lucide-react";
 import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
-import type { ShowcaseRepo } from "./profileTypes";
+import type { ShowcaseRepo } from "./utils/profileTypes";
 
 function buildSparklinePoints(values: number[], width: number, height: number, padding = 2): string {
   if (values.length === 0) {

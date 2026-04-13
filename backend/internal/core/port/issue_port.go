@@ -16,7 +16,7 @@ type IssueRepository interface {
 	ListAssignees(issueID uuid.UUID) ([]domain.IssueAssignee, error)
 }
 
-type IssueUsecase interface {
+type IssueUseCase interface {
 	CreateIssue(repoID uuid.UUID, creatorID uuid.UUID, title string,
 		description string) (*domain.Issue, error)
 	ListIssuesForRepo(repoID uuid.UUID, requesterID uuid.UUID) ([]domain.Issue, error)

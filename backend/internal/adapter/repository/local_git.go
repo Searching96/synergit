@@ -343,43 +343,144 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter 
 		return nil, err
 	}
 
-	logOptions := &git.LogOptions{From: ref.Hash()}
-	trimmedPath := strings.TrimSpace(pathFilter)
-	if trimmedPath != "" {
-		normalizedPath := path.Clean(strings.ReplaceAll(trimmedPath, "\\", "/"))
-		if normalizedPath != "." {
-			logOptions.FileName = &normalizedPath
-		}
+	normalizedPath := normalizeCommitPath(pathFilter)
+	if normalizedPath == "" {
+		return listCommits(r, &git.LogOptions{From: ref.Hash()})
 	}
 
-	// 3. Get the commit iterator starting from HEAD
-	commitIter, err := r.Log(logOptions)
+	isDirectory, err := isDirectoryPathAtRef(r, ref.Hash(), normalizedPath)
 	if err != nil {
 		return nil, err
 	}
 
+	if isDirectory {
+		return listDirectoryCommits(r, ref.Hash(), normalizedPath)
+	}
+
+	return listCommits(r, &git.LogOptions{
+		From:     ref.Hash(),
+		FileName: &normalizedPath,
+	})
+}
+
+func normalizeCommitPath(pathFilter string) string {
+	trimmedPath := strings.TrimSpace(pathFilter)
+	if trimmedPath == "" {
+		return ""
+	}
+
+	normalizedPath := path.Clean(strings.ReplaceAll(trimmedPath, "\\", "/"))
+	normalizedPath = strings.TrimPrefix(normalizedPath, "/")
+	if normalizedPath == "." {
+		return ""
+	}
+
+	return normalizedPath
+}
+
+func listCommits(r *git.Repository, logOptions *git.LogOptions) ([]domain.Commit, error) {
+	commitIter, err := r.Log(logOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer commitIter.Close()
+
 	var commits []domain.Commit
-
-	// 4. Loop through the commits and map them to our Domain struct
 	err = commitIter.ForEach(func(c *object.Commit) error {
-		commits = append(commits, domain.Commit{
-			Hash:   c.Hash.String(),
-			Author: c.Author.Name,
-			// Clean up the message (sometimes t hey have trailing newlines)
-			Message: strings.TrimSpace(c.Message),
-			Date:    c.Author.When,
-		})
-
-		// Note: If we have massive repos, we might want to break this loop
-		// after 50 or 100 commits to implement pagination later.
+		commits = append(commits, mapToDomainCommit(c))
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to iterate commits: %w", err)
 	}
 
 	return commits, nil
+}
+
+func mapToDomainCommit(c *object.Commit) domain.Commit {
+	return domain.Commit{
+		Hash:    c.Hash.String(),
+		Author:  c.Author.Name,
+		Message: strings.TrimSpace(c.Message),
+		Date:    c.Author.When,
+	}
+}
+
+func isDirectoryPathAtRef(r *git.Repository, refHash plumbing.Hash, normalizedPath string) (bool, error) {
+	commit, err := r.CommitObject(refHash)
+	if err != nil {
+		return false, err
+	}
+
+	tree, err := commit.Tree()
+	if err != nil {
+		return false, err
+	}
+
+	_, dirErr := tree.Tree(normalizedPath)
+	if dirErr == nil {
+		return true, nil
+	}
+	if !errors.Is(dirErr, object.ErrDirectoryNotFound) {
+		return false, dirErr
+	}
+
+	_, fileErr := tree.File(normalizedPath)
+	if fileErr == nil || errors.Is(fileErr, object.ErrFileNotFound) {
+		return false, nil
+	}
+
+	return false, fileErr
+}
+
+// Folder rows should display the latest commit that touched any descendant file.
+func listDirectoryCommits(r *git.Repository, refHash plumbing.Hash,
+	normalizedDirPath string) ([]domain.Commit, error) {
+
+	commitIter, err := r.Log(&git.LogOptions{From: refHash})
+	if err != nil {
+		return nil, err
+	}
+	defer commitIter.Close()
+
+	prefix := normalizedDirPath + "/"
+	var commits []domain.Commit
+
+	err = commitIter.ForEach(func(c *object.Commit) error {
+		touchesDirectory, statsErr := commitTouchesDirectory(c, normalizedDirPath, prefix)
+		if statsErr != nil {
+			return statsErr
+		}
+		if !touchesDirectory {
+			return nil
+		}
+
+		commits = append(commits, mapToDomainCommit(c))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate commits for directory %q: %w", normalizedDirPath, err)
+	}
+
+	return commits, nil
+}
+
+func commitTouchesDirectory(commit *object.Commit, exactDir string,
+	prefixDir string) (bool, error) {
+
+	stats, err := commit.Stats()
+	if err != nil {
+		return false, err
+	}
+
+	for _, stat := range stats {
+		changedPath := normalizeCommitPath(stat.Name)
+		if changedPath == exactDir || strings.HasPrefix(changedPath, prefixDir) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func getBranchRef(r *git.Repository, branch string) (*plumbing.Reference, error) {

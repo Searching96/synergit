@@ -13,7 +13,7 @@ type UserRepository interface {
 	GetUserByID(id uuid.UUID) (*domain.User, error)
 }
 
-type AuthUsecase interface {
+type AuthUseCase interface {
 	Register(username string, email string, password string) error
 	Login(username string, password string) (string, error)
 }

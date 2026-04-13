@@ -14,8 +14,8 @@ import RepoSecurityPage from "../pages/RepoSecurityPage";
 import RepoSettingsPage from "../pages/RepoSettingsPage";
 import RepoWikiPage from "../pages/RepoWikiPage";
 import PullRequestList from "../pulls/PullRequestList";
-import type { RepoContentKind } from "./repoRouting";
-import type { RepoTabKey } from "./repoTabs";
+import type { RepoContentKind } from "./utils/repoRouting";
+import type { RepoTabKey } from "./utils/repoTabs";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";

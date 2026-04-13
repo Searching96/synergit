@@ -14,7 +14,7 @@ type CollaboratorRepository interface {
 	GetCollaborators(repoID uuid.UUID) ([]domain.RepoCollaborator, error)
 }
 
-type CollaboratorUsecase interface {
+type CollaboratorUseCase interface {
 	AddCollaborator(repoID uuid.UUID, userID uuid.UUID,
 		role domain.CollaboratorRole, requesterID uuid.UUID) error
 	RemoveCollaborator(repoID uuid.UUID, userID uuid.UUID, requesterID uuid.UUID) error

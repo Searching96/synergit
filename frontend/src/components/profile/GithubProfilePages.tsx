@@ -26,15 +26,15 @@ import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
 import ProfileProjectsPage from "./pages/ProfileProjectsPage";
 import ProfilePackagesPage from "./pages/ProfilePackagesPage";
 import ProfileStarsPage from "./pages/ProfileStarsPage";
-import { PINNED_ORDER, STARRED_REPOS } from "./pages/profileData";
-import type { ProfileTabKey, ShowcaseRepo } from "./pages/profileTypes";
+import { PINNED_ORDER, STARRED_REPOS } from "./pages/utils/profileData";
+import type { ProfileTabKey, ShowcaseRepo } from "./pages/utils/profileTypes";
 import {
   buildContributionMatrix,
   buildDefaultRepositories,
   contributionColor,
   isRepositoryOwnedByUser,
   languageColor,
-} from "./pages/profileUtils";
+} from "./pages/utils/profileUtils";
 import TopHeader from "../layout/TopHeader";
 
 interface GithubProfilePagesProps {

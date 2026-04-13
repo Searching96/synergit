@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { RepoForkedIcon, RepoIcon, StarFillIcon, StarIcon } from "@primer/octicons-react";
-import type { StarredRepo } from "./profileTypes";
+import type { StarredRepo } from "./utils/profileTypes";
 
 interface ProfileStarsPageProps {
   starredRepos: StarredRepo[];

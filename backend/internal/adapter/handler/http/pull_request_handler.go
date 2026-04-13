@@ -11,11 +11,11 @@ import (
 )
 
 type PullRequestHandler struct {
-	prUsecase port.PullRequestUsecase
+	prUseCase port.PullRequestUseCase
 }
 
-func NewPullRequestHandler(uc port.PullRequestUsecase) *PullRequestHandler {
-	return &PullRequestHandler{prUsecase: uc}
+func NewPullRequestHandler(uc port.PullRequestUseCase) *PullRequestHandler {
+	return &PullRequestHandler{prUseCase: uc}
 }
 
 func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
@@ -37,10 +37,10 @@ func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
 		return
 	}
 
-	pr, err := h.prUsecase.CreatePullRequest(repoID, requesterID,
+	pr, err := h.prUseCase.CreatePullRequest(repoID, requesterID,
 		req.Title, req.Description, req.SourceBranch, req.TargetBranch)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -55,9 +55,9 @@ func (h *PullRequestHandler) HandleListPullRequests(c *gin.Context) {
 		return
 	}
 
-	prs, err := h.prUsecase.ListPullRequestsForRepo(repoID)
+	prs, err := h.prUseCase.ListPullRequestsForRepo(repoID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -72,9 +72,9 @@ func (h *PullRequestHandler) HandleGetPullRequest(c *gin.Context) {
 		return
 	}
 
-	pr, err := h.prUsecase.GetPullRequest(pullID)
+	pr, err := h.prUseCase.GetPullRequest(pullID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 	if pr == nil {
@@ -98,9 +98,9 @@ func (h *PullRequestHandler) HandleMergePullRequest(c *gin.Context) {
 		return
 	}
 
-	err = h.prUsecase.MergePullRequest(pullID, requestID)
+	err = h.prUseCase.MergePullRequest(pullID, requestID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -120,9 +120,9 @@ func (h *PullRequestHandler) HandleClosePullRequest(c *gin.Context) {
 		return
 	}
 
-	err = h.prUsecase.ClosePullRequest(pullID, requestID)
+	err = h.prUseCase.ClosePullRequest(pullID, requestID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -142,9 +142,9 @@ func (h *PullRequestHandler) HandleGetMergeConflicts(c *gin.Context) {
 		return
 	}
 
-	conflicts, err := h.prUsecase.GetMergeConflicts(pullID, requesterID)
+	conflicts, err := h.prUseCase.GetMergeConflicts(pullID, requesterID)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 
@@ -178,9 +178,9 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 		})
 	}
 
-	err = h.prUsecase.ResolveConflicts(pullID, requesterID, req.CommitMessage, resolutions)
+	err = h.prUseCase.ResolveConflicts(pullID, requesterID, req.CommitMessage, resolutions)
 	if err != nil {
-		respondUsecaseError(c, err)
+		respondUseCaseError(c, err)
 		return
 	}
 

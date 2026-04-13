@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RepoIcon } from "@primer/octicons-react";
-import type { ShowcaseRepo } from "./profileTypes";
+import type { ShowcaseRepo } from "./utils/profileTypes";
 
 interface ProfileOverviewPageProps {
   pinnedRepositories: ShowcaseRepo[];
