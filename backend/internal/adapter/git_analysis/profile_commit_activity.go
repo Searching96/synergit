@@ -74,22 +74,30 @@ func (c *RepoInsightsMetricComputer) ComputeProfileCommitActivity(ctx context.Co
 	sort.Ints(availableYears)
 
 	selectedYear := year
-	if selectedYear <= 0 {
-		if len(availableYears) > 0 {
-			selectedYear = availableYears[len(availableYears)-1]
-		} else {
-			selectedYear = nowUTC.Year()
-		}
+	if selectedYear < 0 {
+		selectedYear = 0
 	}
 
 	contributionDays := make([]domain.ProfileContributionDay, 0)
 	totalContributions := 0
-	selectedYearPrefix := strconv.Itoa(selectedYear) + "-"
-
 	contributionDates := make([]string, 0)
-	for date := range byDate {
-		if strings.HasPrefix(date, selectedYearPrefix) {
-			contributionDates = append(contributionDates, date)
+	if selectedYear == 0 {
+		for date := range byDate {
+			parsedDate, err := time.Parse("2006-01-02", date)
+			if err != nil {
+				continue
+			}
+
+			if !parsedDate.Before(since) && !parsedDate.After(nowUTC) {
+				contributionDates = append(contributionDates, date)
+			}
+		}
+	} else {
+		selectedYearPrefix := strconv.Itoa(selectedYear) + "-"
+		for date := range byDate {
+			if strings.HasPrefix(date, selectedYearPrefix) {
+				contributionDates = append(contributionDates, date)
+			}
 		}
 	}
 	sort.Strings(contributionDates)

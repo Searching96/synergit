@@ -122,11 +122,21 @@ func (s *RepoInsightsService) GetProfileActivity(
 		return nil, err
 	}
 
-	issuesCount, pullRequestsCount, codeReviewsCount, err := s.computeProfileTicketStats(
-		accessibleRepos,
-		requesterID,
-		now,
-	)
+	issues, pullRequests, err := s.listProfileTickets(accessibleRepos)
+	if err != nil {
+		return nil, err
+	}
+
+	contributionDays, totalContributions, issuesCount, pullRequestsCount, err :=
+		s.metricComputer.ComputeProfileContributionSummary(
+			ctx,
+			commitActivity.ContributionDays,
+			issues,
+			pullRequests,
+			requesterID,
+			commitActivity.SelectedYear,
+			now,
+		)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +144,6 @@ func (s *RepoInsightsService) GetProfileActivity(
 	availableYears := commitActivity.AvailableYears
 	if availableYears == nil {
 		availableYears = []int{}
-	}
-
-	contributionDays := commitActivity.ContributionDays
-	if contributionDays == nil {
-		contributionDays = []domain.ProfileContributionDay{}
 	}
 
 	topRepositories := commitActivity.TopRepositories
@@ -152,10 +157,10 @@ func (s *RepoInsightsService) GetProfileActivity(
 		SelectedYear:       commitActivity.SelectedYear,
 		AvailableYears:     availableYears,
 		ContributionDays:   contributionDays,
-		TotalContributions: commitActivity.TotalContributions,
+		TotalContributions: totalContributions,
 		ActivityChart: domain.ProfileActivityChart{
 			Commits:      commitActivity.CommitsLast365Days,
-			CodeReviews:  codeReviewsCount,
+			CodeReviews:  0,
 			Issues:       issuesCount,
 			PullRequests: pullRequestsCount,
 		},
@@ -474,15 +479,9 @@ func (s *RepoInsightsService) listAccessibleRepos(requesterID uuid.UUID) ([]*dom
 	return accessible, nil
 }
 
-func (s *RepoInsightsService) computeProfileTicketStats(
-	repos []*domain.Repo,
-	requesterID uuid.UUID,
-	now time.Time,
-) (int, int, int, error) {
-	since := now.AddDate(0, 0, -364)
-	issuesCount := 0
-	pullRequestsCount := 0
-	codeReviewsCount := 0
+func (s *RepoInsightsService) listProfileTickets(repos []*domain.Repo) ([]domain.Issue, []domain.PullRequest, error) {
+	issues := make([]domain.Issue, 0)
+	pullRequests := make([]domain.PullRequest, 0)
 
 	for _, repo := range repos {
 		if repo == nil {
@@ -494,45 +493,20 @@ func (s *RepoInsightsService) computeProfileTicketStats(
 			continue
 		}
 
-		issues, err := s.issueStore.ListByRepo(repoID)
+		repoIssues, err := s.issueStore.ListByRepo(repoID)
 		if err != nil {
-			return 0, 0, 0, err
+			return nil, nil, err
 		}
+		issues = append(issues, repoIssues...)
 
-		for _, issue := range issues {
-			if issue.CreatorID == requesterID && isWithinTimeRange(issue.CreatedAt, since, now) {
-				issuesCount++
-			}
-		}
-
-		pullRequests, err := s.pullStore.ListByRepo(repoID)
+		repoPullRequests, err := s.pullStore.ListByRepo(repoID)
 		if err != nil {
-			return 0, 0, 0, err
+			return nil, nil, err
 		}
-
-		for _, pullRequest := range pullRequests {
-			if pullRequest.CreatorID != requesterID {
-				continue
-			}
-
-			if isWithinTimeRange(pullRequest.CreatedAt, since, now) {
-				pullRequestsCount++
-			}
-
-			if pullRequest.Status == domain.PullRequestStatusMerged &&
-				isWithinTimeRange(pullRequest.UpdatedAt, since, now) {
-				codeReviewsCount++
-			}
-		}
+		pullRequests = append(pullRequests, repoPullRequests...)
 	}
 
-	return issuesCount, pullRequestsCount, codeReviewsCount, nil
-}
-
-func isWithinTimeRange(value time.Time, since time.Time, until time.Time) bool {
-	valueUTC := value.UTC()
-	return (valueUTC.After(since) || valueUTC.Equal(since)) &&
-		(valueUTC.Before(until) || valueUTC.Equal(until))
+	return issues, pullRequests, nil
 }
 
 func (s *RepoInsightsService) computeLanguageBreakdown(ctx context.Context,

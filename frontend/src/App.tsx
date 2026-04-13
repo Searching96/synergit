@@ -629,7 +629,6 @@ function App () {
     <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <TopHeader
-          badgeText="GH"
           leftContent={selectedRepo ? (
             <div className="min-w-0 flex items-center gap-1 text-sm">
               <RouteButton
@@ -654,11 +653,11 @@ function App () {
           )}
           onMenuClick={() => setIsRepoDrawerOpen(true)}
           menuAriaLabel="Open repository menu"
+          onIssuesClick={() => navigateToPath('/issues')}
+          onPullsClick={() => navigateToPath('/pulls')}
           onCreateClick={handleOpenCreateRepository}
-          actions={[
-            { label: 'Profile', onClick: () => navigateToProfileTab('overview') },
-            { label: 'Logout', onClick: handleLogout },
-          ]}
+          onProfileClick={() => navigateToProfileTab('overview')}
+          profileInitial={currentUsername}
         />
 
         <TopNavigationTabs

@@ -177,7 +177,6 @@ export default function GithubProfilePages({
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <TopHeader
-          badgeText="GH"
           leftContent={
             <RouteButton selected onClick={() => onNavigateToPath(profileBasePath)} className="truncate">
               {username}
@@ -185,8 +184,11 @@ export default function GithubProfilePages({
           }
           onMenuClick={() => setIsMenuOpen(true)}
           menuAriaLabel="Open navigation menu"
+          onIssuesClick={() => onNavigateToPath("/issues")}
+          onPullsClick={() => onNavigateToPath("/pulls")}
           onCreateClick={onCreateRepository}
-          actions={[{ label: "Logout", onClick: onLogout }]}
+          onProfileClick={() => onNavigateToPath(profileBasePath)}
+          profileInitial={avatarInitial}
         />
 
         <TopNavigationTabs
@@ -293,6 +295,18 @@ export default function GithubProfilePages({
                   </button>
                 );
               })}
+            </div>
+
+            <div className="mx-4 my-2 border-t border-[var(--border-muted)]" />
+
+            <div className="px-3 py-1">
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3 text-base text-[var(--text-primary)]"
+              >
+                Logout
+              </button>
             </div>
           </aside>
         </div>

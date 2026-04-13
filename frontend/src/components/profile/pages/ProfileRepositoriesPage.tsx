@@ -1,15 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, XCircle } from "lucide-react";
 import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
+import { reposApi } from "../../../services/api/repos";
+import type { Commit } from "../../../types";
 import type { ShowcaseRepo } from "./utils/profileTypes";
 
-function buildSparklinePoints(values: number[], width: number, height: number, padding = 2): string {
+const DAY_MS = 24 * 60 * 60 * 1000;
+const COMMIT_TREND_BUCKETS = 53;
+
+const EMPTY_COMMIT_TREND = Array.from({ length: COMMIT_TREND_BUCKETS }, () => 0);
+
+function atStartOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function buildSparklinePoints(
+  values: number[],
+  width: number,
+  height: number,
+  padding = 2,
+  sharedMax?: number,
+): string {
   if (values.length === 0) {
     return "";
   }
 
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values, 0);
+  const max = Math.max(sharedMax ?? Math.max(...values, 1), 1);
+  const min = 0;
   const range = Math.max(max - min, 1);
   const usableWidth = width - padding * 2;
   const usableHeight = height - padding * 2;
@@ -22,6 +39,31 @@ function buildSparklinePoints(values: number[], width: number, height: number, p
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
+}
+
+function buildLastYearCommitSparkline(commits: Commit[]): number[] {
+  const buckets = Array.from({ length: COMMIT_TREND_BUCKETS }, () => 0);
+  const today = atStartOfDay(new Date());
+  const since = new Date(today);
+  since.setDate(since.getDate() - 364);
+
+  for (const commit of commits) {
+    const commitDate = new Date(commit.date);
+    if (Number.isNaN(commitDate.getTime())) {
+      continue;
+    }
+
+    const dayValue = atStartOfDay(commitDate);
+    if (dayValue < since || dayValue > today) {
+      continue;
+    }
+
+    const dayOffset = Math.floor((dayValue.getTime() - since.getTime()) / DAY_MS);
+    const bucketIndex = Math.min(COMMIT_TREND_BUCKETS - 1, Math.floor(dayOffset / 7));
+    buckets[bucketIndex] += 1;
+  }
+
+  return buckets;
 }
 
 interface ProfileRepositoriesPageProps {
@@ -65,6 +107,7 @@ export default function ProfileRepositoriesPage({
   const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+  const [commitTrendByRepoName, setCommitTrendByRepoName] = useState<Record<string, number[]>>({});
 
   const typeDropdownRef = useRef<HTMLDivElement | null>(null);
   const languageDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +154,39 @@ export default function ProfileRepositoriesPage({
       window.clearTimeout(timeoutId);
     };
   }, [searchInput]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCommitTrends = async () => {
+      const trendEntries = await Promise.all(
+        profileRepositories.map(async (repo) => {
+          if (!repo.id) {
+            return [repo.name, EMPTY_COMMIT_TREND] as const;
+          }
+
+          try {
+            const commits = await reposApi.getCommits(repo.id);
+            return [repo.name, buildLastYearCommitSparkline(commits)] as const;
+          } catch {
+            return [repo.name, EMPTY_COMMIT_TREND] as const;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setCommitTrendByRepoName(Object.fromEntries(trendEntries));
+    };
+
+    void loadCommitTrends();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileRepositories]);
 
   const languageOptions = useMemo(() => {
     const uniqueLanguages = new Set(POPULAR_LANGUAGE_OPTIONS);
@@ -168,6 +244,21 @@ export default function ProfileRepositoriesPage({
 
     return sorted;
   }, [languageFilter, profileRepositories, searchQuery, sortFilter, typeFilter]);
+
+  const sharedTrendScaleMax = useMemo(() => {
+    let maxValue = 0;
+
+    for (const repo of filteredRepositories) {
+      const trend = commitTrendByRepoName[repo.name] ?? EMPTY_COMMIT_TREND;
+      for (const value of trend) {
+        if (value > maxValue) {
+          maxValue = value;
+        }
+      }
+    }
+
+    return Math.max(maxValue, 1);
+  }, [commitTrendByRepoName, filteredRepositories]);
 
   const sortLabel =
     sortFilter === "name"
@@ -433,9 +524,9 @@ export default function ProfileRepositoriesPage({
                 Star
               </button>
               <div className="h-6 w-[92px]">
-                <svg viewBox="0 0 92 24" className="h-full w-full" role="img" aria-label={`${repo.name} commit trend`}>
+                <svg viewBox="0 0 92 24" className="h-full w-full" role="img" aria-label={`${repo.name} last year commit trend`}>
                   <polyline
-                    points={buildSparklinePoints(repo.sparkline, 92, 24)}
+                    points={buildSparklinePoints(commitTrendByRepoName[repo.name] ?? EMPTY_COMMIT_TREND, 92, 24, 2, sharedTrendScaleMax)}
                     fill="none"
                     stroke="var(--accent-sparkline)"
                     strokeWidth="2"

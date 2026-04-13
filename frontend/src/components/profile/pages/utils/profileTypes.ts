@@ -1,6 +1,7 @@
 export type ProfileTabKey = "overview" | "repositories" | "projects" | "packages" | "stars";
 
 export interface ShowcaseRepo {
+  id?: string;
   name: string;
   visibility: string;
   description?: string;

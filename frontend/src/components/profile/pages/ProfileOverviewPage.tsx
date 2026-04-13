@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { RepoIcon } from "@primer/octicons-react";
 import { reposApi } from "../../../services/api/repos";
 import type { ProfileActivitySnapshot } from "../../../types";
@@ -20,8 +20,9 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
 ];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MIN_CELL_SIZE = 10;
-const CELL_GAP = 3;
+const MIN_CELL_SIZE = 2;
+const DEFAULT_CELL_GAP = 3;
+const COMPACT_CELL_GAP = 1;
 const MONTH_LABEL_MIN_GAP_PX = 24;
 
 type MonthAnchor = {
@@ -29,11 +30,23 @@ type MonthAnchor = {
   weekIndex: number;
 };
 
+type ContributionCell = {
+  level: number;
+  date: string | null;
+  contributionCount: number;
+};
+
 type ContributionCalendar = {
-  weeks: number[][];
+  weeks: ContributionCell[][];
   monthAnchors: MonthAnchor[];
   totalContributions: number;
 };
+
+type ContributionTooltipState = {
+  text: string;
+  x: number;
+  y: number;
+} | null;
 
 function atStartOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -61,26 +74,26 @@ function toDateKey(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
-function contributionLevel(commitCount: number, maxCommitCount: number): number {
-  if (commitCount <= 0) {
+function contributionLevel(contributionCount: number, maxContributionCount: number): number {
+  if (contributionCount <= 0) {
     return 0;
   }
 
-  if (maxCommitCount <= 1) {
+  if (maxContributionCount <= 1) {
     return 1;
   }
 
-  const levelOneMax = Math.max(1, Math.ceil(maxCommitCount * 0.25));
-  const levelTwoMax = Math.max(levelOneMax + 1, Math.ceil(maxCommitCount * 0.5));
-  const levelThreeMax = Math.max(levelTwoMax + 1, Math.ceil(maxCommitCount * 0.75));
+  const levelOneMax = Math.max(1, Math.ceil(maxContributionCount * 0.25));
+  const levelTwoMax = Math.max(levelOneMax + 1, Math.ceil(maxContributionCount * 0.5));
+  const levelThreeMax = Math.max(levelTwoMax + 1, Math.ceil(maxContributionCount * 0.75));
 
-  if (commitCount <= levelOneMax) {
+  if (contributionCount <= levelOneMax) {
     return 1;
   }
-  if (commitCount <= levelTwoMax) {
+  if (contributionCount <= levelTwoMax) {
     return 2;
   }
-  if (commitCount <= levelThreeMax) {
+  if (contributionCount <= levelThreeMax) {
     return 3;
   }
 
@@ -111,20 +124,20 @@ function buildMonthAnchors(rangeStart: Date, rangeEnd: Date, calendarStart: Date
 function buildContributionCalendar(
   rangeStart: Date,
   rangeEnd: Date,
-  dayCommitCount: Map<string, number>,
+  dayContributionCount: Map<string, number>,
 ): ContributionCalendar {
   const startDate = atStartOfDay(rangeStart);
   const endDate = atStartOfDay(rangeEnd);
   const calendarStart = startOfWeek(startDate);
   const calendarEnd = endOfWeek(endDate);
 
-  const maxCommitCount = Array.from(dayCommitCount.values()).reduce(
+  const maxContributionCount = Array.from(dayContributionCount.values()).reduce(
     (maxValue, value) => Math.max(maxValue, value),
     0,
   );
 
-  const weeks: number[][] = [];
-  let currentWeek: number[] = [];
+  const weeks: ContributionCell[][] = [];
+  let currentWeek: ContributionCell[] = [];
   let totalContributions = 0;
 
   for (let cursor = new Date(calendarStart); cursor <= calendarEnd; cursor = addDays(cursor, 1)) {
@@ -132,12 +145,23 @@ function buildContributionCalendar(
     let level = 0;
 
     if (inRange) {
-      const count = dayCommitCount.get(toDateKey(cursor)) ?? 0;
-      level = contributionLevel(count, maxCommitCount);
+      const count = dayContributionCount.get(toDateKey(cursor)) ?? 0;
+      level = contributionLevel(count, maxContributionCount);
       totalContributions += count;
+
+      currentWeek.push({
+        level,
+        date: toDateKey(cursor),
+        contributionCount: count,
+      });
+    } else {
+      currentWeek.push({
+        level,
+        date: null,
+        contributionCount: 0,
+      });
     }
 
-    currentWeek.push(level);
     if (currentWeek.length === 7) {
       weeks.push(currentWeek);
       currentWeek = [];
@@ -159,6 +183,21 @@ function toPercentage(value: number, total: number): number {
   return Math.max(1, Math.round((value / total) * 100));
 }
 
+function formatContributionTooltip(dateKey: string | null, contributionCount: number): string {
+  if (!dateKey) {
+    return "No contributions";
+  }
+
+  const parsedDate = new Date(`${dateKey}T00:00:00Z`);
+  const formattedDate = parsedDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+  const noun = contributionCount === 1 ? "contribution" : "contributions";
+  return `${contributionCount} ${noun} on ${formattedDate}`;
+}
+
 export default function ProfileOverviewPage({
   pinnedRepositories,
   onOpenWorkspace,
@@ -170,6 +209,7 @@ export default function ProfileOverviewPage({
   const [requestedYear, setRequestedYear] = useState<number | undefined>(undefined);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [matrixHostWidth, setMatrixHostWidth] = useState(0);
+  const [hoveredTooltip, setHoveredTooltip] = useState<ContributionTooltipState>(null);
   const [profileActivity, setProfileActivity] = useState<ProfileActivitySnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -209,10 +249,11 @@ export default function ProfileOverviewPage({
     };
   }, [requestedYear, reloadNonce]);
 
-  const selectedYear = profileActivity?.selected_year ?? new Date().getFullYear();
+  const selectedYear = profileActivity?.selected_year ?? 0;
+  const isRollingLast365 = selectedYear === 0;
   const availableYears = profileActivity?.available_years ?? [];
 
-  const dayCommitCount = useMemo(() => {
+  const dayContributionCount = useMemo(() => {
     const countByDay = new Map<string, number>();
 
     for (const day of profileActivity?.contribution_days ?? []) {
@@ -222,20 +263,32 @@ export default function ProfileOverviewPage({
     return countByDay;
   }, [profileActivity]);
 
-  const { weeks: yearContributions, monthAnchors, totalContributions: matrixTotalContributions } = useMemo(
-    () => buildContributionCalendar(
+  const { weeks: yearContributions, monthAnchors, totalContributions: matrixTotalContributions } = useMemo(() => {
+    if (isRollingLast365) {
+      const today = atStartOfDay(new Date());
+      return buildContributionCalendar(
+        addDays(today, -364),
+        today,
+        dayContributionCount,
+      );
+    }
+
+    return buildContributionCalendar(
       new Date(selectedYear, 0, 1),
       new Date(selectedYear, 11, 31),
-      dayCommitCount,
-    ),
-    [dayCommitCount, selectedYear],
-  );
+      dayContributionCount,
+    );
+  }, [dayContributionCount, isRollingLast365, selectedYear]);
 
   const totalContributions = profileActivity?.total_contributions ?? matrixTotalContributions;
   const contributionCountText = `${totalContributions.toLocaleString()} contributions`;
-  const contributionSuffix = `in ${selectedYear}`;
+  const contributionSuffix = isRollingLast365 ? "in the last year" : `in ${selectedYear}`;
 
   const weekCount = yearContributions.length;
+
+  useEffect(() => {
+    setHoveredTooltip(null);
+  }, [requestedYear, profileActivity]);
 
   useEffect(() => {
     const host = matrixHostRef.current;
@@ -263,23 +316,36 @@ export default function ProfileOverviewPage({
     };
   }, [weekCount]);
 
+  const matrixGap = useMemo(() => {
+    if (weekCount <= 1 || matrixHostWidth <= 0) {
+      return DEFAULT_CELL_GAP;
+    }
+
+    const labelColumnWidth = 40;
+    const tentativeCellSize =
+      (matrixHostWidth - labelColumnWidth - Math.max(weekCount - 1, 0) * DEFAULT_CELL_GAP) / weekCount;
+
+    return tentativeCellSize >= MIN_CELL_SIZE ? DEFAULT_CELL_GAP : COMPACT_CELL_GAP;
+  }, [matrixHostWidth, weekCount]);
+
   const cellSize = useMemo(() => {
     if (weekCount === 0 || matrixHostWidth <= 0) {
       return MIN_CELL_SIZE;
     }
 
-    const availableWidth = matrixHostWidth - Math.max(weekCount - 1, 0) * CELL_GAP;
+    const labelColumnWidth = 40;
+    const availableWidth = matrixHostWidth - labelColumnWidth - Math.max(weekCount - 1, 0) * matrixGap;
     return Math.max(MIN_CELL_SIZE, Math.floor(availableWidth / weekCount));
-  }, [matrixHostWidth, weekCount]);
+  }, [matrixGap, matrixHostWidth, weekCount]);
 
-  const matrixWidth = weekCount * cellSize + Math.max(weekCount - 1, 0) * CELL_GAP;
-  const matrixHeight = 7 * cellSize + 6 * CELL_GAP;
+  const matrixWidth = weekCount * cellSize + Math.max(weekCount - 1, 0) * matrixGap;
+  const matrixHeight = 7 * cellSize + 6 * matrixGap;
 
   const displayMonthAnchors = useMemo(() => {
     const visible: Array<MonthAnchor & { left: number }> = [];
 
     for (const anchor of monthAnchors) {
-      const left = anchor.weekIndex * (cellSize + CELL_GAP);
+      const left = anchor.weekIndex * (cellSize + matrixGap);
       const previous = visible[visible.length - 1];
 
       if (!previous || left - previous.left >= MONTH_LABEL_MIN_GAP_PX) {
@@ -288,7 +354,26 @@ export default function ProfileOverviewPage({
     }
 
     return visible;
-  }, [cellSize, monthAnchors]);
+  }, [cellSize, matrixGap, monthAnchors]);
+
+  const handleCellMouseEnter = (event: MouseEvent<HTMLSpanElement>, cell: ContributionCell) => {
+    if (!cell.date || !matrixHostRef.current) {
+      setHoveredTooltip(null);
+      return;
+    }
+
+    const cellRect = event.currentTarget.getBoundingClientRect();
+
+    setHoveredTooltip({
+      text: formatContributionTooltip(cell.date, cell.contributionCount),
+      x: cellRect.left + cellRect.width / 2,
+      y: cellRect.top - 8,
+    });
+  };
+
+  const handleCellMouseLeave = () => {
+    setHoveredTooltip(null);
+  };
 
   const activityChart = profileActivity?.activity_chart ?? {
     commits: 0,
@@ -353,6 +438,22 @@ export default function ProfileOverviewPage({
   const topRepositories = profileActivity?.activity_overview.top_repositories ?? [];
   const otherRepoCount = profileActivity?.activity_overview.other_repo_count ?? 0;
   const commitsLast365Days = profileActivity?.activity_overview.commits_last_365_days ?? 0;
+
+  const renderActivityAxisLabel = (label: string, percentage: number) => (
+    <>
+      {percentage > 0 ? (
+        <>
+          {percentage}%
+          <br />
+        </>
+      ) : null}
+      {label}
+    </>
+  );
+
+  const otherRepositoriesHref = profileActivity?.username
+    ? `/${encodeURIComponent(profileActivity.username)}?tab=repositories`
+    : "#";
 
   return (
     <div className="space-y-6">
@@ -422,52 +523,61 @@ export default function ProfileOverviewPage({
               ) : null}
 
               <div className="mt-3">
-                <div ref={matrixHostRef} className="w-full overflow-x-auto">
-                  <div className="min-w-[620px] w-full">
-                    <div className="pl-10 pr-2">
-                      <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
-                        {displayMonthAnchors.map((month, index) => (
-                          <span
-                            key={`month-${month.label}-${month.weekIndex}-${index}`}
-                            className="absolute top-0"
-                            style={{ left: `${month.left}px` }}
-                          >
-                            {month.label}
-                          </span>
-                        ))}
-                      </div>
+                <div ref={matrixHostRef} className="relative w-full overflow-x-hidden overflow-y-visible" onMouseLeave={handleCellMouseLeave}>
+                  {hoveredTooltip ? (
+                    <div
+                      className="pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-full rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] px-2 py-1 text-xs text-[var(--text-primary)] shadow whitespace-nowrap"
+                      style={{ left: `${hoveredTooltip.x}px`, top: `${hoveredTooltip.y}px` }}
+                    >
+                      {hoveredTooltip.text}
+                    </div>
+                  ) : null}
+
+                  <div className="pl-10 pr-2">
+                    <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
+                      {displayMonthAnchors.map((month, index) => (
+                        <span
+                          key={`month-${month.label}-${month.weekIndex}-${index}`}
+                          className="absolute top-0"
+                          style={{ left: `${month.left}px` }}
+                        >
+                          {month.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-1 flex items-start gap-2">
+                    <div className="relative w-8 shrink-0 text-xs text-[var(--text-secondary)]" style={{ height: `${matrixHeight}px` }}>
+                      {DAY_ROW_LABELS.map((item) => (
+                        <span
+                          key={item.label}
+                          className="absolute left-0"
+                          style={{ top: `${item.row * (cellSize + matrixGap)}px` }}
+                        >
+                          {item.label}
+                        </span>
+                      ))}
                     </div>
 
-                    <div className="mt-1 flex items-start gap-2">
-                      <div className="relative w-8 shrink-0 text-xs text-[var(--text-secondary)]" style={{ height: `${matrixHeight}px` }}>
-                        {DAY_ROW_LABELS.map((item) => (
-                          <span
-                            key={item.label}
-                            className="absolute left-0"
-                            style={{ top: `${item.row * (cellSize + CELL_GAP)}px` }}
-                          >
-                            {item.label}
-                          </span>
-                        ))}
-                      </div>
-
-                      <div className="inline-flex" style={{ gap: `${CELL_GAP}px`, width: `${matrixWidth}px` }}>
-                        {yearContributions.map((week, index) => (
-                          <div key={`week-${index}`} className="flex flex-col" style={{ gap: `${CELL_GAP}px`, width: `${cellSize}px` }}>
-                            {week.map((level, dayIndex) => (
-                              <span
-                                key={`cell-${index}-${dayIndex}`}
-                                className="rounded-[2px]"
-                                style={{
-                                  width: `${cellSize}px`,
-                                  height: `${cellSize}px`,
-                                  backgroundColor: contributionColor(level),
-                                }}
-                              />
-                            ))}
-                          </div>
-                        ))}
-                      </div>
+                    <div className="inline-flex shrink-0" style={{ gap: `${matrixGap}px`, width: `${matrixWidth}px` }}>
+                      {yearContributions.map((week, index) => (
+                        <div key={`week-${index}`} className="flex flex-col" style={{ gap: `${matrixGap}px`, width: `${cellSize}px` }}>
+                          {week.map((cell, dayIndex) => (
+                            <span
+                              key={`cell-${index}-${dayIndex}`}
+                              className="rounded-[2px] cursor-default"
+                              title={formatContributionTooltip(cell.date, cell.contributionCount)}
+                              onMouseEnter={(event) => handleCellMouseEnter(event, cell)}
+                              style={{
+                                width: `${cellSize}px`,
+                                height: `${cellSize}px`,
+                                backgroundColor: contributionColor(cell.level),
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -501,11 +611,23 @@ export default function ProfileOverviewPage({
                       Contributed to{" "}
                       {topRepositories.map((repo, index) => (
                         <span key={repo.repository}>
-                          <span className="text-[var(--text-link)]">{repo.repository}</span>
+                          <a
+                            href={`/${repo.repository
+                              .split("/")
+                              .map((segment) => encodeURIComponent(segment))
+                              .join("/")}`}
+                            className="text-[var(--text-link)] hover:underline"
+                          >
+                            {repo.repository}
+                          </a>
                           {index < topRepositories.length - 1 ? ", " : ""}
                         </span>
                       ))}
-                      {" "}and {otherRepoCount} other {otherRepoCount === 1 ? "repository" : "repositories"} in the last 365 days.
+                      {" "}and {otherRepoCount} other{" "}
+                      <a href={otherRepositoriesHref} className="text-[var(--text-link)] hover:underline">
+                        {otherRepoCount === 1 ? "repository" : "repositories"}
+                      </a>{" "}
+                      in the last 365 days.
                     </p>
                   ) : (
                     <p className="text-[var(--text-primary)]">No repository contributions in the last 365 days.</p>
@@ -515,24 +637,16 @@ export default function ProfileOverviewPage({
                 <div className="flex items-center justify-center">
                   <div className="relative w-full max-w-[320px] h-[190px] text-[var(--text-secondary)]">
                     <span className="absolute top-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {activitySplit.codeReview}%
-                      <br />
-                      Code review
+                      {renderActivityAxisLabel("Code review", activitySplit.codeReview)}
                     </span>
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {activitySplit.commits}%
-                      <br />
-                      Commits
+                      {renderActivityAxisLabel("Commits", activitySplit.commits)}
                     </span>
                     <span className="absolute right-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {activitySplit.issues}%
-                      <br />
-                      Issues
+                      {renderActivityAxisLabel("Issues", activitySplit.issues)}
                     </span>
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {activitySplit.pullRequests}%
-                      <br />
-                      Pull requests
+                      {renderActivityAxisLabel("Pull requests", activitySplit.pullRequests)}
                     </span>
 
                     <svg viewBox="0 0 180 180" className="absolute left-1/2 top-1/2 h-[150px] w-[150px] -translate-x-1/2 -translate-y-1/2" role="img" aria-label="Activity distribution graph">
@@ -596,7 +710,7 @@ export default function ProfileOverviewPage({
                   <button
                     key={year}
                     type="button"
-                    onClick={() => setRequestedYear(year)}
+                    onClick={() => setRequestedYear((current) => (current === year ? undefined : year))}
                     className={`w-full h-10 px-3 text-left ${active ? "bg-[var(--text-link)] text-[var(--text-on-accent)] font-medium" : "hover:bg-[var(--surface-subtle)]"}`}
                   >
                     {year}

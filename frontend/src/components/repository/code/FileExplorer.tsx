@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import {
-  Activity,
   Code,
   ChevronDown,
   ChevronRight,
   Copy,
-  Eye,
   Ellipsis,
   FileText,
-  GitFork,
   GitBranch,
   Link,
   Pencil,
   Plus,
   Search,
-  Star,
   Tag,
   Trash2,
   Upload,
 } from "lucide-react";
-import { FileDirectoryFillIcon, FileIcon, HistoryIcon } from "@primer/octicons-react";
+import {
+  BookIcon,
+  EyeIcon,
+  FileDirectoryFillIcon,
+  FileIcon,
+  HistoryIcon,
+  PulseIcon,
+  RepoForkedIcon,
+  StarIcon,
+} from "@primer/octicons-react";
 import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
@@ -1164,7 +1169,10 @@ export default function FileExplorer({
 
             <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
               <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)]">README</h3>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                  <BookIcon size={16} className="text-[var(--text-secondary)]" />
+                  README
+                </h3>
                 {readmeEntry ? (
                   <button
                     type="button"
@@ -1190,11 +1198,15 @@ export default function FileExplorer({
 
               <div className="p-4">
                 {!readmeEntry ? (
-                  <div className="space-y-3 text-sm text-[var(--text-secondary)]">
-                    <p className="text-[var(--text-primary)]">Help people interested in this repository understand your project by adding a README.</p>
+                  <div className="space-y-3 text-sm text-[var(--text-secondary)] text-center py-8">
+                    <div className="inline-flex h-10 w-10 rounded-md items-center justify-center text-[var(--text-secondary)]">
+                      <BookIcon size={20} />
+                    </div>
+                    <p className="text-3xl font-semibold text-[var(--text-primary)]">Add a README</p>
+                    <p className="text-[var(--text-secondary)]">Help people interested in this repository understand your project.</p>
                     <button
                       type="button"
-                      onClick={() => onOpenCreateFile?.(activeBranchForAddFile, "")}
+                      onClick={() => onOpenCreateFile?.(activeBranchForAddFile, "README.md")}
                       className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-xs font-semibold hover:bg-[var(--accent-primary-hover)]"
                     >
                       Add a README
@@ -1311,20 +1323,20 @@ export default function FileExplorer({
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
               {readmeEntry ? <p>Readme</p> : null}
               <p className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
-                <Activity size={14} className="text-[var(--text-muted)]" />
+                <PulseIcon size={14} className="text-[var(--text-muted)]" />
                 Activity
               </p>
               <div className="space-y-1 text-[var(--text-secondary)]">
                 <p className="inline-flex items-center gap-2">
-                  <Star size={14} className="text-[var(--text-muted)]" />
+                  <StarIcon size={14} className="text-[var(--text-muted)]" />
                   {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
                 </p>
                 <p className="inline-flex items-center gap-2">
-                  <Eye size={14} className="text-[var(--text-muted)]" />
+                  <EyeIcon size={14} className="text-[var(--text-muted)]" />
                   {watchingCount.toLocaleString()} watching
                 </p>
                 <p className="inline-flex items-center gap-2">
-                  <GitFork size={14} className="text-[var(--text-muted)]" />
+                  <RepoForkedIcon size={14} className="text-[var(--text-muted)]" />
                   {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
                 </p>
               </div>

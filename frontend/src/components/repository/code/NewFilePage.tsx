@@ -62,6 +62,27 @@ function getParentPath(path: string): string {
   return segments.join("/");
 }
 
+function resolveInitialCreateLocation(inputPath: string | undefined): {
+  directoryPath: string;
+  suggestedFileName: string;
+} {
+  const normalized = normalizeRelativePath(inputPath || "");
+  if (!normalized) {
+    return { directoryPath: "", suggestedFileName: "" };
+  }
+
+  const segments = normalized.split("/");
+  const leaf = segments[segments.length - 1] || "";
+  if (leaf.toLowerCase() === "readme.md") {
+    return {
+      directoryPath: getParentPath(normalized),
+      suggestedFileName: "README.md",
+    };
+  }
+
+  return { directoryPath: normalized, suggestedFileName: "" };
+}
+
 function sortEntries(entries: RepoFile[]): RepoFile[] {
   return [...entries].sort((a, b) => {
     if (a.type === b.type) {
@@ -173,9 +194,12 @@ export default function NewFilePage({
   }, [activeBranch, repoId]);
 
   useEffect(() => {
-    const normalizedInitial = normalizeRelativePath(initialDirectoryPath || "");
-    setCurrentDirPath(normalizedInitial);
-    ensureExpandedAncestors(normalizedInitial);
+    const initialLocation = resolveInitialCreateLocation(initialDirectoryPath);
+    setCurrentDirPath(initialLocation.directoryPath);
+    if (initialLocation.suggestedFileName) {
+      setFileName(initialLocation.suggestedFileName);
+    }
+    ensureExpandedAncestors(initialLocation.directoryPath);
   }, [ensureExpandedAncestors, initialDirectoryPath]);
 
   useEffect(() => {
@@ -345,7 +369,7 @@ export default function NewFilePage({
 
   return (
     <>
-      <div className="min-h-[calc(100dvh-104px)] border border-[var(--border-default)] bg-[var(--surface-canvas)]">
+      <div className="min-h-[calc(100dvh-104px)] border-x border-x-[var(--border-default)] bg-[var(--surface-canvas)]">
         <div
           ref={layoutRef}
           className={`grid min-h-[calc(100dvh-104px)] ${isResizingSidebar ? "select-none" : ""}`}

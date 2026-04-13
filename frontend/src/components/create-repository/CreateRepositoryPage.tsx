@@ -120,7 +120,6 @@ export default function CreateRepositoryPage({
     <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
         <TopHeader
-          badgeText="GH"
           leftContent={
             <RouteButton selected onClick={onCancel} className="truncate">
               New repository
@@ -128,8 +127,8 @@ export default function CreateRepositoryPage({
           }
           onMenuClick={onCancel}
           menuAriaLabel="Back"
-          onCreateClick={onCancel}
-          actions={[{ label: "Cancel", onClick: onCancel }]}
+          onProfileClick={onCancel}
+          profileInitial={ownerName}
         />
       </header>
 

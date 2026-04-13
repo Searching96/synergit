@@ -41,6 +41,7 @@ export function buildDefaultRepositories(repositories: Repository[]): ShowcaseRe
   if (repositories.length === 0) return SAMPLE_REPOSITORIES;
 
   const liveRepos = repositories.map((repo) => ({
+    id: repo.id,
     name: repo.name,
     visibility: formatRepositoryVisibilityLabel(repo.visibility),
     description: normalizeRepositoryDescription(repo.description),

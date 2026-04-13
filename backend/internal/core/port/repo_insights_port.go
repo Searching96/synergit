@@ -28,6 +28,14 @@ type RepoInsightsMetricComputer interface {
 		repoPath string, preferredBranch string) (string, []domain.LanguageStat, error)
 	ComputeProfileCommitActivity(ctx context.Context,
 		repos []*domain.Repo, authorName string, year int, now time.Time) (*domain.ProfileCommitActivity, error)
+	ComputeProfileContributionSummary(ctx context.Context,
+		commitDays []domain.ProfileContributionDay,
+		issues []domain.Issue,
+		pullRequests []domain.PullRequest,
+		requesterID uuid.UUID,
+		selectedYear int,
+		now time.Time,
+	) ([]domain.ProfileContributionDay, int, int, int, error)
 }
 
 type RepoInsightsUseCase interface {

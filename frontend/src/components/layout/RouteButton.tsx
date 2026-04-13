@@ -17,7 +17,7 @@ export default function RouteButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md border-0 bg-transparent px-2 py-0.5 text-left text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] ${
+      className={`rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] ${
         selected ? "font-semibold" : "font-normal"
       } ${className}`}
     >
