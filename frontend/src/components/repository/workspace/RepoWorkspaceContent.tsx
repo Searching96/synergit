@@ -182,6 +182,9 @@ export default function RepoWorkspaceContent({
             {activeTab === "pulls" && (
               <PullRequestList
                 repoId={selectedRepo.id}
+                repoName={selectedRepo.name}
+                repoOwner={selectedRepo.owner || currentUsername}
+                currentUsername={currentUsername}
                 branches={branches}
                 defaultSourceBranch={currentBranch}
               />

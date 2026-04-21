@@ -1326,7 +1326,7 @@ export default function FileExplorer({
                 <PulseIcon size={14} className="text-[var(--text-muted)]" />
                 Activity
               </p>
-              <div className="space-y-1 text-[var(--text-secondary)]">
+              <div className="flex flex-col gap-1 text-[var(--text-secondary)]">
                 <p className="inline-flex items-center gap-2">
                   <StarIcon size={14} className="text-[var(--text-muted)]" />
                   {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
