@@ -172,7 +172,13 @@ export default function RepoWorkspaceContent({
                 onOpenUploadFiles={onOpenUploadFiles}
               />
             )}
-            {activeTab === "issues" && <IssueBoard repoId={selectedRepo.id} />}
+            {activeTab === "issues" && (
+              <IssueBoard
+                repoId={selectedRepo.id}
+                repoName={selectedRepo.name}
+                repoOwner={selectedRepo.owner || currentUsername}
+              />
+            )}
             {activeTab === "pulls" && (
               <PullRequestList
                 repoId={selectedRepo.id}
