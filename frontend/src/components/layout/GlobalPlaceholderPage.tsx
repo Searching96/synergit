@@ -1,3 +1,5 @@
+import TooltipButton from "../ui/TooltipButton";
+
 interface GlobalPlaceholderPageProps {
   title: string;
   onBackToProfile: () => void;
@@ -18,20 +20,20 @@ export default function GlobalPlaceholderPage({
             This page is currently a placeholder route and will be implemented next.
           </p>
           <div className="mt-6 flex items-center gap-3">
-            <button
+            <TooltipButton
               type="button"
               onClick={onBackToProfile}
               className="h-9 px-4 rounded-md border border-[var(--border-input)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Back to profile
-            </button>
-            <button
+            </TooltipButton>
+            <TooltipButton
               type="button"
               onClick={onCreateRepository}
               className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] hover:bg-[var(--accent-primary-hover)]"
             >
               New repository
-            </button>
+            </TooltipButton>
           </div>
         </div>
       </div>

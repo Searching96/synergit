@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
-  ChevronRight,
   Plus,
   Search,
   X,
 } from "lucide-react";
-import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
-import BranchTagMenu from "./BranchTagMenu";
+import RepoBrowserSidebar from "./RepoBrowserSidebar";
+import TwinButton from "./TwinButton";
+import TooltipButton from "../../ui/TooltipButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 
 interface NewFilePageProps {
@@ -108,6 +108,8 @@ export default function NewFilePage({
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
   const [currentDirPath, setCurrentDirPath] = useState<string>("");
   const [sidebarWidth, setSidebarWidth] = useState<number>(360);
+  const [lastSidebarWidth, setLastSidebarWidth] = useState<number>(360);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [editorMode, setEditorMode] = useState<"edit" | "preview">("edit");
@@ -154,6 +156,17 @@ export default function NewFilePage({
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isResizingSidebar]);
+
+  useEffect(() => {
+    if (isSidebarCollapsed && sidebarWidth >= 320) {
+      setIsSidebarCollapsed(false);
+      return;
+    }
+
+    if (!isSidebarCollapsed && sidebarWidth >= 320) {
+      setLastSidebarWidth(sidebarWidth);
+    }
+  }, [isSidebarCollapsed, sidebarWidth]);
 
   const ensureExpandedAncestors = useCallback((path: string) => {
     const normalized = normalizeRelativePath(path);
@@ -228,87 +241,6 @@ export default function NewFilePage({
     void Promise.all(Array.from(targets).map((target) => loadDir(target)));
   }, [currentDirPath, loadDir]);
 
-  const renderTreeNodes = useCallback((path: string, depth: number): ReactElement[] => {
-    const normalized = normalizeRelativePath(path);
-    const entries = sortEntries(entriesByPath[normalized] || []);
-    const nodes: ReactElement[] = [];
-
-    for (const entry of entries) {
-      const isDirectory = entry.type === "DIR";
-      const isExpanded = isDirectory && expandedDirs.has(entry.path);
-      const isActive = currentDirPath === entry.path;
-
-      nodes.push(
-        <li key={entry.path}>
-          <div
-            className="flex items-center"
-            style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
-          >
-            {isDirectory ? (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const nextExpanded = !expandedDirs.has(entry.path);
-                  setExpandedDirs((prev) => {
-                    const next = new Set(prev);
-                    if (nextExpanded) {
-                      next.add(entry.path);
-                    } else {
-                      next.delete(entry.path);
-                    }
-                    return next;
-                  });
-
-                  if (nextExpanded) {
-                    void loadDir(entry.path);
-                  }
-                }}
-                className="h-6 w-5 shrink-0 inline-flex items-center justify-center text-[var(--text-secondary)]"
-                aria-label={isExpanded ? "Collapse directory" : "Expand directory"}
-              >
-                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </button>
-            ) : (
-              <span className="h-6 w-5 shrink-0" />
-            )}
-
-            <button
-              type="button"
-              onClick={() => {
-                if (isDirectory) {
-                  ensureExpandedAncestors(entry.path);
-                  setCurrentDirPath(entry.path);
-                  void loadDir(entry.path);
-                } else {
-                  const parent = getParentPath(entry.path);
-                  ensureExpandedAncestors(parent);
-                  setCurrentDirPath(parent);
-                }
-              }}
-              className={`flex-1 h-6 pr-2 text-left text-sm rounded-sm inline-flex items-center gap-2 ${
-                isActive
-                  ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-              }`}
-            >
-              {isDirectory ? (
-                <FileDirectoryFillIcon size={14} className="text-[#54aeff] shrink-0" />
-              ) : (
-                <FileIcon size={14} className="text-[var(--text-secondary)] shrink-0" />
-              )}
-              <span className="truncate">{entry.name}</span>
-            </button>
-          </div>
-
-          {isDirectory && isExpanded ? <ul>{renderTreeNodes(entry.path, depth + 1)}</ul> : null}
-        </li>,
-      );
-    }
-
-    return nodes;
-  }, [currentDirPath, entriesByPath, ensureExpandedAncestors, expandedDirs, loadDir]);
-
   const baseDirectoryPath = useMemo(() => normalizeRelativePath(currentDirPath || ""), [currentDirPath]);
   const normalizedLeafPath = useMemo(() => normalizeRelativePath(fileName), [fileName]);
   const targetFilePath = useMemo(() => joinPath(baseDirectoryPath, normalizedLeafPath), [baseDirectoryPath, normalizedLeafPath]);
@@ -334,6 +266,20 @@ export default function NewFilePage({
   }, [fileName]);
 
   const canCommit = !submitting && !validationError && targetFilePath.length > 0;
+
+  const handleToggleSidebar = () => {
+    if (isSidebarCollapsed) {
+      const nextWidth = Math.max(320, lastSidebarWidth);
+      setSidebarWidth(nextWidth);
+      setIsSidebarCollapsed(false);
+      return;
+    }
+
+    setLastSidebarWidth(sidebarWidth);
+    setSidebarWidth(56);
+    setIsSidebarCollapsed(true);
+    setIsBranchMenuOpen(false);
+  };
 
   const handleCommit = async () => {
     if (!canCommit) {
@@ -375,84 +321,62 @@ export default function NewFilePage({
           className={`grid min-h-[calc(100dvh-104px)] ${isResizingSidebar ? "select-none" : ""}`}
           style={{ gridTemplateColumns: `${sidebarWidth}px 8px minmax(0,1fr)` }}
         >
-          <aside className="sticky top-0 self-start h-[calc(100dvh-104px)] border-r border-[var(--border-default)] bg-[var(--surface-canvas)] flex flex-col">
-            <div className="px-4 py-3 text-sm font-semibold text-[var(--text-primary)]">Files</div>
+          <RepoBrowserSidebar
+            asideClassName="h-[calc(100dvh-104px)]"
+            branches={branches}
+            currentBranch={activeBranch}
+            isBranchMenuOpen={isBranchMenuOpen}
+            onBranchMenuOpenChange={setIsBranchMenuOpen}
+            onSelectBranch={(nextBranch) => {
+              onSelectBranch(nextBranch);
+              setIsBranchMenuOpen(false);
+            }}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
+            isOverlayVisible={isBranchMenuOpen}
+            onCloseMenus={() => setIsBranchMenuOpen(false)}
+            overlayAriaLabel="Close branch menu"
+            actions={(
+              <TwinButton
+                leftAriaLabel="Add file"
+                rightAriaLabel="Search files"
+                leftIcon={<Plus size={14} className="text-[var(--text-secondary)]" />}
+                rightIcon={<Search size={14} className="text-[var(--text-secondary)]" />}
+              />
+            )}
+            entriesByPath={entriesByPath}
+            expandedDirs={expandedDirs}
+            currentDirPath={currentDirPath}
+            normalizePath={normalizeRelativePath}
+            onToggleDirectory={(path, nextExpanded) => {
+              setExpandedDirs((prev) => {
+                const next = new Set(prev);
+                if (nextExpanded) {
+                  next.add(path);
+                } else {
+                  next.delete(path);
+                }
+                return next;
+              });
 
-            <div className="px-3 py-2 space-y-2">
-              <div className="flex items-center gap-2">
-                {isBranchMenuOpen ? (
-                  <button
-                    type="button"
-                    aria-label="Close branch menu"
-                    onClick={() => setIsBranchMenuOpen(false)}
-                    className="fixed inset-0 z-10"
-                  />
-                ) : null}
-
-                <BranchTagMenu
-                  className="relative z-20 flex-1 min-w-0"
-                  branches={branches}
-                  currentBranch={activeBranch}
-                  isOpen={isBranchMenuOpen}
-                  onOpenChange={(open) => setIsBranchMenuOpen(open)}
-                  onSelectBranch={(nextBranch) => {
-                    onSelectBranch(nextBranch);
-                    setIsBranchMenuOpen(false);
-                  }}
-                />
-
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--text-primary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-                  aria-label="Add file"
-                >
-                  <Plus size={14} className="text-[var(--text-secondary)]" />
-                </button>
-
-                <button
-                  type="button"
-                  className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
-                  aria-label="Search files"
-                >
-                  <Search size={14} className="text-[var(--text-secondary)]" />
-                </button>
-              </div>
-
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                <input
-                  type="text"
-                  readOnly
-                  placeholder="Go to file"
-                  className="w-full h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
-                />
-              </div>
-            </div>
-
-            <div className="px-2 py-2 flex-1 min-h-0 overflow-auto">
-              <ul>
-                {currentDirPath ? (
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const parent = getParentPath(currentDirPath);
-                        ensureExpandedAncestors(parent);
-                        setCurrentDirPath(parent);
-                      }}
-                      className="w-full text-left px-2 py-1.5 text-sm text-[var(--text-link)] hover:bg-[var(--surface-subtle)] rounded-sm"
-                    >
-                      ..
-                    </button>
-                  </li>
-                ) : null}
-                {renderTreeNodes("", 0)}
-              </ul>
-            </div>
-          </aside>
+              if (nextExpanded) {
+                void loadDir(path);
+              }
+            }}
+            onDirectoryClick={(path) => {
+              ensureExpandedAncestors(path);
+              setCurrentDirPath(path);
+              void loadDir(path);
+            }}
+            onFileClick={(path) => {
+              const parent = getParentPath(path);
+              ensureExpandedAncestors(parent);
+              setCurrentDirPath(parent);
+            }}
+          />
 
           <div className="w-0 sticky top-0 self-start h-[calc(100dvh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
-            <button
+            <TooltipButton
               type="button"
               aria-label="Resize sidebar"
               onMouseDown={(event) => {
@@ -487,15 +411,15 @@ export default function NewFilePage({
               </div>
 
               <div className="shrink-0 inline-flex items-center gap-2">
-                <button
+                <TooltipButton
                   type="button"
                   onClick={onCancel}
                   disabled={submitting}
                   className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
                 >
                   Cancel changes
-                </button>
-                <button
+                </TooltipButton>
+                <TooltipButton
                   type="button"
                   onClick={() => {
                     if (!canCommit) {
@@ -509,7 +433,7 @@ export default function NewFilePage({
                   className="h-8 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
                 >
                   Commit changes...
-                </button>
+                </TooltipButton>
               </div>
             </div>
 
@@ -517,7 +441,7 @@ export default function NewFilePage({
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
                 <div className="px-2 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-1">
-                    <button
+                    <TooltipButton
                       type="button"
                       onClick={() => setEditorMode("edit")}
                       className={`h-7 px-3 rounded-md text-sm ${
@@ -527,8 +451,8 @@ export default function NewFilePage({
                       }`}
                     >
                       Edit
-                    </button>
-                    <button
+                    </TooltipButton>
+                    <TooltipButton
                       type="button"
                       onClick={() => setEditorMode("preview")}
                       className={`h-7 px-3 rounded-md text-sm ${
@@ -538,19 +462,19 @@ export default function NewFilePage({
                       }`}
                     >
                       Preview
-                    </button>
+                    </TooltipButton>
                   </div>
 
                   <div className="inline-flex items-center gap-2">
-                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       Spaces <ChevronDown size={12} />
-                    </button>
-                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    </TooltipButton>
+                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       2 <ChevronDown size={12} />
-                    </button>
-                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    </TooltipButton>
+                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       No wrap <ChevronDown size={12} />
-                    </button>
+                    </TooltipButton>
                   </div>
                 </div>
 
@@ -597,7 +521,7 @@ export default function NewFilePage({
 
       {showCommitDialog ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
+          <TooltipButton
             type="button"
             aria-label="Close commit dialog"
             onClick={() => {
@@ -611,7 +535,7 @@ export default function NewFilePage({
           <div className="relative z-10 w-full max-w-[560px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Commit changes</h3>
-              <button
+              <TooltipButton
                 type="button"
                 onClick={() => {
                   if (!submitting) {
@@ -622,7 +546,7 @@ export default function NewFilePage({
                 aria-label="Close"
               >
                 <X size={16} />
-              </button>
+              </TooltipButton>
             </div>
 
             <div className="p-4 space-y-3">
@@ -650,22 +574,22 @@ export default function NewFilePage({
             </div>
 
             <div className="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-end gap-2">
-              <button
+              <TooltipButton
                 type="button"
                 onClick={() => setShowCommitDialog(false)}
                 disabled={submitting}
                 className="h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
               >
                 Cancel
-              </button>
-              <button
+              </TooltipButton>
+              <TooltipButton
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={!canCommit}
                 className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
               >
                 {submitting ? "Committing..." : "Commit changes"}
-              </button>
+              </TooltipButton>
             </div>
           </div>
         </div>

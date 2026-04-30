@@ -19,6 +19,8 @@ type PullRequestUseCase interface {
 		repoID uuid.UUID, creatorID uuid.UUID, title string, description string,
 		sourceBranch string, targetBranch string,
 	) (*domain.PullRequest, error)
+	ComparePullRequestRefs(repoID uuid.UUID, requesterID uuid.UUID, baseRef string,
+		headRef string) (*domain.PullRequestCompareResult, error)
 	GetPullRequest(id uuid.UUID) (*domain.PullRequest, error)
 	ListPullRequestsForRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
 

@@ -24,11 +24,13 @@ import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
+import TooltipButton from "./components/ui/TooltipButton";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
 import {
   GLOBAL_PAGE_TITLES,
   buildProfilePath,
   buildRepoBasePath,
+  buildRepoComparePath,
   buildRepoCommitsPath,
   buildRepoContentPath,
   buildRepoNewFilePath,
@@ -174,6 +176,14 @@ function App () {
             canonicalPath = buildRepoUploadFilesPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
           } else {
             canonicalPath = buildRepoBasePath(owner, targetRepo.name);
+          }
+        } else if (parsed.tab === 'pulls' && parsed.contentKind === 'compare') {
+          const compareRange = parsed.contentPath.trim();
+          const rangeParts = compareRange.split('...');
+          if (rangeParts.length === 2 && rangeParts[0].trim() && rangeParts[1].trim()) {
+            canonicalPath = buildRepoComparePath(owner, targetRepo.name, rangeParts[0], rangeParts[1]);
+          } else {
+            canonicalPath = buildRepoComparePath(owner, targetRepo.name);
           }
         }
 
@@ -423,6 +433,11 @@ function App () {
     navigateToPath(buildRepoUploadFilesPath(owner, repo.name, branchName || defaultBranchName, contentPath));
   }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
+  const navigateToRepoCompare = useCallback((repo: Repository, baseRef?: string, headRef?: string) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoComparePath(owner, repo.name, baseRef, headRef));
+  }, [getRepoOwner, navigateToPath]);
+
   const handleSelectBranch = (branchName: string) => {
     setCurrentBranch(branchName);
 
@@ -442,6 +457,11 @@ function App () {
 
     if (routeContentKind === 'upload') {
       navigateToRepoUploadFiles(selectedRepo, branchName, routeContentPath);
+      return;
+    }
+
+    if (routeContentKind === 'compare') {
+      navigateToRepoTab(selectedRepo, 'pulls');
       return;
     }
 
@@ -727,6 +747,13 @@ function App () {
 
             navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
           }}
+          onOpenRepoCompare={(baseRef, headRef) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoCompare(selectedRepo, baseRef, headRef);
+          }}
         />
       </main>
 
@@ -752,7 +779,7 @@ function App () {
 
       {isRepoDrawerOpen && (
         <div className="fixed inset-0 z-50">
-          <button
+          <TooltipButton
             type="button"
             aria-label="Close repository menu"
             onClick={() => setIsRepoDrawerOpen(false)}
@@ -762,21 +789,21 @@ function App () {
           <aside className="absolute left-0 top-0 h-full w-[320px] bg-[var(--surface-canvas)] border-r border-[var(--border-default)] shadow-xl flex flex-col">
             <div className="px-4 py-4 flex items-center justify-between">
               <Github size={30} className="text-[var(--text-primary)]" />
-              <button
+              <TooltipButton
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(false)}
                 className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                 aria-label="Close"
               >
                 <X size={16} className="text-[var(--text-secondary)]" />
-              </button>
+              </TooltipButton>
             </div>
 
             <div className="px-3 py-2 text-sm text-[var(--text-primary)] space-y-1">
               {primarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <button
+                  <TooltipButton
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
@@ -784,7 +811,7 @@ function App () {
                   >
                     <Icon size={17} className="text-[var(--text-secondary)]" />
                     <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
+                  </TooltipButton>
                 );
               })}
             </div>
@@ -795,7 +822,7 @@ function App () {
               {secondarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <button
+                  <TooltipButton
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
@@ -803,7 +830,7 @@ function App () {
                   >
                     <Icon size={17} className="text-[var(--text-secondary)]" />
                     <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
+                  </TooltipButton>
                 );
               })}
             </div>

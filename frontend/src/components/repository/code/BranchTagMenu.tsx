@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, GitBranch, Search, X } from "lucide-react";
 import type { Branch } from "../../../types";
+import TooltipButton from "../../ui/TooltipButton";
 
 interface BranchTagMenuProps {
   branches: Branch[];
@@ -89,28 +90,28 @@ export default function BranchTagMenu({
 
   return (
     <div className={wrapperClassName}>
-      <button
+      <TooltipButton
         type="button"
         onClick={() => onOpenChange(!isOpen)}
         className={computedTriggerClassName}
       >
-        <GitBranch size={14} className="text-[var(--text-secondary)] shrink-0" />
-        <span className="truncate">{activeBranchLabel}</span>
-        <ChevronDown size={14} className="text-[var(--text-secondary)] ml-auto shrink-0" />
-      </button>
+        <GitBranch size={16} className="text-[var(--text-secondary)] shrink-0" />
+        <span className="truncate text-base">{activeBranchLabel}</span>
+        <ChevronDown size={16} className="text-[var(--text-secondary)] ml-auto shrink-0" />
+      </TooltipButton>
 
       {isOpen ? (
         <div className={computedMenuClassName}>
           <div className="px-3 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-[var(--text-primary)]">Switch branches/tags</span>
-            <button
+            <TooltipButton
               type="button"
               onClick={() => onOpenChange(false)}
               className="h-7 w-7 rounded-md inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
               aria-label="Close branch menu"
             >
               <X size={14} />
-            </button>
+            </TooltipButton>
           </div>
 
           <div className="p-3 border-b border-[var(--border-default)]">
@@ -127,7 +128,7 @@ export default function BranchTagMenu({
           </div>
 
           <div className="border-b border-[var(--border-default)] px-2 pt-2 flex items-end gap-1 text-sm">
-            <button
+            <TooltipButton
               type="button"
               onClick={() => setMenuTab("branches")}
               className={`h-8 px-3 rounded-t-md border border-b-0 ${
@@ -137,8 +138,8 @@ export default function BranchTagMenu({
               }`}
             >
               Branches
-            </button>
-            <button
+            </TooltipButton>
+            <TooltipButton
               type="button"
               onClick={() => setMenuTab("tags")}
               className={`h-8 px-3 rounded-t-md border border-b-0 ${
@@ -148,14 +149,14 @@ export default function BranchTagMenu({
               }`}
             >
               Tags
-            </button>
+            </TooltipButton>
           </div>
 
           {menuTab === "branches" ? (
             <div className="max-h-[280px] overflow-auto py-1">
               {filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
-                  <button
+                  <TooltipButton
                     key={item.value}
                     type="button"
                     onClick={() => {
@@ -179,7 +180,7 @@ export default function BranchTagMenu({
                         default
                       </span>
                     ) : null}
-                  </button>
+                  </TooltipButton>
                 ))
               ) : (
                 <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No branches found.</div>
@@ -189,7 +190,7 @@ export default function BranchTagMenu({
             <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No tags found.</div>
           )}
 
-          <button
+          <TooltipButton
             type="button"
             onClick={() => {
               onOpenChange(false);
@@ -198,7 +199,7 @@ export default function BranchTagMenu({
             className="w-full text-left px-3 py-2.5 border-t border-[var(--border-default)] text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
           >
             View all branches
-          </button>
+          </TooltipButton>
         </div>
       ) : null}
     </div>

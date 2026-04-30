@@ -1,4 +1,3 @@
-import { RepoIcon } from "@primer/octicons-react";
 import type { Branch, Repository } from "../../../types";
 import CommitHistory from "../code/CommitHistory";
 import FileExplorer from "../code/FileExplorer";
@@ -13,6 +12,7 @@ import RepoProjectsPage from "../pages/RepoProjectsPage";
 import RepoSecurityPage from "../pages/RepoSecurityPage";
 import RepoSettingsPage from "../pages/RepoSettingsPage";
 import RepoWikiPage from "../pages/RepoWikiPage";
+import PullRequestComparePage from "../pulls/PullRequestComparePage";
 import PullRequestList from "../pulls/PullRequestList";
 import type { RepoContentKind } from "./utils/repoRouting";
 import type { RepoTabKey } from "./utils/repoTabs";
@@ -45,16 +45,12 @@ interface RepoWorkspaceContentProps {
   onOpenRepoCommits: (branchName: string, search?: string) => void;
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
-}
-
-function RepositoryGlyph({ size = 16, className }: { size?: number; className?: string }) {
-  return <RepoIcon size={size} className={className} />;
+  onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
 }
 
 export default function RepoWorkspaceContent({
   selectedRepo,
   currentUsername,
-  selectedRepoVisibility,
   isFullBrowserMode,
   activeTab,
   routeContentKind,
@@ -74,6 +70,7 @@ export default function RepoWorkspaceContent({
   onOpenRepoCommits,
   onOpenCreateFile,
   onOpenUploadFiles,
+  onOpenRepoCompare,
 }: RepoWorkspaceContentProps) {
   return (
     <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
@@ -94,13 +91,7 @@ export default function RepoWorkspaceContent({
         <div className={isFullBrowserMode ? "w-full min-h-full flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
           {!isFullBrowserMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <RepositoryGlyph size={20} className="text-[var(--text-secondary)]" />
-                <h2 className="text-2xl font-semibold text-[var(--text-link)] truncate">{selectedRepo.name}</h2>
-                <span className="text-xs font-medium text-[var(--text-secondary)] border border-[var(--border-default)] rounded-full px-2 py-0.5">
-                  {selectedRepoVisibility}
-                </span>
-              </div>
+
             </div>
           ) : null}
 
@@ -179,14 +170,23 @@ export default function RepoWorkspaceContent({
                 repoOwner={selectedRepo.owner || currentUsername}
               />
             )}
-            {activeTab === "pulls" && (
-              <PullRequestList
+            {activeTab === "pulls" && routeContentKind === "compare" && (
+              <PullRequestComparePage
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 repoOwner={selectedRepo.owner || currentUsername}
-                currentUsername={currentUsername}
                 branches={branches}
-                defaultSourceBranch={currentBranch}
+                defaultBaseBranch={defaultBranchName}
+                defaultHeadBranch={currentBranch || defaultBranchName}
+                compareRange={routeContentPath}
+                onSelectCompareRefs={(baseRef, headRef) => onOpenRepoCompare(baseRef, headRef)}
+              />
+            )}
+            {activeTab === "pulls" && routeContentKind !== "compare" && (
+              <PullRequestList
+                repoId={selectedRepo.id}
+                currentUsername={currentUsername}
+                onOpenCompare={() => onOpenRepoCompare(defaultBranchName, currentBranch || defaultBranchName)}
               />
             )}
             {activeTab === "agents" && <RepoAgentsPage />}

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import type { Branch, PullRequest } from "../../../types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { PullRequest } from "../../../types";
 import { pullsApi } from "../../../services/api/pull";
 import {
   Check,
@@ -16,11 +16,8 @@ import {
 
 interface PullRequestListProps {
   repoId: string;
-  repoName: string;
-  repoOwner: string;
   currentUsername: string;
-  branches: Branch[];
-  defaultSourceBranch: string;
+  onOpenCompare: () => void;
 }
 
 function replaceStateQueryToken(query: string, nextStatus: "OPEN" | "CLOSED"): string {
@@ -60,16 +57,11 @@ function formatPullDate(timestamp: string): string {
 
 export default function PullRequestList({
   repoId,
-  repoName,
-  repoOwner,
   currentUsername,
-  branches,
-  defaultSourceBranch,
+  onOpenCompare,
 }: PullRequestListProps) {
   const [pulls, setPulls] = useState<PullRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [creatingPR, setCreatingPR] = useState<boolean>(false);
-  const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
   const [showFiltersMenu, setShowFiltersMenu] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<"OPEN" | "CLOSED">("OPEN");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
@@ -79,11 +71,6 @@ export default function PullRequestList({
   const [showMaintainerTip, setShowMaintainerTip] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  const [prTitle, setPrTitle] = useState("");
-  const [prDescription, setPrDescription] = useState("");
-  const [prSourceBranch, setPrSourceBranch] = useState("");
-  const [prTargetBranch, setPrTargetBranch] = useState("");
 
   const fetchPulls = useCallback(
     async (silent = false) => {
@@ -107,7 +94,6 @@ export default function PullRequestList({
 
   useEffect(() => {
     void fetchPulls();
-    setShowCreateForm(false);
     setShowFiltersMenu(false);
     setMessage(null);
     setError(null);
@@ -115,27 +101,8 @@ export default function PullRequestList({
     setSortOrder("newest");
     setSearchInput("is:pr is:open");
     setAppliedSearch("is:pr is:open");
-    setPrTitle("");
-    setPrDescription("");
     setSelectedPullIds(new Set());
   }, [repoId, fetchPulls]);
-
-  useEffect(() => {
-    if (branches.length === 0) {
-      setPrSourceBranch("");
-      setPrTargetBranch("");
-      return;
-    }
-
-    const defaultSource =
-      defaultSourceBranch && branches.some((branch) => branch.name === defaultSourceBranch)
-        ? defaultSourceBranch
-        : branches[0].name;
-    const defaultTarget = branches.find((branch) => branch.is_default)?.name || branches[0].name;
-
-    setPrSourceBranch(defaultSource);
-    setPrTargetBranch(defaultTarget);
-  }, [branches, defaultSourceBranch, repoId]);
 
   const sortedByCreatedAsc = useMemo(
     () => [...pulls].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)),
@@ -263,40 +230,6 @@ export default function PullRequestList({
     });
   };
 
-  const handleCreatePR = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!prTitle.trim() || !prSourceBranch || !prTargetBranch) return;
-
-    if (prSourceBranch === prTargetBranch) {
-      setError("Source and target branches must be different");
-      return;
-    }
-
-    try {
-      setCreatingPR(true);
-      setError(null);
-      setMessage(null);
-
-      await pullsApi.create(repoId, {
-        title: prTitle.trim(),
-        description: prDescription.trim() || undefined,
-        source_branch: prSourceBranch,
-        target_branch: prTargetBranch,
-      });
-
-      setPrTitle("");
-      setPrDescription("");
-      setShowCreateForm(false);
-      setMessage("Pull request created successfully.");
-      await fetchPulls(true);
-      applyFilter("OPEN");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create pull request");
-    } finally {
-      setCreatingPR(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       {error && (
@@ -416,7 +349,7 @@ export default function PullRequestList({
           </button>
           <button
             type="button"
-            onClick={() => setShowCreateForm((prev) => !prev)}
+            onClick={onOpenCompare}
             className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
           >
             <Plus size={14} />
@@ -424,65 +357,6 @@ export default function PullRequestList({
           </button>
         </div>
       </div>
-
-      {showCreateForm ? (
-        <form onSubmit={handleCreatePR} className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Create a pull request</h3>
-          <input
-            value={prTitle}
-            onChange={(e) => setPrTitle(e.target.value)}
-            placeholder="Title"
-            className="w-full h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
-            required
-          />
-          <textarea
-            value={prDescription}
-            onChange={(e) => setPrDescription(e.target.value)}
-            placeholder="Description"
-            className="w-full min-h-24 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
-          />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <select
-              value={prSourceBranch}
-              onChange={(e) => setPrSourceBranch(e.target.value)}
-              className="h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-            >
-              {branches.map((branch) => (
-                <option key={`source-${branch.name}`} value={branch.name}>
-                  from: {branch.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={prTargetBranch}
-              onChange={(e) => setPrTargetBranch(e.target.value)}
-              className="h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-            >
-              {branches.map((branch) => (
-                <option key={`target-${branch.name}`} value={branch.name}>
-                  into: {branch.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowCreateForm(false)}
-              className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={creatingPR || branches.length < 2}
-              className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-            >
-              {creatingPR ? "Creating..." : "Create pull request"}
-            </button>
-          </div>
-        </form>
-      ) : null}
 
       <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">

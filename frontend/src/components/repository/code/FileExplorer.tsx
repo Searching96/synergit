@@ -186,23 +186,23 @@ const LANGUAGE_GRAPH_FALLBACK_COLORS = [
 ];
 
 const LANGUAGE_GRAPH_OVERRIDES: Record<string, string> = {
-  Assembly: "#6e4c13",
-  Batchfile: "#c1f12e",
-  C: "#555555",
+  "Assembly": "#6e4c13",
+  "Batchfile": "#c1f12e",
+  "C": "#555555",
   "C#": "#178600",
   "C++": "#f34b7d",
-  CSS: "#563d7c",
-  Dockerfile: "#384d54",
-  GDScript: "#355570",
-  Go: "#00add8",
-  HTML: "#e34c26",
-  Haskell: "#5e5086",
-  Java: "#b07219",
-  JavaScript: "#f1e05a",
-  Python: "#3572a5",
-  Rust: "#dea584",
-  Shell: "#89e051",
-  TypeScript: "#3178c6",
+  "CSS": "#563d7c",
+  "Dockerfile": "#384d54",
+  "GDScript": "#355570",
+  "Go": "#00add8",
+  "HTML": "#e34c26",
+  "Haskell": "#5e5086",
+  "Java": "#b07219",
+  "JavaScript": "#f1e05a",
+  "Python": "#3572a5",
+  "Rust": "#dea584",
+  "Shell": "#89e051",
+  "TypeScript": "#3178c6",
 };
 
 function languageGraphColor(language: string, index: number): string {

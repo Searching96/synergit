@@ -140,6 +140,38 @@ export interface PullRequest {
 	updated_at: string;
 }
 
+export type CompareFileStatus = 'ADDED' | 'MODIFIED' | 'DELETED' | 'RENAMED' | 'COPIED' | 'UNKNOWN';
+
+export interface CompareFileDiff {
+	path: string;
+	previous_path?: string;
+	status: CompareFileStatus;
+	additions: number;
+	deletions: number;
+	patch: string;
+}
+
+export interface PullRequestCompareSummary {
+	commit_count: number;
+	files_changed: number;
+	additions: number;
+	deletions: number;
+	contributor_count: number;
+}
+
+export interface PullRequestCompareResult {
+	repo_id: string;
+	base_ref: string;
+	head_ref: string;
+	can_compare: boolean;
+	mergeable: boolean;
+	merge_message: string;
+	summary: PullRequestCompareSummary;
+	commits: Commit[];
+	files: CompareFileDiff[];
+	related_pull_requests: PullRequest[];
+}
+
 export type IssueStatus = 'OPEN' | 'CLOSED';
 
 export interface IssueAssignee {

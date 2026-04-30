@@ -36,7 +36,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -68,6 +68,30 @@ function decodePathSegments(segments: string[]): string {
     .filter(Boolean)
     .map((segment) => decodeURIComponent(segment))
     .join("/");
+}
+
+function normalizeCompareRange(rangeSegment: string): string {
+  const raw = rangeSegment.trim();
+  if (!raw) {
+    return "";
+  }
+
+  const parts = raw.split("...");
+  if (parts.length !== 2) {
+    return "";
+  }
+
+  const baseRef = decodeURIComponent(parts[0] || "").trim();
+  const headRef = decodeURIComponent(parts[1] || "").trim();
+  if (!baseRef || !headRef) {
+    return "";
+  }
+
+  return `${baseRef}...${headRef}`;
+}
+
+function encodeCompareRange(baseRef: string, headRef: string): string {
+  return `${encodeURIComponent(baseRef)}...${encodeURIComponent(headRef)}`;
 }
 
 export function normalizeProfileTab(search: string): ProfileTabKey {
@@ -153,6 +177,18 @@ export function buildRepoUploadFilesPath(owner: string, repoName: string, branch
   }
 
   return `${base}/upload/${branchSegment}/${encodedPath}`;
+}
+
+export function buildRepoComparePath(owner: string, repoName: string, baseRef?: string, headRef?: string): string {
+  const base = buildRepoBasePath(owner, repoName);
+  const normalizedBase = (baseRef || "").trim();
+  const normalizedHead = (headRef || "").trim();
+
+  if (!normalizedBase || !normalizedHead) {
+    return `${base}/compare`;
+  }
+
+  return `${base}/compare/${encodeCompareRange(normalizedBase, normalizedHead)}`;
 }
 
 export function normalizeCommitFilterSearch(search: string): string {
@@ -274,6 +310,31 @@ export function parseAppPath(pathname: string): ParsedRoute {
 
   if (segments.length >= 2 && segments[0] === "repos") {
     const repoId = decodeURIComponent(segments[1]);
+    if (segments[2] === "compare") {
+      const compareRange = segments[3] ? normalizeCompareRange(segments[3]) : "";
+      const encodedRange = compareRange
+        ? encodeCompareRange(compareRange.split("...")[0], compareRange.split("...")[1])
+        : "";
+
+      let normalizedPath = `/repos/${encodeURIComponent(repoId)}/compare`;
+      if (encodedRange) {
+        normalizedPath = `${normalizedPath}/${encodedRange}`;
+      }
+
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "pulls",
+        contentKind: "compare",
+        contentPath: compareRange,
+        branch: "",
+        globalPage: null,
+        normalizedPath,
+      };
+    }
+
     if (segments[2] === "commits") {
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
       return {
@@ -354,6 +415,30 @@ export function parseAppPath(pathname: string): ParsedRoute {
     }
 
     const third = segments[2];
+    if (third === "compare") {
+      const compareRange = segments[3] ? normalizeCompareRange(segments[3]) : "";
+      const parts = compareRange ? compareRange.split("...") : [];
+      const encodedRange = parts.length === 2 ? encodeCompareRange(parts[0], parts[1]) : "";
+
+      let normalizedPath = `${base}/compare`;
+      if (encodedRange) {
+        normalizedPath = `${normalizedPath}/${encodedRange}`;
+      }
+
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "pulls",
+        contentKind: "compare",
+        contentPath: compareRange,
+        branch: "",
+        globalPage: null,
+        normalizedPath,
+      };
+    }
+
     if (third === "blob" || third === "tree") {
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "";
       const contentPath = decodePathSegments(segments.slice(4));

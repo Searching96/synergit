@@ -2,6 +2,7 @@ import { fetcher } from './client';
 import type {
   Branch,
   Commit,
+  PullRequestCompareResult,
   CreateRepositoryPayload,
   ProfileActivitySnapshot,
   RepoInsightsSnapshot,
@@ -62,6 +63,11 @@ export const reposApi = {
 
     return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
   },
+
+  getCompare: (repoId: string, baseRef: string, headRef: string) =>
+    fetcher<PullRequestCompareResult>(
+      `/repos/${repoId}/compare?base=${encodeURIComponent(baseRef)}&head=${encodeURIComponent(headRef)}`,
+    ),
 
   getInsights: (repoId: string) =>
     fetcher<RepoInsightsSnapshot>(`/repos/${repoId}/insights`),

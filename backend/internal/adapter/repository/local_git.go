@@ -9,9 +9,11 @@ import (
 	"path" // Use path instead filepath to guarantee forward slashes (/)
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -45,6 +47,72 @@ func (g *LocalGitAdapter) resolveRepoPath(repoLocator string) string {
 	}
 
 	return filepath.Join(g.storageRoot, filepath.FromSlash(slug)+".git")
+}
+
+func compareFileStatusFromToken(token string) domain.CompareFileStatus {
+	status := strings.ToUpper(strings.TrimSpace(token))
+	if status == "" {
+		return domain.CompareFileStatusUnknown
+	}
+
+	switch status[0] {
+	case 'A':
+		return domain.CompareFileStatusAdded
+	case 'M':
+		return domain.CompareFileStatusModified
+	case 'D':
+		return domain.CompareFileStatusDeleted
+	case 'R':
+		return domain.CompareFileStatusRenamed
+	case 'C':
+		return domain.CompareFileStatusCopied
+	default:
+		return domain.CompareFileStatusUnknown
+	}
+}
+
+func parseNumstatValue(raw string) int {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" || trimmed == "-" {
+		return 0
+	}
+
+	parsed, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return 0
+	}
+
+	return parsed
+}
+
+func parseRenamePath(rawPath string) (string, string) {
+	trimmed := strings.TrimSpace(rawPath)
+	if trimmed == "" || !strings.Contains(trimmed, "=>") {
+		return "", trimmed
+	}
+
+	start := strings.Index(trimmed, "{")
+	end := strings.Index(trimmed, "}")
+	if start >= 0 && end > start {
+		prefix := trimmed[:start]
+		suffix := trimmed[end+1:]
+		inside := trimmed[start+1 : end]
+		parts := strings.SplitN(inside, "=>", 2)
+		if len(parts) == 2 {
+			oldPart := strings.TrimSpace(parts[0])
+			newPart := strings.TrimSpace(parts[1])
+			oldPath := strings.TrimSpace(prefix + oldPart + suffix)
+			newPath := strings.TrimSpace(prefix + newPart + suffix)
+			return oldPath, newPath
+		}
+	}
+
+	parts := strings.SplitN(trimmed, "=>", 2)
+	if len(parts) != 2 {
+		return "", trimmed
+	}
+
+	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 }
 
 // InitBareRepo satisfies the port.GitManager interface
@@ -735,6 +803,308 @@ func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
 	}
 
 	return nil
+}
+
+func (g *LocalGitAdapter) CompareRefs(repoPath string, baseRef string,
+	headRef string) (*domain.PullRequestCompareResult, error) {
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+	base := strings.TrimSpace(baseRef)
+	head := strings.TrimSpace(headRef)
+
+	result := &domain.PullRequestCompareResult{
+		BaseRef:      base,
+		HeadRef:      head,
+		CanCompare:   false,
+		Mergeable:    false,
+		MergeMessage: "Choose different branches or refs to compare.",
+		Summary:      domain.PullRequestCompareSummary{},
+		Commits:      []domain.Commit{},
+		Files:        []domain.CompareFile{},
+	}
+
+	tempDir, err := os.MkdirTemp("", "synergit-compare-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp compare directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGitRaw := func(args ...string) (string, error) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		output, runErr := cmd.CombinedOutput()
+		return strings.TrimSpace(string(output)), runErr
+	}
+
+	runGit := func(args ...string) (string, error) {
+		output, runErr := runGitRaw(args...)
+		if runErr != nil {
+			return "", fmt.Errorf("git %s failed: %s", args[0], output)
+		}
+
+		return output, nil
+	}
+
+	cloneCmd := exec.Command("git", "clone", bareRepoPath, tempDir)
+	if output, cloneErr := cloneCmd.CombinedOutput(); cloneErr != nil {
+		return nil, fmt.Errorf("failed to clone repository for compare: %w: %s", cloneErr,
+			strings.TrimSpace(string(output)))
+	}
+
+	resolveRef := func(ref string) (string, error) {
+		trimmed := strings.TrimSpace(ref)
+		if trimmed == "" {
+			return "", errors.New("ref cannot be empty")
+		}
+
+		candidates := []string{trimmed}
+		if !strings.HasPrefix(trimmed, "origin/") {
+			candidates = append(candidates, "origin/"+trimmed)
+		}
+
+		seen := make(map[string]struct{})
+		for _, candidate := range candidates {
+			if _, exists := seen[candidate]; exists {
+				continue
+			}
+
+			seen[candidate] = struct{}{}
+			resolved, resolveErr := runGit("rev-parse", "--verify", candidate)
+			if resolveErr == nil {
+				return strings.TrimSpace(resolved), nil
+			}
+		}
+
+		return "", fmt.Errorf("invalid ref %q", trimmed)
+	}
+
+	baseHash, err := resolveRef(base)
+	if err != nil {
+		return nil, err
+	}
+
+	headHash, err := resolveRef(head)
+	if err != nil {
+		return nil, err
+	}
+
+	if baseHash == headHash {
+		result.MergeMessage = "There isn't anything to compare. Select two different refs."
+		return result, nil
+	}
+
+	mergeBaseHash, err := runGit("merge-base", baseHash, headHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute merge base: %w", err)
+	}
+
+	commitRange := fmt.Sprintf("%s..%s", strings.TrimSpace(mergeBaseHash), headHash)
+	commitLogOutput, err := runGit("log", "--pretty=format:%H%x1f%an%x1f%at%x1f%s",
+		commitRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compare commits: %w", err)
+	}
+
+	commits := make([]domain.Commit, 0)
+	contributors := make(map[string]struct{})
+	if strings.TrimSpace(commitLogOutput) != "" {
+		for _, line := range strings.Split(strings.TrimSpace(commitLogOutput), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+
+			parts := strings.SplitN(line, "\x1f", 4)
+			if len(parts) < 4 {
+				continue
+			}
+
+			timestampSeconds, parseErr := strconv.ParseInt(strings.TrimSpace(parts[2]), 10, 64)
+			if parseErr != nil {
+				timestampSeconds = 0
+			}
+
+			author := strings.TrimSpace(parts[1])
+			if author != "" {
+				contributors[author] = struct{}{}
+			}
+
+			commits = append(commits, domain.Commit{
+				Hash:    strings.TrimSpace(parts[0]),
+				Author:  author,
+				Message: strings.TrimSpace(parts[3]),
+				Date:    time.Unix(timestampSeconds, 0).UTC(),
+			})
+		}
+	}
+
+	nameStatusOutput, err := runGit("diff", "--name-status", commitRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compare file status: %w", err)
+	}
+
+	filesByPath := make(map[string]*domain.CompareFile)
+	if strings.TrimSpace(nameStatusOutput) != "" {
+		for _, line := range strings.Split(strings.TrimSpace(nameStatusOutput), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+
+			parts := strings.Split(line, "\t")
+			if len(parts) < 2 {
+				continue
+			}
+
+			status := compareFileStatusFromToken(parts[0])
+			statusToken := strings.ToUpper(strings.TrimSpace(parts[0]))
+
+			if (strings.HasPrefix(statusToken, "R") || strings.HasPrefix(statusToken, "C")) && len(parts) >= 3 {
+				previousPath := strings.TrimSpace(parts[1])
+				filePath := strings.TrimSpace(parts[2])
+				if filePath == "" {
+					continue
+				}
+
+				filesByPath[filePath] = &domain.CompareFile{
+					Path:         filePath,
+					PreviousPath: previousPath,
+					Status:       status,
+				}
+				continue
+			}
+
+			filePath := strings.TrimSpace(parts[1])
+			if filePath == "" {
+				continue
+			}
+
+			filesByPath[filePath] = &domain.CompareFile{
+				Path:   filePath,
+				Status: status,
+			}
+		}
+	}
+
+	numstatOutput, err := runGit("diff", "--numstat", commitRange)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read compare diff stats: %w", err)
+	}
+
+	if strings.TrimSpace(numstatOutput) != "" {
+		for _, line := range strings.Split(strings.TrimSpace(numstatOutput), "\n") {
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+
+			parts := strings.Split(line, "\t")
+			if len(parts) < 3 {
+				continue
+			}
+
+			additions := parseNumstatValue(parts[0])
+			deletions := parseNumstatValue(parts[1])
+
+			filePath := ""
+			previousPath := ""
+
+			if len(parts) >= 4 {
+				previousPath = strings.TrimSpace(parts[2])
+				filePath = strings.TrimSpace(parts[3])
+			} else {
+				rawPath := strings.TrimSpace(parts[2])
+				parsedPrevious, parsedCurrent := parseRenamePath(rawPath)
+				previousPath = parsedPrevious
+				filePath = parsedCurrent
+			}
+
+			if filePath == "" {
+				continue
+			}
+
+			file, exists := filesByPath[filePath]
+			if !exists {
+				file = &domain.CompareFile{
+					Path:   filePath,
+					Status: domain.CompareFileStatusModified,
+				}
+				filesByPath[filePath] = file
+			}
+
+			if file.PreviousPath == "" && previousPath != "" {
+				file.PreviousPath = previousPath
+			}
+
+			if file.Status == domain.CompareFileStatusUnknown {
+				file.Status = domain.CompareFileStatusModified
+			}
+
+			file.Additions = additions
+			file.Deletions = deletions
+		}
+	}
+
+	filePaths := make([]string, 0, len(filesByPath))
+	for filePath := range filesByPath {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+
+	files := make([]domain.CompareFile, 0, len(filePaths))
+	totalAdditions := 0
+	totalDeletions := 0
+	for _, filePath := range filePaths {
+		file := filesByPath[filePath]
+		patchOutput, patchErr := runGit("diff", "--unified=3", commitRange, "--", filePath)
+		if patchErr == nil {
+			const maxPatchLength = 24000
+			if len(patchOutput) > maxPatchLength {
+				patchOutput = patchOutput[:maxPatchLength] + "\n...diff truncated..."
+			}
+			file.Patch = patchOutput
+		}
+
+		totalAdditions += file.Additions
+		totalDeletions += file.Deletions
+		files = append(files, *file)
+	}
+
+	canCompare := len(commits) > 0 || len(files) > 0
+	mergeable := false
+	mergeMessage := "There isn't anything to compare."
+
+	if canCompare {
+		if _, err := runGit("checkout", "-B", "synergit-compare-base", baseHash); err == nil {
+			mergeOutput, mergeErr := runGitRaw("merge", "--no-commit", "--no-ff", headHash)
+			_, _ = runGitRaw("merge", "--abort")
+
+			if mergeErr == nil {
+				mergeable = true
+				mergeMessage = "Able to merge. These branches can be automatically merged."
+			} else if strings.Contains(strings.ToLower(mergeOutput), "conflict") {
+				mergeable = false
+				mergeMessage = "Can't automatically merge due to conflicts."
+			} else {
+				mergeable = false
+				mergeMessage = "Unable to determine mergeability."
+			}
+		} else {
+			mergeMessage = "Unable to determine mergeability."
+		}
+	}
+
+	result.CanCompare = canCompare
+	result.Mergeable = mergeable
+	result.MergeMessage = mergeMessage
+	result.Summary = domain.PullRequestCompareSummary{
+		CommitCount:      len(commits),
+		FilesChanged:     len(files),
+		Additions:        totalAdditions,
+		Deletions:        totalDeletions,
+		ContributorCount: len(contributors),
+	}
+	result.Commits = commits
+	result.Files = files
+
+	return result, nil
 }
 
 func (g *LocalGitAdapter) MergeBranches(

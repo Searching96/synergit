@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { authApi } from "../../services/api";
 import { BookOpen } from "lucide-react";
+import TooltipButton from "../ui/TooltipButton";
 
 interface AuthProps {
   onLoginSuccess: () => void;
@@ -94,17 +95,17 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
               />
             </div>
 
-            <button
+            <TooltipButton
               type="submit"
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-link)] hover:bg-[var(--accent-primary-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--ring-focus)] disabled:opacity-50"
             >
               {loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Register')}
-            </button>
+            </TooltipButton>
           </form>
 
           <div className="mt-6 text-center">
-            <button
+            <TooltipButton
               type="button" // Adding type="button" prevents accidental form submissions
               onClick={() => {
                 setIsLogin(!isLogin);
@@ -113,7 +114,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
               className="text-sm font-medium text-[var(--text-link)] hover:text-[var(--text-link)]"
             >
               {isLogin ? "Don't have an account? Register" : 'Already have an account? Sign in'}
-            </button>
+            </TooltipButton>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
@@ -45,6 +46,35 @@ func (h *PullRequestHandler) HandleCreatePullRequest(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, pr)
+}
+
+func (h *PullRequestHandler) HandleComparePullRequestRefs(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	baseRef := strings.TrimSpace(c.Query("base"))
+	headRef := strings.TrimSpace(c.Query("head"))
+	if baseRef == "" || headRef == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "base and head query params are required"})
+		return
+	}
+
+	result, err := h.prUseCase.ComparePullRequestRefs(repoID, requesterID, baseRef, headRef)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *PullRequestHandler) HandleListPullRequests(c *gin.Context) {

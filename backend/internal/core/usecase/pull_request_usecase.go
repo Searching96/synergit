@@ -3,6 +3,8 @@ package usecase
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/port"
 	"time"
@@ -73,6 +75,58 @@ func (s *PullRequestService) CreatePullRequest(
 	}
 
 	return pr, nil
+}
+
+func (s *PullRequestService) ComparePullRequestRefs(repoID uuid.UUID, requesterID uuid.UUID,
+	baseRef string, headRef string) (*domain.PullRequestCompareResult, error) {
+
+	base := strings.TrimSpace(baseRef)
+	head := strings.TrimSpace(headRef)
+
+	if err := domain.ValidateCompareRefs(base, head); err != nil {
+		return nil, err
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || !role.IsValid() {
+		return nil, errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil || repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	compareResult, err := s.gitManager.CompareRefs(repo.Path, base, head)
+	if err != nil {
+		return nil, err
+	}
+
+	if compareResult == nil {
+		return nil, errors.New("failed to compare refs")
+	}
+
+	compareResult.RepoID = repoID
+
+	repoPRs, err := s.prStore.ListByRepo(repoID)
+	if err != nil {
+		return nil, err
+	}
+
+	related := make([]domain.PullRequest, 0)
+	for _, pr := range repoPRs {
+		if pr.SourceBranch == head && pr.TargetBranch == base {
+			related = append(related, pr)
+		}
+	}
+
+	sort.Slice(related, func(i int, j int) bool {
+		return related[i].UpdatedAt.After(related[j].UpdatedAt)
+	})
+
+	compareResult.RelatedPullRequests = related
+
+	return compareResult, nil
 }
 
 func (s *PullRequestService) GetPullRequest(id uuid.UUID) (*domain.PullRequest, error) {

@@ -142,6 +142,7 @@ func main() {
 			repos.DELETE("/:repo_id/collabs/:user_id", collabHandler.HandleRemoveCollaborator)
 
 			// Pull request routes
+			repos.GET("/:repo_id/compare", prHandler.HandleComparePullRequestRefs)
 			repos.POST("/:repo_id/pulls", prHandler.HandleCreatePullRequest)
 			repos.GET("/:repo_id/pulls", prHandler.HandleListPullRequests)
 			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
