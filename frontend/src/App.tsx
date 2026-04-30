@@ -24,7 +24,6 @@ import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
-import TooltipButton from "./components/ui/TooltipButton";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
 import {
   GLOBAL_PAGE_TITLES,
@@ -779,7 +778,7 @@ function App () {
 
       {isRepoDrawerOpen && (
         <div className="fixed inset-0 z-50">
-          <TooltipButton
+          <button
             type="button"
             aria-label="Close repository menu"
             onClick={() => setIsRepoDrawerOpen(false)}
@@ -789,21 +788,21 @@ function App () {
           <aside className="absolute left-0 top-0 h-full w-[320px] bg-[var(--surface-canvas)] border-r border-[var(--border-default)] shadow-xl flex flex-col">
             <div className="px-4 py-4 flex items-center justify-between">
               <Github size={30} className="text-[var(--text-primary)]" />
-              <TooltipButton
+              <button
                 type="button"
                 onClick={() => setIsRepoDrawerOpen(false)}
                 className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                 aria-label="Close"
               >
                 <X size={16} className="text-[var(--text-secondary)]" />
-              </TooltipButton>
+              </button>
             </div>
 
             <div className="px-3 py-2 text-sm text-[var(--text-primary)] space-y-1">
               {primarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <TooltipButton
+                  <button
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
@@ -811,7 +810,7 @@ function App () {
                   >
                     <Icon size={17} className="text-[var(--text-secondary)]" />
                     <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </TooltipButton>
+                  </button>
                 );
               })}
             </div>
@@ -822,7 +821,7 @@ function App () {
               {secondarySidebarItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <TooltipButton
+                  <button
                     key={item.key}
                     type="button"
                     onClick={() => handleSidebarNavigate(item.path)}
@@ -830,7 +829,7 @@ function App () {
                   >
                     <Icon size={17} className="text-[var(--text-secondary)]" />
                     <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </TooltipButton>
+                  </button>
                 );
               })}
             </div>

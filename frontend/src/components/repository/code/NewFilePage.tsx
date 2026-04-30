@@ -10,7 +10,6 @@ import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import TwinButton from "./TwinButton";
-import TooltipButton from "../../ui/TooltipButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 
 interface NewFilePageProps {
@@ -376,7 +375,7 @@ export default function NewFilePage({
           />
 
           <div className="w-0 sticky top-0 self-start h-[calc(100dvh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
-            <TooltipButton
+            <button
               type="button"
               aria-label="Resize sidebar"
               onMouseDown={(event) => {
@@ -411,15 +410,15 @@ export default function NewFilePage({
               </div>
 
               <div className="shrink-0 inline-flex items-center gap-2">
-                <TooltipButton
+                <button
                   type="button"
                   onClick={onCancel}
                   disabled={submitting}
                   className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
                 >
                   Cancel changes
-                </TooltipButton>
-                <TooltipButton
+                </button>
+                <button
                   type="button"
                   onClick={() => {
                     if (!canCommit) {
@@ -433,7 +432,7 @@ export default function NewFilePage({
                   className="h-8 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
                 >
                   Commit changes...
-                </TooltipButton>
+                </button>
               </div>
             </div>
 
@@ -441,7 +440,7 @@ export default function NewFilePage({
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
                 <div className="px-2 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-1">
-                    <TooltipButton
+                    <button
                       type="button"
                       onClick={() => setEditorMode("edit")}
                       className={`h-7 px-3 rounded-md text-sm ${
@@ -451,8 +450,8 @@ export default function NewFilePage({
                       }`}
                     >
                       Edit
-                    </TooltipButton>
-                    <TooltipButton
+                    </button>
+                    <button
                       type="button"
                       onClick={() => setEditorMode("preview")}
                       className={`h-7 px-3 rounded-md text-sm ${
@@ -462,19 +461,19 @@ export default function NewFilePage({
                       }`}
                     >
                       Preview
-                    </TooltipButton>
+                    </button>
                   </div>
 
                   <div className="inline-flex items-center gap-2">
-                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       Spaces <ChevronDown size={12} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    </button>
+                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       2 <ChevronDown size={12} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
+                    </button>
+                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2">
                       No wrap <ChevronDown size={12} />
-                    </TooltipButton>
+                    </button>
                   </div>
                 </div>
 
@@ -521,7 +520,7 @@ export default function NewFilePage({
 
       {showCommitDialog ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <TooltipButton
+          <button
             type="button"
             aria-label="Close commit dialog"
             onClick={() => {
@@ -535,7 +534,7 @@ export default function NewFilePage({
           <div className="relative z-10 w-full max-w-[560px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
             <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Commit changes</h3>
-              <TooltipButton
+              <button
                 type="button"
                 onClick={() => {
                   if (!submitting) {
@@ -546,7 +545,7 @@ export default function NewFilePage({
                 aria-label="Close"
               >
                 <X size={16} />
-              </TooltipButton>
+              </button>
             </div>
 
             <div className="p-4 space-y-3">
@@ -574,22 +573,22 @@ export default function NewFilePage({
             </div>
 
             <div className="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-end gap-2">
-              <TooltipButton
+              <button
                 type="button"
                 onClick={() => setShowCommitDialog(false)}
                 disabled={submitting}
                 className="h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
               >
                 Cancel
-              </TooltipButton>
-              <TooltipButton
+              </button>
+              <button
                 type="button"
                 onClick={() => void handleCommit()}
                 disabled={!canCommit}
                 className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
               >
                 {submitting ? "Committing..." : "Commit changes"}
-              </TooltipButton>
+              </button>
             </div>
           </div>
         </div>

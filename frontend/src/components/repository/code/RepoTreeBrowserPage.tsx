@@ -18,7 +18,6 @@ import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
-import TooltipButton from "../../ui/TooltipButton";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 
 type ExplorerLocation = {
@@ -451,7 +450,7 @@ export default function RepoTreeBrowserPage({
           actions={(
             <div className="relative z-20">
               <div className="inline-flex items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
-                <TooltipButton
+                <button
                   type="button"
                   onClick={() => {
                     setIsAddFileMenuOpen((prev) => !prev);
@@ -462,21 +461,21 @@ export default function RepoTreeBrowserPage({
                   title="Add file"
                 >
                   <Plus size={14} className="text-[var(--text-secondary)]" />
-                </TooltipButton>
+                </button>
 
-                <TooltipButton
+                <button
                   type="button"
                   className="h-9 w-9 inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] border-l border-[var(--border-default)]"
                   aria-label="Search files"
                   title="Search this repository"
                 >
                   <Search size={14} className="text-[var(--text-secondary)]" />
-                </TooltipButton>
+                </button>
               </div>
 
               {isAddFileMenuOpen ? (
                 <div className="absolute right-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden z-20">
-                  <TooltipButton
+                  <button
                     type="button"
                     onClick={() => {
                       onOpenCreateFile?.(activeBranch, currentDirPath || "");
@@ -486,8 +485,8 @@ export default function RepoTreeBrowserPage({
                   >
                     <Plus size={14} className="text-[var(--text-secondary)]" />
                     Create new file
-                  </TooltipButton>
-                  <TooltipButton
+                  </button>
+                  <button
                     type="button"
                     onClick={() => {
                       onOpenUploadFiles?.(activeBranch, currentDirPath || "");
@@ -497,7 +496,7 @@ export default function RepoTreeBrowserPage({
                   >
                     <Upload size={14} className="text-[var(--text-secondary)]" />
                     Upload files
-                  </TooltipButton>
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -531,7 +530,7 @@ export default function RepoTreeBrowserPage({
         />
 
         <div className="w-0 sticky top-0 self-start h-[calc(100vh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
-          <TooltipButton
+          <button
             type="button"
             aria-label="Resize sidebar"
             onMouseDown={(event) => {
@@ -546,7 +545,7 @@ export default function RepoTreeBrowserPage({
         <section className="min-w-0 bg-[var(--surface-canvas)]">
           <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
             <div className="min-w-0 overflow-x-auto whitespace-nowrap">
-              <TooltipButton
+              <button
                 type="button"
                 onClick={() => {
                   void openTreeRoot();
@@ -554,7 +553,7 @@ export default function RepoTreeBrowserPage({
                 className="font-semibold text-[var(--text-link)] hover:underline"
               >
                 {repoName}
-              </TooltipButton>
+              </button>
               {activePathSegments.map((segment, index) => {
                 const pathUntilSegment = activePathSegments.slice(0, index + 1).join("/");
                 const isLast = index === activePathSegments.length - 1;
@@ -566,7 +565,7 @@ export default function RepoTreeBrowserPage({
                     {isSelectedFileLastSegment ? (
                       <span className="text-[var(--text-primary)]">{segment}</span>
                     ) : (
-                      <TooltipButton
+                      <button
                         type="button"
                         onClick={() => {
                           void openDirectory(pathUntilSegment);
@@ -574,14 +573,14 @@ export default function RepoTreeBrowserPage({
                         className="text-[var(--text-link)] hover:underline"
                       >
                         {segment}
-                      </TooltipButton>
+                      </button>
                     )}
                   </span>
                 );
               })}
             </div>
 
-            <TooltipButton
+            <button
               type="button"
               onClick={() => {
                 const value = [repoName, ...activePathSegments].join("/");
@@ -593,7 +592,7 @@ export default function RepoTreeBrowserPage({
               aria-label={selectedFilePath ? "Copy file path" : "Copy directory path"}
             >
               <Copy size={14} />
-            </TooltipButton>
+            </button>
           </div>
 
           {loadError ? (
@@ -622,14 +621,14 @@ export default function RepoTreeBrowserPage({
                         {shortHash(latestCommit.hash)} · {latestCommitWhen}
                       </span>
                     ) : null}
-                    <TooltipButton
+                    <button
                       type="button"
                       onClick={() => onOpenCommitHistory?.(activeBranch)}
                       className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
                       History
-                    </TooltipButton>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -637,43 +636,43 @@ export default function RepoTreeBrowserPage({
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
                 <div className="px-2 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-3">
                   <div className="min-w-0 flex items-center gap-2 text-sm">
-                    <TooltipButton type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] font-medium">
+                    <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] font-medium">
                       Code
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 px-3 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]">
+                    </button>
+                    <button type="button" className="h-7 px-3 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]">
                       Blame
-                    </TooltipButton>
+                    </button>
                     <span className="text-xs text-[var(--text-secondary)] whitespace-nowrap">
                       {fileLines.length} lines ({fileLocCount} loc) · {fileByteCount.toLocaleString()} Bytes
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Open file tree action">
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Open file tree action">
                       <FolderOpen size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Collaborators">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Collaborators">
                       <Users size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download from cloud">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download from cloud">
                       <Cloud size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 px-2 rounded-md border border-[var(--border-default)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]">Raw</TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Copy raw content">
+                    </button>
+                    <button type="button" className="h-7 px-2 rounded-md border border-[var(--border-default)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]">Raw</button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Copy raw content">
                       <Copy size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download file">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download file">
                       <Download size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file">
                       <Pencil size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More file actions">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More file actions">
                       <ChevronDown size={13} />
-                    </TooltipButton>
-                    <TooltipButton type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Expand view">
+                    </button>
+                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Expand view">
                       <Maximize2 size={13} />
-                    </TooltipButton>
+                    </button>
                   </div>
                 </div>
 
@@ -717,14 +716,14 @@ export default function RepoTreeBrowserPage({
                         {shortHash(latestCommit.hash)} · {latestCommitWhen}
                       </span>
                     ) : null}
-                    <TooltipButton
+                    <button
                       type="button"
                       onClick={() => onOpenCommitHistory?.(activeBranch)}
                       className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
                       History
-                    </TooltipButton>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -739,7 +738,7 @@ export default function RepoTreeBrowserPage({
                 <ul>
                   {currentDirPath ? (
                     <li className="border-b border-[var(--border-muted)]">
-                      <TooltipButton
+                      <button
                         type="button"
                         onClick={() => {
                           void openDirectory(getParentPath(currentDirPath));
@@ -751,7 +750,7 @@ export default function RepoTreeBrowserPage({
                           ..
                         </span>
                         <span className="text-right text-[var(--text-secondary)]">-</span>
-                      </TooltipButton>
+                      </button>
                     </li>
                   ) : null}
 
@@ -760,7 +759,7 @@ export default function RepoTreeBrowserPage({
 
                     return (
                       <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
-                        <TooltipButton
+                        <button
                           type="button"
                           onClick={() => {
                             if (entry.type === "DIR") {
@@ -784,7 +783,7 @@ export default function RepoTreeBrowserPage({
                             {details.message}
                           </span>
                           <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
-                        </TooltipButton>
+                        </button>
                       </li>
                     );
                   })}

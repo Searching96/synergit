@@ -9,7 +9,6 @@ import {
 } from "@primer/octicons-react";
 import type { Branch, RepoFile } from "../../../types";
 import BranchTagMenu from "./BranchTagMenu";
-import TooltipButton from "../../ui/TooltipButton";
 
 type RepoBrowserSidebarProps = {
   branches: Branch[];
@@ -76,7 +75,7 @@ export default function RepoBrowserSidebar({
             style={{ paddingLeft: `${Math.max(0, depth * 10)}px` }}
           >
             {isDirectory ? (
-              <TooltipButton
+              <button
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
@@ -87,12 +86,12 @@ export default function RepoBrowserSidebar({
                 aria-label={isExpanded ? "Collapse directory" : "Expand directory"}
               >
                 {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </TooltipButton>
+              </button>
             ) : (
               <span className="h-6 w-5 shrink-0" />
             )}
 
-            <TooltipButton
+            <button
               type="button"
               onClick={() => {
                 if (isDirectory) {
@@ -117,7 +116,7 @@ export default function RepoBrowserSidebar({
                 <FileIcon size={18} className="text-[var(--text-secondary)] shrink-0" />
               )}
               <span className="truncate text-[17px]">{entry.name}</span>
-            </TooltipButton>
+            </button>
           </div>
 
           {isDirectory && isExpanded ? (
@@ -135,7 +134,7 @@ export default function RepoBrowserSidebar({
       }`}
     >
       <div className="px-3 py-2 flex items-center gap-2">
-        <TooltipButton
+        <button
           type="button"
           aria-label={isCollapsed ? "Expand file tree" : "Collapse file tree"}
           aria-controls="repos-file-tree"
@@ -145,7 +144,7 @@ export default function RepoBrowserSidebar({
           className="h-7 w-7 rounded-md inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
         >
           {isCollapsed ? <SidebarExpandIcon size={18} /> : <SidebarCollapseIcon size={18} />}
-        </TooltipButton>
+        </button>
         <span className={isCollapsed ? "sr-only" : "text-base font-semibold text-[var(--text-primary)]"}>Files</span>
       </div>
       {!isCollapsed ? (
@@ -153,7 +152,7 @@ export default function RepoBrowserSidebar({
           <div className="px-3 py-2 space-y-2">
             <div className={`flex items-center ${controlsClassName ?? "gap-2"}`}>
               {isOverlayVisible && onCloseMenus ? (
-                <TooltipButton
+                <button
                   type="button"
                   aria-label={overlayAriaLabel || "Close menus"}
                   onClick={onCloseMenus}

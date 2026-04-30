@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import TooltipButton from "../ui/TooltipButton";
 
 interface RouteButtonProps {
   children: ReactNode;
@@ -15,7 +14,7 @@ export default function RouteButton({
   className = "",
 }: RouteButtonProps) {
   return (
-    <TooltipButton
+    <button
       type="button"
       onClick={onClick}
       className={`rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] ${
@@ -23,6 +22,6 @@ export default function RouteButton({
       } ${className}`}
     >
       {children}
-    </TooltipButton>
+    </button>
   );
 }

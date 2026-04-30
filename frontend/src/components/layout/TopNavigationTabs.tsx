@@ -1,5 +1,4 @@
 import type { ComponentType } from "react";
-import TooltipButton from "../ui/TooltipButton";
 
 export interface TopNavigationTab<T extends string> {
   key: T;
@@ -26,7 +25,7 @@ export default function TopNavigationTabs<T extends string>({
         const active = activeKey === tab.key;
 
         return (
-          <TooltipButton
+          <button
             key={tab.key}
             type="button"
             onClick={() => onSelect(tab.key)}
@@ -51,7 +50,7 @@ export default function TopNavigationTabs<T extends string>({
                 </span>
               ) : null}
             </div>
-          </TooltipButton>
+          </button>
         );
       })}
     </div>

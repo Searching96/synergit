@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import TooltipButton from "../../ui/TooltipButton";
 
 type TwinButtonProps = {
   leftAriaLabel: string;
@@ -34,7 +33,7 @@ export default function TwinButton({
 
   return (
     <div className={wrapperClassName}>
-      <TooltipButton
+      <button
         type="button"
         onClick={onLeftClick}
         className={leftClassName}
@@ -42,9 +41,9 @@ export default function TwinButton({
         title={leftTitle}
       >
         {leftIcon}
-      </TooltipButton>
+      </button>
 
-      <TooltipButton
+      <button
         type="button"
         onClick={onRightClick}
         className={rightClassName}
@@ -52,7 +51,7 @@ export default function TwinButton({
         title={rightTitle}
       >
         {rightIcon}
-      </TooltipButton>
+      </button>
     </div>
   );
 }
