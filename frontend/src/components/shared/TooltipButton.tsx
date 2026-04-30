@@ -1,4 +1,15 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useHover,
+  useFocus,
+  useInteractions,
+  FloatingPortal
+} from "@floating-ui/react";
 
 export type TooltipButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   tooltip?: string | null;
@@ -7,28 +18,55 @@ export type TooltipButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export default function TooltipButton({
   tooltip,
-  className,
+  className = "",
   children,
   ...buttonProps
 }: TooltipButtonProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
   const tooltipText = tooltip?.trim();
   const showTooltip = Boolean(tooltipText);
-  const mergedClassName = className ? `${className} relative group` : "relative group";
+
+  // Dynamically resolve tooltip coordinates to guarantee viewport visibility
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(8),
+      flip(),
+      shift({ padding: 8 })
+    ],
+  });
+
+  const hover = useHover(context);
+  const focus = useFocus(context);
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus]);
 
   return (
-    <button {...buttonProps} className={mergedClassName}>
-      {children}
-      {showTooltip ? (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-0 bottom-full mb-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 z-50"
-        >
-          {/* NOTICE: The [] brackets are gone. We are using the native names we defined in the config */}
-          <span className="whitespace-nowrap rounded-md border border-border-default bg-surface-canvas px-2 py-1 text-xs text-text-primary shadow-lg">
+    <>
+      <button
+        ref={refs.setReference}
+        className={className}
+        {...getReferenceProps(buttonProps)}
+      >
+        {children}
+      </button>
+
+      {showTooltip && isOpen && (
+        // Mount at the document root to bypass parent stacking contexts and overflow clipping
+        <FloatingPortal>
+          <div
+            ref={refs.setFloating}
+            style={floatingStyles}
+            className="z-50 pointer-events-none whitespace-nowrap rounded-md bg-black px-2 py-1 text-xs text-white shadow-lg"
+            {...getFloatingProps()}
+          >
             {tooltipText}
-          </span>
-        </span>
-      ) : null}
-    </button>
+          </div>
+        </FloatingPortal>
+      )}
+    </>
   );
 }
