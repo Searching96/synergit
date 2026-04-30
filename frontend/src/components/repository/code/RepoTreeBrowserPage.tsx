@@ -19,6 +19,7 @@ import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
+import TwinButton from "./TwinButton";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -426,7 +427,6 @@ export default function RepoTreeBrowserPage({
       >
         <RepoBrowserSidebar
           asideClassName="h-[calc(100vh-104px)]"
-          controlsClassName="gap-1"
           branches={branches}
           currentBranch={activeBranch}
           isBranchMenuOpen={isBranchMenuOpen}
@@ -448,58 +448,12 @@ export default function RepoTreeBrowserPage({
             setIsAddFileMenuOpen(false);
           }}
           actions={(
-            <div className="relative z-20">
-              <div className="inline-flex items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddFileMenuOpen((prev) => !prev);
-                    setIsBranchMenuOpen(false);
-                  }}
-                  className="h-9 w-9 py-1 inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                  aria-label="Add file"
-                  title="Add file"
-                >
-                  <Plus size={14} className="text-[var(--text-secondary)]" />
-                </button>
-
-                <button
-                  type="button"
-                  className="h-9 w-9 inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] border-l border-[var(--border-default)]"
-                  aria-label="Search files"
-                  title="Search this repository"
-                >
-                  <Search size={14} className="text-[var(--text-secondary)]" />
-                </button>
-              </div>
-
-              {isAddFileMenuOpen ? (
-                <div className="absolute right-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden z-20">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenCreateFile?.(activeBranch, currentDirPath || "");
-                      setIsAddFileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                  >
-                    <Plus size={14} className="text-[var(--text-secondary)]" />
-                    Create new file
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpenUploadFiles?.(activeBranch, currentDirPath || "");
-                      setIsAddFileMenuOpen(false);
-                    }}
-                    className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                  >
-                    <Upload size={14} className="text-[var(--text-secondary)]" />
-                    Upload files
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <TwinButton
+              leftAriaLabel="Add file"
+              rightAriaLabel="Search files"
+              leftIcon={<Plus size={14} className="text-[var(--text-secondary)]" />}
+              rightIcon={<Search size={14} className="text-[var(--text-secondary)]" />}
+            />
           )}
           entriesByPath={entriesByPath}
           expandedDirs={expandedDirs}

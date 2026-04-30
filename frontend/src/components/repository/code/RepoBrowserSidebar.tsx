@@ -108,14 +108,14 @@ export default function RepoBrowserSidebar({
             >
               {isDirectory ? (
                 isExpanded ? (
-                  <FileDirectoryOpenFillIcon size={18} className="text-[#54aeff] shrink-0" />
+                  <FileDirectoryOpenFillIcon size={17} className="text-[#54aeff] shrink-0" />
                 ) : (
-                  <FileDirectoryFillIcon size={18} className="text-[#54aeff] shrink-0" />
+                  <FileDirectoryFillIcon size={17} className="text-[#54aeff] shrink-0" />
                 )
               ) : (
-                <FileIcon size={18} className="text-[var(--text-secondary)] shrink-0" />
+                <FileIcon size={17} className="text-[var(--text-secondary)] shrink-0" />
               )}
-              <span className="truncate text-[17px]">{entry.name}</span>
+              <span className="truncate text-[15px]">{entry.name}</span>
             </button>
           </div>
 
