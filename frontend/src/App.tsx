@@ -33,6 +33,7 @@ import {
   buildRepoCommitsPath,
   buildRepoContentPath,
   buildRepoNewFilePath,
+  buildRepoIssuesNewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
   normalizeCommitFilterSearch,
@@ -184,6 +185,8 @@ function App () {
           } else {
             canonicalPath = buildRepoComparePath(owner, targetRepo.name);
           }
+        } else if (parsed.tab === 'issues' && parsed.contentKind === 'issues-new') {
+          canonicalPath = buildRepoIssuesNewPath(owner, targetRepo.name);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -390,6 +393,11 @@ function App () {
     navigateToPath(buildRepoTabPath(owner, repo.name, tab));
   }, [getRepoOwner, navigateToPath]);
 
+  const navigateToRepoIssuesNew = useCallback((repo: Repository) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoIssuesNewPath(owner, repo.name));
+  }, [getRepoOwner, navigateToPath]);
+
   const navigateToRepoContent = useCallback((
     repo: Repository,
     contentKind: 'root' | 'tree' | 'blob',
@@ -461,6 +469,10 @@ function App () {
 
     if (routeContentKind === 'compare') {
       navigateToRepoTab(selectedRepo, 'pulls');
+      return;
+    }
+
+    if (routeContentKind === 'issues-new') {
       return;
     }
 
@@ -692,7 +704,7 @@ function App () {
         />
       </header>
 
-      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto bg-[var(--surface-canvas)]">
+      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] bg-[var(--surface-canvas)]">
         <RepoWorkspaceContent
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}
@@ -752,6 +764,20 @@ function App () {
             }
 
             navigateToRepoCompare(selectedRepo, baseRef, headRef);
+          }}
+          onOpenCreateIssue={() => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoIssuesNew(selectedRepo);
+          }}
+          onCloseCreateIssue={() => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoTab(selectedRepo, 'issues');
           }}
         />
       </main>

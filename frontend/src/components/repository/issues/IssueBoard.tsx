@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
+  Bold,
   CheckCircle2,
   ChevronDown,
   CircleDot,
   CircleSlash,
+  Code,
+  Heading,
+  Italic,
+  Link,
+  List,
+  ListOrdered,
   Milestone,
   Plus,
   Search,
+  Settings,
   Tag,
   Users,
 } from "lucide-react";
@@ -17,6 +25,10 @@ interface IssueBoardProps {
   repoId: string;
   repoName: string;
   repoOwner: string;
+  currentUsername: string;
+  isCreating: boolean;
+  onOpenCreate: () => void;
+  onCloseCreate: () => void;
 }
 
 function labelTextColor(hex: string): string {
@@ -100,7 +112,7 @@ function ToolbarDropdown({
   );
 }
 
-export default function IssueBoard({ repoId }: IssueBoardProps) {
+export default function IssueBoard({ repoId, currentUsername, isCreating, onOpenCreate, onCloseCreate }: IssueBoardProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assigneesByIssueId, setAssigneesByIssueId] = useState<Record<string, IssueAssignee[]>>({});
   const [listLoading, setListLoading] = useState<boolean>(true);
@@ -111,7 +123,6 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [searchInput, setSearchInput] = useState<string>("is:issue state:open");
   const [appliedSearch, setAppliedSearch] = useState<string>("is:issue state:open");
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
-  const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
   const [closeReasonFilter, setCloseReasonFilter] = useState<IssueCloseReason | "ALL">("ALL");
 
   const [labelsByIssueId, setLabelsByIssueId] = useState<Record<string, Label[]>>({});
@@ -120,6 +131,11 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [openMenu, setOpenMenu] = useState<"mark" | "label" | "assign" | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
+  const [descriptionPreview, setDescriptionPreview] = useState<boolean>(false);
+  const [createMore, setCreateMore] = useState<boolean>(false);
+  const [createAssignees, setCreateAssignees] = useState<Set<string>>(new Set());
+  const [createLabels, setCreateLabels] = useState<Set<string>>(new Set());
+  const [createMenu, setCreateMenu] = useState<"assignees" | "labels" | null>(null);
 
   const [createTitle, setCreateTitle] = useState<string>('');
   const [createDescription, setCreateDescription] = useState<string>('');
@@ -177,7 +193,6 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     setMessage(null);
     setCreateTitle('');
     setCreateDescription('');
-    setShowCreateForm(false);
     setActiveFilter("OPEN");
     setSearchInput("is:issue state:open");
     setAppliedSearch("is:issue state:open");
@@ -187,6 +202,9 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     setOpenMenu(null);
     setAssigneeFilter("");
     setLabelFilter("");
+    setCreateAssignees(new Set());
+    setCreateLabels(new Set());
+    setCreateMenu(null);
     void loadIssues();
 
     void labelsApi.listForRepo(repoId).then(setRepoLabels).catch(() => setRepoLabels([]));
@@ -305,16 +323,28 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         description: createDescription.trim() || undefined,
       });
 
+      await Promise.all([
+        ...[...createAssignees].map((userId) => issuesApi.assign(repoId, createdIssue.id, { user_id: userId })),
+        ...[...createLabels].map((labelId) => labelsApi.add(repoId, createdIssue.id, { label_id: labelId })),
+      ]);
+
       setCreateTitle('');
       setCreateDescription('');
-      setShowCreateForm(false);
+      setDescriptionPreview(false);
+      setCreateAssignees(new Set());
+      setCreateLabels(new Set());
+      setCreateMenu(null);
       setSelectedIssueIds(new Set());
       setMessage('Issue created successfully.');
 
       await loadIssues(true);
-      setActiveFilter(createdIssue.status);
-      setSearchInput(replaceStateQueryToken(searchInput, createdIssue.status));
-      setAppliedSearch(replaceStateQueryToken(appliedSearch, createdIssue.status));
+
+      if (!createMore) {
+        setActiveFilter(createdIssue.status);
+        setSearchInput(replaceStateQueryToken(searchInput, createdIssue.status));
+        setAppliedSearch(replaceStateQueryToken(appliedSearch, createdIssue.status));
+        onCloseCreate();
+      }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Failed to create issue';
       setError(errMsg);
@@ -464,6 +494,27 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     }
   };
 
+  const toggleCreateAssignee = (userId: string) =>
+    setCreateAssignees((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+
+  const toggleCreateLabel = (labelId: string) =>
+    setCreateLabels((prev) => {
+      const next = new Set(prev);
+      if (next.has(labelId)) next.delete(labelId);
+      else next.add(labelId);
+      return next;
+    });
+
+  const assignYourself = () => {
+    const me = collaborators.find((c) => c.username === currentUsername);
+    if (me) toggleCreateAssignee(me.user_id);
+  };
+
   const visibleCollaborators = collaborators.filter((c) =>
     (c.username ?? "").toLowerCase().includes(assigneeFilter.trim().toLowerCase()),
   );
@@ -486,6 +537,259 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         </div>
       )}
 
+      {isCreating ? (
+        <div className="w-full">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold text-[var(--text-primary)]">Create new issue</h2>
+          </div>
+
+          <div className="flex flex-col gap-6 lg:flex-row">
+            <form onSubmit={handleCreateIssue} className="flex-1 min-w-0 space-y-4">
+              <div>
+                <label className="block mb-1 text-sm font-semibold text-[var(--text-primary)]">
+                  Add a title <span className="text-[var(--text-danger)]">*</span>
+                </label>
+                <input
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  placeholder="Title"
+                  className="w-full h-10 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block mb-1 text-sm font-semibold text-[var(--text-primary)]">Add a description</label>
+                <div className="rounded-md border border-[var(--border-default)] overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-[var(--border-muted)] bg-[var(--surface-canvas)] px-2">
+                    <div className="flex">
+                      <button
+                        type="button"
+                        onClick={() => setDescriptionPreview(false)}
+                        className={`h-9 px-3 text-sm ${!descriptionPreview ? "border-b-2 border-[var(--accent-primary)] font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                      >
+                        Write
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDescriptionPreview(true)}
+                        className={`h-9 px-3 text-sm ${descriptionPreview ? "border-b-2 border-[var(--accent-primary)] font-semibold text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}
+                      >
+                        Preview
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1 text-[var(--text-secondary)]">
+                      {[Heading, Bold, Italic, ListOrdered, Code, Link, List].map((Icon, i) => (
+                        <span key={i} className="h-7 w-7 inline-flex items-center justify-center rounded hover:bg-[var(--surface-hover)]">
+                          <Icon size={15} />
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  {descriptionPreview ? (
+                    <div className="min-h-64 px-3 py-2 text-sm text-[var(--text-primary)] whitespace-pre-wrap">
+                      {createDescription.trim() || "Nothing to preview"}
+                    </div>
+                  ) : (
+                    <textarea
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
+                      placeholder="Type your description here..."
+                      className="w-full min-h-64 px-3 py-2 text-sm text-[var(--text-primary)] bg-[var(--surface-canvas)] resize-y"
+                    />
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">Paste, drop, or click to add files</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+                  <input type="checkbox" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} className="h-4 w-4" />
+                  Create more
+                </label>
+                <button
+                  type="button"
+                  onClick={onCloseCreate}
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingIssue || !createTitle.trim()}
+                  className="h-8 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                >
+                  {creatingIssue ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </form>
+
+            <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 text-sm">
+              <div className="relative pb-4 border-b border-[var(--border-muted)]">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[var(--text-primary)]">Assignees</span>
+                  <button
+                    type="button"
+                    aria-label="Edit assignees"
+                    onClick={() => setCreateMenu((m) => (m === "assignees" ? null : "assignees"))}
+                    className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    <Settings size={14} />
+                  </button>
+                </div>
+                {createAssignees.size === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                    No one
+                    {collaborators.some((c) => c.username === currentUsername) ? (
+                      <>
+                        {" "}&mdash;{" "}
+                        <button type="button" onClick={assignYourself} className="text-[var(--text-link)] hover:underline">
+                          Assign yourself
+                        </button>
+                      </>
+                    ) : null}
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    {[...createAssignees].map((userId) => {
+                      const name = collaboratorNameById[userId] || userId;
+                      return (
+                        <div key={userId} className="flex items-center gap-2">
+                          <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                            {name.charAt(0)}
+                          </span>
+                          <span className="font-medium text-[var(--text-primary)]">{name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {createMenu === "assignees" ? (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setCreateMenu(null)} aria-hidden />
+                    <div className="absolute left-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
+                        <input
+                          value={assigneeFilter}
+                          onChange={(e) => setAssigneeFilter(e.target.value)}
+                          placeholder="Filter assignees"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleCollaborators.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                          ) : (
+                            visibleCollaborators.map((collaborator) => (
+                              <li key={collaborator.user_id}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleCreateAssignee(collaborator.user_id)}
+                                  className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <input type="checkbox" readOnly checked={createAssignees.has(collaborator.user_id)} className="h-4 w-4" />
+                                  <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                    {(collaborator.username ?? "?").charAt(0)}
+                                  </span>
+                                  <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
+              <div className="relative pb-4 border-b border-[var(--border-muted)]">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-[var(--text-primary)]">Labels</span>
+                  <button
+                    type="button"
+                    aria-label="Edit labels"
+                    onClick={() => setCreateMenu((m) => (m === "labels" ? null : "labels"))}
+                    className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    <Settings size={14} />
+                  </button>
+                </div>
+                {createLabels.size === 0 ? (
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {repoLabels
+                      .filter((label) => createLabels.has(label.id))
+                      .map((label) => (
+                        <span
+                          key={label.id}
+                          className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                          style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                        >
+                          {label.name}
+                        </span>
+                      ))}
+                  </div>
+                )}
+                {createMenu === "labels" ? (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setCreateMenu(null)} aria-hidden />
+                    <div className="absolute left-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to this issue</p>
+                        <input
+                          value={labelFilter}
+                          onChange={(e) => setLabelFilter(e.target.value)}
+                          placeholder="Filter labels"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleLabels.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                          ) : (
+                            visibleLabels.map((label) => (
+                              <li key={label.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleCreateLabel(label.id)}
+                                  className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <input type="checkbox" readOnly checked={createLabels.has(label.id)} className="mt-0.5 h-4 w-4" />
+                                  <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                                  <span className="min-w-0">
+                                    <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                    {label.description ? (
+                                      <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                    ) : null}
+                                  </span>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+
+              {[
+                { label: "Projects", value: "None yet" },
+                { label: "Milestone", value: "No milestone" },
+              ].map((section) => (
+                <div key={section.label} className="pb-4 border-b border-[var(--border-muted)]">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-[var(--text-primary)]">{section.label}</span>
+                    <Settings size={14} className="text-[var(--text-secondary)]" />
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--text-secondary)]">{section.value}</p>
+                </div>
+              ))}
+            </aside>
+          </div>
+        </div>
+      ) : (
       <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
         <div className="p-4 border-b border-[var(--border-muted)]">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -530,50 +834,14 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setShowCreateForm((prev) => !prev)}
+                onClick={onOpenCreate}
                 className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
               >
-                <Plus size={14} />
                 New issue
               </button>
             </div>
           </div>
         </div>
-
-        {showCreateForm ? (
-          <form onSubmit={handleCreateIssue} className="p-4 border-b border-[var(--border-muted)] bg-[var(--surface-subtle)] space-y-3">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">Create a new issue</h3>
-            <input
-              value={createTitle}
-              onChange={(e) => setCreateTitle(e.target.value)}
-              placeholder="Title"
-              className="w-full h-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
-              required
-            />
-            <textarea
-              value={createDescription}
-              onChange={(e) => setCreateDescription(e.target.value)}
-              placeholder="Description"
-              className="w-full min-h-24 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-sm text-[var(--text-primary)]"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={creatingIssue || !createTitle.trim()}
-                className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-              >
-                {creatingIssue ? 'Creating...' : 'Create issue'}
-              </button>
-            </div>
-          </form>
-        ) : null}
 
         <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {selectionActive ? (
@@ -882,6 +1150,7 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
           </ul>
         )}
       </section>
+      )}
     </div>
   );
 }

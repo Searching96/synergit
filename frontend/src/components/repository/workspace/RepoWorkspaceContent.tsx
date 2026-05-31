@@ -46,6 +46,8 @@ interface RepoWorkspaceContentProps {
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
+  onOpenCreateIssue: () => void;
+  onCloseCreateIssue: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -71,6 +73,8 @@ export default function RepoWorkspaceContent({
   onOpenCreateFile,
   onOpenUploadFiles,
   onOpenRepoCompare,
+  onOpenCreateIssue,
+  onCloseCreateIssue,
 }: RepoWorkspaceContentProps) {
   return (
     <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
@@ -168,6 +172,10 @@ export default function RepoWorkspaceContent({
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 repoOwner={selectedRepo.owner || currentUsername}
+                currentUsername={currentUsername}
+                isCreating={routeContentKind === "issues-new"}
+                onOpenCreate={onOpenCreateIssue}
+                onCloseCreate={onCloseCreateIssue}
               />
             )}
             {activeTab === "pulls" && routeContentKind === "compare" && (

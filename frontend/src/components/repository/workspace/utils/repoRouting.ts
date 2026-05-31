@@ -36,7 +36,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare" | "issues-new";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -126,6 +126,10 @@ export function buildRepoTabPath(owner: string, repoName: string, tab: RepoTabKe
   }
 
   return `${base}/${tab}`;
+}
+
+export function buildRepoIssuesNewPath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/issues/new`;
 }
 
 export function buildRepoContentPath(
@@ -380,6 +384,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
       ? (tabSegment as RepoTabKey)
       : "files";
 
+    if (tab === "issues" && segments[3] === "new") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "issues",
+        contentKind: "issues-new",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/issues/new`,
+      };
+    }
+
     return {
       viewMode: "repo",
       repoOwner: null,
@@ -503,6 +522,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch,
         globalPage: null,
         normalizedPath,
+      };
+    }
+
+    if (third === "issues" && segments[3] === "new") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "issues",
+        contentKind: "issues-new",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `${base}/issues/new`,
       };
     }
 
