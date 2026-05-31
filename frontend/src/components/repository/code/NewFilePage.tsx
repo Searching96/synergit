@@ -9,6 +9,7 @@ import {
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
+import RepoBreadcrumb from "./RepoBreadcrumb";
 import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 
@@ -116,6 +117,8 @@ export default function NewFilePage({
 
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [fileDirectoryPath, setFileDirectoryPath] = useState<string>("");
+  const [hasLeadingSeparator, setHasLeadingSeparator] = useState<boolean>(false);
   const [fileContent, setFileContent] = useState<string>("");
   const [commitMessage, setCommitMessage] = useState<string>("Create new file");
   const [description, setDescription] = useState<string>("");
@@ -208,6 +211,8 @@ export default function NewFilePage({
   useEffect(() => {
     const initialLocation = resolveInitialCreateLocation(initialDirectoryPath);
     setCurrentDirPath(initialLocation.directoryPath);
+    setFileDirectoryPath("");
+    setHasLeadingSeparator(false);
     if (initialLocation.suggestedFileName) {
       setFileName(initialLocation.suggestedFileName);
     }
@@ -241,8 +246,19 @@ export default function NewFilePage({
   }, [currentDirPath, loadDir]);
 
   const baseDirectoryPath = useMemo(() => normalizeRelativePath(currentDirPath || ""), [currentDirPath]);
+  const normalizedInputDirectoryPath = useMemo(() => normalizeRelativePath(fileDirectoryPath), [fileDirectoryPath]);
+  const targetDirectoryPath = useMemo(
+    () => joinPath(baseDirectoryPath, normalizedInputDirectoryPath),
+    [baseDirectoryPath, normalizedInputDirectoryPath],
+  );
+  const activePathSegments = useMemo(() => {
+    return targetDirectoryPath ? targetDirectoryPath.split("/").filter(Boolean) : [];
+  }, [targetDirectoryPath]);
   const normalizedLeafPath = useMemo(() => normalizeRelativePath(fileName), [fileName]);
-  const targetFilePath = useMemo(() => joinPath(baseDirectoryPath, normalizedLeafPath), [baseDirectoryPath, normalizedLeafPath]);
+  const targetFilePath = useMemo(
+    () => joinPath(targetDirectoryPath, normalizedLeafPath),
+    [targetDirectoryPath, normalizedLeafPath],
+  );
   const editorLineNumbers = useMemo(() => {
     const count = Math.max(1, fileContent.split("\n").length);
     return Array.from({ length: count }, (_, index) => index + 1);
@@ -253,16 +269,17 @@ export default function NewFilePage({
       return "File name is required.";
     }
 
-    if (fileName.startsWith("/") || fileName.startsWith("\\")) {
+    if (hasLeadingSeparator) {
       return "File path must be relative to the repository.";
     }
 
-    if (hasUnsafeSegments(fileName.replace(/\\/g, "/"))) {
+    const candidatePath = joinPath(fileDirectoryPath, fileName);
+    if (hasUnsafeSegments(candidatePath.replace(/\\/g, "/"))) {
       return "File path cannot contain . or .. segments.";
     }
 
     return null;
-  }, [fileName]);
+  }, [fileDirectoryPath, fileName, hasLeadingSeparator]);
 
   const canCommit = !submitting && !validationError && targetFilePath.length > 0;
 
@@ -279,6 +296,48 @@ export default function NewFilePage({
     setIsSidebarCollapsed(true);
     setIsBranchMenuOpen(false);
   };
+
+  const handleBreadcrumbNavigate = useCallback((path: string) => {
+    ensureExpandedAncestors(path);
+    setCurrentDirPath(path);
+    setFileDirectoryPath("");
+    void loadDir(path);
+  }, [ensureExpandedAncestors, loadDir]);
+
+  const handleFileNameChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setHasLeadingSeparator(value.startsWith("/") || value.startsWith("\\"));
+
+    const normalized = value.replace(/\\/g, "/");
+    if (!normalized.includes("/")) {
+      setFileName(value);
+      return;
+    }
+
+    const endsWithSlash = /[\\/]$/.test(value);
+    const segments = normalized.split("/").filter(Boolean);
+
+    if (segments.length === 0) {
+      setFileName("");
+      return;
+    }
+
+    if (endsWithSlash) {
+      setFileDirectoryPath(joinPath(fileDirectoryPath, segments.join("/")));
+      setFileName("");
+      return;
+    }
+
+    if (segments.length === 1) {
+      setFileName(segments[0]);
+      return;
+    }
+
+    const dirPart = segments.slice(0, -1).join("/");
+    const leafPart = segments[segments.length - 1];
+    setFileDirectoryPath(joinPath(fileDirectoryPath, dirPart));
+    setFileName(leafPart);
+  }, [fileDirectoryPath]);
 
   const handleCommit = async () => {
     if (!canCommit) {
@@ -390,16 +449,23 @@ export default function NewFilePage({
           <section className="min-w-0 bg-[var(--surface-canvas)]">
             <div className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm">
-                <span className="font-semibold text-[var(--text-link)]">{repoName}</span>
-                <span className="text-[var(--text-muted)]">/</span>
-
-                {baseDirectoryPath ? (
-                  <span className="text-[var(--text-link)]">{baseDirectoryPath}/</span>
-                ) : null}
+                <RepoBreadcrumb
+                  rootLabel={repoName}
+                  segments={activePathSegments}
+                  onRootClick={() => handleBreadcrumbNavigate("")}
+                  onSegmentClick={(pathUntilSegment) => handleBreadcrumbNavigate(pathUntilSegment)}
+                  isLastSegmentClickable
+                  showRootSeparatorWhenEmpty
+                  showTrailingSeparator
+                  className="inline-flex items-center"
+                  rootClassName="font-semibold text-[var(--text-link)] hover:underline"
+                  segmentClassName="text-[var(--text-link)] hover:underline"
+                  lastSegmentClassName="text-[var(--text-link)] hover:underline"
+                />
 
                 <input
                   value={fileName}
-                  onChange={(event) => setFileName(event.target.value)}
+                  onChange={handleFileNameChange}
                   placeholder="main.c"
                   className="h-8 w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
                 />

@@ -18,6 +18,7 @@ import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
+import RepoBreadcrumb from "./RepoBreadcrumb";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import TwinButton from "./TwinButton";
 
@@ -498,41 +499,21 @@ export default function RepoTreeBrowserPage({
 
         <section className="min-w-0 bg-[var(--surface-canvas)]">
           <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
-            <div className="min-w-0 overflow-x-auto whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => {
-                  void openTreeRoot();
-                }}
-                className="font-semibold text-[var(--text-link)] hover:underline"
-              >
-                {repoName}
-              </button>
-              {activePathSegments.map((segment, index) => {
-                const pathUntilSegment = activePathSegments.slice(0, index + 1).join("/");
-                const isLast = index === activePathSegments.length - 1;
-                const isSelectedFileLastSegment = !!selectedFilePath && isLast;
-
-                return (
-                  <span key={pathUntilSegment}>
-                    <span className="mx-1 text-[var(--text-muted)]">/</span>
-                    {isSelectedFileLastSegment ? (
-                      <span className="text-[var(--text-primary)]">{segment}</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void openDirectory(pathUntilSegment);
-                        }}
-                        className="text-[var(--text-link)] hover:underline"
-                      >
-                        {segment}
-                      </button>
-                    )}
-                  </span>
-                );
-              })}
-            </div>
+            <RepoBreadcrumb
+              rootLabel={repoName}
+              segments={activePathSegments}
+              onRootClick={() => {
+                void openTreeRoot();
+              }}
+              onSegmentClick={(pathUntilSegment) => {
+                void openDirectory(pathUntilSegment);
+              }}
+              isLastSegmentClickable={!selectedFilePath}
+              className="min-w-0 overflow-x-auto whitespace-nowrap"
+              rootClassName="font-semibold text-[var(--text-link)] hover:underline"
+              segmentClassName="text-[var(--text-link)] hover:underline"
+              lastSegmentClassName="text-[var(--text-primary)]"
+            />
 
             <button
               type="button"
