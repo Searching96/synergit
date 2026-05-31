@@ -4,7 +4,6 @@ import {
   ChevronDown,
   CircleDot,
   CircleSlash,
-  MessageSquare,
   Milestone,
   Plus,
   Search,
@@ -18,6 +17,15 @@ interface IssueBoardProps {
   repoId: string;
   repoName: string;
   repoOwner: string;
+}
+
+function labelTextColor(hex: string): string {
+  const c = hex.replace("#", "");
+  if (c.length < 6) return "#1f2328";
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#1f2328" : "#ffffff";
 }
 
 function formatIssueDate(timestamp: string): string {
@@ -371,6 +379,14 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     [filteredIssues, selectedIssueIds],
   );
   const selectionActive = selectedVisible.length > 0;
+
+  const collaboratorNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    collaborators.forEach((c) => {
+      if (c.username) map[c.user_id] = c.username;
+    });
+    return map;
+  }, [collaborators]);
 
   const toggleMenu = (menu: "mark" | "label" | "assign") =>
     setOpenMenu((prev) => (prev === menu ? null : menu));
@@ -794,7 +810,6 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
           <ul className="divide-y divide-[var(--border-muted)]">
             {filteredIssues.map((issue) => {
               const issueNo = issueNumberMap.get(issue.id) || 0;
-              const assigneeCount = (assigneesByIssueId[issue.id] || []).length;
               const isSelected = selectedIssueIds.has(issue.id);
               const showNotPlanned = issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED";
 
@@ -820,20 +835,18 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                     </span>
 
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{issue.title}</p>
-                      {(labelsByIssueId[issue.id] || []).length > 0 ? (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {(labelsByIssueId[issue.id] || []).map((label) => (
-                            <span
-                              key={label.id}
-                              className="inline-flex items-center gap-1 rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[11px] text-[var(--text-primary)]"
-                            >
-                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: label.color }} />
-                              {label.name}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{issue.title}</span>
+                        {(labelsByIssueId[issue.id] || []).map((label) => (
+                          <span
+                            key={label.id}
+                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold leading-tight"
+                            style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                          >
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
                       <p className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
                         <span>#{issueNo}</span>
                         <span>·</span>
@@ -848,15 +861,19 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0 text-xs text-[var(--text-secondary)]">
-                      <span className="inline-flex items-center gap-1" aria-label="Comments">
-                        <MessageSquare size={13} />
-                        0
-                      </span>
-                      <span className="inline-flex items-center gap-1" aria-label="Assignees">
-                        <CircleDot size={13} />
-                        {assigneeCount}
-                      </span>
+                    <div className="flex items-center -space-x-1 shrink-0">
+                      {(assigneesByIssueId[issue.id] || []).map((assignee) => {
+                        const name = collaboratorNameById[assignee.user_id] || assignee.user_id;
+                        return (
+                          <span
+                            key={assignee.user_id}
+                            title={name}
+                            className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)] ring-1 ring-[var(--surface-canvas)]"
+                          >
+                            {name.charAt(0)}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </li>
