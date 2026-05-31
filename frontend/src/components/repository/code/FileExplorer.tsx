@@ -29,6 +29,7 @@ import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
+import StarButton from "../../shared/StarButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 
@@ -1313,6 +1314,21 @@ export default function FileExplorer({
           </section>
 
           <aside className="xl:pl-2 space-y-6">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
+              >
+                <EyeIcon size={14} /> Watch
+              </button>
+              <button
+                type="button"
+                className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
+              >
+                <RepoForkedIcon size={14} /> Fork
+              </button>
+              <StarButton repoId={repoId} autoFetch showCount />
+            </div>
             <div>
               <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4">About</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-6">

@@ -19,6 +19,7 @@ interface TopHeaderProps {
   onPullsClick?: () => void;
   onInboxClick?: () => void;
   onProfileClick?: () => void;
+  onSearch?: (query: string) => void;
   onSignOut?: () => void;
   profileInitial?: string;
   profileName?: string;
@@ -34,12 +35,14 @@ export default function TopHeader({
   onPullsClick,
   onInboxClick,
   onProfileClick,
+  onSearch,
   onSignOut,
   profileInitial = "U",
   profileName,
   searchPlaceholder = "Type / to search",
 }: TopHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const menuGroups: { icon: typeof User; label: string; badge?: "New" | "Free"; onClick?: () => void }[][] = [
     [{ icon: Smile, label: "Set status" }],
     [
@@ -82,15 +85,22 @@ export default function TopHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative hidden lg:block">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchText.trim()) onSearch?.(searchText.trim());
+          }}
+          className="relative hidden lg:block"
+        >
           <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
           <input
             type="text"
-            readOnly
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
             placeholder={searchPlaceholder}
-            className="h-8 w-[240px] rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] pl-9 pr-3 text-sm text-[var(--text-secondary)]"
+            className="h-8 w-[240px] rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] pl-9 pr-3 text-sm text-[var(--text-primary)]"
           />
-        </div>
+        </form>
 
         <button
           type="button"

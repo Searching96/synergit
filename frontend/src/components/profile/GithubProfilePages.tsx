@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import type { Repository } from "../../types";
 import {
   Bot,
@@ -26,7 +26,9 @@ import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
 import ProfileProjectsPage from "./pages/ProfileProjectsPage";
 import ProfilePackagesPage from "./pages/ProfilePackagesPage";
 import ProfileStarsPage from "./pages/ProfileStarsPage";
-import { PINNED_ORDER, STARRED_REPOS } from "./pages/utils/profileData";
+import { PINNED_ORDER } from "./pages/utils/profileData";
+import type { StarredRepo } from "./pages/utils/profileTypes";
+import { starsApi } from "../../services/api";
 import type { ProfileTabKey, ShowcaseRepo } from "./pages/utils/profileTypes";
 import {
   buildDefaultRepositories,
@@ -45,6 +47,7 @@ interface GithubProfilePagesProps {
   onOpenWorkspace: (repoName: string) => void;
   onCreateRepository: () => void;
   onLogout: () => void;
+  onSearch?: (query: string) => void;
 }
 
 const PROFILE_TABS: Array<{
@@ -73,6 +76,7 @@ export default function GithubProfilePages({
   onOpenWorkspace,
   onCreateRepository,
   onLogout,
+  onSearch,
 }: GithubProfilePagesProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -86,13 +90,46 @@ export default function GithubProfilePages({
     [ownedRepositories],
   );
 
+  const [starred, setStarred] = useState<Repository[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void starsApi
+      .listStarred()
+      .then((list) => {
+        if (!cancelled) setStarred(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const starredRepos = useMemo<StarredRepo[]>(
+    () =>
+      starred.map((r) => ({
+        id: r.id,
+        owner: r.owner || username,
+        name: r.name,
+        description: r.description || "",
+        language: r.primary_language || r.language || "",
+        stars: r.stars != null ? String(r.stars) : "",
+        forks: r.forks != null ? String(r.forks) : "",
+        updatedText: r.updated_at
+          ? `Updated on ${new Date(r.updated_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
+          : "",
+      })),
+    [starred, username],
+  );
+
   const profileTabs = useMemo(
-    () => PROFILE_TABS.map((tab) => (
+    () => PROFILE_TABS.map((tab) =>
       tab.key === "repositories"
         ? { ...tab, count: profileRepositories.length }
-        : tab
-    )),
-    [profileRepositories.length],
+        : tab.key === "stars"
+          ? { ...tab, count: starredRepos.length }
+          : tab
+    ),
+    [profileRepositories.length, starredRepos.length],
   );
 
   const profileBasePath = `/${encodeURIComponent(username)}`;
@@ -170,7 +207,7 @@ export default function GithubProfilePages({
     ) : activeTab === "packages" ? (
       <ProfilePackagesPage />
     ) : (
-      <ProfileStarsPage starredRepos={STARRED_REPOS} languageColor={languageColor} />
+      <ProfileStarsPage starredRepos={starredRepos} languageColor={languageColor} />
     );
 
   return (
@@ -191,6 +228,7 @@ export default function GithubProfilePages({
           profileInitial={avatarInitial}
           profileName={username}
           onSignOut={onLogout}
+          onSearch={onSearch}
         />
 
         <TopNavigationTabs

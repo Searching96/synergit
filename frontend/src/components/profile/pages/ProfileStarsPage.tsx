@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
-import { RepoForkedIcon, RepoIcon, StarFillIcon, StarIcon } from "@primer/octicons-react";
+import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
 import type { StarredRepo } from "./utils/profileTypes";
+import StarButton from "../../shared/StarButton";
 
 interface ProfileStarsPageProps {
   starredRepos: StarredRepo[];
@@ -49,10 +50,10 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
           {starredRepos.map((repo) => (
             <article key={`${repo.owner}/${repo.name}`} className="py-6 border-b border-[var(--border-muted)] flex items-start justify-between gap-4">
               <div>
-                <p className="text-[28px] leading-[32px] text-[var(--text-link)] font-semibold">
+                <p className="text-[28px] leading-[32px] text-[var(--text-link)]">
                   <span className="inline-flex items-center gap-2">
                     <RepoIcon size={16} className="text-[var(--text-secondary)]" />
-                    {repo.owner} / {repo.name}
+                    <span>{repo.owner} / <span className="font-semibold">{repo.name}</span></span>
                   </span>
                 </p>
                 <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-[760px]">{repo.description}</p>
@@ -75,10 +76,7 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
                 </div>
               </div>
 
-              <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-2">
-                <StarFillIcon size={12} />
-                Starred
-              </button>
+              <StarButton repoId={repo.id ?? ""} initialStarred />
             </article>
           ))}
         </div>

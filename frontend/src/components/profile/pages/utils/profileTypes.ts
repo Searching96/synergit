@@ -13,6 +13,7 @@ export interface ShowcaseRepo {
 }
 
 export interface StarredRepo {
+  id?: string;
   owner: string;
   name: string;
   description: string;

@@ -141,3 +141,13 @@ CREATE TABLE IF NOT EXISTS issue_comments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_issue_comments_issue ON issue_comments (issue_id, created_at);
+
+CREATE TABLE IF NOT EXISTS repo_stars (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    repo_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, repo_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_repo_stars_repo ON repo_stars (repo_id);
+CREATE INDEX IF NOT EXISTS idx_repo_stars_user ON repo_stars (user_id, created_at DESC);

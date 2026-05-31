@@ -24,6 +24,7 @@ import TopHeader from "./components/layout/TopHeader";
 import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
+import SearchResultsPage from "./components/layout/SearchResultsPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
 import {
@@ -59,6 +60,7 @@ function App () {
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [tabCounts, setTabCounts] = useState<{ issues: number; pulls: number }>({ issues: 0, pulls: 0 });
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>('profile');
   const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
@@ -262,6 +264,11 @@ function App () {
 
     return applyRoute(parsed.normalizedPath, url.search, { replace: true });
   }, [applyRoute]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    navigateToPath('/search');
+  }, [navigateToPath]);
 
   const refreshBranches = () => {
     if (!selectedRepoId || !isAuthenticated) return;
@@ -651,6 +658,7 @@ function App () {
         onOpenWorkspace={handleOpenWorkspaceFromProfile}
         onCreateRepository={handleOpenCreateRepository}
         onLogout={handleLogout}
+        onSearch={handleSearch}
       />
     );
   }
@@ -668,6 +676,18 @@ function App () {
   }
 
   if (viewMode === 'global') {
+    if (activeGlobalPage === 'search') {
+      return (
+        <SearchResultsPage
+          repos={repos}
+          query={searchQuery}
+          currentUsername={currentUsername}
+          onSearch={handleSearch}
+          onOpenRepo={(repo) => navigateToRepoTab(repo, 'files')}
+          onHome={() => navigateToProfileTab('overview')}
+        />
+      );
+    }
     return (
       <GlobalPlaceholderPage
         title={currentGlobalTitle}
@@ -734,6 +754,7 @@ function App () {
           profileInitial={currentUsername}
           profileName={currentUsername}
           onSignOut={handleLogout}
+          onSearch={handleSearch}
         />
 
         <TopNavigationTabs

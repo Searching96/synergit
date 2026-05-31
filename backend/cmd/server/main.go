@@ -65,6 +65,7 @@ func main() {
 	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
 	dbIssueAdapter := postgres.NewPostgresIssueStore(db)
 	dbLabelAdapter := postgres.NewPostgresLabelStore(db)
+	dbStarAdapter := postgres.NewPostgresStarStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
@@ -82,6 +83,7 @@ func main() {
 	collabUseCase := usecase.NewCollaboratorService(dbCollabAdapter)
 	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
 	labelUseCase := usecase.NewLabelService(dbLabelAdapter, dbIssueAdapter, dbCollabAdapter)
+	starUseCase := usecase.NewStarService(dbStarAdapter)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
@@ -91,6 +93,7 @@ func main() {
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUseCase)
 	issueHandler := httpHandler.NewIssueHandler(issueUseCase)
 	labelHandler := httpHandler.NewLabelHandler(labelUseCase)
+	starHandler := httpHandler.NewStarHandler(starUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
@@ -170,6 +173,11 @@ func main() {
 			repos.POST("/:repo_id/issues/:issue_id/labels", labelHandler.HandleAddLabelToIssue)
 			repos.DELETE("/:repo_id/issues/:issue_id/labels/:label_id", labelHandler.HandleRemoveLabelFromIssue)
 
+			// Star routes
+			repos.GET("/:repo_id/star", starHandler.HandleGetStarStatus)
+			repos.POST("/:repo_id/star", starHandler.HandleStarRepo)
+			repos.DELETE("/:repo_id/star", starHandler.HandleUnstarRepo)
+
 			// Resolve conflicts routes
 			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)
 			repos.POST("/:repo_id/pulls/:pull_id/conflicts/resolve", prHandler.HandleResolveConflicts)
@@ -179,6 +187,7 @@ func main() {
 		profile.Use(middleware.AuthMiddleware(jwtSecret))
 		{
 			profile.GET("/activity", repoInsightsHandler.HandleGetProfileActivity)
+			profile.GET("/starred", starHandler.HandleListStarred)
 		}
 	}
 

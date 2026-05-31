@@ -19,7 +19,8 @@ export type GlobalPageKey =
   | "copilot"
   | "explore"
   | "marketplace"
-  | "mcp-registry";
+  | "mcp-registry"
+  | "search";
 
 export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
   issues: "Issues",
@@ -32,6 +33,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
   explore: "Explore",
   marketplace: "Marketplace",
   "mcp-registry": "MCP registry",
+  search: "Search",
 };
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
