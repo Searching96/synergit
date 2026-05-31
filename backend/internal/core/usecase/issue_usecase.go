@@ -121,7 +121,11 @@ func (s *IssueService) TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID
 		}
 	}
 
-	if err := domain.ValidateIssueStatusTransition(issue.Status, parsedStatus); err != nil {
+	if parsedStatus == issue.Status {
+		if parsedStatus != domain.IssueStatusClosed || parsedCloseReason == issue.CloseReason {
+			return errors.New("issue is already in the requested status")
+		}
+	} else if err := domain.ValidateIssueStatusTransition(issue.Status, parsedStatus); err != nil {
 		return err
 	}
 

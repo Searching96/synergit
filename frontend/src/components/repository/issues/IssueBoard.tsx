@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   CheckCircle2,
   ChevronDown,
   CircleDot,
+  CircleSlash,
   MessageSquare,
   Milestone,
   Plus,
   Search,
   Tag,
+  Users,
 } from "lucide-react";
-import { issuesApi } from "../../../services/api";
-import type { Issue, IssueAssignee, IssueCloseReason, IssueStatus } from "../../../types";
+import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
+import type { Issue, IssueAssignee, IssueCloseReason, IssueStatus, Label, RepoCollaborator } from "../../../types";
 
 interface IssueBoardProps {
   repoId: string;
@@ -50,12 +52,51 @@ function extractStateQueryToken(query: string): IssueStatus | null {
   return null;
 }
 
+function ToolbarDropdown({
+  icon,
+  label,
+  open,
+  onToggle,
+  width,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  width?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+      >
+        {icon}
+        {label}
+        <ChevronDown size={14} />
+      </button>
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} aria-hidden />
+          <div
+            className={`absolute right-0 mt-1 z-20 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg ${width || "w-72"}`}
+          >
+            {children}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assigneesByIssueId, setAssigneesByIssueId] = useState<Record<string, IssueAssignee[]>>({});
   const [listLoading, setListLoading] = useState<boolean>(true);
   const [creatingIssue, setCreatingIssue] = useState<boolean>(false);
-  const [updatingIssueId, setUpdatingIssueId] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<IssueStatus>("OPEN");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
@@ -64,7 +105,13 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
   const [closeReasonFilter, setCloseReasonFilter] = useState<IssueCloseReason | "ALL">("ALL");
-  const [closeReasonByIssueId, setCloseReasonByIssueId] = useState<Record<string, IssueCloseReason>>({});
+
+  const [labelsByIssueId, setLabelsByIssueId] = useState<Record<string, Label[]>>({});
+  const [repoLabels, setRepoLabels] = useState<Label[]>([]);
+  const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
+  const [openMenu, setOpenMenu] = useState<"mark" | "label" | "assign" | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("");
+  const [labelFilter, setLabelFilter] = useState<string>("");
 
   const [createTitle, setCreateTitle] = useState<string>('');
   const [createDescription, setCreateDescription] = useState<string>('');
@@ -93,6 +140,19 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
       );
 
       setAssigneesByIssueId(Object.fromEntries(assigneeEntries));
+
+      const labelEntries = await Promise.all(
+        (data || []).map(async (issue) => {
+          try {
+            const labels = await labelsApi.listForIssue(repoId, issue.id);
+            return [issue.id, labels || []] as const;
+          } catch {
+            return [issue.id, []] as const;
+          }
+        }),
+      );
+
+      setLabelsByIssueId(Object.fromEntries(labelEntries));
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Failed to load issues';
       setError(errMsg);
@@ -115,8 +175,14 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     setAppliedSearch("is:issue state:open");
     setSelectedIssueIds(new Set());
     setCloseReasonFilter("ALL");
-    setCloseReasonByIssueId({});
+    setLabelsByIssueId({});
+    setOpenMenu(null);
+    setAssigneeFilter("");
+    setLabelFilter("");
     void loadIssues();
+
+    void labelsApi.listForRepo(repoId).then(setRepoLabels).catch(() => setRepoLabels([]));
+    void collaboratorsApi.list(repoId).then((list) => setCollaborators(list || [])).catch(() => setCollaborators([]));
   }, [repoId, loadIssues]);
 
   const sortedByCreatedAsc = useMemo(
@@ -249,41 +315,6 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     }
   };
 
-  const handleToggleIssueStatus = async (issue: Issue, closeReason?: IssueCloseReason) => {
-    const nextStatus: IssueStatus = issue.status === 'OPEN' ? 'CLOSED' : 'OPEN';
-    const resolvedCloseReason = closeReason || "COMPLETED";
-
-    try {
-      setUpdatingIssueId(issue.id);
-      setError(null);
-      setMessage(null);
-
-      const payload = nextStatus === "CLOSED"
-        ? { status: nextStatus, close_reason: resolvedCloseReason }
-        : { status: nextStatus };
-
-      await issuesApi.updateStatus(repoId, issue.id, payload);
-      await loadIssues(true);
-
-      if (nextStatus === "CLOSED") {
-        const label = resolvedCloseReason === "NOT_PLANNED" ? "not planned" : "completed";
-        setMessage(`Issue marked as ${label}.`);
-      } else {
-        setMessage("Issue reopened.");
-      }
-      setSelectedIssueIds((prev) => {
-        const next = new Set(prev);
-        next.delete(issue.id);
-        return next;
-      });
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to update issue status';
-      setError(errMsg);
-    } finally {
-      setUpdatingIssueId(null);
-    }
-  };
-
   const applyFilter = (status: IssueStatus) => {
     setActiveFilter(status);
     setCloseReasonFilter("ALL");
@@ -335,9 +366,94 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     }
   };
 
-  const resolveCloseReason = (issue: Issue): IssueCloseReason => {
-    return closeReasonByIssueId[issue.id] || issue.close_reason || "COMPLETED";
+  const selectedVisible = useMemo(
+    () => filteredIssues.filter((issue) => selectedIssueIds.has(issue.id)),
+    [filteredIssues, selectedIssueIds],
+  );
+  const selectionActive = selectedVisible.length > 0;
+
+  const toggleMenu = (menu: "mark" | "label" | "assign") =>
+    setOpenMenu((prev) => (prev === menu ? null : menu));
+
+  const bulkMarkAs = async (target: "OPEN" | IssueCloseReason) => {
+    setOpenMenu(null);
+    const payload =
+      target === "OPEN"
+        ? { status: "OPEN" as IssueStatus }
+        : { status: "CLOSED" as IssueStatus, close_reason: target };
+    const isNoOp = (issue: Issue) =>
+      target === "OPEN"
+        ? issue.status === "OPEN"
+        : issue.status === "CLOSED" && (issue.close_reason || "COMPLETED") === target;
+
+    try {
+      setError(null);
+      setMessage(null);
+      await Promise.all(
+        selectedVisible
+          .filter((issue) => !isNoOp(issue))
+          .map((issue) => issuesApi.updateStatus(repoId, issue.id, payload)),
+      );
+      setSelectedIssueIds(new Set());
+      await loadIssues(true);
+      setMessage("Issues updated.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update issues");
+    }
   };
+
+  const isAssigneeOnAll = (userId: string) =>
+    selectedVisible.length > 0 &&
+    selectedVisible.every((issue) =>
+      (assigneesByIssueId[issue.id] || []).some((a) => a.user_id === userId),
+    );
+
+  const toggleAssignee = async (userId: string) => {
+    const remove = isAssigneeOnAll(userId);
+    try {
+      setError(null);
+      const tasks = selectedVisible.map((issue) => {
+        const has = (assigneesByIssueId[issue.id] || []).some((a) => a.user_id === userId);
+        if (remove && has) return issuesApi.unassign(repoId, issue.id, userId);
+        if (!remove && !has) return issuesApi.assign(repoId, issue.id, { user_id: userId });
+        return null;
+      });
+      await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
+      await loadIssues(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update assignees");
+    }
+  };
+
+  const isLabelOnAll = (labelId: string) =>
+    selectedVisible.length > 0 &&
+    selectedVisible.every((issue) =>
+      (labelsByIssueId[issue.id] || []).some((l) => l.id === labelId),
+    );
+
+  const toggleLabel = async (labelId: string) => {
+    const remove = isLabelOnAll(labelId);
+    try {
+      setError(null);
+      const tasks = selectedVisible.map((issue) => {
+        const has = (labelsByIssueId[issue.id] || []).some((l) => l.id === labelId);
+        if (remove && has) return labelsApi.remove(repoId, issue.id, labelId);
+        if (!remove && !has) return labelsApi.add(repoId, issue.id, { label_id: labelId });
+        return null;
+      });
+      await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
+      await loadIssues(true);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update labels");
+    }
+  };
+
+  const visibleCollaborators = collaborators.filter((c) =>
+    (c.username ?? "").toLowerCase().includes(assigneeFilter.trim().toLowerCase()),
+  );
+  const visibleLabels = repoLabels.filter((l) =>
+    (l.name ?? "").toLowerCase().includes(labelFilter.trim().toLowerCase()),
+  );
 
 
   return (
@@ -354,7 +470,7 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         </div>
       )}
 
-      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
+      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
         <div className="p-4 border-b border-[var(--border-muted)]">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex-1 min-w-0">
@@ -444,14 +560,155 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         ) : null}
 
         <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={allVisibleSelected}
-              onChange={toggleSelectAll}
-              aria-label="Select all issues"
-              className="h-4 w-4"
-            />
+          {selectionActive ? (
+            <>
+              <div className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all issues"
+                  className="h-4 w-4"
+                />
+                <span className="font-semibold text-[var(--text-primary)]">
+                  {selectedVisible.length} of {filteredIssues.length} selected
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <ToolbarDropdown
+                  icon={<CheckCircle2 size={14} />}
+                  label="Mark as"
+                  open={openMenu === "mark"}
+                  onToggle={() => toggleMenu("mark")}
+                  width="w-52"
+                >
+                  <ul className="py-1 text-sm">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void bulkMarkAs("OPEN")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                        Open
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void bulkMarkAs("COMPLETED")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
+                        Completed
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void bulkMarkAs("NOT_PLANNED")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <CircleSlash size={16} className="text-[var(--text-secondary)]" />
+                        Not planned
+                      </button>
+                    </li>
+                  </ul>
+                </ToolbarDropdown>
+
+                <ToolbarDropdown
+                  icon={<Tag size={14} />}
+                  label="Label"
+                  open={openMenu === "label"}
+                  onToggle={() => toggleMenu("label")}
+                  width="w-80"
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to selected issues</p>
+                    <input
+                      value={labelFilter}
+                      onChange={(e) => setLabelFilter(e.target.value)}
+                      placeholder="Filter labels"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleLabels.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                      ) : (
+                        visibleLabels.map((label) => (
+                          <li key={label.id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleLabel(label.id)}
+                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={isLabelOnAll(label.id)} className="mt-0.5 h-4 w-4" />
+                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                {label.description ? (
+                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </ToolbarDropdown>
+
+                <ToolbarDropdown
+                  icon={<Users size={14} />}
+                  label="Assign"
+                  open={openMenu === "assign"}
+                  onToggle={() => toggleMenu("assign")}
+                  width="w-72"
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
+                    <input
+                      value={assigneeFilter}
+                      onChange={(e) => setAssigneeFilter(e.target.value)}
+                      placeholder="Filter assignees"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleCollaborators.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                      ) : (
+                        visibleCollaborators.map((collaborator) => (
+                          <li key={collaborator.user_id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleAssignee(collaborator.user_id)}
+                              className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={isAssigneeOnAll(collaborator.user_id)} className="h-4 w-4" />
+                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                {(collaborator.username ?? "?").charAt(0)}
+                              </span>
+                              <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </ToolbarDropdown>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all issues"
+                  className="h-4 w-4"
+                />
 
             <button
               type="button"
@@ -521,6 +778,8 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
               <ChevronDown size={14} />
             </button>
           </div>
+            </>
+          )}
         </div>
 
         {listLoading ? (
@@ -553,6 +812,8 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                     <span className="mt-1">
                       {issue.status === 'OPEN' ? (
                         <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                      ) : issue.close_reason === 'NOT_PLANNED' ? (
+                        <CircleSlash size={16} className="text-[var(--text-secondary)]" />
                       ) : (
                         <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
                       )}
@@ -560,6 +821,19 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
 
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{issue.title}</p>
+                      {(labelsByIssueId[issue.id] || []).length > 0 ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(labelsByIssueId[issue.id] || []).map((label) => (
+                            <span
+                              key={label.id}
+                              className="inline-flex items-center gap-1 rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[11px] text-[var(--text-primary)]"
+                            >
+                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: label.color }} />
+                              {label.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
                         <span>#{issueNo}</span>
                         <span>·</span>
@@ -583,42 +857,6 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                         <CircleDot size={13} />
                         {assigneeCount}
                       </span>
-
-                      {issue.status === "OPEN" ? (
-                        <>
-                          <select
-                            value={resolveCloseReason(issue)}
-                            onChange={(event) =>
-                              setCloseReasonByIssueId((prev) => ({
-                                ...prev,
-                                [issue.id]: event.target.value as IssueCloseReason,
-                              }))
-                            }
-                            className="h-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-xs text-[var(--text-primary)]"
-                            aria-label="Close reason"
-                          >
-                            <option value="COMPLETED">Completed</option>
-                            <option value="NOT_PLANNED">Not planned</option>
-                          </select>
-                          <button
-                            type="button"
-                            disabled={updatingIssueId === issue.id}
-                            onClick={() => void handleToggleIssueStatus(issue, resolveCloseReason(issue))}
-                            className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
-                          >
-                            Close
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={updatingIssueId === issue.id}
-                          onClick={() => void handleToggleIssueStatus(issue)}
-                          className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
-                        >
-                          Reopen
-                        </button>
-                      )}
                     </div>
                   </div>
                 </li>

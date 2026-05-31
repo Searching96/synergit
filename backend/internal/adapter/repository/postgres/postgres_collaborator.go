@@ -62,9 +62,10 @@ func (p *PostgresCollaboratorStore) GetRole(repoID uuid.UUID,
 
 func (p *PostgresCollaboratorStore) GetCollaborators(repoID uuid.UUID) ([]domain.RepoCollaborator, error) {
 	query := `
-		SELECT repository_id, user_id, role, created_at 
-		FROM repository_collaborators
-		WHERE repository_id = $1`
+		SELECT rc.repository_id, rc.user_id, u.username, rc.role, rc.created_at 
+		FROM repository_collaborators rc
+		JOIN users u ON u.id = rc.user_id
+		WHERE rc.repository_id = $1`
 	rows, err := p.db.Query(query, repoID)
 	if err != nil {
 		return nil, err
@@ -75,7 +76,7 @@ func (p *PostgresCollaboratorStore) GetCollaborators(repoID uuid.UUID) ([]domain
 	for rows.Next() {
 		var c domain.RepoCollaborator
 		var roleRaw string
-		if err := rows.Scan(&c.RepositoryID, &c.UserID, &roleRaw, &c.CreatedAt); err != nil {
+		if err := rows.Scan(&c.RepositoryID, &c.UserID, &c.Username, &roleRaw, &c.CreatedAt); err != nil {
 			return nil, err
 		}
 

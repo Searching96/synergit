@@ -64,6 +64,7 @@ func main() {
 	dbCollabAdapter := postgres.NewPostgresCollaboratorStore(db)
 	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
 	dbIssueAdapter := postgres.NewPostgresIssueStore(db)
+	dbLabelAdapter := postgres.NewPostgresLabelStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
@@ -80,6 +81,7 @@ func main() {
 	authUseCase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUseCase := usecase.NewCollaboratorService(dbCollabAdapter)
 	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
+	labelUseCase := usecase.NewLabelService(dbLabelAdapter, dbIssueAdapter, dbCollabAdapter)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter)
 
@@ -88,6 +90,7 @@ func main() {
 	authHandler := httpHandler.NewAuthHandler(authUseCase)
 	collabHandler := httpHandler.NewCollaboratorHandler(collabUseCase)
 	issueHandler := httpHandler.NewIssueHandler(issueUseCase)
+	labelHandler := httpHandler.NewLabelHandler(labelUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
@@ -157,6 +160,12 @@ func main() {
 			repos.GET("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleListIssueAssignees)
 			repos.POST("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleAssignIssue)
 			repos.DELETE("/:repo_id/issues/:issue_id/assignees/:user_id", issueHandler.HandleUnassignIssue)
+
+			// Label routes
+			repos.GET("/:repo_id/labels", labelHandler.HandleListLabels)
+			repos.GET("/:repo_id/issues/:issue_id/labels", labelHandler.HandleListIssueLabels)
+			repos.POST("/:repo_id/issues/:issue_id/labels", labelHandler.HandleAddLabelToIssue)
+			repos.DELETE("/:repo_id/issues/:issue_id/labels/:label_id", labelHandler.HandleRemoveLabelFromIssue)
 
 			// Resolve conflicts routes
 			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)

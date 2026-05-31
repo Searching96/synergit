@@ -220,6 +220,27 @@ export interface AssignIssuePayload {
 	user_id: string;
 }
 
+export interface Label {
+	id: string;
+	repo_id: string;
+	name: string;
+	color: string;
+	description: string;
+	created_at: string;
+}
+
+export interface RepoCollaborator {
+	repository_id: string;
+	user_id: string;
+	username: string;
+	role: string;
+	created_at: string;
+}
+
+export interface AddLabelPayload {
+	label_id: string;
+}
+
 export interface CommitFileChangePayload {
 	branch: string;
 	path: string;

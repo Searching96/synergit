@@ -100,3 +100,23 @@ CREATE TABLE IF NOT EXISTS repo_insights (
 
 CREATE INDEX IF NOT EXISTS idx_repo_insights_computed_at
     ON repo_insights (computed_at DESC);
+
+CREATE TABLE IF NOT EXISTS labels (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    repo_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    name VARCHAR(50) NOT NULL,
+    color VARCHAR(7) NOT NULL DEFAULT '#cccccc',
+    description TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (repo_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_labels_repo ON labels (repo_id);
+
+CREATE TABLE IF NOT EXISTS issue_labels (
+    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    label_id UUID NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+    PRIMARY KEY (issue_id, label_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_labels_issue ON issue_labels (issue_id);

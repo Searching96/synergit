@@ -46,6 +46,7 @@ func (r CollaboratorRole) CanWrite() bool {
 type RepoCollaborator struct {
 	RepositoryID uuid.UUID        `json:"repository_id"`
 	UserID       uuid.UUID        `json:"user_id"`
+	Username     string           `json:"username,omitempty"`
 	Role         CollaboratorRole `json:"role"`
 	CreatedAt    time.Time        `json:"created_at"`
 }

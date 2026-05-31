@@ -198,7 +198,7 @@ export default function GithubProfilePages({
         />
       </header>
 
-      <main className="w-full max-w-[1440px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
+      <main className="w-full max-w-[1240px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
         <aside className="w-full lg:w-[340px]">
           <div className="w-[320px] max-w-full mx-auto lg:mx-0">
             <div
