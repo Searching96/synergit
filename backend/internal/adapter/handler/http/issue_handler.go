@@ -122,7 +122,7 @@ func (h *IssueHandler) HandleUpdateIssueStatus(c *gin.Context) {
 	}
 
 	if err := h.issueUseCase.TransitionIssueStatus(repoID, issueID,
-		requesterID, req.Status); err != nil {
+		requesterID, req.Status, req.CloseReason); err != nil {
 
 		respondUseCaseError(c, err)
 		return

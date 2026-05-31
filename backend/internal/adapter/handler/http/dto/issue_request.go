@@ -6,7 +6,8 @@ type CreateIssueRequest struct {
 }
 
 type UpdateIssueStatusRequest struct {
-	Status string `json:"status"`
+	Status      string `json:"status"`
+	CloseReason string `json:"close_reason"`
 }
 
 type AssignIssueRequest struct {

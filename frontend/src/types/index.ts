@@ -173,6 +173,7 @@ export interface PullRequestCompareResult {
 }
 
 export type IssueStatus = 'OPEN' | 'CLOSED';
+export type IssueCloseReason = 'COMPLETED' | 'NOT_PLANNED';
 
 export interface IssueAssignee {
 	issue_id: string;
@@ -187,6 +188,7 @@ export interface Issue {
 	title: string;
 	description: string;
 	status: IssueStatus;
+	close_reason?: IssueCloseReason | null;
 	created_at: string;
 	updated_at: string;
 	assignees?: IssueAssignee[];
@@ -211,6 +213,7 @@ export interface CreateIssuePayload {
 
 export interface UpdateIssueStatusPayload {
 	status: IssueStatus;
+	close_reason?: IssueCloseReason | null;
 }
 
 export interface AssignIssuePayload {

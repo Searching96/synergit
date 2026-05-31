@@ -88,7 +88,7 @@ func (s *IssueService) GetIssue(repoID uuid.UUID, issueID uuid.UUID,
 }
 
 func (s *IssueService) TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID,
-	requesterID uuid.UUID, nextStatus string) error {
+	requesterID uuid.UUID, nextStatus string, closeReason string) error {
 
 	issue, err := s.getIssueForRepo(repoID, issueID)
 	if err != nil {
@@ -109,11 +109,23 @@ func (s *IssueService) TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID
 		return err
 	}
 
+	var parsedCloseReason domain.IssueCloseReason
+	if parsedStatus == domain.IssueStatusClosed {
+		if strings.TrimSpace(closeReason) == "" {
+			parsedCloseReason = domain.IssueCloseReasonCompleted
+		} else {
+			parsedCloseReason, err = domain.ParseIssueCloseReason(closeReason)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if err := domain.ValidateIssueStatusTransition(issue.Status, parsedStatus); err != nil {
 		return err
 	}
 
-	return s.issueStore.UpdateStatus(issue.ID, parsedStatus)
+	return s.issueStore.UpdateStatus(issue.ID, parsedStatus, parsedCloseReason)
 }
 
 func (s *IssueService) AssignIssue(repoID uuid.UUID, issueID uuid.UUID,

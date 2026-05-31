@@ -21,22 +21,28 @@ func NewPostgresIssueStore(db *sql.DB) *PostgresIssueStore {
 
 func (p *PostgresIssueStore) Create(issue *domain.Issue) error {
 	query := `
-		INSERT INTO issues (id, repo_id, creator_id, title, description, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+		INSERT INTO issues (id, repo_id, creator_id, title, description, status, close_reason, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+
+	closeReason := sql.NullString{}
+	if issue.CloseReason != "" {
+		closeReason = sql.NullString{String: string(issue.CloseReason), Valid: true}
+	}
 
 	_, err := p.db.Exec(query, issue.ID, issue.RepoID, issue.CreatorID,
-		issue.Title, issue.Description, issue.Status, issue.CreatedAt, issue.UpdatedAt)
+		issue.Title, issue.Description, issue.Status, closeReason, issue.CreatedAt, issue.UpdatedAt)
 
 	return err
 }
 
 func (p *PostgresIssueStore) GetByID(issueID uuid.UUID) (*domain.Issue, error) {
 	query := `
-		SELECT id, repo_id, creator_id, title, description, status, created_at, updated_at
+		SELECT id, repo_id, creator_id, title, description, status, close_reason, created_at, updated_at
 		FROM issues
 		WHERE id = $1`
 
 	var issue domain.Issue
+	var closeReason sql.NullString
 	err := p.db.QueryRow(query, issueID).Scan(
 		&issue.ID,
 		&issue.RepoID,
@@ -44,6 +50,7 @@ func (p *PostgresIssueStore) GetByID(issueID uuid.UUID) (*domain.Issue, error) {
 		&issue.Title,
 		&issue.Description,
 		&issue.Status,
+		&closeReason,
 		&issue.CreatedAt,
 		&issue.UpdatedAt,
 	)
@@ -56,12 +63,16 @@ func (p *PostgresIssueStore) GetByID(issueID uuid.UUID) (*domain.Issue, error) {
 		return nil, err
 	}
 
+	if closeReason.Valid {
+		issue.CloseReason = domain.IssueCloseReason(closeReason.String)
+	}
+
 	return &issue, nil
 }
 
 func (p *PostgresIssueStore) ListByRepo(repoID uuid.UUID) ([]domain.Issue, error) {
 	query := `
-		SELECT id, repo_id, creator_id, title, description, status, created_at, updated_at
+		SELECT id, repo_id, creator_id, title, description, status, close_reason, created_at, updated_at
 		FROM issues
 		WHERE repo_id = $1
 		ORDER BY created_at DESC`
@@ -75,6 +86,7 @@ func (p *PostgresIssueStore) ListByRepo(repoID uuid.UUID) ([]domain.Issue, error
 	issues := []domain.Issue{}
 	for rows.Next() {
 		var issue domain.Issue
+		var closeReason sql.NullString
 		if err := rows.Scan(
 			&issue.ID,
 			&issue.RepoID,
@@ -82,10 +94,15 @@ func (p *PostgresIssueStore) ListByRepo(repoID uuid.UUID) ([]domain.Issue, error
 			&issue.Title,
 			&issue.Description,
 			&issue.Status,
+			&closeReason,
 			&issue.CreatedAt,
 			&issue.UpdatedAt,
 		); err != nil {
 			return nil, err
+		}
+
+		if closeReason.Valid {
+			issue.CloseReason = domain.IssueCloseReason(closeReason.String)
 		}
 
 		issues = append(issues, issue)
@@ -99,14 +116,19 @@ func (p *PostgresIssueStore) ListByRepo(repoID uuid.UUID) ([]domain.Issue, error
 }
 
 func (p *PostgresIssueStore) UpdateStatus(issueID uuid.UUID,
-	status domain.IssueStatus) error {
+	status domain.IssueStatus, closeReason domain.IssueCloseReason) error {
+
+	closeReasonValue := sql.NullString{}
+	if status == domain.IssueStatusClosed && closeReason != "" {
+		closeReasonValue = sql.NullString{String: string(closeReason), Valid: true}
+	}
 
 	query := `
 		UPDATE issues
-		SET status = $1, updated_at = NOW()
-		WHERE id = $2`
+		SET status = $1, close_reason = $2, updated_at = NOW()
+		WHERE id = $3`
 
-	_, err := p.db.Exec(query, status, issueID)
+	_, err := p.db.Exec(query, status, closeReasonValue, issueID)
 	return err
 }
 

@@ -15,6 +15,13 @@ const (
 	IssueStatusClosed IssueStatus = "CLOSED"
 )
 
+type IssueCloseReason string
+
+const (
+	IssueCloseReasonCompleted  IssueCloseReason = "COMPLETED"
+	IssueCloseReasonNotPlanned IssueCloseReason = "NOT_PLANNED"
+)
+
 func ParseIssueStatus(rawStatus string) (IssueStatus, error) {
 	status := IssueStatus(strings.ToUpper(strings.TrimSpace(rawStatus)))
 	if !status.IsValid() {
@@ -33,16 +40,39 @@ func (s IssueStatus) IsValid() bool {
 	}
 }
 
+func ParseIssueCloseReason(rawReason string) (IssueCloseReason, error) {
+	reason := strings.ToUpper(strings.TrimSpace(rawReason))
+	reason = strings.ReplaceAll(reason, "-", "_")
+	reason = strings.ReplaceAll(reason, " ", "_")
+
+	closeReason := IssueCloseReason(reason)
+	if !closeReason.IsValid() {
+		return "", errors.New("invalid close reason: must be COMPLETED or NOT_PLANNED")
+	}
+
+	return closeReason, nil
+}
+
+func (r IssueCloseReason) IsValid() bool {
+	switch r {
+	case IssueCloseReasonCompleted, IssueCloseReasonNotPlanned:
+		return true
+	default:
+		return false
+	}
+}
+
 type Issue struct {
-	ID          uuid.UUID       `json:"id"`
-	RepoID      uuid.UUID       `json:"repo_id"`
-	CreatorID   uuid.UUID       `json:"creator_id"`
-	Title       string          `json:"title"`
-	Description string          `json:"description"`
-	Status      IssueStatus     `json:"status"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	Assignees   []IssueAssignee `json:"assignees,omitempty"`
+	ID          uuid.UUID        `json:"id"`
+	RepoID      uuid.UUID        `json:"repo_id"`
+	CreatorID   uuid.UUID        `json:"creator_id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
+	Status      IssueStatus      `json:"status"`
+	CloseReason IssueCloseReason `json:"close_reason,omitempty"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	Assignees   []IssueAssignee  `json:"assignees,omitempty"`
 }
 
 type IssueAssignee struct {

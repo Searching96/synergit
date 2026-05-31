@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS issues (
     description TEXT NOT NULL DEFAULT '',
     status VARCHAR(16) NOT NULL DEFAULT 'OPEN'
         CHECK (status IN ('OPEN', 'CLOSED')),
+    close_reason VARCHAR(24)
+        CHECK (close_reason IN ('COMPLETED', 'NOT_PLANNED')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

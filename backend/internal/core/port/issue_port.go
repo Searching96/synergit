@@ -10,7 +10,7 @@ type IssueRepository interface {
 	Create(issue *domain.Issue) error
 	GetByID(issueID uuid.UUID) (*domain.Issue, error)
 	ListByRepo(repoID uuid.UUID) ([]domain.Issue, error)
-	UpdateStatus(issueID uuid.UUID, status domain.IssueStatus) error
+	UpdateStatus(issueID uuid.UUID, status domain.IssueStatus, closeReason domain.IssueCloseReason) error
 	AddAssignee(issueID uuid.UUID, userID uuid.UUID) error
 	RemoveAssignee(issueID uuid.UUID, userID uuid.UUID) error
 	ListAssignees(issueID uuid.UUID) ([]domain.IssueAssignee, error)
@@ -23,7 +23,7 @@ type IssueUseCase interface {
 	GetIssue(repoID uuid.UUID, issueID uuid.UUID,
 		requesterID uuid.UUID) (*domain.Issue, error)
 	TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID,
-		requesterID uuid.UUID, nextStatus string) error
+		requesterID uuid.UUID, nextStatus string, closeReason string) error
 	AssignIssue(repoID uuid.UUID, issueID uuid.UUID, assigneeID uuid.UUID,
 		requesterID uuid.UUID) error
 	UnassignIssue(repoID uuid.UUID, issueID uuid.UUID, assigneeID uuid.UUID,

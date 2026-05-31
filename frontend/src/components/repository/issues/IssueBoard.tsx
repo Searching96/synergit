@@ -10,7 +10,7 @@ import {
   Tag,
 } from "lucide-react";
 import { issuesApi } from "../../../services/api";
-import type { Issue, IssueAssignee, IssueStatus } from "../../../types";
+import type { Issue, IssueAssignee, IssueCloseReason, IssueStatus } from "../../../types";
 
 interface IssueBoardProps {
   repoId: string;
@@ -63,6 +63,8 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [appliedSearch, setAppliedSearch] = useState<string>("is:issue state:open");
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
   const [showCreateForm, setShowCreateForm] = useState<boolean>(false);
+  const [closeReasonFilter, setCloseReasonFilter] = useState<IssueCloseReason | "ALL">("ALL");
+  const [closeReasonByIssueId, setCloseReasonByIssueId] = useState<Record<string, IssueCloseReason>>({});
 
   const [createTitle, setCreateTitle] = useState<string>('');
   const [createDescription, setCreateDescription] = useState<string>('');
@@ -112,6 +114,8 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     setSearchInput("is:issue state:open");
     setAppliedSearch("is:issue state:open");
     setSelectedIssueIds(new Set());
+    setCloseReasonFilter("ALL");
+    setCloseReasonByIssueId({});
     void loadIssues();
   }, [repoId, loadIssues]);
 
@@ -138,6 +142,16 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     [issues],
   );
 
+  const closedNotPlannedCount = useMemo(
+    () => issues.filter((issue) => issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED").length,
+    [issues],
+  );
+
+  const closedCompletedCount = useMemo(
+    () => closedCount - closedNotPlannedCount,
+    [closedCount, closedNotPlannedCount],
+  );
+
   const queryFilter = useMemo(() => {
     const query = appliedSearch.toLowerCase();
 
@@ -162,6 +176,13 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
         return false;
       }
 
+      if (queryFilter.queryState === "CLOSED" && closeReasonFilter !== "ALL") {
+        const reason = issue.close_reason || "COMPLETED";
+        if (reason !== closeReasonFilter) {
+          return false;
+        }
+      }
+
       if (!queryFilter.freeText) {
         return true;
       }
@@ -177,7 +198,7 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
 
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [issues, queryFilter, sortOrder]);
+  }, [closeReasonFilter, issues, queryFilter, sortOrder]);
 
   const allVisibleSelected = useMemo(
     () => filteredIssues.length > 0 && filteredIssues.every((issue) => selectedIssueIds.has(issue.id)),
@@ -228,18 +249,28 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     }
   };
 
-  const handleToggleIssueStatus = async (issue: Issue) => {
+  const handleToggleIssueStatus = async (issue: Issue, closeReason?: IssueCloseReason) => {
     const nextStatus: IssueStatus = issue.status === 'OPEN' ? 'CLOSED' : 'OPEN';
+    const resolvedCloseReason = closeReason || "COMPLETED";
 
     try {
       setUpdatingIssueId(issue.id);
       setError(null);
       setMessage(null);
 
-      await issuesApi.updateStatus(repoId, issue.id, { status: nextStatus });
+      const payload = nextStatus === "CLOSED"
+        ? { status: nextStatus, close_reason: resolvedCloseReason }
+        : { status: nextStatus };
+
+      await issuesApi.updateStatus(repoId, issue.id, payload);
       await loadIssues(true);
 
-      setMessage(`Issue marked as ${nextStatus.toLowerCase()}.`);
+      if (nextStatus === "CLOSED") {
+        const label = resolvedCloseReason === "NOT_PLANNED" ? "not planned" : "completed";
+        setMessage(`Issue marked as ${label}.`);
+      } else {
+        setMessage("Issue reopened.");
+      }
       setSelectedIssueIds((prev) => {
         const next = new Set(prev);
         next.delete(issue.id);
@@ -255,6 +286,7 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
 
   const applyFilter = (status: IssueStatus) => {
     setActiveFilter(status);
+    setCloseReasonFilter("ALL");
     const nextQuery = replaceStateQueryToken(searchInput, status);
     setSearchInput(nextQuery);
     setAppliedSearch(nextQuery);
@@ -297,8 +329,16 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
     const queryState = extractStateQueryToken(normalized);
     if (queryState) {
       setActiveFilter(queryState);
+      if (queryState === "OPEN") {
+        setCloseReasonFilter("ALL");
+      }
     }
   };
+
+  const resolveCloseReason = (issue: Issue): IssueCloseReason => {
+    return closeReasonByIssueId[issue.id] || issue.close_reason || "COMPLETED";
+  };
+
 
   return (
     <div className="space-y-4 max-w-none">
@@ -430,6 +470,34 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
               Closed
               <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{closedCount}</span>
             </button>
+
+            {activeFilter === "CLOSED" ? (
+              <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                <button
+                  type="button"
+                  onClick={() => setCloseReasonFilter("ALL")}
+                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "ALL" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCloseReasonFilter("COMPLETED")}
+                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "COMPLETED" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
+                >
+                  Completed
+                  <span className="ml-1 text-[10px]">{closedCompletedCount}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCloseReasonFilter("NOT_PLANNED")}
+                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "NOT_PLANNED" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
+                >
+                  Not planned
+                  <span className="ml-1 text-[10px]">{closedNotPlannedCount}</span>
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -469,6 +537,7 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
               const issueNo = issueNumberMap.get(issue.id) || 0;
               const assigneeCount = (assigneesByIssueId[issue.id] || []).length;
               const isSelected = selectedIssueIds.has(issue.id);
+              const showNotPlanned = issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED";
 
               return (
                 <li key={issue.id} className="px-4 py-3 hover:bg-[var(--surface-subtle)]">
@@ -495,6 +564,12 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                         <span>#{issueNo}</span>
                         <span>·</span>
                         <span>{issue.status === 'OPEN' ? 'opened' : 'closed'} {toRelativeTime(issue.created_at)}</span>
+                        {showNotPlanned ? (
+                          <>
+                            <span>·</span>
+                            <span>not planned</span>
+                          </>
+                        ) : null}
                         <span>({formatIssueDate(issue.created_at)})</span>
                       </p>
                     </div>
@@ -509,14 +584,41 @@ export default function IssueBoard({ repoId }: IssueBoardProps) {
                         {assigneeCount}
                       </span>
 
-                      <button
-                        type="button"
-                        disabled={updatingIssueId === issue.id}
-                        onClick={() => void handleToggleIssueStatus(issue)}
-                        className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
-                      >
-                        {issue.status === 'OPEN' ? 'Close' : 'Reopen'}
-                      </button>
+                      {issue.status === "OPEN" ? (
+                        <>
+                          <select
+                            value={resolveCloseReason(issue)}
+                            onChange={(event) =>
+                              setCloseReasonByIssueId((prev) => ({
+                                ...prev,
+                                [issue.id]: event.target.value as IssueCloseReason,
+                              }))
+                            }
+                            className="h-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-xs text-[var(--text-primary)]"
+                            aria-label="Close reason"
+                          >
+                            <option value="COMPLETED">Completed</option>
+                            <option value="NOT_PLANNED">Not planned</option>
+                          </select>
+                          <button
+                            type="button"
+                            disabled={updatingIssueId === issue.id}
+                            onClick={() => void handleToggleIssueStatus(issue, resolveCloseReason(issue))}
+                            className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
+                          >
+                            Close
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={updatingIssueId === issue.id}
+                          onClick={() => void handleToggleIssueStatus(issue)}
+                          className="h-7 px-2.5 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-50"
+                        >
+                          Reopen
+                        </button>
+                      )}
                     </div>
                   </div>
                 </li>
