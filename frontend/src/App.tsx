@@ -15,7 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
-import { ApiError, reposApi } from "./services/api";
+import { ApiError, issuesApi, reposApi } from "./services/api";
+import { pullsApi } from "./services/api/pull";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
@@ -57,6 +58,7 @@ function App () {
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
+  const [tabCounts, setTabCounts] = useState<{ issues: number; pulls: number }>({ issues: 0, pulls: 0 });
   const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>('profile');
   const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
@@ -70,6 +72,39 @@ function App () {
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
+
+  useEffect(() => {
+    if (!selectedRepoId) {
+      setTabCounts({ issues: 0, pulls: 0 });
+      return;
+    }
+    let cancelled = false;
+    void Promise.all([
+      issuesApi.list(selectedRepoId).catch(() => []),
+      pullsApi.list(selectedRepoId).catch(() => []),
+    ]).then(([issues, pulls]) => {
+      if (cancelled) return;
+      setTabCounts({
+        issues: issues.filter((i) => i.status === "OPEN").length,
+        pulls: pulls.filter((p) => p.status === "OPEN").length,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRepoId, activeTab]);
+
+  const repoTabsWithCounts = useMemo(
+    () =>
+      REPO_TABS.map((tab) =>
+        tab.key === "issues" && tabCounts.issues > 0
+          ? { ...tab, count: tabCounts.issues }
+          : tab.key === "pulls" && tabCounts.pulls > 0
+            ? { ...tab, count: tabCounts.pulls }
+            : tab,
+      ),
+    [tabCounts],
+  );
 
   const getCurrentUsername = () => {
     const token = localStorage.getItem('token');
@@ -700,7 +735,7 @@ function App () {
         />
 
         <TopNavigationTabs
-          tabs={REPO_TABS}
+          tabs={repoTabsWithCounts}
           activeKey={activeTab}
           onSelect={(tab) => {
             if (!selectedRepo) {

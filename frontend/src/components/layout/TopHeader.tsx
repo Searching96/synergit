@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   GitPullRequestIcon,
   InboxIcon,
@@ -8,7 +8,7 @@ import {
   SearchIcon,
   ThreeBarsIcon,
 } from "@primer/octicons-react";
-import TooltipButton from "../shared/TooltipButton";
+import { Accessibility, ArrowLeftRight, Book, Bot, Building2, Code, FlaskConical, Globe, Heart, LogOut, Paintbrush, Settings, Smile, Star, Upload, User } from "lucide-react";
 
 interface TopHeaderProps {
   leftContent: ReactNode;
@@ -35,8 +35,31 @@ export default function TopHeader({
   profileInitial = "U",
   searchPlaceholder = "Type / to search",
 }: TopHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuGroups: { icon: typeof User; label: string; badge?: "New" | "Free"; onClick?: () => void }[][] = [
+    [{ icon: Smile, label: "Set status" }],
+    [
+      { icon: User, label: "Profile", onClick: onProfileClick },
+      { icon: Book, label: "Repositories" },
+      { icon: Star, label: "Stars" },
+      { icon: Code, label: "Gists" },
+      { icon: Building2, label: "Organizations" },
+      { icon: Globe, label: "Enterprises" },
+      { icon: Heart, label: "Sponsors" },
+    ],
+    [
+      { icon: Settings, label: "Settings" },
+      { icon: Bot, label: "Copilot settings" },
+      { icon: FlaskConical, label: "Feature preview", badge: "New" },
+      { icon: Paintbrush, label: "Appearance" },
+      { icon: Accessibility, label: "Accessibility" },
+      { icon: Upload, label: "Try Enterprise", badge: "Free" },
+    ],
+    [{ icon: LogOut, label: "Sign out" }],
+  ];
+
   return (
-    <div className="h-14 px-4 md:px-6 flex items-center justify-between gap-4">
+    <div className="h-14 px-4 md:pl-6 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
@@ -103,15 +126,67 @@ export default function TopHeader({
           <PlusIcon size={16} />
         </button>
 
-        <TooltipButton
-          type="button"
-          onClick={onProfileClick || (() => undefined)}
-          className="h-8 w-8 rounded-full bg-black border border-[var(--border-default)] px-2 inline-flex items-center justify-center gap-1 text-xs font-semibold text-[var(--text-primary)]"
-          aria-label="Open profile"
-          tooltip="Open profile"
-        >
-          <span className="text-white">{(profileInitial.trim().charAt(0) || "U").toUpperCase()}</span>
-        </TooltipButton>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="h-8 w-8 rounded-full bg-black border border-[var(--border-default)] inline-flex items-center justify-center text-xs font-semibold"
+            aria-label="Open user navigation menu"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <span className="text-white">{(profileInitial.trim().charAt(0) || "U").toUpperCase()}</span>
+          </button>
+          {menuOpen ? (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
+              <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-2 text-sm text-[var(--text-primary)]">
+                <div className="px-3 py-1.5 flex items-center gap-2">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="h-7 w-7 rounded-full bg-black text-white inline-flex items-center justify-center text-xs font-semibold shrink-0">
+                      {(profileInitial.trim().charAt(0) || "U").toUpperCase()}
+                    </span>
+                    <span className="font-semibold truncate">{profileInitial}</span>
+                  </span>
+                  <ArrowLeftRight size={15} className="text-[var(--text-secondary)] shrink-0" />
+                </div>
+                {menuGroups.map((group, gi) => (
+                  <div key={gi}>
+                    {gi > 0 ? <div className="my-1 border-t border-[var(--border-muted)]" /> : null}
+                    {group.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            item.onClick?.();
+                          }}
+                          className="w-full px-3 py-1.5 text-left inline-flex items-center gap-3 hover:bg-[var(--surface-subtle)]"
+                        >
+                          <Icon size={16} className="text-[var(--text-secondary)] shrink-0" />
+                          <span className="flex-1">{item.label}</span>
+                          {item.badge ? (
+                            <span
+                              className={`rounded-full border px-2 text-[11px] ${
+                                item.badge === "New"
+                                  ? "border-[var(--text-link)] text-[var(--text-link)]"
+                                  : "border-[var(--border-default)] text-[var(--text-secondary)]"
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );
