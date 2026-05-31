@@ -28,7 +28,12 @@ function formatIssueDate(timestamp: string): string {
 }
 
 function replaceStateQueryToken(query: string, nextStatus: IssueStatus): string {
-  const stripped = query.replace(/\bstate:(open|closed)\b/gi, "").trim();
+  const stripped = query
+    .replace(/\bis:issue\b/gi, "")
+    .replace(/\bis:(open|closed)\b/gi, "")
+    .replace(/\bstate:(open|closed)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
   const prefix = `is:issue state:${nextStatus.toLowerCase()}`;
   return stripped ? `${prefix} ${stripped}` : prefix;
 }
@@ -45,7 +50,7 @@ function extractStateQueryToken(query: string): IssueStatus | null {
   return null;
 }
 
-export default function IssueBoard({ repoId, repoName, repoOwner }: IssueBoardProps) {
+export default function IssueBoard({ repoId }: IssueBoardProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assigneesByIssueId, setAssigneesByIssueId] = useState<Record<string, IssueAssignee[]>>({});
   const [listLoading, setListLoading] = useState<boolean>(true);
@@ -144,6 +149,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner }: IssueBoardPr
 
     const freeText = query
       .replace(/\bis:issue\b/gi, "")
+      .replace(/\bis:(open|closed)\b/gi, "")
       .replace(/\bstate:(open|closed)\b/gi, "")
       .trim();
 
@@ -487,8 +493,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner }: IssueBoardPr
                       <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{issue.title}</p>
                       <p className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
                         <span>#{issueNo}</span>
-                        <span>·</span>
-                        <span>In {repoOwner}/{repoName}</span>
                         <span>·</span>
                         <span>{issue.status === 'OPEN' ? 'opened' : 'closed'} {toRelativeTime(issue.created_at)}</span>
                         <span>({formatIssueDate(issue.created_at)})</span>

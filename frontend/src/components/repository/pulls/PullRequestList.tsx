@@ -22,20 +22,21 @@ interface PullRequestListProps {
 
 function replaceStateQueryToken(query: string, nextStatus: "OPEN" | "CLOSED"): string {
   const stripped = query
-    .replace(/\bis:(open|closed)\b/gi, "")
+    .replace(/\bis:pr\b/gi, "")
     .replace(/\bstate:(open|closed)\b/gi, "")
+    .replace(/\s+/g, " ")
     .trim();
 
-  const prefix = `is:pr is:${nextStatus.toLowerCase()}`;
+  const prefix = `is:pr state:${nextStatus.toLowerCase()}`;
   return stripped ? `${prefix} ${stripped}` : prefix;
 }
 
 function extractStateQueryToken(query: string): "OPEN" | "CLOSED" | null {
   const normalized = query.toLowerCase();
-  if (normalized.includes("is:closed") || normalized.includes("state:closed")) {
+  if (normalized.includes("state:closed")) {
     return "CLOSED";
   }
-  if (normalized.includes("is:open") || normalized.includes("state:open")) {
+  if (normalized.includes("state:open")) {
     return "OPEN";
   }
 
@@ -65,8 +66,8 @@ export default function PullRequestList({
   const [showFiltersMenu, setShowFiltersMenu] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<"OPEN" | "CLOSED">("OPEN");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
-  const [searchInput, setSearchInput] = useState<string>("is:pr is:open");
-  const [appliedSearch, setAppliedSearch] = useState<string>("is:pr is:open");
+  const [searchInput, setSearchInput] = useState<string>("is:pr state:open");
+  const [appliedSearch, setAppliedSearch] = useState<string>("is:pr state:open");
   const [selectedPullIds, setSelectedPullIds] = useState<Set<string>>(new Set());
   const [showMaintainerTip, setShowMaintainerTip] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,8 +100,8 @@ export default function PullRequestList({
     setError(null);
     setActiveFilter("OPEN");
     setSortOrder("newest");
-    setSearchInput("is:pr is:open");
-    setAppliedSearch("is:pr is:open");
+    setSearchInput("is:pr state:open");
+    setAppliedSearch("is:pr state:open");
     setSelectedPullIds(new Set());
   }, [repoId, fetchPulls]);
 
@@ -191,7 +192,7 @@ export default function PullRequestList({
   };
 
   const applySearch = () => {
-    const normalized = searchInput.trim() || "is:pr is:open";
+    const normalized = searchInput.trim() || "is:pr state:open";
     setAppliedSearch(normalized);
 
     const queryState = extractStateQueryToken(normalized);
