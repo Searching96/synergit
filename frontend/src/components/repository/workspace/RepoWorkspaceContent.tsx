@@ -5,6 +5,7 @@ import NewFilePage from "../code/NewFilePage";
 import RepoTreeBrowserPage from "../code/RepoTreeBrowserPage";
 import UploadFilesPage from "../code/UploadFilesPage";
 import IssueBoard from "../issues/IssueBoard";
+import IssueDetailPage from "../issues/IssueDetailPage";
 import RepoInsights from "../insights/RepoInsights";
 import RepoActionsPage from "../pages/RepoActionsPage";
 import RepoAgentsPage from "../pages/RepoAgentsPage";
@@ -48,6 +49,8 @@ interface RepoWorkspaceContentProps {
   onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
   onOpenCreateIssue: () => void;
   onCloseCreateIssue: () => void;
+  onOpenIssue: (issueNumber: number) => void;
+  onBackToIssues: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -75,6 +78,8 @@ export default function RepoWorkspaceContent({
   onOpenRepoCompare,
   onOpenCreateIssue,
   onCloseCreateIssue,
+  onOpenIssue,
+  onBackToIssues,
 }: RepoWorkspaceContentProps) {
   return (
     <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
@@ -167,7 +172,16 @@ export default function RepoWorkspaceContent({
                 onOpenUploadFiles={onOpenUploadFiles}
               />
             )}
-            {activeTab === "issues" && (
+            {activeTab === "issues" && routeContentKind === "issue-view" && (
+              <IssueDetailPage
+                repoId={selectedRepo.id}
+                currentUsername={currentUsername}
+                issueNumber={routeContentPath}
+                onBack={onBackToIssues}
+                onOpenCreate={onOpenCreateIssue}
+              />
+            )}
+            {activeTab === "issues" && routeContentKind !== "issue-view" && (
               <IssueBoard
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
@@ -176,6 +190,7 @@ export default function RepoWorkspaceContent({
                 isCreating={routeContentKind === "issues-new"}
                 onOpenCreate={onOpenCreateIssue}
                 onCloseCreate={onCloseCreateIssue}
+                onOpenIssue={onOpenIssue}
               />
             )}
             {activeTab === "pulls" && routeContentKind === "compare" && (

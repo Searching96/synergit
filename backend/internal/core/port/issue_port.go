@@ -14,6 +14,10 @@ type IssueRepository interface {
 	AddAssignee(issueID uuid.UUID, userID uuid.UUID) error
 	RemoveAssignee(issueID uuid.UUID, userID uuid.UUID) error
 	ListAssignees(issueID uuid.UUID) ([]domain.IssueAssignee, error)
+	AddEvent(issueID uuid.UUID, actorID uuid.UUID, eventType string) error
+	ListEvents(issueID uuid.UUID) ([]domain.IssueEvent, error)
+	AddComment(comment *domain.IssueComment) error
+	ListComments(issueID uuid.UUID) ([]domain.IssueComment, error)
 }
 
 type IssueUseCase interface {
@@ -30,4 +34,10 @@ type IssueUseCase interface {
 		requesterID uuid.UUID) error
 	ListIssueAssignees(repoID uuid.UUID, issueID uuid.UUID,
 		requesterID uuid.UUID) ([]domain.IssueAssignee, error)
+	ListIssueEvents(repoID uuid.UUID, issueID uuid.UUID,
+		requesterID uuid.UUID) ([]domain.IssueEvent, error)
+	ListIssueComments(repoID uuid.UUID, issueID uuid.UUID,
+		requesterID uuid.UUID) ([]domain.IssueComment, error)
+	CreateIssueComment(repoID uuid.UUID, issueID uuid.UUID,
+		authorID uuid.UUID, body string) (*domain.IssueComment, error)
 }

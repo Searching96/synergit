@@ -28,6 +28,7 @@ interface IssueBoardProps {
   isCreating: boolean;
   onOpenCreate: () => void;
   onCloseCreate: () => void;
+  onOpenIssue: (issueNumber: number) => void;
 }
 
 function labelTextColor(hex: string): string {
@@ -111,7 +112,7 @@ function ToolbarDropdown({
   );
 }
 
-export default function IssueBoard({ repoId, repoName, repoOwner, currentUsername, isCreating, onOpenCreate, onCloseCreate }: IssueBoardProps) {
+export default function IssueBoard({ repoId, repoName, repoOwner, currentUsername, isCreating, onOpenCreate, onCloseCreate, onOpenIssue }: IssueBoardProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assigneesByIssueId, setAssigneesByIssueId] = useState<Record<string, IssueAssignee[]>>({});
   const [listLoading, setListLoading] = useState<boolean>(true);
@@ -1139,7 +1140,10 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="relative group/card inline-block">
-                          <span className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--text-link)] hover:underline">
+                          <span
+                            onClick={() => onOpenIssue(issueNo)}
+                            className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--text-link)] hover:underline"
+                          >
                             {issue.title}
                           </span>
                           <div className="hidden group-hover/card:block absolute left-0 top-full z-30 mt-2 w-96 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg text-left font-normal">

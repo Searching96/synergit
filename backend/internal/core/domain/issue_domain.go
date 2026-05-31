@@ -20,6 +20,7 @@ type IssueCloseReason string
 const (
 	IssueCloseReasonCompleted  IssueCloseReason = "COMPLETED"
 	IssueCloseReasonNotPlanned IssueCloseReason = "NOT_PLANNED"
+	IssueCloseReasonDuplicate  IssueCloseReason = "DUPLICATE"
 )
 
 func ParseIssueStatus(rawStatus string) (IssueStatus, error) {
@@ -47,7 +48,7 @@ func ParseIssueCloseReason(rawReason string) (IssueCloseReason, error) {
 
 	closeReason := IssueCloseReason(reason)
 	if !closeReason.IsValid() {
-		return "", errors.New("invalid close reason: must be COMPLETED or NOT_PLANNED")
+		return "", errors.New("invalid close reason: must be COMPLETED, NOT_PLANNED, or DUPLICATE")
 	}
 
 	return closeReason, nil
@@ -55,7 +56,7 @@ func ParseIssueCloseReason(rawReason string) (IssueCloseReason, error) {
 
 func (r IssueCloseReason) IsValid() bool {
 	switch r {
-	case IssueCloseReasonCompleted, IssueCloseReasonNotPlanned:
+	case IssueCloseReasonCompleted, IssueCloseReasonNotPlanned, IssueCloseReasonDuplicate:
 		return true
 	default:
 		return false
@@ -79,6 +80,24 @@ type IssueAssignee struct {
 	IssueID    uuid.UUID `json:"issue_id"`
 	UserID     uuid.UUID `json:"user_id"`
 	AssignedAt time.Time `json:"assigned_at"`
+}
+
+type IssueEvent struct {
+	ID        uuid.UUID `json:"id"`
+	IssueID   uuid.UUID `json:"issue_id"`
+	ActorID   uuid.UUID `json:"actor_id"`
+	Actor     string    `json:"actor"`
+	EventType string    `json:"event_type"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type IssueComment struct {
+	ID        uuid.UUID `json:"id"`
+	IssueID   uuid.UUID `json:"issue_id"`
+	AuthorID  uuid.UUID `json:"author_id"`
+	Author    string    `json:"author"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func ValidateCreateIssueInput(title string) error {

@@ -214,3 +214,85 @@ func (p *PostgresIssueStore) ListAssignees(issueID uuid.UUID) ([]domain.IssueAss
 
 	return assignees, nil
 }
+
+func (p *PostgresIssueStore) AddEvent(issueID uuid.UUID, actorID uuid.UUID,
+	eventType string) error {
+
+	query := `
+		INSERT INTO issue_events (id, issue_id, actor_id, event_type, created_at)
+		VALUES ($1, $2, $3, $4, NOW())`
+
+	_, err := p.db.Exec(query, uuid.New(), issueID, actorID, eventType)
+	return err
+}
+
+func (p *PostgresIssueStore) ListEvents(issueID uuid.UUID) ([]domain.IssueEvent, error) {
+	query := `
+		SELECT e.id, e.issue_id, e.actor_id, u.username, e.event_type, e.created_at
+		FROM issue_events e
+		JOIN users u ON u.id = e.actor_id
+		WHERE e.issue_id = $1
+		ORDER BY e.created_at ASC`
+
+	rows, err := p.db.Query(query, issueID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	events := []domain.IssueEvent{}
+	for rows.Next() {
+		var event domain.IssueEvent
+		if err := rows.Scan(&event.ID, &event.IssueID, &event.ActorID,
+			&event.Actor, &event.EventType, &event.CreatedAt); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return events, nil
+}
+
+func (p *PostgresIssueStore) AddComment(comment *domain.IssueComment) error {
+	query := `
+		INSERT INTO issue_comments (id, issue_id, author_id, body, created_at)
+		VALUES ($1, $2, $3, $4, NOW())`
+
+	_, err := p.db.Exec(query, comment.ID, comment.IssueID, comment.AuthorID, comment.Body)
+	return err
+}
+
+func (p *PostgresIssueStore) ListComments(issueID uuid.UUID) ([]domain.IssueComment, error) {
+	query := `
+		SELECT c.id, c.issue_id, c.author_id, u.username, c.body, c.created_at
+		FROM issue_comments c
+		JOIN users u ON u.id = c.author_id
+		WHERE c.issue_id = $1
+		ORDER BY c.created_at ASC`
+
+	rows, err := p.db.Query(query, issueID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	comments := []domain.IssueComment{}
+	for rows.Next() {
+		var comment domain.IssueComment
+		if err := rows.Scan(&comment.ID, &comment.IssueID, &comment.AuthorID,
+			&comment.Author, &comment.Body, &comment.CreatedAt); err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return comments, nil
+}

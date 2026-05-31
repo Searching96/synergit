@@ -4,6 +4,8 @@ import type {
   CreateIssuePayload,
   Issue,
   IssueAssignee,
+  IssueComment,
+  IssueEvent,
   UpdateIssueStatusPayload,
 } from '../../types';
 
@@ -34,6 +36,19 @@ export const issuesApi = {
 
   listAssignees: (repoId: string, issueId: string): Promise<IssueAssignee[]> =>
     fetcher<IssueAssignee[]>(`/repos/${repoId}/issues/${issueId}/assignees`),
+
+  listEvents: (repoId: string, issueId: string): Promise<IssueEvent[]> =>
+    fetcher<IssueEvent[]>(`/repos/${repoId}/issues/${issueId}/events`),
+
+  listComments: (repoId: string, issueId: string): Promise<IssueComment[]> =>
+    fetcher<IssueComment[]>(`/repos/${repoId}/issues/${issueId}/comments`),
+
+  addComment: (repoId: string, issueId: string, body: string): Promise<IssueComment> =>
+    fetcher<IssueComment>(`/repos/${repoId}/issues/${issueId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body }),
+    }),
 
   assign: (
     repoId: string,

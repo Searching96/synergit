@@ -36,7 +36,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare" | "issues-new";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare" | "issues-new" | "issue-view";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -130,6 +130,10 @@ export function buildRepoTabPath(owner: string, repoName: string, tab: RepoTabKe
 
 export function buildRepoIssuesNewPath(owner: string, repoName: string): string {
   return `${buildRepoBasePath(owner, repoName)}/issues/new`;
+}
+
+export function buildRepoIssueViewPath(owner: string, repoName: string, issueNumber: number | string): string {
+  return `${buildRepoBasePath(owner, repoName)}/issues/${encodeURIComponent(String(issueNumber))}`;
 }
 
 export function buildRepoContentPath(
@@ -399,6 +403,22 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (tab === "issues" && segments[3]) {
+      const issueNumber = decodeURIComponent(segments[3]);
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "issues",
+        contentKind: "issue-view",
+        contentPath: issueNumber,
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/issues/${encodeURIComponent(issueNumber)}`,
+      };
+    }
+
     return {
       viewMode: "repo",
       repoOwner: null,
@@ -537,6 +557,22 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: `${base}/issues/new`,
+      };
+    }
+
+    if (third === "issues" && segments[3]) {
+      const issueNumber = decodeURIComponent(segments[3]);
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "issues",
+        contentKind: "issue-view",
+        contentPath: issueNumber,
+        branch: "",
+        globalPage: null,
+        normalizedPath: `${base}/issues/${encodeURIComponent(issueNumber)}`,
       };
     }
 

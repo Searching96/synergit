@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS issues (
     status VARCHAR(16) NOT NULL DEFAULT 'OPEN'
         CHECK (status IN ('OPEN', 'CLOSED')),
     close_reason VARCHAR(24)
-        CHECK (close_reason IN ('COMPLETED', 'NOT_PLANNED')),
+        CHECK (close_reason IN ('COMPLETED', 'NOT_PLANNED', 'DUPLICATE')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -120,3 +120,24 @@ CREATE TABLE IF NOT EXISTS issue_labels (
 );
 
 CREATE INDEX IF NOT EXISTS idx_issue_labels_issue ON issue_labels (issue_id);
+
+CREATE TABLE IF NOT EXISTS issue_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(32) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_events_issue ON issue_events (issue_id, created_at);
+
+
+CREATE TABLE IF NOT EXISTS issue_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_comments_issue ON issue_comments (issue_id, created_at);

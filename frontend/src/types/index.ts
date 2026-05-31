@@ -173,12 +173,30 @@ export interface PullRequestCompareResult {
 }
 
 export type IssueStatus = 'OPEN' | 'CLOSED';
-export type IssueCloseReason = 'COMPLETED' | 'NOT_PLANNED';
+export type IssueCloseReason = 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE';
 
 export interface IssueAssignee {
 	issue_id: string;
 	user_id: string;
 	assigned_at: string;
+}
+
+export interface IssueEvent {
+	id: string;
+	issue_id: string;
+	actor_id: string;
+	actor: string;
+	event_type: string;
+	created_at: string;
+}
+
+export interface IssueComment {
+	id: string;
+	issue_id: string;
+	author_id: string;
+	author: string;
+	body: string;
+	created_at: string;
 }
 
 export interface Issue {

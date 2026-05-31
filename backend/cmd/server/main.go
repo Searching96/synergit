@@ -158,6 +158,9 @@ func main() {
 			repos.GET("/:repo_id/issues/:issue_id", issueHandler.HandleGetIssue)
 			repos.PATCH("/:repo_id/issues/:issue_id/status", issueHandler.HandleUpdateIssueStatus)
 			repos.GET("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleListIssueAssignees)
+			repos.GET("/:repo_id/issues/:issue_id/events", issueHandler.HandleListIssueEvents)
+			repos.GET("/:repo_id/issues/:issue_id/comments", issueHandler.HandleListIssueComments)
+			repos.POST("/:repo_id/issues/:issue_id/comments", issueHandler.HandleCreateIssueComment)
 			repos.POST("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleAssignIssue)
 			repos.DELETE("/:repo_id/issues/:issue_id/assignees/:user_id", issueHandler.HandleUnassignIssue)
 

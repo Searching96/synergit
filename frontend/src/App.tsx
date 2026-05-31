@@ -34,6 +34,7 @@ import {
   buildRepoContentPath,
   buildRepoNewFilePath,
   buildRepoIssuesNewPath,
+  buildRepoIssueViewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
   normalizeCommitFilterSearch,
@@ -187,6 +188,8 @@ function App () {
           }
         } else if (parsed.tab === 'issues' && parsed.contentKind === 'issues-new') {
           canonicalPath = buildRepoIssuesNewPath(owner, targetRepo.name);
+        } else if (parsed.tab === 'issues' && parsed.contentKind === 'issue-view') {
+          canonicalPath = buildRepoIssueViewPath(owner, targetRepo.name, parsed.contentPath);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -398,6 +401,11 @@ function App () {
     navigateToPath(buildRepoIssuesNewPath(owner, repo.name));
   }, [getRepoOwner, navigateToPath]);
 
+  const navigateToRepoIssueView = useCallback((repo: Repository, issueNumber: number) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoIssueViewPath(owner, repo.name, issueNumber));
+  }, [getRepoOwner, navigateToPath]);
+
   const navigateToRepoContent = useCallback((
     repo: Repository,
     contentKind: 'root' | 'tree' | 'blob',
@@ -472,7 +480,7 @@ function App () {
       return;
     }
 
-    if (routeContentKind === 'issues-new') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view') {
       return;
     }
 
@@ -773,6 +781,20 @@ function App () {
             navigateToRepoIssuesNew(selectedRepo);
           }}
           onCloseCreateIssue={() => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoTab(selectedRepo, 'issues');
+          }}
+          onOpenIssue={(issueNumber) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoIssueView(selectedRepo, issueNumber);
+          }}
+          onBackToIssues={() => {
             if (!selectedRepo) {
               return;
             }

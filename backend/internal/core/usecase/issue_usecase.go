@@ -53,6 +53,8 @@ func (s *IssueService) CreateIssue(repoID uuid.UUID, creatorID uuid.UUID,
 		return nil, err
 	}
 
+	_ = s.issueStore.AddEvent(issue.ID, creatorID, "opened")
+
 	return issue, nil
 }
 
@@ -129,7 +131,24 @@ func (s *IssueService) TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID
 		return err
 	}
 
-	return s.issueStore.UpdateStatus(issue.ID, parsedStatus, parsedCloseReason)
+	if err := s.issueStore.UpdateStatus(issue.ID, parsedStatus, parsedCloseReason); err != nil {
+		return err
+	}
+
+	eventType := "reopened"
+	if parsedStatus == domain.IssueStatusClosed {
+		switch parsedCloseReason {
+		case domain.IssueCloseReasonNotPlanned:
+			eventType = "closed_not_planned"
+		case domain.IssueCloseReasonDuplicate:
+			eventType = "closed_duplicate"
+		default:
+			eventType = "closed_completed"
+		}
+	}
+	_ = s.issueStore.AddEvent(issue.ID, requesterID, eventType)
+
+	return nil
 }
 
 func (s *IssueService) AssignIssue(repoID uuid.UUID, issueID uuid.UUID,
@@ -194,6 +213,67 @@ func (s *IssueService) ListIssueAssignees(repoID uuid.UUID, issueID uuid.UUID,
 	}
 
 	return s.issueStore.ListAssignees(issue.ID)
+}
+
+func (s *IssueService) ListIssueEvents(repoID uuid.UUID, issueID uuid.UUID,
+	requesterID uuid.UUID) ([]domain.IssueEvent, error) {
+
+	issue, err := s.getIssueForRepo(repoID, issueID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.requireRepoAccess(issue.RepoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	return s.issueStore.ListEvents(issue.ID)
+}
+
+func (s *IssueService) ListIssueComments(repoID uuid.UUID, issueID uuid.UUID,
+	requesterID uuid.UUID) ([]domain.IssueComment, error) {
+
+	issue, err := s.getIssueForRepo(repoID, issueID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.requireRepoAccess(issue.RepoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	return s.issueStore.ListComments(issue.ID)
+}
+
+func (s *IssueService) CreateIssueComment(repoID uuid.UUID, issueID uuid.UUID,
+	authorID uuid.UUID, body string) (*domain.IssueComment, error) {
+
+	if strings.TrimSpace(body) == "" {
+		return nil, errors.New("comment body is required")
+	}
+
+	issue, err := s.getIssueForRepo(repoID, issueID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.requireRepoAccess(issue.RepoID, authorID); err != nil {
+		return nil, err
+	}
+
+	comment := &domain.IssueComment{
+		ID:        uuid.New(),
+		IssueID:   issue.ID,
+		AuthorID:  authorID,
+		Body:      strings.TrimSpace(body),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.issueStore.AddComment(comment); err != nil {
+		return nil, err
+	}
+
+	return comment, nil
 }
 
 func (s *IssueService) requireRepoAccess(repoID uuid.UUID,

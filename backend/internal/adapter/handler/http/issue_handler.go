@@ -226,3 +226,84 @@ func (h *IssueHandler) HandleListIssueAssignees(c *gin.Context) {
 
 	c.JSON(http.StatusOK, assignees)
 }
+
+func (h *IssueHandler) HandleListIssueEvents(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	events, err := h.issueUseCase.ListIssueEvents(repoID, issueID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, events)
+}
+
+func (h *IssueHandler) HandleListIssueComments(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	comments, err := h.issueUseCase.ListIssueComments(repoID, issueID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, comments)
+}
+
+func (h *IssueHandler) HandleCreateIssueComment(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.CreateIssueCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	comment, err := h.issueUseCase.CreateIssueComment(repoID, issueID, requesterID, req.Body)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, comment)
+}

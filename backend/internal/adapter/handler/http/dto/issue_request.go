@@ -13,3 +13,7 @@ type UpdateIssueStatusRequest struct {
 type AssignIssueRequest struct {
 	UserID string `json:"user_id"`
 }
+
+type CreateIssueCommentRequest struct {
+	Body string `json:"body"`
+}
