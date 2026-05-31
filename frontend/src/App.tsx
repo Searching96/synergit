@@ -732,6 +732,8 @@ function App () {
           onCreateClick={handleOpenCreateRepository}
           onProfileClick={() => navigateToProfileTab('overview')}
           profileInitial={currentUsername}
+          profileName={currentUsername}
+          onSignOut={handleLogout}
         />
 
         <TopNavigationTabs

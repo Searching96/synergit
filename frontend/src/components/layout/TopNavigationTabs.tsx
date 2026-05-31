@@ -36,10 +36,10 @@ export default function TopNavigationTabs<T extends string>({
             }`}
           >
             <div
-              className={`flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md ${
+              className={`flex items-center justify-center px-2 gap-2 h-8 w-full rounded-md hover:bg-[var(--surface-hover)] ${
                 active
                   ? "text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                  : "text-[var(--text-secondary)]"
               }`}
             >
               <Icon size={15} />

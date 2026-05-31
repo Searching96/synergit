@@ -19,7 +19,9 @@ interface TopHeaderProps {
   onPullsClick?: () => void;
   onInboxClick?: () => void;
   onProfileClick?: () => void;
+  onSignOut?: () => void;
   profileInitial?: string;
+  profileName?: string;
   searchPlaceholder?: string;
 }
 
@@ -32,7 +34,9 @@ export default function TopHeader({
   onPullsClick,
   onInboxClick,
   onProfileClick,
+  onSignOut,
   profileInitial = "U",
+  profileName,
   searchPlaceholder = "Type / to search",
 }: TopHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,7 +59,7 @@ export default function TopHeader({
       { icon: Accessibility, label: "Accessibility" },
       { icon: Upload, label: "Try Enterprise", badge: "Free" },
     ],
-    [{ icon: LogOut, label: "Sign out" }],
+    [{ icon: LogOut, label: "Sign out", onClick: onSignOut }],
   ];
 
   return (
@@ -141,12 +145,12 @@ export default function TopHeader({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
               <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-2 text-sm text-[var(--text-primary)]">
-                <div className="px-3 py-1.5 flex items-center gap-2">
+                <div className="px-3 py-1.5 flex items-center justify-between w-full gap-2">
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="h-7 w-7 rounded-full bg-black text-white inline-flex items-center justify-center text-xs font-semibold shrink-0">
                       {(profileInitial.trim().charAt(0) || "U").toUpperCase()}
                     </span>
-                    <span className="font-semibold truncate">{profileInitial}</span>
+                    <span className="font-semibold truncate">{profileName || profileInitial}</span>
                   </span>
                   <ArrowLeftRight size={15} className="text-[var(--text-secondary)] shrink-0" />
                 </div>

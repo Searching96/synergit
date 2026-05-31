@@ -189,6 +189,8 @@ export default function GithubProfilePages({
           onCreateClick={onCreateRepository}
           onProfileClick={() => onNavigateToPath(profileBasePath)}
           profileInitial={avatarInitial}
+          profileName={username}
+          onSignOut={onLogout}
         />
 
         <TopNavigationTabs
