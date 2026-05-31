@@ -13,7 +13,7 @@ interface RepoBreadcrumbProps {
   separatorClassName?: string;
 }
 
-export default function RepoBreadcrumb({
+export default function RepoBreadcrumbNavigator({
   rootLabel,
   segments,
   onRootClick,

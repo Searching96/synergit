@@ -11,14 +11,13 @@ import {
   Pencil,
   Plus,
   Search,
-  Upload,
   Users,
 } from "lucide-react";
 import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
-import RepoBreadcrumb from "./RepoBreadcrumb";
+import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import TwinButton from "./TwinButton";
 
@@ -121,8 +120,6 @@ export default function RepoTreeBrowserPage({
   onNavigateLocation,
   onSelectBranch,
   onOpenCommitHistory,
-  onOpenCreateFile,
-  onOpenUploadFiles,
 }: RepoTreeBrowserPageProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -499,7 +496,7 @@ export default function RepoTreeBrowserPage({
 
         <section className="min-w-0 bg-[var(--surface-canvas)]">
           <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
-            <RepoBreadcrumb
+            <RepoBreadcrumbNavigator
               rootLabel={repoName}
               segments={activePathSegments}
               onRootClick={() => {

@@ -9,7 +9,7 @@ import {
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
-import RepoBreadcrumb from "./RepoBreadcrumb";
+import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
 import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 
@@ -449,7 +449,7 @@ export default function NewFilePage({
           <section className="min-w-0 bg-[var(--surface-canvas)]">
             <div className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm">
-                <RepoBreadcrumb
+                <RepoBreadcrumbNavigator
                   rootLabel={repoName}
                   segments={activePathSegments}
                   onRootClick={() => handleBreadcrumbNavigate("")}
