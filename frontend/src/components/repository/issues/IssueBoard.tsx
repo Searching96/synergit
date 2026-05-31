@@ -111,7 +111,7 @@ function ToolbarDropdown({
   );
 }
 
-export default function IssueBoard({ repoId, currentUsername, isCreating, onOpenCreate, onCloseCreate }: IssueBoardProps) {
+export default function IssueBoard({ repoId, repoName, repoOwner, currentUsername, isCreating, onOpenCreate, onCloseCreate }: IssueBoardProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assigneesByIssueId, setAssigneesByIssueId] = useState<Record<string, IssueAssignee[]>>({});
   const [listLoading, setListLoading] = useState<boolean>(true);
@@ -1100,6 +1100,20 @@ export default function IssueBoard({ repoId, currentUsername, isCreating, onOpen
               const issueNo = issueNumberMap.get(issue.id) || 0;
               const isSelected = selectedIssueIds.has(issue.id);
               const showNotPlanned = issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED";
+              const issueLabels = labelsByIssueId[issue.id] || [];
+              const creatorName = collaboratorNameById[issue.creator_id] || "Someone";
+              const youCreated = creatorName === currentUsername;
+              const youAssigned = (assigneesByIssueId[issue.id] || []).some((a) => collaboratorNameById[a.user_id] === currentUsername);
+              const hoverNote =
+                youCreated && youAssigned
+                  ? "You are assigned to and opened this issue"
+                  : youCreated
+                    ? "You opened this issue"
+                    : youAssigned
+                      ? "You are assigned to this issue"
+                      : `${creatorName} opened this issue`;
+              const statusColor = issue.status === "OPEN" ? "#1a7f37" : showNotPlanned ? "#6e7781" : "#8250df";
+              const statusLabel = issue.status === "OPEN" ? "Open" : showNotPlanned ? "Closed as not planned" : "Closed";
 
               return (
                 <li key={issue.id} className="px-4 py-3 hover:bg-[var(--surface-subtle)]">
@@ -1124,7 +1138,49 @@ export default function IssueBoard({ repoId, currentUsername, isCreating, onOpen
 
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">{issue.title}</span>
+                        <span className="relative group/card inline-block">
+                          <span className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--text-link)] hover:underline">
+                            {issue.title}
+                          </span>
+                          <div className="hidden group-hover/card:block absolute left-0 top-full z-30 mt-2 w-96 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg text-left font-normal">
+                            <div className="p-3 border-b border-[var(--border-muted)]">
+                              <p className="text-xs text-[var(--text-secondary)]">{repoOwner}/{repoName} {formatIssueDate(issue.created_at)}</p>
+                              <p className="mt-1 text-sm">
+                                <span className="font-semibold text-[var(--text-primary)]">{issue.title}</span>{" "}
+                                <span className="text-[var(--text-secondary)]">#{issueNo}</span>
+                              </p>
+                              <span
+                                className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white"
+                                style={{ backgroundColor: statusColor }}
+                              >
+                                {issue.status === "OPEN" ? <CircleDot size={13} /> : showNotPlanned ? <CircleSlash size={13} /> : <CheckCircle2 size={13} />}
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <div className="p-3 text-sm text-[var(--text-secondary)] border-b border-[var(--border-muted)]">
+                              {issue.description.trim() || "No description provided"}
+                            </div>
+                            {issueLabels.length > 0 ? (
+                              <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-[var(--border-muted)]">
+                                {issueLabels.map((label) => (
+                                  <span
+                                    key={label.id}
+                                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                    style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                                  >
+                                    {label.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                            <div className="px-3 py-2 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase">
+                                {creatorName.charAt(0)}
+                              </span>
+                              {hoverNote}
+                            </div>
+                          </div>
+                        </span>
                         {(labelsByIssueId[issue.id] || []).map((label) => (
                           <span
                             key={label.id}
