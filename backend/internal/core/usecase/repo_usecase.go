@@ -119,7 +119,7 @@ func (s *RepoService) resolveRepoPath(repoID uuid.UUID) (string, error) {
 }
 
 func (s *RepoService) resolveRepoPathByOwnerAndName(ownerUsername string, repoName string) (string, error) {
-	repo, err := s.repoStore.FindByOwnerAndName(ownerUsername, repoName)
+	repo, err := s.repoStore.FindPublicByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
 		return "", err
 	}
@@ -219,8 +219,8 @@ func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName s
 	return nil
 }
 
-func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
-	repos, err := s.repoStore.FindAll()
+func (s *RepoService) GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo, error) {
+	repos, err := s.repoStore.FindVisibleToUser(requesterID)
 	if err != nil {
 		return nil, err
 	}
@@ -251,6 +251,67 @@ func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
 
 func (s *RepoService) CountOwnedRepositories(requesterID uuid.UUID) (int, error) {
 	return s.repoStore.CountOwnedByUser(requesterID)
+}
+
+func (s *RepoService) requireOwner(repoID uuid.UUID, requesterID uuid.UUID) error {
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil {
+		return errors.New("failed to verify requester permissions")
+	}
+	if role != domain.CollaboratorRoleOwner {
+		return errors.New("unauthorized: only repository owners can perform this action")
+	}
+
+	return nil
+}
+
+func (s *RepoService) UpdateRepositoryVisibility(repoID uuid.UUID, requesterID uuid.UUID,
+	visibility domain.RepoVisibility) (*domain.Repo, error) {
+
+	if err := domain.ValidateRepoVisibility(visibility); err != nil {
+		return nil, err
+	}
+	if visibility == "" {
+		return nil, errors.New("visibility is required")
+	}
+	if err := s.requireOwner(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	if err := s.repoStore.UpdateVisibility(repoID, visibility); err != nil {
+		return nil, err
+	}
+
+	repo.Visibility = visibility
+	return repo, nil
+}
+
+func (s *RepoService) DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) error {
+	if err := s.requireOwner(repoID, requesterID); err != nil {
+		return err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return err
+	}
+	if repo == nil {
+		return errors.New("repository not found")
+	}
+
+	if err := s.repoStore.DeleteByID(repoID); err != nil {
+		return err
+	}
+
+	return s.gitManager.DeleteRepository(repo.Path)
 }
 
 func inferDescriptionFromReadme(gitManager port.GitManager, repoPath string) string {

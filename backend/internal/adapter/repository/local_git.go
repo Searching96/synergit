@@ -144,6 +144,39 @@ func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
 	return fullPath, nil
 }
 
+func (g *LocalGitAdapter) DeleteRepository(repoPath string) error {
+	fullPath := g.resolveRepoPath(repoPath)
+	absRepoPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve repository path: %w", err)
+	}
+
+	absStorageRoot, err := filepath.Abs(g.storageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve storage root: %w", err)
+	}
+
+	relPath, err := filepath.Rel(absStorageRoot, absRepoPath)
+	if err != nil {
+		return fmt.Errorf("failed to validate repository path: %w", err)
+	}
+	if relPath == "." || strings.HasPrefix(relPath, "..") || filepath.IsAbs(relPath) {
+		return errors.New("repository path is outside git storage root")
+	}
+
+	if _, err := os.Stat(absRepoPath); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to inspect repository path: %w", err)
+	}
+
+	if err := os.RemoveAll(absRepoPath); err != nil {
+		return fmt.Errorf("failed to delete repository files: %w", err)
+	}
+
+	return nil
+}
+
 func (g *LocalGitAdapter) BootstrapRepository(repoPath string, branch string,
 	authorName string, files map[string]string, commitMessage string) error {
 

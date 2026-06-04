@@ -7,6 +7,7 @@ import (
 type GitManager interface {
 	// Init a bare repo at a relative storage slug (for example: username/repo)
 	InitBareRepo(repoSlug string) (string, error)
+	DeleteRepository(repoPath string) error
 	BootstrapRepository(repoPath string, branch string, authorName string,
 		files map[string]string, commitMessage string) error
 

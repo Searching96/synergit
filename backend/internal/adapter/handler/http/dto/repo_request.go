@@ -16,6 +16,10 @@ type CreateBranchRequest struct {
 	FromBranch string `json:"from_branch"`
 }
 
+type UpdateRepoVisibilityRequest struct {
+	Visibility string `json:"visibility"`
+}
+
 type CommitFileRequest struct {
 	Branch        string `json:"branch"`
 	Path          string `json:"path"`

@@ -89,6 +89,37 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	return repos, nil
 }
 
+func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error) {
+	query := `
+		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.visibility, r.primary_language
+		FROM repositories r
+		LEFT JOIN repository_collaborators rc
+			ON rc.repository_id = r.id AND rc.user_id = $1
+		WHERE r.visibility = 'PUBLIC' OR rc.user_id IS NOT NULL
+		ORDER BY r.created_at`
+
+	rows, err := p.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	repos := []*domain.Repo{}
+	for rows.Next() {
+		repo, err := scanRepo(rows)
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, repo)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return repos, nil
+}
+
 func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
 	var count int
 	err := p.db.QueryRow(`
@@ -136,6 +167,26 @@ func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName st
 	return repo, nil
 }
 
+func (p *PostgresRepoStore) FindPublicByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
+	query := `
+		SELECT id, name, path, created_at, description, visibility, primary_language
+		FROM repositories
+		WHERE visibility = 'PUBLIC'
+			AND REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
+		ORDER BY created_at DESC
+		LIMIT 1`
+
+	repo, err := scanRepo(p.db.QueryRow(query, ownerUsername, repoName))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return repo, nil
+}
+
 func (p *PostgresRepoStore) UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage string) error {
 	_, err := p.db.Exec(
 		`UPDATE repositories SET primary_language = $2 WHERE id = $1`,
@@ -143,6 +194,21 @@ func (p *PostgresRepoStore) UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage 
 		strings.TrimSpace(primaryLanguage),
 	)
 
+	return err
+}
+
+func (p *PostgresRepoStore) UpdateVisibility(id uuid.UUID, visibility domain.RepoVisibility) error {
+	_, err := p.db.Exec(
+		`UPDATE repositories SET visibility = $2 WHERE id = $1`,
+		id,
+		visibility,
+	)
+
+	return err
+}
+
+func (p *PostgresRepoStore) DeleteByID(id uuid.UUID) error {
+	_, err := p.db.Exec(`DELETE FROM repositories WHERE id = $1`, id)
 	return err
 }
 

@@ -133,6 +133,8 @@ func main() {
 			repos.POST("", repoHandler.HandleCreateRepo)
 			repos.GET("", repoHandler.HandleGetRepos)
 			repos.GET("/count", repoHandler.HandleGetOwnedRepoCount)
+			repos.PATCH("/:repo_id/visibility", repoHandler.HandleUpdateRepoVisibility)
+			repos.DELETE("/:repo_id", repoHandler.HandleDeleteRepo)
 			repos.POST("/:repo_id/branches", repoHandler.HandleCreateBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)

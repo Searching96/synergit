@@ -601,6 +601,17 @@ function App () {
     navigateToRepoCommits(selectedRepo, branchName, window.location.search);
   };
 
+  const handleRepoUpdated = useCallback((updatedRepo: Repository) => {
+    setRepos((prev) => prev.map((repo) => (repo.id === updatedRepo.id ? { ...repo, ...updatedRepo } : repo)));
+  }, []);
+
+  const handleRepoDeleted = useCallback((repoId: string) => {
+    setRepos((prev) => prev.filter((repo) => repo.id !== repoId));
+    setProfileRepoCount((count) => Math.max(0, count - 1));
+    setSelectedRepoId(null);
+    navigateToProfileTab('repositories');
+  }, [navigateToProfileTab]);
+
   const explorerInitialLocation = useMemo(() => {
     if (routeContentKind === 'blob') {
       return { type: 'file' as const, path: routeContentPath };
@@ -925,6 +936,8 @@ function App () {
 
             navigateToRepoTab(selectedRepo, 'issues');
           }}
+          onRepoUpdated={handleRepoUpdated}
+          onRepoDeleted={handleRepoDeleted}
         />
       </main>
 

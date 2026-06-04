@@ -292,7 +292,12 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 }
 
 func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
-	repos, err := h.repoUseCase.GetAllRepositories()
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	repos, err := h.repoUseCase.GetAllRepositories(requesterID)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return
@@ -322,6 +327,50 @@ func (h *RepoHandler) HandleGetOwnedRepoCount(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.CountResponse{Count: count})
+}
+
+func (h *RepoHandler) HandleUpdateRepoVisibility(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateRepoVisibilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	repo, err := h.repoUseCase.UpdateRepositoryVisibility(repoID, requesterID,
+		domain.RepoVisibility(req.Visibility))
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toRepoResponse(c, repo, h.publicBaseURL))
+}
+
+func (h *RepoHandler) HandleDeleteRepo(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.repoUseCase.DeleteRepository(repoID, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "repository deleted successfully"})
 }
 
 func (h *RepoHandler) HandleGetTree(c *gin.Context) {

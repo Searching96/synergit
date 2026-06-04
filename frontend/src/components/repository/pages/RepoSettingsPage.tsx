@@ -1,4 +1,7 @@
+import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle } from "lucide-react";
+import type { Repository } from "../../../types";
+import { reposApi } from "../../../services/api";
 
 const LEFT_NAV_GROUPS = [
   {
@@ -19,7 +22,61 @@ const LEFT_NAV_GROUPS = [
   },
 ];
 
-export default function RepoSettingsPage() {
+interface RepoSettingsPageProps {
+  repo: Repository;
+  onRepoUpdated: (repo: Repository) => void;
+  onRepoDeleted: (repoId: string) => void;
+}
+
+export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }: RepoSettingsPageProps) {
+  const [visibilityPanelOpen, setVisibilityPanelOpen] = useState(false);
+  const [deletePanelOpen, setDeletePanelOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [busyAction, setBusyAction] = useState<"visibility" | "delete" | null>(null);
+  const [dangerError, setDangerError] = useState<string | null>(null);
+
+  const currentVisibility = useMemo(() => {
+    const normalized = String(repo.visibility || "PUBLIC").trim().toUpperCase();
+    return normalized === "PRIVATE" ? "PRIVATE" : "PUBLIC";
+  }, [repo.visibility]);
+  const nextVisibility = currentVisibility === "PUBLIC" ? "PRIVATE" : "PUBLIC";
+  const visibilityLabel = currentVisibility.toLowerCase();
+  const nextVisibilityLabel = nextVisibility.toLowerCase();
+
+  const handleChangeVisibility = async () => {
+    try {
+      setBusyAction("visibility");
+      setDangerError(null);
+      const updatedRepo = await reposApi.updateVisibility(repo.id, nextVisibility);
+      onRepoUpdated(updatedRepo);
+      setVisibilityPanelOpen(false);
+    } catch (error) {
+      setDangerError(error instanceof Error ? error.message : "Failed to change repository visibility");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const handleDeleteRepository = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (deleteConfirm.trim() !== repo.name) {
+      setDangerError(`Type ${repo.name} to confirm deletion.`);
+      return;
+    }
+
+    try {
+      setBusyAction("delete");
+      setDangerError(null);
+      await reposApi.deleteRepo(repo.id);
+      onRepoDeleted(repo.id);
+    } catch (error) {
+      setDangerError(error instanceof Error ? error.message : "Failed to delete repository");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)] gap-4">
       <aside className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] py-3">
@@ -55,7 +112,7 @@ export default function RepoSettingsPage() {
               <input
                 type="text"
                 readOnly
-                value="synergit"
+                value={repo.name}
                 className="h-9 flex-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
               />
               <button type="button" className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)]">
@@ -143,22 +200,107 @@ export default function RepoSettingsPage() {
           <div className="border border-[var(--border-danger-muted)] rounded-md p-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">Change repository visibility</p>
-              <p className="text-sm text-[var(--text-secondary)]">This repository is currently public.</p>
+              <p className="text-sm text-[var(--text-secondary)]">This repository is currently {visibilityLabel}.</p>
             </div>
-            <button type="button" className="h-8 px-3 rounded-md border border-[var(--text-danger)] text-[var(--text-danger)] text-sm font-semibold bg-[var(--surface-canvas)] hover:bg-[var(--surface-danger-subtle)]">
+            <button
+              type="button"
+              onClick={() => {
+                setDangerError(null);
+                setDeletePanelOpen(false);
+                setVisibilityPanelOpen((open) => !open);
+              }}
+              className="h-8 px-3 rounded-md border border-[var(--text-danger)] text-[var(--text-danger)] text-sm font-semibold bg-[var(--surface-canvas)] hover:bg-[var(--surface-danger-subtle)]"
+            >
               Change visibility
             </button>
           </div>
+
+          {visibilityPanelOpen ? (
+            <div className="border border-[var(--border-danger-muted)] rounded-md p-3 bg-[var(--surface-danger-subtle)]">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">
+                Change this repository to {nextVisibilityLabel}?
+              </p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                This updates the repository visibility shown across Synergit.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busyAction === "visibility"}
+                  onClick={() => void handleChangeVisibility()}
+                  className="h-8 px-3 rounded-md bg-[var(--text-danger)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                >
+                  {busyAction === "visibility" ? "Changing..." : `Change to ${nextVisibilityLabel}`}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyAction === "visibility"}
+                  onClick={() => setVisibilityPanelOpen(false)}
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="border border-[var(--border-danger-muted)] rounded-md p-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">Delete this repository</p>
               <p className="text-sm text-[var(--text-secondary)]">Once you delete a repository, there is no going back.</p>
             </div>
-            <button type="button" className="h-8 px-3 rounded-md border border-[var(--text-danger)] text-[var(--text-danger)] text-sm font-semibold bg-[var(--surface-canvas)] hover:bg-[var(--surface-danger-subtle)]">
+            <button
+              type="button"
+              onClick={() => {
+                setDangerError(null);
+                setVisibilityPanelOpen(false);
+                setDeletePanelOpen((open) => !open);
+              }}
+              className="h-8 px-3 rounded-md border border-[var(--text-danger)] text-[var(--text-danger)] text-sm font-semibold bg-[var(--surface-canvas)] hover:bg-[var(--surface-danger-subtle)]"
+            >
               Delete repository
             </button>
           </div>
+
+          {deletePanelOpen ? (
+            <form onSubmit={handleDeleteRepository} className="border border-[var(--border-danger-muted)] rounded-md p-3 bg-[var(--surface-danger-subtle)]">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Confirm repository deletion</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                Type <span className="font-semibold text-[var(--text-primary)]">{repo.name}</span> to permanently delete this repository.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirm}
+                onChange={(event) => setDeleteConfirm(event.target.value)}
+                className="mt-3 h-9 w-full max-w-md rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
+                aria-label="Repository deletion confirmation"
+              />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={busyAction === "delete" || deleteConfirm.trim() !== repo.name}
+                  className="h-8 px-3 rounded-md bg-[var(--text-danger)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                >
+                  {busyAction === "delete" ? "Deleting..." : "Delete this repository"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyAction === "delete"}
+                  onClick={() => {
+                    setDeletePanelOpen(false);
+                    setDeleteConfirm("");
+                  }}
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {dangerError ? (
+            <p className="text-sm text-[var(--text-danger)]">{dangerError}</p>
+          ) : null}
         </div>
       </section>
     </div>

@@ -25,6 +25,18 @@ export const reposApi = {
       body: JSON.stringify(payload),
     }),
 
+  updateVisibility: (repoId: string, visibility: 'PUBLIC' | 'PRIVATE') =>
+    fetcher<Repository>(`/repos/${repoId}/visibility`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ visibility }),
+    }),
+
+  deleteRepo: (repoId: string) =>
+    fetcher<{ message: string }>(`/repos/${repoId}`, {
+      method: 'DELETE',
+    }),
+
   createBranch: (repoId: string, payload: CreateBranchPayload) =>
     fetcher<Branch>(`/repos/${repoId}/branches`, {
       method: 'POST',

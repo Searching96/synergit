@@ -9,10 +9,14 @@ import (
 type RepoRepository interface {
 	Save(repo *domain.Repo) error
 	FindAll() ([]*domain.Repo, error)
+	FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error)
 	CountOwnedByUser(userID uuid.UUID) (int, error)
 	FindByID(id uuid.UUID) (*domain.Repo, error)
 	FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error)
+	FindPublicByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error)
+	UpdateVisibility(id uuid.UUID, visibility domain.RepoVisibility) error
 	UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage string) error
+	DeleteByID(id uuid.UUID) error
 }
 
 type RepoUseCase interface {
@@ -31,8 +35,10 @@ type RepoUseCase interface {
 		responseWriter ByteWriter) error
 	ReceivePackByOwnerAndName(ownerUsername string, repoName string,
 		requestPayload ByteReader, responseWriter ByteWriter) error
-	GetAllRepositories() ([]*domain.Repo, error)
+	GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo, error)
 	CountOwnedRepositories(requesterID uuid.UUID) (int, error)
+	UpdateRepositoryVisibility(repoID uuid.UUID, requesterID uuid.UUID, visibility domain.RepoVisibility) (*domain.Repo, error)
+	DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) error
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
 	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)

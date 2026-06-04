@@ -51,6 +51,8 @@ interface RepoWorkspaceContentProps {
   onCloseCreateIssue: () => void;
   onOpenIssue: (issueNumber: number) => void;
   onBackToIssues: () => void;
+  onRepoUpdated: (repo: Repository) => void;
+  onRepoDeleted: (repoId: string) => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -80,6 +82,8 @@ export default function RepoWorkspaceContent({
   onCloseCreateIssue,
   onOpenIssue,
   onBackToIssues,
+  onRepoUpdated,
+  onRepoDeleted,
 }: RepoWorkspaceContentProps) {
   return (
     <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
@@ -218,7 +222,13 @@ export default function RepoWorkspaceContent({
             {activeTab === "wiki" && <RepoWikiPage repoName={selectedRepo.name} />}
             {activeTab === "security" && <RepoSecurityPage />}
             {activeTab === "insights" && <RepoInsights repoId={selectedRepo.id} />}
-            {activeTab === "settings" && <RepoSettingsPage />}
+            {activeTab === "settings" && (
+              <RepoSettingsPage
+                repo={selectedRepo}
+                onRepoUpdated={onRepoUpdated}
+                onRepoDeleted={onRepoDeleted}
+              />
+            )}
           </div>
         </div>
       )}
