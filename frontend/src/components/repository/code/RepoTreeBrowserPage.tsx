@@ -589,19 +589,35 @@ export default function RepoTreeBrowserPage({
                     <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download from cloud">
                       <Cloud size={13} />
                     </button>
-                    <button type="button" className="h-7 px-2 rounded-md border border-[var(--border-default)] text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]">Raw</button>
-                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Copy raw content">
-                      <Copy size={13} />
-                    </button>
-                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Download file">
-                      <Download size={13} />
-                    </button>
-                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file">
-                      <Pencil size={13} />
-                    </button>
-                    <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More file actions">
-                      <ChevronDown size={13} />
-                    </button>
+                    <div className="inline-flex rounded-md border border-[var(--border-default)] overflow-hidden">
+                      <button type="button" className="h-7 px-2 text-xs text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]" title="Raw file">
+                        Raw
+                      </button>
+                      <button
+                        type="button"
+                        className="h-7 w-7 border-l border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+                        aria-label="Copy raw file"
+                        title="Copy raw file"
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="h-7 w-7 border-l border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+                        aria-label="Download raw file"
+                        title="Download raw file"
+                      >
+                        <Download size={13} />
+                      </button>
+                    </div>
+                    <div className="inline-flex rounded-md border border-[var(--border-default)] overflow-hidden">
+                      <button type="button" className="h-7 w-7 text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file" title="Edit this file">
+                        <Pencil size={13} />
+                      </button>
+                      <button type="button" className="h-7 w-7 border-l border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More edit options" title="More edit options">
+                        <ChevronDown size={13} />
+                      </button>
+                    </div>
                     <button type="button" className="h-7 w-7 rounded-md border border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Expand view">
                       <Maximize2 size={13} />
                     </button>

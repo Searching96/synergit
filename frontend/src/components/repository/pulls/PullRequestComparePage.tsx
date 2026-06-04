@@ -392,6 +392,7 @@ export default function PullRequestComparePage({
   const hasChanges = !!compareData?.can_compare;
 
   const relatedPullRequests = compareData?.related_pull_requests || [];
+  const existingPullRequest = relatedPullRequests[0] || null;
 
   const commitGroups = useMemo(() => {
     const groups = new Map<string, PullRequestCompareResult["commits"]>();
@@ -475,7 +476,7 @@ export default function PullRequestComparePage({
   const exampleBranch = refOptions.find((option) => option !== fallbackBase) || "";
   const displayBaseRef = baseRef || fallbackBase;
   const displayHeadRef = headRef || fallbackBase;
-  const showInlineCreateForm = !!compareData && (
+  const showInlineCreateForm = !!compareData && !existingPullRequest && (
     compareData.summary.deletions > 0 ||
     compareData.summary.files_changed > 1 ||
     compareData.summary.commit_count > 1
@@ -728,6 +729,29 @@ export default function PullRequestComparePage({
 
       {!loadingCompare && !compareError && compareData ? (
         <>
+          {hasChanges && existingPullRequest ? (
+            <section className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex items-start gap-2">
+                <GitPullRequest size={17} className="mt-0.5 shrink-0 text-[var(--fgColor-open,#1a7f37)]" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                    {existingPullRequest.title} <span className="font-normal text-[var(--text-secondary)]">#{existingPullRequest.id.slice(0, 4)}</span>
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    {existingPullRequest.description?.trim() || "No description available"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center justify-center gap-2 hover:bg-[var(--accent-primary-hover)]"
+              >
+                <GitPullRequest size={15} />
+                View pull request
+              </button>
+            </section>
+          ) : null}
+
           {hasChanges && showInlineCreateForm ? (
             <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6">
               <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3">
@@ -826,7 +850,7 @@ export default function PullRequestComparePage({
             </section>
           ) : null}
 
-          {hasChanges && !showInlineCreateForm ? (
+          {hasChanges && !showInlineCreateForm && !existingPullRequest ? (
             <section className="rounded-md border border-[var(--border-info-muted,#54aeff)] bg-[var(--surface-info-subtle,#ddf4ff)] px-4 py-5 text-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[var(--text-primary)]">
                 Discuss and review the changes in this comparison with others.{" "}
@@ -860,7 +884,7 @@ export default function PullRequestComparePage({
                 </div>
               </section>
 
-              {(createError || createMessage || relatedPullRequests.length > 0) ? (
+              {(createError || createMessage) ? (
                 <section className="rounded-md border border-[var(--border-muted)] bg-[var(--surface-canvas)] p-3 space-y-2">
                 {createError ? (
                   <div className="text-sm text-[var(--text-danger)] border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] rounded-md px-3 py-2">
@@ -873,66 +897,47 @@ export default function PullRequestComparePage({
                     {createMessage}
                   </div>
                 ) : null}
-
-                {relatedPullRequests.length > 0 ? (
-                  <div className="rounded-md border border-[var(--border-muted)] bg-[var(--surface-subtle)]">
-                    <div className="px-3 py-2 text-xs uppercase tracking-wide text-[var(--text-secondary)] border-b border-[var(--border-muted)]">
-                      Existing pull requests for this branch pair
-                    </div>
-                    <div className="divide-y divide-[var(--border-muted)]">
-                      {relatedPullRequests.map((pull) => (
-                        <div key={pull.id} className="px-3 py-2 text-sm flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="font-medium text-[var(--text-primary)] truncate">{pull.title}</p>
-                            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                              {pull.source_branch} into {pull.target_branch}
-                            </p>
-                          </div>
-                          <span className="text-[10px] px-2 py-1 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                            {pull.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
                 </section>
               ) : null}
 
-              <section className="relative pl-8">
-                <div className="absolute left-[15px] top-0 bottom-0 w-px bg-[var(--border-muted)]" />
+              <section className="relative pl-10">
+                <div className="absolute left-[14px] top-1 bottom-0 w-px bg-[var(--border-muted)]" />
                 <div className="space-y-5">
                   {commitGroups.map((group) => (
-                    <div key={group.dateLabel} className="space-y-2">
-                      <div className="relative mb-3 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                        <span className="absolute -left-[38px] h-4 w-4 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)]" />
+                    <div key={group.dateLabel} className="relative space-y-2">
+                      <div className="mb-3 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <span className="absolute -left-[33px] top-0.5 z-10 h-4 w-4 bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                          <GitCommitHorizontal size={14} />
+                        </span>
                         <span>Commits on {group.dateLabel}</span>
                       </div>
-                      {group.commits.map((commit) => (
-                        <div key={commit.hash} className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-3 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate underline-offset-2 hover:underline">
-                              {commit.message || "Untitled commit"}
-                            </p>
-                            <p className="text-xs text-[var(--text-secondary)] mt-1">
-                              <span className="font-semibold text-[var(--text-primary)]">{commit.author || "Unknown"}</span>{" "}
-                              authored on {formatShortDate(commit.date)}
-                            </p>
+                      <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] divide-y divide-[var(--border-muted)] overflow-hidden">
+                        {group.commits.map((commit) => (
+                          <div key={commit.hash} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-[var(--text-primary)] truncate underline-offset-2 hover:underline">
+                                {commit.message || "Untitled commit"}
+                              </p>
+                              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                                <span className="font-semibold text-[var(--text-primary)]">{commit.author || "Unknown"}</span>{" "}
+                                authored on {formatShortDate(commit.date)}
+                              </p>
+                            </div>
+                            <div className="shrink-0 inline-flex items-center gap-2">
+                              <span className="hidden sm:inline-flex rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-3 py-1 text-xs text-[var(--fgColor-open,#1a7f37)]">
+                                Verified
+                              </span>
+                              <button
+                                type="button"
+                                className="h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-2 text-xs font-mono text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                              >
+                                <Copy size={14} className="text-[var(--text-secondary)]" />
+                                {commit.hash.slice(0, 7)}
+                              </button>
+                            </div>
                           </div>
-                          <div className="shrink-0 inline-flex items-center gap-2">
-                            <span className="hidden sm:inline-flex rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-3 py-1 text-xs text-[var(--fgColor-open,#1a7f37)]">
-                              Verified
-                            </span>
-                            <button
-                              type="button"
-                              className="h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-2 text-xs font-mono text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                            >
-                              <Copy size={14} className="text-[var(--text-secondary)]" />
-                              {commit.hash.slice(0, 7)}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>

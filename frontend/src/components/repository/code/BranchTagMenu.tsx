@@ -8,6 +8,7 @@ interface BranchTagMenuProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectBranch: (branchName: string) => void;
+  onCreateBranch?: (branchName: string, fromBranch: string) => Promise<void> | void;
   className?: string;
   triggerClassName?: string;
   menuClassName?: string;
@@ -29,6 +30,7 @@ export default function BranchTagMenu({
   isOpen,
   onOpenChange,
   onSelectBranch,
+  onCreateBranch,
   className,
   triggerClassName,
   menuClassName,
@@ -37,8 +39,11 @@ export default function BranchTagMenu({
 }: BranchTagMenuProps) {
   const [menuTab, setMenuTab] = useState<"branches" | "tags">("branches");
   const [query, setQuery] = useState<string>("");
+  const [creatingBranch, setCreatingBranch] = useState<boolean>(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const activeBranch = (currentBranch || "master").trim() || "master";
+  const requestedBranchName = query.trim();
 
   const items = useMemo(() => {
     const knownBranchMap = new Map(branches.map((item) => [item.name, item]));
@@ -73,6 +78,18 @@ export default function BranchTagMenu({
     });
   }, [items, query]);
 
+  const canCreateBranch = useMemo(() => {
+    if (!onCreateBranch || menuTab !== "branches" || !requestedBranchName) {
+      return false;
+    }
+
+    if (isCommitLikeRef(activeBranch)) {
+      return false;
+    }
+
+    return !items.some((item) => item.value.toLowerCase() === requestedBranchName.toLowerCase());
+  }, [activeBranch, items, menuTab, onCreateBranch, requestedBranchName]);
+
   useEffect(() => {
     if (isOpen) {
       return;
@@ -80,7 +97,35 @@ export default function BranchTagMenu({
 
     setQuery("");
     setMenuTab("branches");
+    setCreatingBranch(false);
+    setCreateError(null);
   }, [isOpen]);
+
+  const resetMenu = () => {
+    onOpenChange(false);
+    setQuery("");
+    setMenuTab("branches");
+    setCreatingBranch(false);
+    setCreateError(null);
+  };
+
+  const handleCreateBranch = async () => {
+    if (!canCreateBranch || !onCreateBranch) {
+      return;
+    }
+
+    try {
+      setCreatingBranch(true);
+      setCreateError(null);
+      await onCreateBranch(requestedBranchName, activeBranch);
+      onSelectBranch(requestedBranchName);
+      resetMenu();
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create branch");
+    } finally {
+      setCreatingBranch(false);
+    }
+  };
 
   const wrapperClassName = className || "relative";
   const computedTriggerClassName = triggerClassName || "inline-flex w-full min-w-0 items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-2 pr-2 h-9 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]";
@@ -153,6 +198,20 @@ export default function BranchTagMenu({
 
           {menuTab === "branches" ? (
             <div className="max-h-[280px] overflow-auto py-1">
+              {canCreateBranch ? (
+                <button
+                  type="button"
+                  disabled={creatingBranch}
+                  onClick={() => void handleCreateBranch()}
+                  className="w-full px-3 py-2.5 text-left text-sm inline-flex items-center gap-2 text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
+                >
+                  <GitBranch size={14} className="text-[var(--text-secondary)] shrink-0" />
+                  <span className="truncate">
+                    {creatingBranch ? "Creating branch..." : `Create branch ${requestedBranchName} from ${activeBranch}`}
+                  </span>
+                </button>
+              ) : null}
+
               {filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
                   <button
@@ -160,9 +219,7 @@ export default function BranchTagMenu({
                     type="button"
                     onClick={() => {
                       onSelectBranch(item.value);
-                      onOpenChange(false);
-                      setQuery("");
-                      setMenuTab("branches");
+                      resetMenu();
                     }}
                     className={`w-full px-3 py-2 text-left text-sm inline-flex items-center justify-between gap-2 hover:bg-[var(--surface-subtle)] ${
                       item.isCurrent ? "bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "text-[var(--text-primary)]"
@@ -181,9 +238,12 @@ export default function BranchTagMenu({
                     ) : null}
                   </button>
                 ))
-              ) : (
+              ) : canCreateBranch ? null : (
                 <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No branches found.</div>
               )}
+              {createError ? (
+                <div className="px-3 py-2 text-xs text-[var(--text-danger)]">{createError}</div>
+              ) : null}
             </div>
           ) : (
             <div className="px-3 py-6 text-sm text-[var(--text-secondary)]">No tags found.</div>

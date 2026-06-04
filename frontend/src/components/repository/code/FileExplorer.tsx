@@ -629,6 +629,13 @@ export default function FileExplorer({
     applyStandardEditorShortcuts(e, setReadmeDraft);
   };
 
+  const handleCreateBranch = async (branchName: string, fromBranch: string) => {
+    await reposApi.createBranch(repoId, {
+      name: branchName,
+      from_branch: fromBranch,
+    });
+  };
+
   const renderTree = (path: string, depth: number = 0): ReactElement[] => {
     const entries = sortEntries(entriesByPath[path] || []);
     const nodes: ReactElement[] = [];
@@ -943,6 +950,7 @@ export default function FileExplorer({
                     onSelectBranch(nextBranch);
                     setIsBranchMenuOpen(false);
                   }}
+                  onCreateBranch={handleCreateBranch}
                   onViewAllBranches={() => {
                     setIsBranchesPageOpen(true);
                     setIsCodeMenuOpen(false);
