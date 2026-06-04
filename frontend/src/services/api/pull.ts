@@ -14,6 +14,10 @@ export const pullsApi = {
     return fetcher(`/repos/${repoId}/pulls`);
   },
 
+  get: (repoId: string, pullId: string): Promise<PullRequest> => {
+    return fetcher(`/repos/${repoId}/pulls/${pullId}`);
+  },
+
   merge: (repoId: string, pullId: string): Promise<{ message: string }> => {
     return fetcher(`/repos/${repoId}/pulls/${pullId}/merge`, {
       method: 'POST',

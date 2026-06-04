@@ -40,6 +40,7 @@ interface PullRequestComparePageProps {
   defaultHeadBranch: string;
   compareRange: string;
   onSelectCompareRefs: (baseRef: string, headRef: string) => void;
+  onOpenPullRequest: (pullNumber: number) => void;
 }
 
 function parseCompareRange(compareRange: string): { baseRef: string; headRef: string } | null {
@@ -94,6 +95,38 @@ function mergeRefOptions(branches: Branch[], fallbackBase: string, fallbackHead:
   }
 
   return Array.from(optionSet.values());
+}
+
+function stripMergeStatusPrefix(message: string, mergeable: boolean): string {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const statusPrefixes = mergeable
+    ? [/^able to merge\.?\s*/i]
+    : [/^unable to merge\.?\s*/i, /^not mergeable\.?\s*/i, /^review required\.?\s*/i];
+
+  return statusPrefixes.reduce((current, prefix) => current.replace(prefix, ""), trimmed).trim();
+}
+
+function getMergeStatusCopy(message: string | undefined, mergeable: boolean): { label: string; description: string } {
+  const fallbackDescription = mergeable
+    ? "These branches can be automatically merged."
+    : "Review this comparison before creating a pull request.";
+  const rawMessage = message || "";
+  const description = stripMergeStatusPrefix(rawMessage, mergeable) || fallbackDescription;
+
+  if (mergeable) {
+    return { label: "Able to merge.", description };
+  }
+
+  const normalizedMessage = rawMessage.trim().toLowerCase();
+  const label = normalizedMessage.startsWith("unable to merge") || normalizedMessage.startsWith("not mergeable")
+    ? "Unable to merge."
+    : "Review required.";
+
+  return { label, description };
 }
 
 function GitBranchOcticon({ className = "" }: { className?: string }) {
@@ -286,6 +319,7 @@ export default function PullRequestComparePage({
   defaultHeadBranch,
   compareRange,
   onSelectCompareRefs,
+  onOpenPullRequest,
 }: PullRequestComparePageProps) {
   const [baseRef, setBaseRef] = useState<string>("");
   const [headRef, setHeadRef] = useState<string>("");
@@ -456,7 +490,7 @@ export default function PullRequestComparePage({
       setCreateMessage(null);
       setCreatingPullRequest(true);
 
-      await pullsApi.create(repoId, {
+      const createdPullRequest = await pullsApi.create(repoId, {
         title: pullTitle.trim(),
         description: pullDescription.trim() || undefined,
         source_branch: headRef,
@@ -465,6 +499,13 @@ export default function PullRequestComparePage({
 
       setCreateMessage("Pull request created successfully.");
       setPullDescription("");
+      const pulls = await pullsApi.list(repoId).catch(() => []);
+      const sorted = [...pulls].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      const createdIndex = sorted.findIndex((pull) => pull.id === createdPullRequest.id);
+      if (createdIndex >= 0) {
+        onOpenPullRequest(createdIndex + 1);
+        return;
+      }
       await fetchCompare();
     } catch (err: unknown) {
       setCreateError(err instanceof Error ? err.message : "Failed to create pull request");
@@ -481,6 +522,7 @@ export default function PullRequestComparePage({
     compareData.summary.files_changed > 1 ||
     compareData.summary.commit_count > 1
   );
+  const mergeStatusCopy = compareData ? getMergeStatusCopy(compareData.merge_message, compareData.mergeable) : null;
 
   const renderDefaultComparePage = () => (
     <div className="max-w-[1216px] mx-auto px-4 py-8 md:py-9 space-y-4">
@@ -706,8 +748,8 @@ export default function PullRequestComparePage({
             <div className={`text-sm inline-flex items-center gap-2 ${compareData.mergeable ? "text-[var(--fgColor-open,#1a7f37)]" : "text-[var(--text-warning)]"}`}>
               {compareData.mergeable ? <CheckCircle2 size={16} /> : <CircleAlert size={16} />}
               <span>
-                <span className="font-semibold">{compareData.mergeable ? "Able to merge." : "Review required."}</span>{" "}
-                {compareData.merge_message || (compareData.mergeable ? "These branches can be automatically merged." : "Review this comparison before creating a pull request.")}
+                <span className="font-semibold">{mergeStatusCopy?.label}</span>{" "}
+                {mergeStatusCopy?.description}
               </span>
             </div>
           ) : null}
@@ -907,7 +949,7 @@ export default function PullRequestComparePage({
                     <div key={group.dateLabel} className="relative space-y-2">
                       <div className="mb-3 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
                         <span className="absolute -left-[33px] top-0.5 z-10 h-4 w-4 bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
-                          <GitCommitHorizontal size={14} />
+                          <GitCommitHorizontal size={16} />
                         </span>
                         <span>Commits on {group.dateLabel}</span>
                       </div>

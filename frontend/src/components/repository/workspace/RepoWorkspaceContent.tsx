@@ -14,6 +14,7 @@ import RepoSecurityPage from "../pages/RepoSecurityPage";
 import RepoSettingsPage from "../pages/RepoSettingsPage";
 import RepoWikiPage from "../pages/RepoWikiPage";
 import PullRequestComparePage from "../pulls/PullRequestComparePage";
+import PullRequestDetailPage from "../pulls/PullRequestDetailPage";
 import PullRequestList from "../pulls/PullRequestList";
 import type { RepoContentKind } from "./utils/repoRouting";
 import type { RepoTabKey } from "./utils/repoTabs";
@@ -45,8 +46,11 @@ interface RepoWorkspaceContentProps {
   onNavigateRepoContent: (contentKind: "root" | "tree" | "blob", contentPath: string, branchName: string) => void;
   onOpenRepoCommits: (branchName: string, search?: string) => void;
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
+  onOpenEditFile: (branchName: string, filePath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
+  onOpenPullRequest: (pullNumber: number) => void;
+  onBackToPullRequests: () => void;
   onOpenCreateIssue: () => void;
   onCloseCreateIssue: () => void;
   onOpenIssue: (issueNumber: number) => void;
@@ -76,8 +80,11 @@ export default function RepoWorkspaceContent({
   onNavigateRepoContent,
   onOpenRepoCommits,
   onOpenCreateFile,
+  onOpenEditFile,
   onOpenUploadFiles,
   onOpenRepoCompare,
+  onOpenPullRequest,
+  onBackToPullRequests,
   onOpenCreateIssue,
   onCloseCreateIssue,
   onOpenIssue,
@@ -122,6 +129,7 @@ export default function RepoWorkspaceContent({
             )}
             {activeTab === "files" && routeContentKind === "new" && (
               <NewFilePage
+                mode="create"
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 branch={currentBranch || routeBranch || defaultBranchName}
@@ -130,6 +138,19 @@ export default function RepoWorkspaceContent({
                 onSelectBranch={onSelectBranch}
                 onCancel={() => onNavigateRepoContent("tree", routeContentPath, currentBranch || routeBranch || defaultBranchName)}
                 onCommitted={(createdFilePath: string) => onNavigateRepoContent("blob", createdFilePath, currentBranch || routeBranch || defaultBranchName)}
+              />
+            )}
+            {activeTab === "files" && routeContentKind === "edit" && (
+              <NewFilePage
+                mode="edit"
+                repoId={selectedRepo.id}
+                repoName={selectedRepo.name}
+                branch={currentBranch || routeBranch || defaultBranchName}
+                branches={branches}
+                initialFilePath={routeContentPath}
+                onSelectBranch={onSelectBranch}
+                onCancel={() => onNavigateRepoContent("blob", routeContentPath, currentBranch || routeBranch || defaultBranchName)}
+                onCommitted={(updatedFilePath: string) => onNavigateRepoContent("blob", updatedFilePath, currentBranch || routeBranch || defaultBranchName)}
               />
             )}
             {activeTab === "files" && routeContentKind === "upload" && (
@@ -153,6 +174,7 @@ export default function RepoWorkspaceContent({
                 onSelectBranch={onSelectBranch}
                 onOpenCommitHistory={(branchName) => onOpenRepoCommits(branchName, locationSearch)}
                 onOpenCreateFile={onOpenCreateFile}
+                onOpenEditFile={onOpenEditFile}
                 onOpenUploadFiles={onOpenUploadFiles}
               />
             )}
@@ -207,13 +229,23 @@ export default function RepoWorkspaceContent({
                 defaultHeadBranch={currentBranch || defaultBranchName}
                 compareRange={routeContentPath}
                 onSelectCompareRefs={(baseRef, headRef) => onOpenRepoCompare(baseRef, headRef)}
+                onOpenPullRequest={onOpenPullRequest}
               />
             )}
-            {activeTab === "pulls" && routeContentKind !== "compare" && (
+            {activeTab === "pulls" && routeContentKind === "pull-view" && (
+              <PullRequestDetailPage
+                repoId={selectedRepo.id}
+                currentUsername={currentUsername}
+                pullNumber={routeContentPath}
+                onBack={onBackToPullRequests}
+              />
+            )}
+            {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && (
               <PullRequestList
                 repoId={selectedRepo.id}
                 currentUsername={currentUsername}
                 onOpenCompare={() => onOpenRepoCompare()}
+                onOpenPullRequest={onOpenPullRequest}
               />
             )}
             {activeTab === "agents" && <RepoAgentsPage />}

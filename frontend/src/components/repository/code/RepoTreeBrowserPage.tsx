@@ -36,6 +36,7 @@ interface RepoTreeBrowserPageProps {
   onSelectBranch: (branchName: string) => void;
   onOpenCommitHistory?: (branchName: string) => void;
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
+  onOpenEditFile?: (branchName: string, filePath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
 }
 
@@ -120,6 +121,7 @@ export default function RepoTreeBrowserPage({
   onNavigateLocation,
   onSelectBranch,
   onOpenCommitHistory,
+  onOpenEditFile,
 }: RepoTreeBrowserPageProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -611,7 +613,17 @@ export default function RepoTreeBrowserPage({
                       </button>
                     </div>
                     <div className="inline-flex rounded-md border border-[var(--border-default)] overflow-hidden">
-                      <button type="button" className="h-7 w-7 text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="Edit file" title="Edit this file">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedFilePath) {
+                            onOpenEditFile?.(activeBranch, selectedFilePath);
+                          }
+                        }}
+                        className="h-7 w-7 text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]"
+                        aria-label="Edit file"
+                        title="Edit this file"
+                      >
                         <Pencil size={13} />
                       </button>
                       <button type="button" className="h-7 w-7 border-l border-[var(--border-default)] text-[var(--text-secondary)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]" aria-label="More edit options" title="More edit options">
@@ -677,7 +689,7 @@ export default function RepoTreeBrowserPage({
               </div>
 
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] overflow-hidden">
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 border-b border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wide">
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 border-b border-[var(--border-default)] text-xs font-semibold text-[var(--text-secondary)] tracking-wide">
                   <span>Name</span>
                   <span>Last commit message</span>
                   <span className="text-right">Last commit date</span>
@@ -727,7 +739,6 @@ export default function RepoTreeBrowserPage({
                             <span className="truncate text-[var(--text-link)]">{entry.name}</span>
                           </span>
                           <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
-                            <FileText size={12} className="text-[var(--text-muted)]" />
                             {details.message}
                           </span>
                           <span className="text-right text-[var(--text-secondary)]">{details.when}</span>

@@ -38,7 +38,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "upload" | "compare" | "issues-new" | "issue-view";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "issues-new" | "issue-view" | "pull-view";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -138,6 +138,10 @@ export function buildRepoIssueViewPath(owner: string, repoName: string, issueNum
   return `${buildRepoBasePath(owner, repoName)}/issues/${encodeURIComponent(String(issueNumber))}`;
 }
 
+export function buildRepoPullViewPath(owner: string, repoName: string, pullNumber: number | string): string {
+  return `${buildRepoBasePath(owner, repoName)}/pull/${encodeURIComponent(String(pullNumber))}`;
+}
+
 export function buildRepoContentPath(
   owner: string,
   repoName: string,
@@ -174,6 +178,19 @@ export function buildRepoNewFilePath(owner: string, repoName: string, branch: st
   }
 
   return `${base}/new/${branchSegment}/${encodedPath}`;
+}
+
+export function buildRepoEditFilePath(owner: string, repoName: string, branch: string, contentPath: string): string {
+  const base = buildRepoBasePath(owner, repoName);
+  const safeBranch = branch.trim() || "master";
+  const encodedPath = encodePathSegments(contentPath);
+  const branchSegment = encodeURIComponent(safeBranch);
+
+  if (!encodedPath) {
+    return `${base}/edit/${branchSegment}`;
+  }
+
+  return `${base}/edit/${branchSegment}/${encodedPath}`;
 }
 
 export function buildRepoUploadFilesPath(owner: string, repoName: string, branch: string, contentPath: string = ""): string {
@@ -361,8 +378,8 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
-    if (segments[2] === "new" || segments[2] === "upload") {
-      const contentKind = segments[2] as "new" | "upload";
+    if (segments[2] === "new" || segments[2] === "edit" || segments[2] === "upload") {
+      const contentKind = segments[2] as "new" | "edit" | "upload";
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
       const contentPath = decodePathSegments(segments.slice(4));
       const encodedContentPath = encodePathSegments(contentPath);
@@ -418,6 +435,22 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: `/repos/${encodeURIComponent(repoId)}/issues/${encodeURIComponent(issueNumber)}`,
+      };
+    }
+
+    if ((segments[2] === "pull" || tab === "pulls") && segments[3]) {
+      const pullNumber = decodeURIComponent(segments[3]);
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "pulls",
+        contentKind: "pull-view",
+        contentPath: pullNumber,
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/pull/${encodeURIComponent(pullNumber)}`,
       };
     }
 
@@ -523,8 +556,8 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
-    if (third === "new" || third === "upload") {
-      const contentKind = third as "new" | "upload";
+    if (third === "new" || third === "edit" || third === "upload") {
+      const contentKind = third as "new" | "edit" | "upload";
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
       const contentPath = decodePathSegments(segments.slice(4));
       const encodedContentPath = encodePathSegments(contentPath);
@@ -575,6 +608,22 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: `${base}/issues/${encodeURIComponent(issueNumber)}`,
+      };
+    }
+
+    if ((third === "pull" || third === "pulls") && segments[3]) {
+      const pullNumber = decodeURIComponent(segments[3]);
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "pulls",
+        contentKind: "pull-view",
+        contentPath: pullNumber,
+        branch: "",
+        globalPage: null,
+        normalizedPath: `${base}/pull/${encodeURIComponent(pullNumber)}`,
       };
     }
 

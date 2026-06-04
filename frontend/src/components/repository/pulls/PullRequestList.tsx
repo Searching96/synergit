@@ -19,6 +19,7 @@ interface PullRequestListProps {
   repoId: string;
   currentUsername: string;
   onOpenCompare: () => void;
+  onOpenPullRequest: (pullNumber: number) => void;
 }
 
 function replaceStateQueryToken(query: string, nextStatus: "OPEN" | "CLOSED"): string {
@@ -182,6 +183,7 @@ export default function PullRequestList({
   repoId,
   currentUsername,
   onOpenCompare,
+  onOpenPullRequest,
 }: PullRequestListProps) {
   const [pulls, setPulls] = useState<PullRequest[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
@@ -927,6 +929,7 @@ export default function PullRequestList({
                     <div className="min-w-0 pr-2">
                       <button
                         type="button"
+                        onClick={() => onOpenPullRequest(pullNo)}
                         className="text-left text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] truncate w-full"
                       >
                         {pull.title}

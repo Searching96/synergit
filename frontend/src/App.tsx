@@ -35,9 +35,11 @@ import {
   buildRepoComparePath,
   buildRepoCommitsPath,
   buildRepoContentPath,
+  buildRepoEditFilePath,
   buildRepoNewFilePath,
   buildRepoIssuesNewPath,
   buildRepoIssueViewPath,
+  buildRepoPullViewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
   normalizeCommitFilterSearch,
@@ -212,6 +214,8 @@ function App () {
             canonicalSearch = normalizeCommitFilterSearch(search);
           } else if (parsed.contentKind === 'new') {
             canonicalPath = buildRepoNewFilePath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
+          } else if (parsed.contentKind === 'edit') {
+            canonicalPath = buildRepoEditFilePath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
           } else if (parsed.contentKind === 'upload') {
             canonicalPath = buildRepoUploadFilesPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
           } else {
@@ -225,6 +229,8 @@ function App () {
           } else {
             canonicalPath = buildRepoComparePath(owner, targetRepo.name);
           }
+        } else if (parsed.tab === 'pulls' && parsed.contentKind === 'pull-view') {
+          canonicalPath = buildRepoPullViewPath(owner, targetRepo.name, parsed.contentPath);
         } else if (parsed.tab === 'issues' && parsed.contentKind === 'issues-new') {
           canonicalPath = buildRepoIssuesNewPath(owner, targetRepo.name);
         } else if (parsed.tab === 'issues' && parsed.contentKind === 'issue-view') {
@@ -473,7 +479,7 @@ function App () {
   const isFullBrowserMode =
     !!selectedRepo &&
     activeTab === 'files' &&
-    (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new');
+    (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit');
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -547,6 +553,11 @@ function App () {
     navigateToPath(buildRepoNewFilePath(owner, repo.name, branchName || defaultBranchName, contentPath));
   }, [defaultBranchName, getRepoOwner, navigateToPath]);
 
+  const navigateToRepoEditFile = useCallback((repo: Repository, branchName: string, contentPath: string) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoEditFilePath(owner, repo.name, branchName || defaultBranchName, contentPath));
+  }, [defaultBranchName, getRepoOwner, navigateToPath]);
+
   const navigateToRepoUploadFiles = useCallback((repo: Repository, branchName: string, contentPath: string = '') => {
     const owner = getRepoOwner(repo);
     navigateToPath(buildRepoUploadFilesPath(owner, repo.name, branchName || defaultBranchName, contentPath));
@@ -555,6 +566,11 @@ function App () {
   const navigateToRepoCompare = useCallback((repo: Repository, baseRef?: string, headRef?: string) => {
     const owner = getRepoOwner(repo);
     navigateToPath(buildRepoComparePath(owner, repo.name, baseRef, headRef));
+  }, [getRepoOwner, navigateToPath]);
+
+  const navigateToRepoPullView = useCallback((repo: Repository, pullNumber: number) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoPullViewPath(owner, repo.name, pullNumber));
   }, [getRepoOwner, navigateToPath]);
 
   const handleSelectBranch = (branchName: string) => {
@@ -574,6 +590,11 @@ function App () {
       return;
     }
 
+    if (routeContentKind === 'edit') {
+      navigateToRepoEditFile(selectedRepo, branchName, routeContentPath);
+      return;
+    }
+
     if (routeContentKind === 'upload') {
       navigateToRepoUploadFiles(selectedRepo, branchName, routeContentPath);
       return;
@@ -584,7 +605,7 @@ function App () {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view') {
       return;
     }
 
@@ -894,6 +915,13 @@ function App () {
 
             navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
           }}
+          onOpenEditFile={(branchName, filePath) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoEditFile(selectedRepo, branchName, filePath);
+          }}
           onOpenUploadFiles={(branchName, directoryPath) => {
             if (!selectedRepo) {
               return;
@@ -907,6 +935,20 @@ function App () {
             }
 
             navigateToRepoCompare(selectedRepo, baseRef, headRef);
+          }}
+          onOpenPullRequest={(pullNumber) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoPullView(selectedRepo, pullNumber);
+          }}
+          onBackToPullRequests={() => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoTab(selectedRepo, 'pulls');
           }}
           onOpenCreateIssue={() => {
             if (!selectedRepo) {

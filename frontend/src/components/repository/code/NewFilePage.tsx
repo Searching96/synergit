@@ -14,11 +14,13 @@ import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 
 interface NewFilePageProps {
+  mode?: "create" | "edit";
   repoId: string;
   repoName: string;
   branch: string;
   branches: Branch[];
   initialDirectoryPath?: string;
+  initialFilePath?: string;
   onSelectBranch: (branchName: string) => void;
   onCancel: () => void;
   onCommitted: (createdFilePath: string) => void;
@@ -95,11 +97,13 @@ function sortEntries(entries: RepoFile[]): RepoFile[] {
 
 
 export default function NewFilePage({
+  mode = "create",
   repoId,
   repoName,
   branch,
   branches,
   initialDirectoryPath,
+  initialFilePath,
   onSelectBranch,
   onCancel,
   onCommitted,
@@ -120,12 +124,14 @@ export default function NewFilePage({
   const [fileDirectoryPath, setFileDirectoryPath] = useState<string>("");
   const [hasLeadingSeparator, setHasLeadingSeparator] = useState<boolean>(false);
   const [fileContent, setFileContent] = useState<string>("");
+  const [initialContentLoading, setInitialContentLoading] = useState<boolean>(false);
   const [commitMessage, setCommitMessage] = useState<string>("Create new file");
   const [description, setDescription] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeBranch = (branch || "master").trim() || "master";
+  const isEditMode = mode === "edit";
 
   useEffect(() => {
     if (!isResizingSidebar) {
@@ -209,6 +215,17 @@ export default function NewFilePage({
   }, [activeBranch, repoId]);
 
   useEffect(() => {
+    if (isEditMode) {
+      const normalizedFilePath = normalizeRelativePath(initialFilePath || "");
+      setCurrentDirPath(getParentPath(normalizedFilePath));
+      setFileDirectoryPath("");
+      setFileName(normalizedFilePath.split("/").filter(Boolean).pop() || "");
+      setHasLeadingSeparator(false);
+      setCommitMessage("Update file");
+      ensureExpandedAncestors(getParentPath(normalizedFilePath));
+      return;
+    }
+
     const initialLocation = resolveInitialCreateLocation(initialDirectoryPath);
     setCurrentDirPath(initialLocation.directoryPath);
     setFileDirectoryPath("");
@@ -217,7 +234,34 @@ export default function NewFilePage({
       setFileName(initialLocation.suggestedFileName);
     }
     ensureExpandedAncestors(initialLocation.directoryPath);
-  }, [ensureExpandedAncestors, initialDirectoryPath]);
+  }, [ensureExpandedAncestors, initialDirectoryPath, initialFilePath, isEditMode]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
+
+    const normalizedFilePath = normalizeRelativePath(initialFilePath || "");
+    if (!normalizedFilePath) {
+      setFileContent("");
+      return;
+    }
+
+    setInitialContentLoading(true);
+    setErrorMessage(null);
+    reposApi
+      .getBlob(repoId, normalizedFilePath, activeBranch)
+      .then((data) => {
+        setFileContent(typeof data === "string" ? data : data.content || "");
+      })
+      .catch((err: unknown) => {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to load file for editing");
+        setFileContent("");
+      })
+      .finally(() => {
+        setInitialContentLoading(false);
+      });
+  }, [activeBranch, initialFilePath, isEditMode, repoId]);
 
   useEffect(() => {
     setEntriesByPath({});
@@ -348,7 +392,7 @@ export default function NewFilePage({
     setErrorMessage(null);
 
     try {
-      const message = commitMessage.trim() || "Create new file";
+      const message = commitMessage.trim() || (isEditMode ? "Update file" : "Create new file");
       const fullMessage = description.trim() ? `${message}\n\n${description.trim()}` : message;
 
       await reposApi.commitFileChange(repoId, {
@@ -361,7 +405,7 @@ export default function NewFilePage({
       setShowCommitDialog(false);
       onCommitted(targetFilePath);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to create file");
+      setErrorMessage(err instanceof Error ? err.message : isEditMode ? "Failed to update file" : "Failed to create file");
     } finally {
       setSubmitting(false);
     }
@@ -466,7 +510,7 @@ export default function NewFilePage({
                 <input
                   value={fileName}
                   onChange={handleFileNameChange}
-                  placeholder="main.c"
+                  placeholder={isEditMode ? "file name" : "main.c"}
                   className="h-8 w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
                 />
 
@@ -497,7 +541,7 @@ export default function NewFilePage({
                   disabled={submitting}
                   className="h-8 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
                 >
-                  Commit changes...
+                  {isEditMode ? "Commit changes..." : "Commit changes..."}
                 </button>
               </div>
             </div>
@@ -553,14 +597,20 @@ export default function NewFilePage({
                       ))}
                     </div>
 
-                    <textarea
-                      value={fileContent}
-                      onChange={(event) => setFileContent(event.target.value)}
-                      onKeyDown={handleEditorTextareaKeyDown}
-                      placeholder="Enter file contents here"
-                      spellCheck={false}
-                      className="w-full min-h-[560px] p-4 font-mono text-sm leading-6 text-[var(--text-primary)] bg-[var(--surface-canvas)]"
-                    />
+                    {initialContentLoading ? (
+                      <div className="w-full min-h-[560px] p-4 text-sm text-[var(--text-secondary)]">
+                        Loading file...
+                      </div>
+                    ) : (
+                      <textarea
+                        value={fileContent}
+                        onChange={(event) => setFileContent(event.target.value)}
+                        onKeyDown={handleEditorTextareaKeyDown}
+                        placeholder="Enter file contents here"
+                        spellCheck={false}
+                        className="w-full min-h-[560px] p-4 font-mono text-sm leading-6 text-[var(--text-primary)] bg-[var(--surface-canvas)]"
+                      />
+                    )}
                   </div>
                 ) : (
                   <pre className="min-h-[560px] p-4 text-sm leading-6 text-[var(--text-primary)] whitespace-pre-wrap break-words font-mono">
@@ -633,7 +683,9 @@ export default function NewFilePage({
                 className="w-full min-h-[96px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-3 text-sm text-[var(--text-primary)]"
               />
 
-              <p className="text-xs text-[var(--text-secondary)]">This will create {targetFilePath || "the new file"}.</p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                This will {isEditMode ? "update" : "create"} {targetFilePath || (isEditMode ? "this file" : "the new file")}.
+              </p>
 
               {errorMessage ? <p className="text-sm text-[var(--text-danger)]">{errorMessage}</p> : null}
             </div>
