@@ -204,6 +204,27 @@ func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID
 	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusClosed)
 }
 
+func (s *PullRequestService) ReopenPullRequest(prID uuid.UUID, requesterID uuid.UUID) error {
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return errors.New("pull request not found")
+	}
+
+	if pr.Status == domain.PullRequestStatusMerged {
+		return errors.New("merged pull requests cannot be reopened")
+	}
+	if pr.Status == domain.PullRequestStatusOpen {
+		return errors.New("pull request is already open")
+	}
+
+	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
+	if err != nil || !role.CanWrite() {
+		return errors.New("unauthorized: you do not have permission to reopen this pull request")
+	}
+
+	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusOpen)
+}
+
 func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,
 	requesterID uuid.UUID) ([]domain.ConflictFile, error) {
 

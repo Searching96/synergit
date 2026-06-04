@@ -20,6 +20,18 @@ export const pullsApi = {
     });
   },
 
+  close: (repoId: string, pullId: string): Promise<{ message: string }> => {
+    return fetcher(`/repos/${repoId}/pulls/${pullId}/close`, {
+      method: 'POST',
+    });
+  },
+
+  reopen: (repoId: string, pullId: string): Promise<{ message: string }> => {
+    return fetcher(`/repos/${repoId}/pulls/${pullId}/reopen`, {
+      method: 'POST',
+    });
+  },
+
   getConflicts: (repoId: string, pullId: string): Promise<ConflictFile[]> => {
     return fetcher(`/repos/${repoId}/pulls/${pullId}/conflicts`);
   },

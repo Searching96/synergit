@@ -159,6 +159,28 @@ func (h *PullRequestHandler) HandleClosePullRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "pull request closed successfully"})
 }
 
+func (h *PullRequestHandler) HandleReopenPullRequest(c *gin.Context) {
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requestID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	err = h.prUseCase.ReopenPullRequest(pullID, requestID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "pull request reopened successfully"})
+}
+
 func (h *PullRequestHandler) HandleGetMergeConflicts(c *gin.Context) {
 	pullIDStr := c.Param("pull_id")
 	pullID, err := uuid.Parse(pullIDStr)

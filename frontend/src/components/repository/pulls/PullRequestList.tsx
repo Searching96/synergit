@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { PullRequest } from "../../../types";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Label, PullRequest, RepoCollaborator } from "../../../types";
 import { pullsApi } from "../../../services/api/pull";
+import { collaboratorsApi, labelsApi } from "../../../services/api";
 import {
   Check,
+  CheckCircle2,
   ChevronDown,
   GitMerge,
   GitPullRequest,
   MessageSquare,
   Milestone,
-  Plus,
   Search,
   Tag,
   XCircle,
@@ -43,6 +44,50 @@ function extractStateQueryToken(query: string): "OPEN" | "CLOSED" | null {
   return null;
 }
 
+function quoteQueryValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/[\s"]/.test(trimmed)) {
+    return `"${trimmed.replace(/"/g, '\\"')}"`;
+  }
+
+  return trimmed;
+}
+
+function stripQueryToken(query: string, key: string): string {
+  return query
+    .replace(new RegExp(`\\b${key}:(?:"(?:[^"\\\\]|\\\\.)*"|\\S+)`, "gi"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function appendQueryToken(query: string, key: string, value: string, options?: { replace?: boolean }): string {
+  const tokenValue = quoteQueryValue(value);
+  if (!tokenValue) {
+    return query.trim();
+  }
+
+  const base = options?.replace ? stripQueryToken(query, key) : query.trim();
+  const token = `${key}:${tokenValue}`;
+
+  return base ? `${base} ${token}` : token;
+}
+
+function extractQueryTokenValues(query: string, key: string): string[] {
+  const values: string[] = [];
+  const pattern = new RegExp(`\\b${key}:(?:"((?:[^"\\\\]|\\\\.)*)"|(\\S+))`, "gi");
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(query)) !== null) {
+    values.push((match[1] ?? match[2] ?? "").replace(/\\"/g, '"').trim().toLowerCase());
+  }
+
+  return values.filter(Boolean);
+}
+
 function formatPullDate(timestamp: string): string {
   const parsed = new Date(timestamp);
   if (Number.isNaN(parsed.getTime())) {
@@ -56,12 +101,91 @@ function formatPullDate(timestamp: string): string {
   })}`;
 }
 
+function FilterDropdown({
+  label,
+  open,
+  onToggle,
+  children,
+  width,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  width?: string;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
+      >
+        {label}
+        <ChevronDown size={14} />
+      </button>
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} aria-hidden />
+          <div
+            className={`absolute right-0 mt-1 z-20 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg ${width || "w-64"}`}
+          >
+            {children}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ToolbarDropdown({
+  icon,
+  label,
+  open,
+  onToggle,
+  children,
+  width,
+}: {
+  icon: ReactNode;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  width?: string;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+      >
+        {icon}
+        {label}
+        <ChevronDown size={14} />
+      </button>
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} aria-hidden />
+          <div
+            className={`absolute right-0 mt-1 z-20 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg ${width || "w-56"}`}
+          >
+            {children}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function PullRequestList({
   repoId,
   currentUsername,
   onOpenCompare,
 }: PullRequestListProps) {
   const [pulls, setPulls] = useState<PullRequest[]>([]);
+  const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
+  const [repoLabels, setRepoLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showFiltersMenu, setShowFiltersMenu] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<"OPEN" | "CLOSED">("OPEN");
@@ -69,6 +193,10 @@ export default function PullRequestList({
   const [searchInput, setSearchInput] = useState<string>("is:pr state:open");
   const [appliedSearch, setAppliedSearch] = useState<string>("is:pr state:open");
   const [selectedPullIds, setSelectedPullIds] = useState<Set<string>>(new Set());
+  const [labelFilter, setLabelFilter] = useState<string>("");
+  const [openMenu, setOpenMenu] = useState<
+    "mark" | "filter-author" | "filter-label" | "filter-project" | "filter-milestone" | "filter-review" | "filter-assignee" | "filter-sort" | null
+  >(null);
   const [showMaintainerTip, setShowMaintainerTip] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -95,6 +223,8 @@ export default function PullRequestList({
 
   useEffect(() => {
     void fetchPulls();
+    void collaboratorsApi.list(repoId).then((list) => setCollaborators(list || [])).catch(() => setCollaborators([]));
+    void labelsApi.listForRepo(repoId).then((labels) => setRepoLabels(labels || [])).catch(() => setRepoLabels([]));
     setShowFiltersMenu(false);
     setMessage(null);
     setError(null);
@@ -103,6 +233,8 @@ export default function PullRequestList({
     setSearchInput("is:pr state:open");
     setAppliedSearch("is:pr state:open");
     setSelectedPullIds(new Set());
+    setLabelFilter("");
+    setOpenMenu(null);
   }, [repoId, fetchPulls]);
 
   const sortedByCreatedAsc = useMemo(
@@ -128,18 +260,40 @@ export default function PullRequestList({
     [pulls],
   );
 
+  const collaboratorNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    collaborators.forEach((collaborator) => {
+      if (collaborator.username) {
+        map[collaborator.user_id] = collaborator.username;
+      }
+    });
+    return map;
+  }, [collaborators]);
+
   const queryFilter = useMemo(() => {
     const query = appliedSearch.toLowerCase();
 
     const queryState = extractStateQueryToken(query) ?? activeFilter;
+    const author = extractQueryTokenValues(appliedSearch, "author")[0] || "";
+    const assignee = extractQueryTokenValues(appliedSearch, "assignee")[0] || "";
+    const review = extractQueryTokenValues(appliedSearch, "review")[0] || "";
+    const sort = extractQueryTokenValues(appliedSearch, "sort")[0] || "";
 
     const freeText = query
       .replace(/\bis:pr\b/gi, "")
       .replace(/\bis:(open|closed)\b/gi, "")
       .replace(/\bstate:(open|closed)\b/gi, "")
+      .replace(/\bauthor:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bassignee:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\breview:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\blabel:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bproject:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bmilestone:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bsort:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\s+/g, " ")
       .trim();
 
-    return { queryState, freeText };
+    return { queryState, freeText, author, assignee, review, sort };
   }, [activeFilter, appliedSearch]);
 
   const filteredPulls = useMemo(() => {
@@ -148,6 +302,17 @@ export default function PullRequestList({
         return false;
       }
       if (queryFilter.queryState === "CLOSED" && pull.status === "OPEN") {
+        return false;
+      }
+
+      if (queryFilter.author) {
+        const creatorName = (collaboratorNameById[pull.creator_id] || "").toLowerCase();
+        if (creatorName !== queryFilter.author) {
+          return false;
+        }
+      }
+
+      if (queryFilter.assignee || queryFilter.review) {
         return false;
       }
 
@@ -160,13 +325,19 @@ export default function PullRequestList({
     });
 
     return matched.sort((a, b) => {
-      if (sortOrder === "oldest") {
+      const resolvedSortOrder = queryFilter.sort === "created-asc"
+        ? "oldest"
+        : queryFilter.sort === "created-desc"
+          ? "newest"
+          : sortOrder;
+
+      if (resolvedSortOrder === "oldest") {
         return Date.parse(a.created_at) - Date.parse(b.created_at);
       }
 
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [pulls, queryFilter, sortOrder]);
+  }, [collaboratorNameById, pulls, queryFilter, sortOrder]);
 
   const allVisibleSelected = useMemo(
     () => filteredPulls.length > 0 && filteredPulls.every((pull) => selectedPullIds.has(pull.id)),
@@ -199,6 +370,42 @@ export default function PullRequestList({
     if (queryState) {
       setActiveFilter(queryState);
     }
+
+    const sortToken = extractQueryTokenValues(normalized, "sort")[0];
+    if (sortToken === "created-asc") {
+      setSortOrder("oldest");
+    } else if (sortToken === "created-desc") {
+      setSortOrder("newest");
+    }
+  };
+
+  const toggleMenu = (menu: NonNullable<typeof openMenu>) =>
+    setOpenMenu((prev) => (prev === menu ? null : menu));
+
+  const applySearchToken = (key: "author" | "label" | "assignee" | "review", value: string) => {
+    const baseQuery = searchInput || appliedSearch || "is:pr state:open";
+    const tokenSelected = extractQueryTokenValues(baseQuery, key).includes(value.trim().toLowerCase());
+    const nextQuery = tokenSelected
+      ? stripQueryToken(baseQuery, key)
+      : appendQueryToken(baseQuery, key, value, { replace: true });
+
+    setSearchInput(nextQuery);
+    setAppliedSearch(nextQuery);
+    setOpenMenu(null);
+  };
+
+  const applySortToken = (nextSortOrder: "newest" | "oldest") => {
+    const baseQuery = searchInput || appliedSearch || "is:pr state:open";
+    const sortValue = nextSortOrder === "newest" ? "created-desc" : "created-asc";
+    const tokenSelected = extractQueryTokenValues(baseQuery, "sort").includes(sortValue);
+    const nextQuery = tokenSelected
+      ? stripQueryToken(baseQuery, "sort")
+      : appendQueryToken(baseQuery, "sort", sortValue, { replace: true });
+
+    setSortOrder(tokenSelected ? "newest" : nextSortOrder);
+    setSearchInput(nextQuery);
+    setAppliedSearch(nextQuery);
+    setOpenMenu(null);
   };
 
   const toggleSelectAll = () => {
@@ -217,6 +424,58 @@ export default function PullRequestList({
       });
       return next;
     });
+  };
+
+  const selectedVisible = useMemo(
+    () => filteredPulls.filter((pull) => selectedPullIds.has(pull.id)),
+    [filteredPulls, selectedPullIds],
+  );
+  const selectionActive = selectedVisible.length > 0;
+
+  const pullAuthorOptions = useMemo(() => {
+    const names = new Set<string>();
+    pulls.forEach((pull) => {
+      const name = collaboratorNameById[pull.creator_id];
+      if (name) {
+        names.add(name);
+      }
+    });
+
+    if (currentUsername) {
+      names.add(currentUsername);
+    }
+
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [collaboratorNameById, currentUsername, pulls]);
+
+  const hasQueryValue = (key: string, value: string) =>
+    extractQueryTokenValues(appliedSearch, key).includes(value.trim().toLowerCase());
+
+  const visibleLabels = repoLabels.filter((label) =>
+    (label.name ?? "").toLowerCase().includes(labelFilter.trim().toLowerCase()),
+  );
+
+  const bulkMarkAs = async (target: "OPEN" | "CLOSED") => {
+    setOpenMenu(null);
+    try {
+      setError(null);
+      setMessage(null);
+      await Promise.all(
+        selectedVisible
+          .filter((pull) => {
+            if (target === "OPEN") {
+              return pull.status === "CLOSED";
+            }
+            return pull.status === "OPEN";
+          })
+          .map((pull) => target === "OPEN" ? pullsApi.reopen(repoId, pull.id) : pullsApi.close(repoId, pull.id)),
+      );
+      setSelectedPullIds(new Set());
+      await fetchPulls(true);
+      setMessage("Pull requests updated.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update pull requests");
+    }
   };
 
   const toggleSelectPull = (pullId: string) => {
@@ -278,10 +537,10 @@ export default function PullRequestList({
             {showFiltersMenu ? (
               <div className="absolute left-0 mt-1 z-20 w-[260px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg p-1 text-sm">
                 {[
-                  { label: "Open pull requests", value: "is:pr is:open" },
-                  { label: "Closed pull requests", value: "is:pr is:closed" },
-                  { label: "Your pull requests", value: "is:pr is:open author:@me" },
-                  { label: "Assigned to you", value: "is:pr is:open assignee:@me" },
+                  { label: "Open pull requests", value: "is:pr state:open" },
+                  { label: "Closed pull requests", value: "is:pr state:closed" },
+                  { label: "Your pull requests", value: `is:pr state:open author:${currentUsername}` },
+                  { label: "Assigned to you", value: `is:pr state:open assignee:${currentUsername}` },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -353,7 +612,6 @@ export default function PullRequestList({
             onClick={onOpenCompare}
             className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
           >
-            <Plus size={14} />
             New pull request
           </button>
         </div>
@@ -361,55 +619,267 @@ export default function PullRequestList({
 
       <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
         <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3 text-sm min-w-0">
-            <input
-              type="checkbox"
-              checked={allVisibleSelected}
-              onChange={toggleSelectAll}
-              aria-label="Select all pull requests"
-              className="h-4 w-4"
-            />
+          {selectionActive ? (
+            <>
+              <div className="flex items-center gap-3 text-sm min-w-0">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all pull requests"
+                  className="h-4 w-4"
+                />
+                <span className="font-semibold text-[var(--text-primary)]">
+                  {selectedVisible.length} of {filteredPulls.length} selected
+                </span>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => applyFilter("OPEN")}
-              className={`inline-flex items-center gap-2 ${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              <GitPullRequest size={14} />
-              {openCount} Open
-            </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <ToolbarDropdown
+                  icon={<GitPullRequest size={14} />}
+                  label="Mark as"
+                  open={openMenu === "mark"}
+                  onToggle={() => toggleMenu("mark")}
+                  width="w-52"
+                >
+                  <ul className="py-1 text-sm">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void bulkMarkAs("OPEN")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <GitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                        Open
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => void bulkMarkAs("CLOSED")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <XCircle size={16} className="text-[var(--text-danger)]" />
+                        Closed
+                      </button>
+                    </li>
+                  </ul>
+                </ToolbarDropdown>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 text-sm min-w-0">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all pull requests"
+                  className="h-4 w-4"
+                />
 
-            <button
-              type="button"
-              onClick={() => applyFilter("CLOSED")}
-              className={`inline-flex items-center gap-2 ${activeFilter === "CLOSED" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              <Check size={14} />
-              {closedCount} Closed
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => applyFilter("OPEN")}
+                  className={`inline-flex items-center gap-2 ${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                >
+                  <GitPullRequest size={14} />
+                  {openCount} Open
+                </button>
 
-          <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-secondary)]">
-            {["Author", "Label", "Projects", "Milestones", "Reviews", "Assignee"].map((label) => (
-              <button
-                key={label}
-                type="button"
-                className="h-8 px-2 rounded-md hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] inline-flex items-center gap-1"
-              >
-                {label}
-                <ChevronDown size={14} />
-              </button>
-            ))}
+                <button
+                  type="button"
+                  onClick={() => applyFilter("CLOSED")}
+                  className={`inline-flex items-center gap-2 ${activeFilter === "CLOSED" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                >
+                  <Check size={14} />
+                  {closedCount} Closed
+                </button>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
-              className="h-8 px-2 rounded-md hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] inline-flex items-center gap-1"
-            >
-              Sort: {sortOrder === "newest" ? "Newest" : "Oldest"}
-              <ChevronDown size={14} />
-            </button>
-          </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <FilterDropdown
+                  label="Author"
+                  open={openMenu === "filter-author"}
+                  onToggle={() => toggleMenu("filter-author")}
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by author</p>
+                    <ul className="max-h-72 overflow-auto">
+                      {pullAuthorOptions.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No authors found</li>
+                      ) : (
+                        pullAuthorOptions.map((author) => (
+                          <li key={author}>
+                            <button
+                              type="button"
+                              onClick={() => applySearchToken("author", author)}
+                              className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                {author.charAt(0)}
+                              </span>
+                              <span className="flex-1 text-sm text-[var(--text-primary)]">{author}</span>
+                              {hasQueryValue("author", author) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label="Label"
+                  open={openMenu === "filter-label"}
+                  onToggle={() => toggleMenu("filter-label")}
+                  width="w-80"
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by label</p>
+                    <input
+                      value={labelFilter}
+                      onChange={(event) => setLabelFilter(event.target.value)}
+                      placeholder="Filter labels"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleLabels.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                      ) : (
+                        visibleLabels.map((label) => (
+                          <li key={label.id}>
+                            <button
+                              type="button"
+                              onClick={() => applySearchToken("label", label.name)}
+                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                {label.description ? (
+                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                ) : null}
+                              </span>
+                              {hasQueryValue("label", label.name) ? <CheckCircle2 size={14} className="mt-0.5 text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label="Projects"
+                  open={openMenu === "filter-project"}
+                  onToggle={() => toggleMenu("filter-project")}
+                >
+                  <div className="p-3 text-sm">
+                    <p className="font-semibold text-[var(--text-primary)]">Filter by project</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">No projects are available for this repository.</p>
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label="Milestones"
+                  open={openMenu === "filter-milestone"}
+                  onToggle={() => toggleMenu("filter-milestone")}
+                >
+                  <div className="p-3 text-sm">
+                    <p className="font-semibold text-[var(--text-primary)]">Filter by milestone</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">No milestones are available for this repository.</p>
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label="Reviews"
+                  open={openMenu === "filter-review"}
+                  onToggle={() => toggleMenu("filter-review")}
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by review state</p>
+                    {[
+                      { label: "Review required", value: "required" },
+                      { label: "Approved", value: "approved" },
+                      { label: "Changes requested", value: "changes-requested" },
+                    ].map((item) => (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => applySearchToken("review", item.value)}
+                        className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <span className="flex-1 text-sm text-[var(--text-primary)]">{item.label}</span>
+                        {hasQueryValue("review", item.value) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label="Assignee"
+                  open={openMenu === "filter-assignee"}
+                  onToggle={() => toggleMenu("filter-assignee")}
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by assignee</p>
+                    {collaborators.length === 0 ? (
+                      <p className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</p>
+                    ) : (
+                      collaborators.map((collaborator) => {
+                        const name = collaborator.username ?? collaborator.user_id;
+                        return (
+                          <button
+                            key={collaborator.user_id}
+                            type="button"
+                            onClick={() => applySearchToken("assignee", name)}
+                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                              {name.charAt(0)}
+                            </span>
+                            <span className="flex-1 text-sm text-[var(--text-primary)]">{name}</span>
+                            {hasQueryValue("assignee", name) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </FilterDropdown>
+
+                <FilterDropdown
+                  label={`Sort: ${sortOrder === "newest" ? "Newest" : "Oldest"}`}
+                  open={openMenu === "filter-sort"}
+                  onToggle={() => toggleMenu("filter-sort")}
+                  width="w-44"
+                >
+                  <ul className="py-1 text-sm">
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => applySortToken("newest")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <span className="flex-1">Newest</span>
+                        {sortOrder === "newest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => applySortToken("oldest")}
+                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                      >
+                        <span className="flex-1">Oldest</span>
+                        {sortOrder === "oldest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                      </button>
+                    </li>
+                  </ul>
+                </FilterDropdown>
+              </div>
+            </>
+          )}
         </div>
 
         {loading ? (
@@ -428,6 +898,7 @@ export default function PullRequestList({
           <div role="group" aria-label="Pull requests" className="divide-y divide-[var(--border-muted)]">
             {filteredPulls.map((pull) => {
               const pullNo = pullNumberMap.get(pull.id) || 0;
+              const creatorName = collaboratorNameById[pull.creator_id] || "Someone";
               const statusIcon =
                 pull.status === "OPEN" ? (
                   <GitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
@@ -467,8 +938,7 @@ export default function PullRequestList({
                         <span>{toRelativeTime(pull.created_at)}</span>
                         <span>({formatPullDate(pull.created_at)})</span>
                         <span>by</span>
-                        <span className="text-[var(--text-primary)]">{currentUsername}</span>
-                        <span className="px-1.5 py-0.5 border border-[var(--border-default)] rounded text-[10px] text-[var(--text-secondary)]">Owner</span>
+                        <span className="text-[var(--text-primary)]">{creatorName}</span>
                         <span className="ml-1">{pull.source_branch} into {pull.target_branch}</span>
                       </div>
                     </div>
@@ -493,4 +963,3 @@ export default function PullRequestList({
     </div>
   );
 }
-

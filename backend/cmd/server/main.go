@@ -157,6 +157,7 @@ func main() {
 			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/merge", prHandler.HandleMergePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
+			repos.POST("/:repo_id/pulls/:pull_id/reopen", prHandler.HandleReopenPullRequest)
 
 			// Issue routes
 			repos.POST("/:repo_id/issues", issueHandler.HandleCreateIssue)
