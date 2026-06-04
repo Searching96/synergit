@@ -17,16 +17,27 @@ const (
 )
 
 type PullRequest struct {
-	ID           uuid.UUID         `json:"id"`
-	RepoID       uuid.UUID         `json:"repo_id"`
-	CreatorID    uuid.UUID         `json:"creator_id"`
-	Title        string            `json:"title"`
-	Description  string            `json:"description"`
-	SourceBranch string            `json:"source_branch"`
-	TargetBranch string            `json:"target_branch"`
-	Status       PullRequestStatus `json:"status"`
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
+	ID               uuid.UUID         `json:"id"`
+	RepoID           uuid.UUID         `json:"repo_id"`
+	CreatorID        uuid.UUID         `json:"creator_id"`
+	Title            string            `json:"title"`
+	Description      string            `json:"description"`
+	SourceBranch     string            `json:"source_branch"`
+	TargetBranch     string            `json:"target_branch"`
+	SourceCommitHash string            `json:"source_commit_hash"`
+	TargetCommitHash string            `json:"target_commit_hash"`
+	Status           PullRequestStatus `json:"status"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+}
+
+type PullRequestEvent struct {
+	ID            uuid.UUID `json:"id"`
+	PullRequestID uuid.UUID `json:"pull_request_id"`
+	ActorID       uuid.UUID `json:"actor_id"`
+	Actor         string    `json:"actor"`
+	EventType     string    `json:"event_type"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type CompareFileStatus string

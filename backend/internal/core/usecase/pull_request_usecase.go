@@ -46,6 +46,16 @@ func NewPullRequestService(prStore port.PullRequestRepository,
 	}
 }
 
+func findBranchCommitHash(branches []domain.Branch, branchName string) string {
+	for _, branch := range branches {
+		if branch.Name == branchName {
+			return strings.TrimSpace(branch.CommitHash)
+		}
+	}
+
+	return ""
+}
+
 func (s *PullRequestService) CreatePullRequest(
 	repoID uuid.UUID, creatorID uuid.UUID, title string,
 	description string, sourceBranch string, targetBranch string,
@@ -56,23 +66,43 @@ func (s *PullRequestService) CreatePullRequest(
 		return nil, err
 	}
 
-	pr := &domain.PullRequest{
-		ID:           uuid.New(),
-		RepoID:       repoID,
-		CreatorID:    creatorID,
-		Title:        title,
-		Description:  description,
-		SourceBranch: sourceBranch,
-		TargetBranch: targetBranch,
-		Status:       domain.PullRequestStatusOpen,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil || repo == nil {
+		return nil, errors.New("repository not found")
 	}
 
-	err := s.prStore.Create(pr)
+	branches, err := s.gitManager.GetBranches(repo.Path)
 	if err != nil {
 		return nil, err
 	}
+
+	sourceCommitHash := findBranchCommitHash(branches, sourceBranch)
+	targetCommitHash := findBranchCommitHash(branches, targetBranch)
+	if sourceCommitHash == "" || targetCommitHash == "" {
+		return nil, errors.New("source or target branch not found")
+	}
+
+	pr := &domain.PullRequest{
+		ID:               uuid.New(),
+		RepoID:           repoID,
+		CreatorID:        creatorID,
+		Title:            title,
+		Description:      description,
+		SourceBranch:     sourceBranch,
+		TargetBranch:     targetBranch,
+		SourceCommitHash: sourceCommitHash,
+		TargetCommitHash: targetCommitHash,
+		Status:           domain.PullRequestStatusOpen,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	err = s.prStore.Create(pr)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.prStore.AddEvent(pr.ID, creatorID, "opened")
 
 	return pr, nil
 }
@@ -107,6 +137,12 @@ func (s *PullRequestService) ComparePullRequestRefs(repoID uuid.UUID, requesterI
 	}
 
 	compareResult.RepoID = repoID
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+	currentBaseCommitHash := findBranchCommitHash(branches, base)
+	currentHeadCommitHash := findBranchCommitHash(branches, head)
 
 	repoPRs, err := s.prStore.ListByRepo(repoID)
 	if err != nil {
@@ -115,7 +151,12 @@ func (s *PullRequestService) ComparePullRequestRefs(repoID uuid.UUID, requesterI
 
 	related := make([]domain.PullRequest, 0)
 	for _, pr := range repoPRs {
-		if pr.SourceBranch == head && pr.TargetBranch == base {
+		if pr.SourceBranch == head &&
+			pr.TargetBranch == base &&
+			pr.SourceCommitHash != "" &&
+			pr.TargetCommitHash != "" &&
+			pr.SourceCommitHash == currentHeadCommitHash &&
+			pr.TargetCommitHash == currentBaseCommitHash {
 			related = append(related, pr)
 		}
 	}
@@ -135,6 +176,26 @@ func (s *PullRequestService) GetPullRequest(id uuid.UUID) (*domain.PullRequest, 
 
 func (s *PullRequestService) ListPullRequestsForRepo(repoID uuid.UUID) ([]domain.PullRequest, error) {
 	return s.prStore.ListByRepo(repoID)
+}
+
+func (s *PullRequestService) ListPullRequestEvents(repoID uuid.UUID, prID uuid.UUID,
+	requesterID uuid.UUID) ([]domain.PullRequestEvent, error) {
+
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return nil, errors.New("pull request not found")
+	}
+
+	if pr.RepoID != repoID {
+		return nil, errors.New("pull request not found in repository")
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || !role.IsValid() {
+		return nil, errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	return s.prStore.ListEvents(prID)
 }
 
 func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID) error {
@@ -180,7 +241,13 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 	}
 
 	// 5. Update the database status
-	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusMerged)
+	if err := s.prStore.UpdateStatus(prID, domain.PullRequestStatusMerged); err != nil {
+		return err
+	}
+
+	_ = s.prStore.AddEvent(prID, mergerID, "merged")
+
+	return nil
 }
 
 func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID) error {
@@ -201,7 +268,13 @@ func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID
 		return errors.New("unauthorized: you do not have permission to close this pull request")
 	}
 
-	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusClosed)
+	if err := s.prStore.UpdateStatus(prID, domain.PullRequestStatusClosed); err != nil {
+		return err
+	}
+
+	_ = s.prStore.AddEvent(prID, closerID, "closed")
+
+	return nil
 }
 
 func (s *PullRequestService) ReopenPullRequest(prID uuid.UUID, requesterID uuid.UUID) error {
@@ -222,7 +295,13 @@ func (s *PullRequestService) ReopenPullRequest(prID uuid.UUID, requesterID uuid.
 		return errors.New("unauthorized: you do not have permission to reopen this pull request")
 	}
 
-	return s.prStore.UpdateStatus(prID, domain.PullRequestStatusOpen)
+	if err := s.prStore.UpdateStatus(prID, domain.PullRequestStatusOpen); err != nil {
+		return err
+	}
+
+	_ = s.prStore.AddEvent(prID, requesterID, "reopened")
+
+	return nil
 }
 
 func (s *PullRequestService) GetMergeConflicts(prID uuid.UUID,

@@ -1,5 +1,5 @@
 import { fetcher } from "./client";
-import type { ConflictFile, CreatePullRequestPayload, PullRequest, ResolveConflictsPayload } from "../../types";
+import type { ConflictFile, CreatePullRequestPayload, PullRequest, PullRequestEvent, ResolveConflictsPayload } from "../../types";
 
 export const pullsApi = {
   create: (repoId: string, payload: CreatePullRequestPayload): Promise<PullRequest> => {
@@ -16,6 +16,10 @@ export const pullsApi = {
 
   get: (repoId: string, pullId: string): Promise<PullRequest> => {
     return fetcher(`/repos/${repoId}/pulls/${pullId}`);
+  },
+
+  listEvents: (repoId: string, pullId: string): Promise<PullRequestEvent[]> => {
+    return fetcher(`/repos/${repoId}/pulls/${pullId}/events`);
   },
 
   merge: (repoId: string, pullId: string): Promise<{ message: string }> => {

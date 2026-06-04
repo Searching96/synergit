@@ -12,6 +12,8 @@ type PullRequestRepository interface {
 	ListByRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
 	GetSequenceNumber(repoID uuid.UUID, prID uuid.UUID) (int, error)
 	UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error
+	AddEvent(prID uuid.UUID, actorID uuid.UUID, eventType string) error
+	ListEvents(prID uuid.UUID) ([]domain.PullRequestEvent, error)
 }
 
 type PullRequestUseCase interface {
@@ -23,6 +25,7 @@ type PullRequestUseCase interface {
 		headRef string) (*domain.PullRequestCompareResult, error)
 	GetPullRequest(id uuid.UUID) (*domain.PullRequest, error)
 	ListPullRequestsForRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
+	ListPullRequestEvents(repoID uuid.UUID, prID uuid.UUID, requesterID uuid.UUID) ([]domain.PullRequestEvent, error)
 
 	// This will involve complex logic: checking permissions,
 	// calling the Git port to actually merge the code and updating DB

@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS pull_requests (
     description TEXT NOT NULL DEFAULT '',
     source_branch VARCHAR(255) NOT NULL,
     target_branch VARCHAR(255) NOT NULL,
+    source_commit_hash VARCHAR(64) NOT NULL DEFAULT '',
+    target_commit_hash VARCHAR(64) NOT NULL DEFAULT '',
     status VARCHAR(16) NOT NULL DEFAULT 'OPEN'
         CHECK (status IN ('OPEN', 'MERGED', 'CLOSED')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -55,6 +57,17 @@ CREATE TABLE IF NOT EXISTS pull_requests (
 
 CREATE INDEX IF NOT EXISTS idx_pull_requests_repo_created_at
     ON pull_requests (repo_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS pull_request_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(32) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pull_request_events_pull_request
+    ON pull_request_events (pull_request_id, created_at);
 
 CREATE TABLE IF NOT EXISTS issues (
     id UUID PRIMARY KEY,

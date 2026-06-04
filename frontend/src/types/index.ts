@@ -135,9 +135,20 @@ export interface PullRequest {
 	description: string;
 	source_branch: string;
 	target_branch: string;
+	source_commit_hash?: string;
+	target_commit_hash?: string;
 	status: 'OPEN' | 'MERGED' | 'CLOSED';
 	created_at: string;
 	updated_at: string;
+}
+
+export interface PullRequestEvent {
+	id: string;
+	pull_request_id: string;
+	actor_id: string;
+	actor: string;
+	event_type: string;
+	created_at: string;
 }
 
 export type CompareFileStatus = 'ADDED' | 'MODIFIED' | 'DELETED' | 'RENAMED' | 'COPIED' | 'UNKNOWN';

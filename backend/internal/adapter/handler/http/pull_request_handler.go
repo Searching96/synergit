@@ -115,6 +115,35 @@ func (h *PullRequestHandler) HandleGetPullRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, pr)
 }
 
+func (h *PullRequestHandler) HandleListPullRequestEvents(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	events, err := h.prUseCase.ListPullRequestEvents(repoID, pullID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, events)
+}
+
 func (h *PullRequestHandler) HandleMergePullRequest(c *gin.Context) {
 	pullIDStr := c.Param("pull_id")
 	pullID, err := uuid.Parse(pullIDStr)

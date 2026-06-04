@@ -4,7 +4,6 @@ import {
   Cloud,
   Copy,
   Download,
-  FileText,
   FolderOpen,
   History,
   Maximize2,
