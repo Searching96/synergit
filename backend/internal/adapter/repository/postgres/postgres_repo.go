@@ -89,6 +89,17 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	return repos, nil
 }
 
+func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
+	var count int
+	err := p.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM repositories r
+		JOIN repository_collaborators rc ON rc.repository_id = r.id
+		WHERE rc.user_id = $1 AND rc.role = 'OWNER'`, userID).Scan(&count)
+
+	return count, err
+}
+
 func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 	query := `
 		SELECT id, name, path, created_at, description, visibility, primary_language

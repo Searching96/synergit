@@ -82,3 +82,9 @@ func (p *PostgresStarStore) ListStarredByUser(userID uuid.UUID) ([]*domain.Repo,
 
 	return repos, rows.Err()
 }
+
+func (p *PostgresStarStore) CountStarredByUser(userID uuid.UUID) (int, error) {
+	var count int
+	err := p.db.QueryRow(`SELECT COUNT(*) FROM repo_stars WHERE user_id = $1`, userID).Scan(&count)
+	return count, err
+}

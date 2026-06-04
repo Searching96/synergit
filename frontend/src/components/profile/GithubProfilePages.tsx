@@ -10,6 +10,7 @@ import {
   GitPullRequest,
   LayoutGrid,
   Link2,
+  LogOut,
   MessageCircle,
   Monitor,
   Package,
@@ -40,6 +41,7 @@ import TopHeader from "../layout/TopHeader";
 
 interface GithubProfilePagesProps {
   repositories: Repository[];
+  repositoryCount: number;
   username: string;
   activeTab: ProfileTabKey;
   onTabChange: (tab: ProfileTabKey) => void;
@@ -69,6 +71,7 @@ function RepoIconGlyph({ size = 16, className }: { size?: number; className?: st
 
 export default function GithubProfilePages({
   repositories,
+  repositoryCount,
   username,
   activeTab,
   onTabChange,
@@ -91,18 +94,41 @@ export default function GithubProfilePages({
   );
 
   const [starred, setStarred] = useState<Repository[]>([]);
+  const [starredCount, setStarredCount] = useState<number>(0);
   useEffect(() => {
     let cancelled = false;
     void starsApi
-      .listStarred()
-      .then((list) => {
-        if (!cancelled) setStarred(list);
+      .countStarred()
+      .then(({ count }) => {
+        if (!cancelled) setStarredCount(count);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "stars") {
+      return;
+    }
+
+    let cancelled = false;
+    void starsApi
+      .listStarred()
+      .then((list) => {
+        if (cancelled) {
+          return;
+        }
+
+        setStarred(list);
+        setStarredCount(list.length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const starredRepos = useMemo<StarredRepo[]>(
     () =>
@@ -124,12 +150,12 @@ export default function GithubProfilePages({
   const profileTabs = useMemo(
     () => PROFILE_TABS.map((tab) =>
       tab.key === "repositories"
-        ? { ...tab, count: profileRepositories.length }
+        ? { ...tab, count: repositoryCount }
         : tab.key === "stars"
-          ? { ...tab, count: starredRepos.length }
+          ? { ...tab, count: starredCount }
           : tab
     ),
-    [profileRepositories.length, starredRepos.length],
+    [repositoryCount, starredCount],
   );
 
   const profileBasePath = `/${encodeURIComponent(username)}`;
@@ -207,7 +233,19 @@ export default function GithubProfilePages({
     ) : activeTab === "packages" ? (
       <ProfilePackagesPage />
     ) : (
-      <ProfileStarsPage starredRepos={starredRepos} languageColor={languageColor} />
+      <ProfileStarsPage
+        starredRepos={starredRepos}
+        languageColor={languageColor}
+        onNavigateToPath={onNavigateToPath}
+        onStarChange={(repoId, isStarred) => {
+          if (isStarred || !repoId) {
+            return;
+          }
+
+          setStarred((current) => current.filter((repo) => repo.id !== repoId));
+          setStarredCount((count) => Math.max(0, count - 1));
+        }}
+      />
     );
 
   return (
@@ -345,6 +383,7 @@ export default function GithubProfilePages({
                 onClick={onLogout}
                 className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3 text-base text-[var(--text-primary)]"
               >
+                <LogOut size={17} className="text-[var(--text-secondary)]" />
                 Logout
               </button>
             </div>

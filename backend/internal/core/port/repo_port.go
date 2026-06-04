@@ -9,6 +9,7 @@ import (
 type RepoRepository interface {
 	Save(repo *domain.Repo) error
 	FindAll() ([]*domain.Repo, error)
+	CountOwnedByUser(userID uuid.UUID) (int, error)
 	FindByID(id uuid.UUID) (*domain.Repo, error)
 	FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error)
 	UpdatePrimaryLanguage(id uuid.UUID, primaryLanguage string) error
@@ -31,6 +32,7 @@ type RepoUseCase interface {
 	ReceivePackByOwnerAndName(ownerUsername string, repoName string,
 		requestPayload ByteReader, responseWriter ByteWriter) error
 	GetAllRepositories() ([]*domain.Repo, error)
+	CountOwnedRepositories(requesterID uuid.UUID) (int, error)
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
 	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)

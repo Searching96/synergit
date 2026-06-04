@@ -249,6 +249,10 @@ func (s *RepoService) GetAllRepositories() ([]*domain.Repo, error) {
 	return repos, nil
 }
 
+func (s *RepoService) CountOwnedRepositories(requesterID uuid.UUID) (int, error) {
+	return s.repoStore.CountOwnedByUser(requesterID)
+}
+
 func inferDescriptionFromReadme(gitManager port.GitManager, repoPath string) string {
 	content, err := gitManager.GetBlob(repoPath, "README.md", "")
 	if err != nil {

@@ -12,6 +12,11 @@ type MessageResponse struct {
 	Message string `json:"message"`
 }
 
+// CountResponse is the standard payload for lightweight count endpoints.
+type CountResponse struct {
+	Count int `json:"count"`
+}
+
 // TokenResponse is the auth response payload.
 type TokenResponse struct {
 	Token string `json:"token"`

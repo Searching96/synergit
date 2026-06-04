@@ -87,3 +87,18 @@ func (h *StarHandler) HandleListStarred(c *gin.Context) {
 
 	c.JSON(http.StatusOK, repos)
 }
+
+func (h *StarHandler) HandleCountStarred(c *gin.Context) {
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	count, err := h.starUseCase.CountStarred(requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.CountResponse{Count: count})
+}

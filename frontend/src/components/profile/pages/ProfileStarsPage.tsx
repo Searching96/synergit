@@ -6,9 +6,11 @@ import StarButton from "../../shared/StarButton";
 interface ProfileStarsPageProps {
   starredRepos: StarredRepo[];
   languageColor: (language: string) => string;
+  onNavigateToPath: (path: string) => void;
+  onStarChange?: (repoId: string, starred: boolean) => void;
 }
 
-export default function ProfileStarsPage({ starredRepos, languageColor }: ProfileStarsPageProps) {
+export default function ProfileStarsPage({ starredRepos, languageColor, onNavigateToPath, onStarChange }: ProfileStarsPageProps) {
   return (
     <div className="space-y-6">
       <section className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)]">
@@ -50,12 +52,14 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
           {starredRepos.map((repo) => (
             <article key={`${repo.owner}/${repo.name}`} className="py-6 border-b border-[var(--border-muted)] flex items-start justify-between gap-4">
               <div>
-                <p className="text-[28px] leading-[32px] text-[var(--text-link)]">
-                  <span className="inline-flex items-center gap-2">
-                    <RepoIcon size={16} className="text-[var(--text-secondary)]" />
-                    <span>{repo.owner} / <span className="font-semibold">{repo.name}</span></span>
-                  </span>
-                </p>
+                <button
+                  type="button"
+                  onClick={() => onNavigateToPath(`/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`)}
+                  className="text-[28px] leading-[32px] text-[var(--text-link)] inline-flex items-center gap-2 text-left hover:underline"
+                >
+                  <RepoIcon size={16} className="text-[var(--text-secondary)]" />
+                  <span>{repo.owner} / <span className="font-semibold">{repo.name}</span></span>
+                </button>
                 <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-[760px]">{repo.description}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[var(--text-secondary)]">
                   {repo.language ? (
@@ -76,7 +80,11 @@ export default function ProfileStarsPage({ starredRepos, languageColor }: Profil
                 </div>
               </div>
 
-              <StarButton repoId={repo.id ?? ""} initialStarred />
+              <StarButton
+                repoId={repo.id ?? ""}
+                initialStarred
+                onStatusChange={(status) => onStarChange?.(repo.id ?? "", status.starred)}
+              />
             </article>
           ))}
         </div>

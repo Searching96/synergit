@@ -8,6 +8,7 @@ interface StarButtonProps {
   initialCount?: number;
   showCount?: boolean;
   autoFetch?: boolean;
+  onStatusChange?: (status: { starred: boolean; count: number }) => void;
 }
 
 export default function StarButton({
@@ -16,6 +17,7 @@ export default function StarButton({
   initialCount = 0,
   showCount = false,
   autoFetch = false,
+  onStatusChange,
 }: StarButtonProps) {
   const [starred, setStarred] = useState(initialStarred);
   const [count, setCount] = useState(initialCount);
@@ -48,6 +50,7 @@ export default function StarButton({
       const res = starred ? await starsApi.unstar(repoId) : await starsApi.star(repoId);
       setStarred(res.starred);
       setCount(res.count);
+      onStatusChange?.(res);
     } catch {
       /* ignore */
     } finally {

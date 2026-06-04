@@ -72,6 +72,102 @@ function extractStateQueryToken(query: string): IssueStatus | null {
   return null;
 }
 
+function quoteQueryValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (/[\s"]/.test(trimmed)) {
+    return `"${trimmed.replace(/"/g, '\\"')}"`;
+  }
+
+  return trimmed;
+}
+
+function stripQueryToken(query: string, key: string): string {
+  return query
+    .replace(new RegExp(`\\b${key}:(?:"(?:[^"\\\\]|\\\\.)*"|\\S+)`, "gi"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function removeQueryTokenValue(query: string, key: string, value: string): string {
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) {
+    return query.trim();
+  }
+
+  return query
+    .replace(new RegExp(`\\b${key}:(?:"((?:[^"\\\\]|\\\\.)*)"|(\\S+))`, "gi"), (token, quotedValue, plainValue) => {
+      const tokenValue = String(quotedValue ?? plainValue ?? "").replace(/\\"/g, '"').trim().toLowerCase();
+      return tokenValue === normalizedValue ? "" : token;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function appendQueryToken(query: string, key: string, value: string, options?: { replace?: boolean }): string {
+  const tokenValue = quoteQueryValue(value);
+  if (!tokenValue) {
+    return query.trim();
+  }
+
+  const base = options?.replace ? stripQueryToken(query, key) : query.trim();
+  const token = `${key}:${tokenValue}`;
+
+  return base ? `${base} ${token}` : token;
+}
+
+function extractQueryTokenValues(query: string, key: string): string[] {
+  const values: string[] = [];
+  const pattern = new RegExp(`\\b${key}:(?:"((?:[^"\\\\]|\\\\.)*)"|(\\S+))`, "gi");
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(query)) !== null) {
+    values.push((match[1] ?? match[2] ?? "").replace(/\\"/g, '"').trim().toLowerCase());
+  }
+
+  return values.filter(Boolean);
+}
+
+function FilterDropdown({
+  label,
+  open,
+  onToggle,
+  children,
+  width,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  width?: string;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
+      >
+        {label}
+        <ChevronDown size={14} />
+      </button>
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} aria-hidden />
+          <div
+            className={`absolute right-0 mt-1 z-20 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg ${width || "w-64"}`}
+          >
+            {children}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolbarDropdown({
   icon,
   label,
@@ -123,12 +219,13 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
   const [searchInput, setSearchInput] = useState<string>("is:issue state:open");
   const [appliedSearch, setAppliedSearch] = useState<string>("is:issue state:open");
   const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set());
-  const [closeReasonFilter, setCloseReasonFilter] = useState<IssueCloseReason | "ALL">("ALL");
 
   const [labelsByIssueId, setLabelsByIssueId] = useState<Record<string, Label[]>>({});
   const [repoLabels, setRepoLabels] = useState<Label[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
-  const [openMenu, setOpenMenu] = useState<"mark" | "label" | "assign" | null>(null);
+  const [openMenu, setOpenMenu] = useState<
+    "mark" | "label" | "assign" | "filter-author" | "filter-label" | "filter-project" | "filter-milestone" | "filter-assignee" | "filter-sort" | null
+  >(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [descriptionPreview, setDescriptionPreview] = useState<boolean>(false);
@@ -197,7 +294,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
     setSearchInput("is:issue state:open");
     setAppliedSearch("is:issue state:open");
     setSelectedIssueIds(new Set());
-    setCloseReasonFilter("ALL");
     setLabelsByIssueId({});
     setOpenMenu(null);
     setAssigneeFilter("");
@@ -234,15 +330,13 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
     [issues],
   );
 
-  const closedNotPlannedCount = useMemo(
-    () => issues.filter((issue) => issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED").length,
-    [issues],
-  );
-
-  const closedCompletedCount = useMemo(
-    () => closedCount - closedNotPlannedCount,
-    [closedCount, closedNotPlannedCount],
-  );
+  const collaboratorNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    collaborators.forEach((c) => {
+      if (c.username) map[c.user_id] = c.username;
+    });
+    return map;
+  }, [collaborators]);
 
   const queryFilter = useMemo(() => {
     const query = appliedSearch.toLowerCase();
@@ -253,13 +347,25 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
         ? "OPEN"
         : activeFilter;
 
+    const author = extractQueryTokenValues(appliedSearch, "author")[0] || "";
+    const labels = extractQueryTokenValues(appliedSearch, "label");
+    const assignee = extractQueryTokenValues(appliedSearch, "assignee")[0] || "";
+    const sort = extractQueryTokenValues(appliedSearch, "sort")[0] || "";
+
     const freeText = query
       .replace(/\bis:issue\b/gi, "")
       .replace(/\bis:(open|closed)\b/gi, "")
       .replace(/\bstate:(open|closed)\b/gi, "")
+      .replace(/\bauthor:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\blabel:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bassignee:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bproject:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bmilestone:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\bsort:(?:"(?:[^"\\]|\\.)*"|\S+)/gi, "")
+      .replace(/\s+/g, " ")
       .trim();
 
-    return { queryState, freeText };
+    return { queryState, freeText, author, labels, assignee, sort };
   }, [activeFilter, appliedSearch]);
 
   const filteredIssues = useMemo(() => {
@@ -268,9 +374,25 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
         return false;
       }
 
-      if (queryFilter.queryState === "CLOSED" && closeReasonFilter !== "ALL") {
-        const reason = issue.close_reason || "COMPLETED";
-        if (reason !== closeReasonFilter) {
+      if (queryFilter.author) {
+        const creatorName = (collaboratorNameById[issue.creator_id] || "").toLowerCase();
+        if (creatorName !== queryFilter.author) {
+          return false;
+        }
+      }
+
+      if (queryFilter.assignee) {
+        const assigneeNames = (assigneesByIssueId[issue.id] || []).map((assignee) =>
+          (collaboratorNameById[assignee.user_id] || "").toLowerCase(),
+        );
+        if (!assigneeNames.includes(queryFilter.assignee)) {
+          return false;
+        }
+      }
+
+      if (queryFilter.labels.length > 0) {
+        const issueLabelNames = (labelsByIssueId[issue.id] || []).map((label) => label.name.toLowerCase());
+        if (!queryFilter.labels.every((labelName) => issueLabelNames.includes(labelName))) {
           return false;
         }
       }
@@ -284,13 +406,19 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
     });
 
     return matches.sort((a, b) => {
-      if (sortOrder === "oldest") {
+      const resolvedSortOrder = queryFilter.sort === "created-asc"
+        ? "oldest"
+        : queryFilter.sort === "created-desc"
+          ? "newest"
+          : sortOrder;
+
+      if (resolvedSortOrder === "oldest") {
         return Date.parse(a.created_at) - Date.parse(b.created_at);
       }
 
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
-  }, [closeReasonFilter, issues, queryFilter, sortOrder]);
+  }, [assigneesByIssueId, collaboratorNameById, issues, labelsByIssueId, queryFilter, sortOrder]);
 
   const allVisibleSelected = useMemo(
     () => filteredIssues.length > 0 && filteredIssues.every((issue) => selectedIssueIds.has(issue.id)),
@@ -355,7 +483,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
   const applyFilter = (status: IssueStatus) => {
     setActiveFilter(status);
-    setCloseReasonFilter("ALL");
     const nextQuery = replaceStateQueryToken(searchInput, status);
     setSearchInput(nextQuery);
     setAppliedSearch(nextQuery);
@@ -398,10 +525,42 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
     const queryState = extractStateQueryToken(normalized);
     if (queryState) {
       setActiveFilter(queryState);
-      if (queryState === "OPEN") {
-        setCloseReasonFilter("ALL");
-      }
     }
+
+    const sortToken = extractQueryTokenValues(normalized, "sort")[0];
+    if (sortToken === "created-asc") {
+      setSortOrder("oldest");
+    } else if (sortToken === "created-desc") {
+      setSortOrder("newest");
+    }
+  };
+
+  const applySearchToken = (key: "author" | "label" | "assignee" | "project" | "milestone", value: string, replace = true) => {
+    const baseQuery = searchInput || appliedSearch || "is:issue state:open";
+    const tokenSelected = extractQueryTokenValues(baseQuery, key).includes(value.trim().toLowerCase());
+    const nextQuery = tokenSelected
+      ? replace
+        ? stripQueryToken(baseQuery, key)
+        : removeQueryTokenValue(baseQuery, key, value)
+      : appendQueryToken(baseQuery, key, value, { replace });
+
+    setSearchInput(nextQuery);
+    setAppliedSearch(nextQuery);
+    setOpenMenu(null);
+  };
+
+  const applySortToken = (nextSortOrder: "newest" | "oldest") => {
+    const baseQuery = searchInput || appliedSearch || "is:issue state:open";
+    const sortValue = nextSortOrder === "newest" ? "created-desc" : "created-asc";
+    const tokenSelected = extractQueryTokenValues(baseQuery, "sort").includes(sortValue);
+    const nextQuery = tokenSelected
+      ? stripQueryToken(baseQuery, "sort")
+      : appendQueryToken(baseQuery, "sort", sortValue, { replace: true });
+
+    setSortOrder(tokenSelected ? "newest" : nextSortOrder);
+    setSearchInput(nextQuery);
+    setAppliedSearch(nextQuery);
+    setOpenMenu(null);
   };
 
   const selectedVisible = useMemo(
@@ -410,15 +569,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
   );
   const selectionActive = selectedVisible.length > 0;
 
-  const collaboratorNameById = useMemo(() => {
-    const map: Record<string, string> = {};
-    collaborators.forEach((c) => {
-      if (c.username) map[c.user_id] = c.username;
-    });
-    return map;
-  }, [collaborators]);
-
-  const toggleMenu = (menu: "mark" | "label" | "assign") =>
+  const toggleMenu = (menu: NonNullable<typeof openMenu>) =>
     setOpenMenu((prev) => (prev === menu ? null : menu));
 
   const bulkMarkAs = async (target: "OPEN" | IssueCloseReason) => {
@@ -521,6 +672,25 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
   const visibleLabels = repoLabels.filter((l) =>
     (l.name ?? "").toLowerCase().includes(labelFilter.trim().toLowerCase()),
   );
+
+  const issueAuthorOptions = useMemo(() => {
+    const names = new Set<string>();
+    issues.forEach((issue) => {
+      const name = collaboratorNameById[issue.creator_id];
+      if (name) {
+        names.add(name);
+      }
+    });
+
+    if (currentUsername) {
+      names.add(currentUsername);
+    }
+
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [collaboratorNameById, currentUsername, issues]);
+
+  const hasQueryValue = (key: string, value: string) =>
+    extractQueryTokenValues(appliedSearch, key).includes(value.trim().toLowerCase());
 
 
   return (
@@ -1032,56 +1202,172 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
               Closed
               <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{closedCount}</span>
             </button>
-
-            {activeFilter === "CLOSED" ? (
-              <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                <button
-                  type="button"
-                  onClick={() => setCloseReasonFilter("ALL")}
-                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "ALL" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCloseReasonFilter("COMPLETED")}
-                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "COMPLETED" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
-                >
-                  Completed
-                  <span className="ml-1 text-[10px]">{closedCompletedCount}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCloseReasonFilter("NOT_PLANNED")}
-                  className={`h-7 px-2 rounded-md border ${closeReasonFilter === "NOT_PLANNED" ? "border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)]" : "border-transparent hover:bg-[var(--surface-hover)]"}`}
-                >
-                  Not planned
-                  <span className="ml-1 text-[10px]">{closedNotPlannedCount}</span>
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            {['Author', 'Labels', 'Projects', 'Milestones', 'Assignees'].map((actionLabel) => (
-              <button
-                key={actionLabel}
-                type="button"
-                className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
-              >
-                {actionLabel}
-                <ChevronDown size={14} />
-              </button>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
-              className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
+            <FilterDropdown
+              label="Author"
+              open={openMenu === "filter-author"}
+              onToggle={() => toggleMenu("filter-author")}
             >
-              {sortOrder === "newest" ? "Newest" : "Oldest"}
-              <ChevronDown size={14} />
-            </button>
+              <div className="p-2">
+                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by author</p>
+                <ul className="max-h-72 overflow-auto">
+                  {issueAuthorOptions.length === 0 ? (
+                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No authors found</li>
+                  ) : (
+                    issueAuthorOptions.map((author) => (
+                      <li key={author}>
+                        <button
+                          type="button"
+                          onClick={() => applySearchToken("author", author)}
+                          className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        >
+                          <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                            {author.charAt(0)}
+                          </span>
+                          <span className="flex-1 text-sm text-[var(--text-primary)]">{author}</span>
+                          {hasQueryValue("author", author) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            </FilterDropdown>
+
+            <FilterDropdown
+              label="Labels"
+              open={openMenu === "filter-label"}
+              onToggle={() => toggleMenu("filter-label")}
+              width="w-80"
+            >
+              <div className="p-2">
+                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by label</p>
+                <input
+                  value={labelFilter}
+                  onChange={(e) => setLabelFilter(e.target.value)}
+                  placeholder="Filter labels"
+                  className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                />
+                <ul className="mt-1 max-h-72 overflow-auto">
+                  {visibleLabels.length === 0 ? (
+                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                  ) : (
+                    visibleLabels.map((label) => (
+                      <li key={label.id}>
+                        <button
+                          type="button"
+                          onClick={() => applySearchToken("label", label.name, false)}
+                          className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                        >
+                          <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                            {label.description ? (
+                              <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                            ) : null}
+                          </span>
+                          {hasQueryValue("label", label.name) ? <CheckCircle2 size={14} className="mt-0.5 text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            </FilterDropdown>
+
+            <FilterDropdown
+              label="Projects"
+              open={openMenu === "filter-project"}
+              onToggle={() => toggleMenu("filter-project")}
+            >
+              <div className="p-3 text-sm">
+                <p className="font-semibold text-[var(--text-primary)]">Filter by project</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">No projects are available for this repository.</p>
+              </div>
+            </FilterDropdown>
+
+            <FilterDropdown
+              label="Milestones"
+              open={openMenu === "filter-milestone"}
+              onToggle={() => toggleMenu("filter-milestone")}
+            >
+              <div className="p-3 text-sm">
+                <p className="font-semibold text-[var(--text-primary)]">Filter by milestone</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">No milestones are available for this repository.</p>
+              </div>
+            </FilterDropdown>
+
+            <FilterDropdown
+              label="Assignees"
+              open={openMenu === "filter-assignee"}
+              onToggle={() => toggleMenu("filter-assignee")}
+            >
+              <div className="p-2">
+                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by assignee</p>
+                <input
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  placeholder="Filter assignees"
+                  className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                />
+                <ul className="mt-1 max-h-72 overflow-auto">
+                  {visibleCollaborators.length === 0 ? (
+                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                  ) : (
+                    visibleCollaborators.map((collaborator) => {
+                      const name = collaborator.username ?? collaborator.user_id;
+                      return (
+                        <li key={collaborator.user_id}>
+                          <button
+                            type="button"
+                            onClick={() => applySearchToken("assignee", name)}
+                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                              {name.charAt(0)}
+                            </span>
+                            <span className="flex-1 text-sm text-[var(--text-primary)]">{name}</span>
+                            {hasQueryValue("assignee", name) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              </div>
+            </FilterDropdown>
+
+            <FilterDropdown
+              label={sortOrder === "newest" ? "Newest" : "Oldest"}
+              open={openMenu === "filter-sort"}
+              onToggle={() => toggleMenu("filter-sort")}
+              width="w-44"
+            >
+              <ul className="py-1 text-sm">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => applySortToken("newest")}
+                    className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                  >
+                    <span className="flex-1">Newest</span>
+                    {sortOrder === "newest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => applySortToken("oldest")}
+                    className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                  >
+                    <span className="flex-1">Oldest</span>
+                    {sortOrder === "oldest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                  </button>
+                </li>
+              </ul>
+            </FilterDropdown>
           </div>
             </>
           )}

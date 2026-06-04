@@ -12,6 +12,7 @@ type StarRepository interface {
 	IsStarred(userID uuid.UUID, repoID uuid.UUID) (bool, error)
 	CountForRepo(repoID uuid.UUID) (int, error)
 	ListStarredByUser(userID uuid.UUID) ([]*domain.Repo, error)
+	CountStarredByUser(userID uuid.UUID) (int, error)
 }
 
 type StarUseCase interface {
@@ -19,4 +20,5 @@ type StarUseCase interface {
 	Unstar(repoID uuid.UUID, requesterID uuid.UUID) (bool, int, error)
 	GetStatus(repoID uuid.UUID, requesterID uuid.UUID) (bool, int, error)
 	ListStarred(requesterID uuid.UUID) ([]*domain.Repo, error)
+	CountStarred(requesterID uuid.UUID) (int, error)
 }

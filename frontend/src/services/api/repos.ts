@@ -16,6 +16,8 @@ import type {
 export const reposApi = {
   getRepos: () => fetcher<Repository[]>('/repos'),
 
+  getRepoCount: () => fetcher<{ count: number }>('/repos/count'),
+
   createRepo: (payload: CreateRepositoryPayload) =>
     fetcher<Repository>('/repos', {
       method: 'POST',

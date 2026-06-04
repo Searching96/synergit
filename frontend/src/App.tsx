@@ -27,6 +27,7 @@ import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
 import SearchResultsPage from "./components/layout/SearchResultsPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
+import { isRepositoryOwnedByUser } from "./components/profile/pages/utils/profileUtils";
 import {
   GLOBAL_PAGE_TITLES,
   buildProfilePath,
@@ -58,6 +59,7 @@ function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
+  const [profileRepoCount, setProfileRepoCount] = useState<number>(0);
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [tabCounts, setTabCounts] = useState<{ issues: number; pulls: number }>({ issues: 0, pulls: 0 });
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -368,23 +370,83 @@ function App () {
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      reposApi.getRepos()
-        .then((data) => {
-          const repositories = data || [];
-          setRepos(repositories); // Just to ensure handling null value for data
-          void hydratePrimaryLanguagesFromInsights(repositories);
-        })
-                                              // since we do not know the backend will handle empty list or not
-        .catch((err) => {
-          console.error(err);
-          // If token is invalid/expired, log out on explicit 401 from API layer.
-          if (err instanceof ApiError && err.status === 401) {
-            handleLogout();
-          }
-        });
+    if (!isAuthenticated) {
+      return;
     }
-  }, [hydratePrimaryLanguagesFromInsights, isAuthenticated]);
+
+    let cancelled = false;
+    reposApi.getRepoCount()
+      .then(({ count }) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProfileRepoCount(count);
+      })
+      .catch((err) => {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(err);
+        if (err instanceof ApiError && err.status === 401) {
+          handleLogout();
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const routeNeedsRepositories =
+      viewMode === 'repo' ||
+      (viewMode === 'profile' && profileTab === 'repositories') ||
+      (viewMode === 'global' && activeGlobalPage === 'search');
+
+    if (!routeNeedsRepositories) {
+      return;
+    }
+
+    let cancelled = false;
+    reposApi.getRepos()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+
+        const repositories = data || [];
+        setRepos(repositories);
+        setProfileRepoCount(repositories.filter((repo) => isRepositoryOwnedByUser(repo, currentUsername)).length);
+        void hydratePrimaryLanguagesFromInsights(repositories);
+      })
+      .catch((err) => {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(err);
+        if (err instanceof ApiError && err.status === 401) {
+          handleLogout();
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeGlobalPage,
+    currentUsername,
+    hydratePrimaryLanguagesFromInsights,
+    isAuthenticated,
+    profileTab,
+    viewMode,
+  ]);
 
   useEffect(() => {
     if (selectedRepoId && isAuthenticated) {
@@ -590,6 +652,8 @@ function App () {
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
+    setRepos([]);
+    setProfileRepoCount(0);
     setSelectedRepoId(null);
     setViewMode('profile');
     navigateToPath(`/${encodeURIComponent(currentUsername)}`, { replace: true });
@@ -629,6 +693,7 @@ function App () {
         const withoutCreated = prev.filter((repo) => repo.id !== createdRepo.id);
         return [createdRepo, ...withoutCreated];
       });
+      setProfileRepoCount((count) => count + 1);
       setSelectedRepoId(createdRepo.id);
       navigateToRepoTab(createdRepo, 'files');
     } catch (err: unknown) {
@@ -651,6 +716,7 @@ function App () {
     return (
       <GithubProfilePages
         repositories={repos}
+        repositoryCount={profileRepoCount}
         username={currentUsername}
         activeTab={profileTab}
         onTabChange={(tab) => navigateToProfileTab(tab)}

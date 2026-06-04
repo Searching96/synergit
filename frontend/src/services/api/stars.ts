@@ -10,5 +10,6 @@ export const starsApi = {
   getStatus: (repoId: string): Promise<StarStatus> => fetcher<StarStatus>(`/repos/${repoId}/star`),
   star: (repoId: string): Promise<StarStatus> => fetcher<StarStatus>(`/repos/${repoId}/star`, { method: "POST" }),
   unstar: (repoId: string): Promise<StarStatus> => fetcher<StarStatus>(`/repos/${repoId}/star`, { method: "DELETE" }),
+  countStarred: (): Promise<{ count: number }> => fetcher<{ count: number }>(`/profile/starred/count`),
   listStarred: (): Promise<Repository[]> => fetcher<Repository[]>(`/profile/starred`),
 };

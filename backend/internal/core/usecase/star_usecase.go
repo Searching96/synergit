@@ -46,3 +46,7 @@ func (s *StarService) GetStatus(repoID uuid.UUID, requesterID uuid.UUID) (bool, 
 func (s *StarService) ListStarred(requesterID uuid.UUID) ([]*domain.Repo, error) {
 	return s.starStore.ListStarredByUser(requesterID)
 }
+
+func (s *StarService) CountStarred(requesterID uuid.UUID) (int, error) {
+	return s.starStore.CountStarredByUser(requesterID)
+}

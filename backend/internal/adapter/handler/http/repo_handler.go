@@ -309,6 +309,21 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 	c.JSON(http.StatusOK, responses)
 }
 
+func (h *RepoHandler) HandleGetOwnedRepoCount(c *gin.Context) {
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	count, err := h.repoUseCase.CountOwnedRepositories(requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.CountResponse{Count: count})
+}
+
 func (h *RepoHandler) HandleGetTree(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

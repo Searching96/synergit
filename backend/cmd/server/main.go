@@ -132,6 +132,7 @@ func main() {
 			// Repo routes
 			repos.POST("", repoHandler.HandleCreateRepo)
 			repos.GET("", repoHandler.HandleGetRepos)
+			repos.GET("/count", repoHandler.HandleGetOwnedRepoCount)
 			repos.POST("/:repo_id/branches", repoHandler.HandleCreateBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
@@ -187,6 +188,7 @@ func main() {
 		profile.Use(middleware.AuthMiddleware(jwtSecret))
 		{
 			profile.GET("/activity", repoInsightsHandler.HandleGetProfileActivity)
+			profile.GET("/starred/count", starHandler.HandleCountStarred)
 			profile.GET("/starred", starHandler.HandleListStarred)
 		}
 	}

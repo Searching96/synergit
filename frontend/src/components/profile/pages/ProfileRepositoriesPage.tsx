@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, XCircle } from "lucide-react";
 import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
+import StarButton from "../../shared/StarButton";
 import { reposApi } from "../../../services/api/repos";
 import type { Commit } from "../../../types";
 import type { ShowcaseRepo } from "./utils/profileTypes";
@@ -519,10 +520,7 @@ export default function ProfileRepositoriesPage({
             </div>
 
             <div className="shrink-0 flex flex-col items-end gap-2">
-              <button type="button" className="h-7 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-2">
-                <StarIcon size={12} />
-                Star
-              </button>
+              <StarButton repoId={repo.id ?? ""} autoFetch />
               <div className="h-6 w-[92px]">
                 <svg viewBox="0 0 92 24" className="h-full w-full" role="img" aria-label={`${repo.name} last year commit trend`}>
                   <polyline
