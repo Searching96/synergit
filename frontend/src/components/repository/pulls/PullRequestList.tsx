@@ -617,7 +617,7 @@ export default function PullRequestList({
         </div>
       </div>
 
-      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
+      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] overflow-visible">
         <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           {selectionActive ? (
             <>

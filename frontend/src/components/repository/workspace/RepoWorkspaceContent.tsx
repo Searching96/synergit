@@ -213,7 +213,7 @@ export default function RepoWorkspaceContent({
               <PullRequestList
                 repoId={selectedRepo.id}
                 currentUsername={currentUsername}
-                onOpenCompare={() => onOpenRepoCompare(defaultBranchName, currentBranch || defaultBranchName)}
+                onOpenCompare={() => onOpenRepoCompare()}
               />
             )}
             {activeTab === "agents" && <RepoAgentsPage />}
