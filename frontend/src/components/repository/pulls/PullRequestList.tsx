@@ -884,9 +884,7 @@ export default function PullRequestList({
           )}
         </div>
 
-        {loading ? (
-          <div className="p-5 text-sm text-[var(--text-secondary)]">Loading pull requests...</div>
-        ) : filteredPulls.length === 0 ? (
+        {loading ? null : filteredPulls.length === 0 ? (
           <div className="py-16 text-center space-y-2">
             <GitPullRequest size={26} className="mx-auto text-[var(--text-muted)]" />
             <p className="text-[36px] leading-[1.2] font-semibold text-[var(--text-primary)]">

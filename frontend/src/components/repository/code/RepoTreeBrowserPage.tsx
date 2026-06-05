@@ -127,7 +127,7 @@ export default function RepoTreeBrowserPage({
   const [currentDirPath, setCurrentDirPath] = useState<string>("");
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
-  const [fileLoading, setFileLoading] = useState<boolean>(false);
+  const [, setFileLoading] = useState<boolean>(false);
   const [loadingPathSet, setLoadingPathSet] = useState<Set<string>>(new Set());
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
@@ -635,10 +635,7 @@ export default function RepoTreeBrowserPage({
                   </div>
                 </div>
 
-                {fileLoading ? (
-                  <div className="p-4 text-sm text-[var(--text-secondary)]">Loading file...</div>
-                ) : (
-                  <div>
+                <div>
                     <table className="w-full border-collapse text-sm font-mono">
                       <tbody>
                         {fileLines.map((line, index) => (
@@ -651,8 +648,7 @@ export default function RepoTreeBrowserPage({
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                )}
+                </div>
               </div>
             </div>
           ) : (

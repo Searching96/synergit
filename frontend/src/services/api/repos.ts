@@ -9,6 +9,7 @@ import type {
   CommitFileChangePayload,
   CommitFilesChangePayload,
   CreateBranchPayload,
+  RenameBranchPayload,
   RepoFile,
   Repository,
 } from '../../types';
@@ -40,6 +41,13 @@ export const reposApi = {
   createBranch: (repoId: string, payload: CreateBranchPayload) =>
     fetcher<Branch>(`/repos/${repoId}/branches`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
+  renameBranch: (repoId: string, payload: RenameBranchPayload) =>
+    fetcher<Branch>(`/repos/${repoId}/branches`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),

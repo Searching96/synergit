@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
-import { ApiError, issuesApi, reposApi } from "./services/api";
+import { ApiError, checkBackendAvailability, issuesApi, reposApi } from "./services/api";
 import { pullsApi } from "./services/api/pull";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
@@ -58,11 +58,35 @@ function RepositoryIcon({ size = 16, className }: { size?: number; className?: s
   return <RepoIcon size={size} className={className} />;
 }
 
+function SiteUnavailablePage() {
+  return (
+    <div className="min-h-screen bg-[var(--surface-canvas)] text-[var(--text-primary)] flex items-center justify-center px-4">
+      <main className="w-full max-w-[520px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-6 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">This site is currently not available</h1>
+        <p className="mt-3 text-sm text-[var(--text-secondary)]">
+          Synergit cannot connect to the backend service right now.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-5 h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+        >
+          Retry
+        </button>
+      </main>
+    </div>
+  );
+}
+
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
   const [profileRepoCount, setProfileRepoCount] = useState<number>(0);
+  const [profileFetchFailed, setProfileFetchFailed] = useState<boolean>(false);
+  const [profileRepoCountPending, setProfileRepoCountPending] = useState<boolean>(isAuthenticated);
+  const [profileRepositoriesPending, setProfileRepositoriesPending] = useState<boolean>(false);
+  const [backendStatus, setBackendStatus] = useState<"checking" | "available" | "unavailable">("checking");
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [tabCounts, setTabCounts] = useState<{ issues: number; pulls: number }>({ issues: 0, pulls: 0 });
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -79,6 +103,24 @@ function App () {
 
   const [branches, setBranches] = useState<Branch[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>('');
+  const profileFetchPending = profileRepoCountPending || profileRepositoriesPending;
+
+  useEffect(() => {
+    let cancelled = false;
+    setBackendStatus("checking");
+
+    void checkBackendAvailability().then((available) => {
+      if (cancelled) {
+        return;
+      }
+
+      setBackendStatus(available ? "available" : "unavailable");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedRepoId) {
@@ -384,12 +426,15 @@ function App () {
     }
 
     let cancelled = false;
+    setProfileRepoCountPending(true);
     reposApi.getRepoCount()
       .then(({ count }) => {
         if (cancelled) {
           return;
         }
 
+        setProfileFetchFailed(false);
+        setProfileRepoCountPending(false);
         setProfileRepoCount(count);
       })
       .catch((err) => {
@@ -400,7 +445,10 @@ function App () {
         console.error(err);
         if (err instanceof ApiError && err.status === 401) {
           handleLogout();
+          return;
         }
+        setProfileFetchFailed(true);
+        setProfileRepoCountPending(false);
       });
 
     return () => {
@@ -415,14 +463,17 @@ function App () {
 
     const routeNeedsRepositories =
       viewMode === 'repo' ||
+      (viewMode === 'profile' && profileTab === 'overview') ||
       (viewMode === 'profile' && profileTab === 'repositories') ||
       (viewMode === 'global' && activeGlobalPage === 'search');
 
     if (!routeNeedsRepositories) {
+      setProfileRepositoriesPending(false);
       return;
     }
 
     let cancelled = false;
+    setProfileRepositoriesPending(true);
     reposApi.getRepos()
       .then((data) => {
         if (cancelled) {
@@ -430,6 +481,8 @@ function App () {
         }
 
         const repositories = data || [];
+        setProfileFetchFailed(false);
+        setProfileRepositoriesPending(false);
         setRepos(repositories);
         setProfileRepoCount(repositories.filter((repo) => isRepositoryOwnedByUser(repo, currentUsername)).length);
         void hydratePrimaryLanguagesFromInsights(repositories);
@@ -442,7 +495,10 @@ function App () {
         console.error(err);
         if (err instanceof ApiError && err.status === 401) {
           handleLogout();
+          return;
         }
+        setProfileFetchFailed(true);
+        setProfileRepositoriesPending(false);
       });
 
     return () => {
@@ -747,6 +803,10 @@ function App () {
 
   const currentGlobalTitle = activeGlobalPage ? GLOBAL_PAGE_TITLES[activeGlobalPage] : 'Page';
 
+  if (backendStatus === "unavailable") {
+    return <SiteUnavailablePage />;
+  }
+
   if (!isAuthenticated) {
     return <Auth onLoginSuccess={() => {
       setIsAuthenticated(true);
@@ -766,6 +826,8 @@ function App () {
         onCreateRepository={handleOpenCreateRepository}
         onLogout={handleLogout}
         onSearch={handleSearch}
+        hasFetchError={profileFetchFailed}
+        hasFetchPending={profileFetchPending}
       />
     );
   }

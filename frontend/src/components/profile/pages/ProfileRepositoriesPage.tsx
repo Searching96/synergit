@@ -527,7 +527,7 @@ export default function ProfileRepositoriesPage({
                     points={buildSparklinePoints(commitTrendByRepoName[repo.name] ?? EMPTY_COMMIT_TREND, 92, 24, 2, sharedTrendScaleMax)}
                     fill="none"
                     stroke="var(--accent-sparkline)"
-                    strokeWidth="2"
+                    strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />

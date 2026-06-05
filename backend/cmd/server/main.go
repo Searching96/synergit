@@ -118,6 +118,10 @@ func main() {
 	// Group routes for clean versioning
 	v1 := router.Group("/api/v1")
 	{
+		v1.GET("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
 		// Auth routes
 		auth := v1.Group("/auth")
 		{
@@ -136,6 +140,7 @@ func main() {
 			repos.PATCH("/:repo_id/visibility", repoHandler.HandleUpdateRepoVisibility)
 			repos.DELETE("/:repo_id", repoHandler.HandleDeleteRepo)
 			repos.POST("/:repo_id/branches", repoHandler.HandleCreateBranch)
+			repos.PATCH("/:repo_id/branches", repoHandler.HandleRenameBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)

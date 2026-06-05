@@ -9,6 +9,15 @@ export class ApiError extends Error {
 	}
 }
 
+export async function checkBackendAvailability(): Promise<boolean> {
+	try {
+		const response = await fetch(`${BASE_URL}/health`);
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
 // A generic fetcher that handlers the boilerplate
 export async function fetcher<T>(endpoint: string, options?: RequestInit): Promise<T> {
 	// 1. Safely initialize a native Headers object with any passed-in headers

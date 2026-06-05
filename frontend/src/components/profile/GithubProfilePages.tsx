@@ -50,6 +50,8 @@ interface GithubProfilePagesProps {
   onCreateRepository: () => void;
   onLogout: () => void;
   onSearch?: (query: string) => void;
+  hasFetchError?: boolean;
+  hasFetchPending?: boolean;
 }
 
 const PROFILE_TABS: Array<{
@@ -80,6 +82,8 @@ export default function GithubProfilePages({
   onCreateRepository,
   onLogout,
   onSearch,
+  hasFetchError = false,
+  hasFetchPending = false,
 }: GithubProfilePagesProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -213,6 +217,14 @@ export default function GithubProfilePages({
     return ordered.slice(0, 6);
   }, [profileRepositories]);
 
+  const shouldShowFetchFailure = hasFetchError;
+  const shouldShowFetchLoading = !shouldShowFetchFailure && hasFetchPending;
+  const fetchStatusMessage = shouldShowFetchFailure
+    ? "Failed to fetch"
+    : shouldShowFetchLoading
+      ? "Loading..."
+      : null;
+
   const content =
     activeTab === "overview" ? (
       <ProfileOverviewPage
@@ -220,6 +232,8 @@ export default function GithubProfilePages({
         onOpenWorkspace={onOpenWorkspace}
         languageColor={languageColor}
         contributionColor={contributionColor}
+        isProfileDataLoading={shouldShowFetchLoading}
+        hasProfileDataError={shouldShowFetchFailure}
       />
     ) : activeTab === "repositories" ? (
       <ProfileRepositoriesPage
@@ -285,10 +299,7 @@ export default function GithubProfilePages({
             >
               {avatarInitial}
             </div>
-            <h1 className="mt-4 text-[40px] leading-[44px] font-semibold text-[var(--text-primary)]">
-              My Name
-            </h1>
-            <p className="text-[30px] leading-[34px] font-light text-[var(--text-secondary)]">{username}</p>
+            <p className="text-[30px] leading-[34px] font-semibold text-[var(--text-primary)]">{username}</p>
             <button
               type="button"
               className="mt-4 h-8 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
@@ -296,17 +307,22 @@ export default function GithubProfilePages({
               Edit profile
             </button>
             <p className="mt-4 text-sm text-[var(--text-secondary)] inline-flex items-center gap-2">
-              <Users size={14} /> 0 follower · 0 following
+              <Users size={14} /> 0 follower &middot; 0 following
             </p>
           </div>
         </aside>
 
-        <section className="min-w-0 w-full">{content}</section>
+        <section className="min-w-0 w-full">
+          {fetchStatusMessage && activeTab !== "overview" ? (
+            <p className="mb-3 text-sm text-[var(--text-secondary)]">{fetchStatusMessage}</p>
+          ) : null}
+          {content}
+        </section>
       </main>
 
       <footer className="border-t border-[var(--border-muted)] mt-8 py-6 text-xs text-[var(--text-secondary)]">
         <div className="max-w-[1480px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
-          <span>© 2026 GitHub, Inc.</span>
+          <span>&copy; 2026 GitHub, Inc.</span>
           <span>Terms</span>
           <span>Privacy</span>
           <span>Security</span>

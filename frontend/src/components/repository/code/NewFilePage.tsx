@@ -124,7 +124,7 @@ export default function NewFilePage({
   const [fileDirectoryPath, setFileDirectoryPath] = useState<string>("");
   const [hasLeadingSeparator, setHasLeadingSeparator] = useState<boolean>(false);
   const [fileContent, setFileContent] = useState<string>("");
-  const [initialContentLoading, setInitialContentLoading] = useState<boolean>(false);
+  const [, setInitialContentLoading] = useState<boolean>(false);
   const [commitMessage, setCommitMessage] = useState<string>("Create new file");
   const [description, setDescription] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -597,20 +597,14 @@ export default function NewFilePage({
                       ))}
                     </div>
 
-                    {initialContentLoading ? (
-                      <div className="w-full min-h-[560px] p-4 text-sm text-[var(--text-secondary)]">
-                        Loading file...
-                      </div>
-                    ) : (
-                      <textarea
-                        value={fileContent}
-                        onChange={(event) => setFileContent(event.target.value)}
-                        onKeyDown={handleEditorTextareaKeyDown}
-                        placeholder="Enter file contents here"
-                        spellCheck={false}
-                        className="w-full min-h-[560px] p-4 font-mono text-sm leading-6 text-[var(--text-primary)] bg-[var(--surface-canvas)]"
-                      />
-                    )}
+                    <textarea
+                      value={fileContent}
+                      onChange={(event) => setFileContent(event.target.value)}
+                      onKeyDown={handleEditorTextareaKeyDown}
+                      placeholder="Enter file contents here"
+                      spellCheck={false}
+                      className="w-full min-h-[560px] p-4 font-mono text-sm leading-6 text-[var(--text-primary)] bg-[var(--surface-canvas)]"
+                    />
                   </div>
                 ) : (
                   <pre className="min-h-[560px] p-4 text-sm leading-6 text-[var(--text-primary)] whitespace-pre-wrap break-words font-mono">

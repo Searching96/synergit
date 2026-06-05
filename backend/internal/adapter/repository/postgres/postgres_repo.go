@@ -91,10 +91,14 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error) {
 	query := `
-		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.visibility, r.primary_language
+		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.visibility, r.primary_language,
+		       COALESCE(owner_user.username, '')
 		FROM repositories r
 		LEFT JOIN repository_collaborators rc
 			ON rc.repository_id = r.id AND rc.user_id = $1
+		LEFT JOIN repository_collaborators owner_rc
+			ON owner_rc.repository_id = r.id AND owner_rc.role = 'OWNER'
+		LEFT JOIN users owner_user ON owner_user.id = owner_rc.user_id
 		WHERE r.visibility = 'PUBLIC' OR rc.user_id IS NOT NULL
 		ORDER BY r.created_at`
 
@@ -106,10 +110,19 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 
 	repos := []*domain.Repo{}
 	for rows.Next() {
-		repo, err := scanRepo(rows)
-		if err != nil {
+		repo := &domain.Repo{}
+		var description, visibility, primaryLanguage, owner sql.NullString
+		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
+			&description, &visibility, &primaryLanguage, &owner); err != nil {
 			return nil, err
 		}
+		repo.Description = strings.TrimSpace(description.String)
+		repo.Visibility = domain.RepoVisibility(strings.TrimSpace(visibility.String))
+		if repo.Visibility == "" {
+			repo.Visibility = domain.RepoVisibilityPublic
+		}
+		repo.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
+		repo.Owner = strings.TrimSpace(owner.String)
 		repos = append(repos, repo)
 	}
 

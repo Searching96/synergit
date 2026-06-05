@@ -266,7 +266,7 @@ export default function ConflictResolver({ repoId, pullNumber, onResolved, onBac
 		}
 	};
 
-	if (loading) return <div className="p-4 text-[var(--text-muted)]">Scanning for conflicts...</div>
+	if (loading) return null
 	if (error) return <div className="p-4 text-[var(--text-danger)] bg-[var(--surface-danger-subtle)] border border-[var(--border-danger-muted)] rounded-md">{error}</div>
 	if (conflicts.length === 0) return (
 		<div className="p-5 text-[var(--fgColor-open,#1a7f37)] flex items-center gap-2">

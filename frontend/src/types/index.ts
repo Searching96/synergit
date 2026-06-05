@@ -228,6 +228,11 @@ export interface CreateBranchPayload {
 	from_branch?: string;
 }
 
+export interface RenameBranchPayload {
+	old_name: string;
+	new_name: string;
+}
+
 export interface CreatePullRequestPayload {
 	title: string;
 	description?: string;

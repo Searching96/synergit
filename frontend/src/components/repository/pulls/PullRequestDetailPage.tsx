@@ -283,8 +283,8 @@ export default function PullRequestDetailPage({
     }
   };
 
-  if (loading) {
-    return <div className="p-5 text-sm text-[var(--text-secondary)]">Loading pull request...</div>;
+  if (loading && !pull) {
+    return null;
   }
 
   if (!pull) {

@@ -939,13 +939,6 @@ export default function PullRequestComparePage({
         </div>
       </section>
 
-      {loadingCompare ? (
-        <div className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] px-4 py-10 text-sm text-[var(--text-secondary)] inline-flex items-center gap-2 w-full justify-center">
-          <Loader2 size={16} className="animate-spin" />
-          Loading compare details...
-        </div>
-      ) : null}
-
       {!loadingCompare && compareError ? (
         <div className="border border-[var(--border-danger-soft)] rounded-md bg-[var(--surface-danger-subtle)] px-4 py-3 text-sm text-[var(--text-danger)]">
           {compareError}

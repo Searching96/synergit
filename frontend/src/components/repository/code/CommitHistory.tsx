@@ -581,11 +581,7 @@ export default function CommitHistory({
 				</div>
 			</div>
 
-			{loading ? (
-				<div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8 text-sm text-[var(--text-secondary)]">
-					Loading commits...
-				</div>
-			) : groupedCommits.length === 0 ? (
+			{loading ? null : groupedCommits.length === 0 ? (
 				<div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8 text-sm text-[var(--text-secondary)]">
 					No commits found.
 				</div>

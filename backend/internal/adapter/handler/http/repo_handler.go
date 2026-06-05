@@ -109,7 +109,10 @@ func buildCloneURL(baseURL string, owner string, repoName string) string {
 }
 
 func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string) dto.RepoResponse {
-	owner := inferOwnerFromRepoPath(repo.Path)
+	owner := strings.TrimSpace(repo.Owner)
+	if owner == "" {
+		owner = inferOwnerFromRepoPath(repo.Path)
+	}
 	baseURL := requestBaseURL(c, configuredBaseURL)
 	visibility := repo.Visibility
 	if visibility == "" {
@@ -458,6 +461,27 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, branch)
+}
+
+func (h *RepoHandler) HandleRenameBranch(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.RenameBranchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	branch, err := h.repoUseCase.RenameRepoBranch(repoID, req.OldName, req.NewName)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, branch)
 }
 
 func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {

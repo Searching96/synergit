@@ -204,8 +204,8 @@ export default function IssueDetailPage({
     }
   };
 
-  if (loading) {
-    return <div className="p-5 text-sm text-[var(--text-secondary)]">Loading issue...</div>;
+  if (loading && !issue) {
+    return null;
   }
 
   if (!issue) {

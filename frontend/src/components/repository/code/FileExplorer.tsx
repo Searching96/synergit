@@ -259,7 +259,6 @@ export default function FileExplorer({
 
   const [rootLoading, setRootLoading] = useState<boolean>(true);
   const [dirLoading, setDirLoading] = useState<boolean>(false);
-  const [fileLoading] = useState<boolean>(false);
   const [readmeLoading, setReadmeLoading] = useState<boolean>(false);
 
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -833,11 +832,7 @@ export default function FileExplorer({
               ))}
             </div>
           </div>
-        ) : rootLoading ? (
-          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-6 text-sm text-[var(--text-secondary)]">
-            Loading repository files...
-          </div>
-        ) : rootEntries.length === 0 ? (
+        ) : rootLoading ? null : rootEntries.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4">
@@ -1527,9 +1522,7 @@ export default function FileExplorer({
                   </div>
                 </div>
 
-                {fileLoading ? (
-                  <div className="p-6 text-sm text-[var(--text-secondary)]">Loading file...</div>
-                ) : isEditing ? (
+                {isEditing ? (
                   <div className="p-4 space-y-3 overflow-auto">
                     <textarea
                       className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
@@ -1577,10 +1570,8 @@ export default function FileExplorer({
                   <span className="text-right">Last commit date</span>
                 </div>
 
-                {dirLoading && currentEntries.length === 0 ? (
-                  <div className="p-5 text-sm text-[var(--text-secondary)]">Loading directory...</div>
-                ) : (
-                  <ul>
+                {dirLoading && currentEntries.length === 0 ? null : (
+                <ul>
                     {currentDirPath !== "" && (
                       <li className="border-t border-[var(--border-muted)] first:border-t-0">
                         <button
@@ -1622,7 +1613,7 @@ export default function FileExplorer({
                         </li>
                       );
                     })}
-                  </ul>
+                </ul>
                 )}
               </div>
             )}

@@ -680,6 +680,61 @@ func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
 	}, nil
 }
 
+func (g *LocalGitAdapter) RenameBranch(repoPath string, oldBranch string,
+	newBranch string) (*domain.Branch, error) {
+
+	fullPath := g.resolveRepoPath(repoPath)
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	oldRefName := plumbing.NewBranchReferenceName(strings.TrimSpace(oldBranch))
+	oldRef, err := r.Reference(oldRefName, true)
+	if err != nil {
+		return nil, fmt.Errorf("branch not found: %w", err)
+	}
+
+	newRefName := plumbing.NewBranchReferenceName(strings.TrimSpace(newBranch))
+	if err := newRefName.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid branch name: %w", err)
+	}
+
+	if newRefName == oldRefName {
+		return nil, errors.New("new branch name must be different")
+	}
+
+	if _, err := r.Reference(newRefName, true); err == nil {
+		return nil, errors.New("branch already exists")
+	} else if err != plumbing.ErrReferenceNotFound {
+		return nil, err
+	}
+
+	if err := r.Storer.SetReference(plumbing.NewHashReference(newRefName, oldRef.Hash())); err != nil {
+		return nil, fmt.Errorf("failed to create branch: %w", err)
+	}
+
+	// If the renamed branch is the default branch, retarget HEAD before
+	// removing the old ref so the repository keeps a valid default.
+	headRef, _ := r.Head()
+	isDefault := headRef != nil && headRef.Name() == oldRefName
+	if isDefault {
+		if err := r.Storer.SetReference(plumbing.NewSymbolicReference(plumbing.HEAD, newRefName)); err != nil {
+			return nil, fmt.Errorf("failed to update HEAD: %w", err)
+		}
+	}
+
+	if err := r.Storer.RemoveReference(oldRefName); err != nil {
+		return nil, fmt.Errorf("failed to remove old branch: %w", err)
+	}
+
+	return &domain.Branch{
+		Name:       newBranch,
+		CommitHash: oldRef.Hash().String(),
+		IsDefault:  isDefault,
+	}, nil
+}
+
 func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 	filePath string, content string, authorName string, commitMessage string) error {
 

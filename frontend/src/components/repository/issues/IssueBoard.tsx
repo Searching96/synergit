@@ -1373,9 +1373,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
           )}
         </div>
 
-        {listLoading ? (
-          <div className="p-5 text-sm text-[var(--text-secondary)]">Loading issues...</div>
-        ) : filteredIssues.length === 0 ? (
+        {listLoading ? null : filteredIssues.length === 0 ? (
           <div className="py-16 text-center">
             <CircleDot size={24} className="mx-auto text-[var(--text-muted)]" />
             <p className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">No {activeFilter.toLowerCase()} issues found</p>

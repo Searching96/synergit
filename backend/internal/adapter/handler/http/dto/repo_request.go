@@ -16,6 +16,12 @@ type CreateBranchRequest struct {
 	FromBranch string `json:"from_branch"`
 }
 
+// RenameBranchRequest defines payload for renaming a branch.
+type RenameBranchRequest struct {
+	OldName string `json:"old_name"`
+	NewName string `json:"new_name"`
+}
+
 type UpdateRepoVisibilityRequest struct {
 	Visibility string `json:"visibility"`
 }

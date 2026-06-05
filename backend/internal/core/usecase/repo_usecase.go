@@ -391,6 +391,22 @@ func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromB
 	return s.gitManager.CreateBranch(repoPath, newBranch, fromBranch)
 }
 
+func (s *RepoService) RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error) {
+	if err := domain.ValidateBranchName(oldBranch); err != nil {
+		return nil, err
+	}
+	if err := domain.ValidateBranchName(newBranch); err != nil {
+		return nil, err
+	}
+
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.gitManager.RenameBranch(repoPath, oldBranch, newBranch)
+}
+
 type repoCommitContext struct {
 	RepoPath   string
 	AuthorName string

@@ -36,6 +36,8 @@ type GitManager interface {
 	GetBranches(repoPath string) ([]domain.Branch, error)
 	CreateBranch(repoPath string, newBranch string,
 		fromBranch string) (*domain.Branch, error)
+	RenameBranch(repoPath string, oldBranch string,
+		newBranch string) (*domain.Branch, error)
 	CommitFileChange(repoPath string, branch string, filePath string,
 		content string, authorName string, commitMessage string) error
 	CommitFilesChange(repoPath string, branch string, files map[string]string,
