@@ -240,6 +240,16 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 		return errors.New("failed to merge branches")
 	}
 
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return err
+	}
+	sourceCommitHash := findBranchCommitHash(branches, pr.SourceBranch)
+	targetCommitHash := findBranchCommitHash(branches, pr.TargetBranch)
+	if err := s.prStore.UpdateCommitHashes(prID, sourceCommitHash, targetCommitHash); err != nil {
+		return err
+	}
+
 	// 5. Update the database status
 	if err := s.prStore.UpdateStatus(prID, domain.PullRequestStatusMerged); err != nil {
 		return err
@@ -248,6 +258,94 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 	_ = s.prStore.AddEvent(prID, mergerID, "merged")
 
 	return nil
+}
+
+func (s *PullRequestService) RevertPullRequest(prID uuid.UUID,
+	requesterID uuid.UUID) (*domain.PullRequest, error) {
+
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return nil, errors.New("pull request not found")
+	}
+
+	if pr.Status != domain.PullRequestStatusMerged {
+		return nil, errors.New("only merged pull requests can be reverted")
+	}
+
+	role, err := s.collabStore.GetRole(pr.RepoID, requesterID)
+	if err != nil || !role.CanWrite() {
+		return nil, errors.New("unauthorized: you do not have permission to revert this pull request")
+	}
+
+	repo, err := s.repoStore.FindByID(pr.RepoID)
+	if err != nil || repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	requester, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || requester == nil {
+		return nil, errors.New("requester user not found")
+	}
+
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	mergeCommitHash := strings.TrimSpace(pr.TargetCommitHash)
+	currentTargetCommitHash := findBranchCommitHash(branches, pr.TargetBranch)
+	if currentTargetCommitHash != "" {
+		mergeCommitHash = currentTargetCommitHash
+	}
+	if mergeCommitHash == "" {
+		return nil, errors.New("merged commit hash is not available")
+	}
+
+	prNumber, err := s.resolvePRNumber(pr.RepoID, pr.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	revertBranch := fmt.Sprintf("revert-pr-%d-%s", prNumber, strings.Split(uuid.NewString(), "-")[0])
+	commitMessage := fmt.Sprintf("Revert \"%s\"", pr.Title)
+	if err := s.gitManager.CreateRevertBranch(repo.Path, pr.TargetBranch, revertBranch,
+		mergeCommitHash, requester.Username, commitMessage); err != nil {
+		return nil, err
+	}
+
+	branches, err = s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceCommitHash := findBranchCommitHash(branches, revertBranch)
+	targetCommitHash := findBranchCommitHash(branches, pr.TargetBranch)
+	if sourceCommitHash == "" || targetCommitHash == "" {
+		return nil, errors.New("revert branch or target branch not found")
+	}
+
+	revertPR := &domain.PullRequest{
+		ID:               uuid.New(),
+		RepoID:           pr.RepoID,
+		CreatorID:        requesterID,
+		Title:            fmt.Sprintf("Revert \"%s\"", pr.Title),
+		Description:      fmt.Sprintf("Reverts #%d.", prNumber),
+		SourceBranch:     revertBranch,
+		TargetBranch:     pr.TargetBranch,
+		SourceCommitHash: sourceCommitHash,
+		TargetCommitHash: targetCommitHash,
+		Status:           domain.PullRequestStatusOpen,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	if err := s.prStore.Create(revertPR); err != nil {
+		return nil, err
+	}
+
+	_ = s.prStore.AddEvent(revertPR.ID, requesterID, "opened")
+
+	return revertPR, nil
 }
 
 func (s *PullRequestService) ClosePullRequest(prID uuid.UUID, closerID uuid.UUID) error {

@@ -1210,6 +1210,58 @@ func (g *LocalGitAdapter) MergeBranches(
 	return nil
 }
 
+func (g *LocalGitAdapter) CreateRevertBranch(repoPath string, targetBranch string,
+	revertBranch string, mergeCommitHash string, authorName string, commitMessage string) error {
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+	tempDir, err := os.MkdirTemp("", "synergit-revert-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp revert directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	runGit := func(args ...string) error {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tempDir
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+
+	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
+		return fmt.Errorf("failed to clone repo for revert: %w", err)
+	}
+
+	if err := runGit("checkout", "-B", revertBranch, "origin/"+targetBranch); err != nil {
+		return fmt.Errorf("failed to create revert branch: %w", err)
+	}
+
+	reverterEmail := fmt.Sprintf("%s@synergit.local", authorName)
+	if err := runGit("config", "user.name", authorName); err != nil {
+		return err
+	}
+	if err := runGit("config", "user.email", reverterEmail); err != nil {
+		return err
+	}
+
+	if err := runGit("revert", "-m", "1", "--no-commit", mergeCommitHash); err != nil {
+		return fmt.Errorf("failed to revert merge commit: %w", err)
+	}
+
+	if err := runGit("commit", "-m", commitMessage); err != nil {
+		return fmt.Errorf("failed to commit revert: %w", err)
+	}
+
+	if err := runGit("push", "origin", revertBranch); err != nil {
+		return fmt.Errorf("failed to push revert branch: %w", err)
+	}
+
+	return nil
+}
+
 func (g *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch string,
 	targetBranch string) ([]string, error) {
 

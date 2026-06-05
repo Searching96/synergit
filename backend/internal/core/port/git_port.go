@@ -44,6 +44,8 @@ type GitManager interface {
 		headRef string) (*domain.PullRequestCompareResult, error)
 	MergeBranches(repoPath string, sourceBranch string, targetBranch string,
 		mergerName string, commitMessage string) error
+	CreateRevertBranch(repoPath string, targetBranch string, revertBranch string,
+		mergeCommitHash string, authorName string, commitMessage string) error
 
 	// Returns a list of file paths that have merge conflicts
 	GetConflictingFiles(repoName string, sourceBranch string,

@@ -157,6 +157,7 @@ func main() {
 			repos.GET("/:repo_id/pulls/:pull_id", prHandler.HandleGetPullRequest)
 			repos.GET("/:repo_id/pulls/:pull_id/events", prHandler.HandleListPullRequestEvents)
 			repos.POST("/:repo_id/pulls/:pull_id/merge", prHandler.HandleMergePullRequest)
+			repos.POST("/:repo_id/pulls/:pull_id/revert", prHandler.HandleRevertPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/reopen", prHandler.HandleReopenPullRequest)
 

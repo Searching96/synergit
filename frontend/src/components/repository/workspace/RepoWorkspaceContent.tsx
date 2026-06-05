@@ -250,6 +250,7 @@ export default function RepoWorkspaceContent({
                 pullNumber={routeContentPath}
                 onBack={onBackToPullRequests}
                 onOpenConflicts={() => onOpenPullRequestConflicts(routeContentPath)}
+                onOpenPullRequest={onOpenPullRequest}
               />
             )}
             {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && routeContentKind !== "pull-conflicts" && (

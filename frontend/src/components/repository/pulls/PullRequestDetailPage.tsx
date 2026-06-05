@@ -8,8 +8,6 @@ import {
   Code,
   FileDiff,
   GitCommitHorizontal,
-  GitMerge,
-  GitPullRequest,
   Heading,
   Italic,
   Link,
@@ -19,7 +17,6 @@ import {
   MoreHorizontal,
   Settings,
   Users,
-  XCircle,
 } from "lucide-react";
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
@@ -33,6 +30,7 @@ interface PullRequestDetailPageProps {
   pullNumber: string;
   onBack: () => void;
   onOpenConflicts: () => void;
+  onOpenPullRequest: (pullNumber: number) => void;
 }
 
 function relativeTime(timestamp: string): string {
@@ -66,12 +64,12 @@ function fullTime(timestamp: string): string {
 
 function statusCopy(status: PullRequest["status"]) {
   if (status === "MERGED") {
-    return { label: "Merged", color: "#8250df", icon: <GitMerge size={15} /> };
+    return { label: "Merged", color: "#8250df", icon: <GitMergeReadyOcticon size={15} /> };
   }
   if (status === "CLOSED") {
-    return { label: "Closed", color: "#cf222e", icon: <XCircle size={15} /> };
+    return { label: "Closed", color: "#cf222e", icon: <GitPullRequestClosedOcticon size={15} /> };
   }
-  return { label: "Open", color: "#1a7f37", icon: <GitPullRequest size={15} /> };
+  return { label: "Open", color: "#1a7f37", icon: <GitPullRequestOcticon size={15} /> };
 }
 
 function formatCommitDate(timestamp: string): string {
@@ -156,6 +154,7 @@ export default function PullRequestDetailPage({
   pullNumber,
   onBack,
   onOpenConflicts,
+  onOpenPullRequest,
 }: PullRequestDetailPageProps) {
   const [pull, setPull] = useState<PullRequest | null>(null);
   const [compareData, setCompareData] = useState<PullRequestCompareResult | null>(null);
@@ -257,6 +256,28 @@ export default function PullRequestDetailPage({
       await load();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to ${action} pull request`);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!pull) return;
+    try {
+      setUpdating(true);
+      setError(null);
+      setMessage(null);
+      const created = await pullsApi.revert(repoId, pull.id);
+      const pulls = await pullsApi.list(repoId);
+      const sorted = [...(pulls || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      const createdIndex = sorted.findIndex((item) => item.id === created.id);
+      if (createdIndex >= 0) {
+        onOpenPullRequest(createdIndex + 1);
+        return;
+      }
+      await load();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create revert pull request");
     } finally {
       setUpdating(false);
     }
@@ -442,14 +463,25 @@ export default function PullRequestDetailPage({
                       {(event.actor || creatorName).charAt(0)}
                     </span>
                     {isMerged ? (
-                      <span className="pl-8 text-[var(--text-secondary)]">
-                        <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
-                        merged commit{" "}
-                        <span className="font-mono text-[var(--text-primary)]">{mergeCommitHash.slice(0, 7)}</span>{" "}
-                        into{" "}
-                        <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-                        <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
-                      </span>
+                      <div className="min-w-0 flex-1 pl-8 flex items-center justify-between gap-3 text-[var(--text-secondary)]">
+                        <span className="min-w-0">
+                          <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
+                          merged commit{" "}
+                          <span className="font-mono text-[var(--text-primary)]">{mergeCommitHash.slice(0, 7)}</span>{" "}
+                          into{" "}
+                          <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
+                          <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void handleRevert()}
+                          disabled={updating}
+                          title="Create a new pull request to revert these changes"
+                          className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Revert
+                        </button>
+                      </div>
                     ) : (
                       <span className="pl-8 text-[var(--text-secondary)]">
                         <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}

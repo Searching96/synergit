@@ -28,6 +28,12 @@ export const pullsApi = {
     });
   },
 
+  revert: (repoId: string, pullId: string): Promise<PullRequest> => {
+    return fetcher(`/repos/${repoId}/pulls/${pullId}/revert`, {
+      method: 'POST',
+    });
+  },
+
   close: (repoId: string, pullId: string): Promise<{ message: string }> => {
     return fetcher(`/repos/${repoId}/pulls/${pullId}/close`, {
       method: 'POST',

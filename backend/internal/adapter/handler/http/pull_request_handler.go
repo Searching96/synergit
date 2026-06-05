@@ -166,6 +166,28 @@ func (h *PullRequestHandler) HandleMergePullRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "pull request merged successfully"})
 }
 
+func (h *PullRequestHandler) HandleRevertPullRequest(c *gin.Context) {
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requestID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	pr, err := h.prUseCase.RevertPullRequest(pullID, requestID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, pr)
+}
+
 func (h *PullRequestHandler) HandleClosePullRequest(c *gin.Context) {
 	pullIDStr := c.Param("pull_id")
 	pullID, err := uuid.Parse(pullIDStr)

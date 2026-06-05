@@ -51,6 +51,26 @@ function GitMergeReadyOcticon({ size = 24 }: { size?: number }) {
   );
 }
 
+function CheckOcticon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      data-component="Octicon"
+      aria-hidden="true"
+      focusable="false"
+      className="octicon octicon-check fill-current"
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      display="inline-block"
+      overflow="visible"
+      style={{ verticalAlign: "text-bottom" }}
+    >
+      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+    </svg>
+  );
+}
+
 export default function MergeOperationPanel({
   status,
   sourceBranch,
@@ -66,7 +86,7 @@ export default function MergeOperationPanel({
 
   return (
     <li className="relative pl-16">
-      <span className={`absolute left-1 top-1 z-10 h-8 w-8 rounded-md text-white inline-flex items-center justify-center ${
+      <span className={`absolute left-0 top-0 h-9.5 w-9.5 rounded-md text-white inline-flex items-center justify-center ${
         isMerged
           ? "bg-[var(--text-accent-purple)]"
           : isClosed || hasConflicts
@@ -125,7 +145,7 @@ export default function MergeOperationPanel({
               <span className={`mt-0.5 h-7 w-7 rounded-full text-white inline-flex items-center justify-center ${
                 canMerge ? "bg-[var(--fgColor-open,#1a7f37)]" : "bg-[var(--text-secondary)]"
               }`}>
-                {canMerge ? <GitMergeReadyOcticon size={20} /> : <AlertTriangle size={17} />}
+                {canMerge ? <CheckOcticon size={16} /> : <AlertTriangle size={17} />}
               </span>
               <div className="min-w-0">
                 <p className="font-semibold text-[var(--text-primary)]">
@@ -176,7 +196,7 @@ export default function MergeOperationPanel({
                   type="button"
                   disabled={updating || !canMerge}
                   onClick={onMerge}
-                  className="h-9 px-4 rounded-l-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:bg-[var(--surface-muted)] disabled:text-[var(--text-secondary)] disabled:opacity-100 disabled:cursor-not-allowed"
+                  className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:bg-[var(--surface-muted)] disabled:text-[var(--text-secondary)] disabled:opacity-100 disabled:cursor-not-allowed"
                 >
                   Merge pull request
                 </button>
