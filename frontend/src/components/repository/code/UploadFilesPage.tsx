@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertCircle, GitBranch, UploadCloud, X } from "lucide-react";
+import { AlertCircle, UploadCloud, X } from "lucide-react";
 import { reposApi } from "../../../services/api";
 
 type UploadCandidate = {
@@ -50,6 +50,26 @@ function formatFileSize(size: number): string {
   }
 
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function GitBranchOcticon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      data-component="Octicon"
+      aria-hidden="true"
+      focusable="false"
+      className={`octicon octicon-git-branch fill-current ${className}`}
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      display="inline-block"
+      overflow="visible"
+      style={{ verticalAlign: "text-bottom" }}
+    >
+      <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Z" />
+    </svg>
+  );
 }
 
 export default function UploadFilesPage({
@@ -180,7 +200,7 @@ export default function UploadFilesPage({
           <p className="text-sm text-[var(--text-secondary)] truncate">{repoName}</p>
         </div>
         <span className="inline-flex items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-3 py-1.5 text-sm text-[var(--text-primary)]">
-          <GitBranch size={14} className="text-[var(--text-secondary)]" />
+          <GitBranchOcticon size={14} className="text-[var(--text-secondary)]" />
           {branch}
         </span>
       </header>

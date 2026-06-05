@@ -12,7 +12,6 @@ import {
   FileDiff,
   GitCompare,
   GitCommitHorizontal,
-  GitPullRequest,
   Heading,
   Italic,
   Link,
@@ -129,19 +128,144 @@ function getMergeStatusCopy(message: string | undefined, mergeable: boolean): { 
   return { label, description };
 }
 
+type DiffRowKind = "hunk" | "addition" | "deletion" | "context";
+
+type ParsedDiffRow = {
+  kind: DiffRowKind;
+  oldDisplay: string;
+  newDisplay: string;
+  text: string;
+};
+
+type SplitDiffRow =
+  | { kind: "hunk"; text: string }
+  | { kind: "pair"; oldRow?: ParsedDiffRow; newRow?: ParsedDiffRow };
+
+function parsePatchRows(patch: string): ParsedDiffRow[] {
+  let oldLineNumber = 0;
+  let newLineNumber = 0;
+
+  return patch.split("\n").map((line) => {
+    const isHunk = line.startsWith("@@");
+    const isAddition = line.startsWith("+") && !line.startsWith("+++");
+    const isDeletion = line.startsWith("-") && !line.startsWith("---");
+    const isContext = !isHunk && !isAddition && !isDeletion;
+    const hunkMatch = line.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
+
+    if (hunkMatch) {
+      oldLineNumber = Number(hunkMatch[1]);
+      newLineNumber = Number(hunkMatch[2]);
+    }
+
+    const oldDisplay = isHunk
+      ? "..."
+      : isAddition
+        ? ""
+        : String(oldLineNumber);
+    const newDisplay = isHunk
+      ? "..."
+      : isDeletion
+        ? ""
+        : String(newLineNumber);
+    const kind: DiffRowKind = isHunk ? "hunk" : isAddition ? "addition" : isDeletion ? "deletion" : "context";
+    const marker = isAddition ? "+" : isDeletion ? "-" : " ";
+    const text = isHunk ? line : `${marker} ${line.slice(1) || " "}`;
+
+    if (!isHunk) {
+      if (isAddition) {
+        newLineNumber += 1;
+      } else if (isDeletion) {
+        oldLineNumber += 1;
+      } else if (isContext) {
+        oldLineNumber += 1;
+        newLineNumber += 1;
+      }
+    }
+
+    return { kind, oldDisplay, newDisplay, text };
+  });
+}
+
+function toSplitDiffRows(rows: ParsedDiffRow[]): SplitDiffRow[] {
+  const splitRows: SplitDiffRow[] = [];
+  let index = 0;
+
+  while (index < rows.length) {
+    const row = rows[index];
+
+    if (row.kind === "hunk") {
+      splitRows.push({ kind: "hunk", text: row.text });
+      index += 1;
+      continue;
+    }
+
+    if (row.kind === "context") {
+      splitRows.push({ kind: "pair", oldRow: row, newRow: row });
+      index += 1;
+      continue;
+    }
+
+    if (row.kind === "deletion") {
+      const deletions: ParsedDiffRow[] = [];
+      const additions: ParsedDiffRow[] = [];
+
+      while (rows[index]?.kind === "deletion") {
+        deletions.push(rows[index]);
+        index += 1;
+      }
+
+      while (rows[index]?.kind === "addition") {
+        additions.push(rows[index]);
+        index += 1;
+      }
+
+      const pairCount = Math.max(deletions.length, additions.length);
+      for (let pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
+        splitRows.push({ kind: "pair", oldRow: deletions[pairIndex], newRow: additions[pairIndex] });
+      }
+      continue;
+    }
+
+    splitRows.push({ kind: "pair", newRow: row });
+    index += 1;
+  }
+
+  return splitRows;
+}
+
 function GitBranchOcticon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      data-component="Octicon"
+      aria-hidden="true"
+      focusable="false"
+      className={`octicon octicon-git-branch fill-current ${className}`}
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="currentColor"
+      display="inline-block"
+      overflow="visible"
+      style={{ verticalAlign: "text-bottom" }}
+    >
+      <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Z" />
+    </svg>
+  );
+}
+
+function GitPullRequestOcticon({ className = "", size = 16 }: { className?: string; size?: number }) {
   return (
     <svg
       aria-hidden="true"
       data-component="Octicon"
-      height="16"
+      height={size}
       viewBox="0 0 16 16"
       version="1.1"
-      width="16"
+      width={size}
       data-view-component="true"
-      className={`octicon octicon-git-branch flex-shrink-0 color-fg-muted fill-current ${className}`}
+      className={`octicon octicon-git-pull-request fill-current ${className}`}
     >
-      <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Z" />
+      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
     </svg>
   );
 }
@@ -329,9 +453,11 @@ export default function PullRequestComparePage({
   const [createError, setCreateError] = useState<string | null>(null);
   const [createMessage, setCreateMessage] = useState<string | null>(null);
   const [creatingPullRequest, setCreatingPullRequest] = useState<boolean>(false);
+  const [openingPullRequest, setOpeningPullRequest] = useState<boolean>(false);
   const [pullTitle, setPullTitle] = useState<string>("");
   const [pullDescription, setPullDescription] = useState<string>("");
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
+  const [diffView, setDiffView] = useState<"split" | "unified">("unified");
 
   const fallbackBase = useMemo(() => {
     const defaultBranch = branches.find((branch) => branch.is_default)?.name || "";
@@ -474,6 +600,31 @@ export default function PullRequestComparePage({
     });
   };
 
+  const handleOpenExistingPullRequest = async () => {
+    if (!existingPullRequest) {
+      return;
+    }
+
+    try {
+      setCreateError(null);
+      setOpeningPullRequest(true);
+      const pulls = await pullsApi.list(repoId);
+      const sorted = [...pulls].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      const existingIndex = sorted.findIndex((pull) => pull.id === existingPullRequest.id);
+
+      if (existingIndex >= 0) {
+        onOpenPullRequest(existingIndex + 1);
+        return;
+      }
+
+      setCreateError("Could not find this pull request in the repository list.");
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : "Failed to open pull request");
+    } finally {
+      setOpeningPullRequest(false);
+    }
+  };
+
   const handleCreatePullRequest = async () => {
     if (!baseRef || !headRef || !pullTitle.trim()) {
       setCreateError("Title, base, and head refs are required.");
@@ -575,7 +726,7 @@ export default function PullRequestComparePage({
       </section>
 
       <section className="pt-6 text-center space-y-3">
-        <GitPullRequest size={30} className="mx-auto text-[var(--text-secondary)]" />
+        <GitPullRequestOcticon size={30} className="mx-auto text-[var(--text-secondary)]" />
         <div className="space-y-2">
           <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Compare and review just about anything</h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -627,75 +778,107 @@ export default function PullRequestComparePage({
       );
     }
 
-    let oldLineNumber = 0;
-    let newLineNumber = 0;
+    const rows = parsePatchRows(patch);
 
-    return (
+    const renderUnifiedPatch = () => (
       <div className="overflow-auto border-t border-[var(--border-muted)] text-xs font-mono">
-        {patch.split("\n").map((line, index) => {
-          const isHunk = line.startsWith("@@");
-          const isAddition = line.startsWith("+") && !line.startsWith("+++");
-          const isDeletion = line.startsWith("-") && !line.startsWith("---");
-          const isContext = !isHunk && !isAddition && !isDeletion;
-          const hunkMatch = line.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
-
-          if (hunkMatch) {
-            oldLineNumber = Number(hunkMatch[1]);
-            newLineNumber = Number(hunkMatch[2]);
-          }
-
-          const oldDisplay = isHunk
-            ? "..."
-            : isAddition
-              ? ""
-              : String(oldLineNumber);
-          const newDisplay = isHunk
-            ? "..."
-            : isDeletion
-              ? ""
-              : String(newLineNumber);
-          const marker = isAddition ? "+" : isDeletion ? "-" : " ";
-          const displayLine = isHunk ? line : `${marker} ${line.slice(1) || " "}`;
-          const rowClass = isHunk
+        {rows.map((row, index) => {
+          const rowClass = row.kind === "hunk"
             ? "bg-[#ddf4ff] text-[var(--text-link)]"
-            : isAddition
+            : row.kind === "addition"
               ? "bg-[#dafbe1] text-[var(--text-primary)]"
-            : isDeletion
+              : row.kind === "deletion"
                 ? "bg-[#ffebe9] text-[var(--text-primary)]"
                 : "bg-[var(--surface-canvas)] text-[var(--text-primary)]";
-          const gutterClass = isAddition
+          const gutterClass = row.kind === "addition"
             ? "bg-[#aceebb]"
-            : isDeletion
+            : row.kind === "deletion"
               ? "bg-[#ffd7d5]"
-              : isHunk
+              : row.kind === "hunk"
                 ? "bg-[#b6e3ff]"
                 : "bg-[var(--surface-canvas)]";
 
-          if (!isHunk) {
-            if (isAddition) {
-              newLineNumber += 1;
-            } else if (isDeletion) {
-              oldLineNumber += 1;
-            } else if (isContext) {
-              oldLineNumber += 1;
-              newLineNumber += 1;
-            }
-          }
-
           return (
-            <div key={`${file.path}-${index}`} className={`grid grid-cols-[48px_48px_minmax(0,1fr)] leading-5 ${rowClass}`}>
+            <div key={`${file.path}-unified-${index}`} className={`grid grid-cols-[48px_48px_minmax(0,1fr)] leading-5 ${rowClass}`}>
               <span className={`px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] ${gutterClass}`}>
-                {oldDisplay}
+                {row.oldDisplay}
               </span>
               <span className={`px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] ${gutterClass}`}>
-                {newDisplay}
+                {row.newDisplay}
               </span>
-              <span className="px-2 whitespace-pre">{displayLine}</span>
+              <span className="px-2 whitespace-pre">{row.text}</span>
             </div>
           );
         })}
       </div>
     );
+
+    const sideCellClass = (row: ParsedDiffRow | undefined, side: "old" | "new") => {
+      if (!row) {
+        return "bg-[var(--surface-canvas)]";
+      }
+      if (row.kind === "deletion") {
+        return side === "old" ? "bg-[#ffebe9] text-[var(--text-primary)]" : "bg-[var(--surface-canvas)]";
+      }
+      if (row.kind === "addition") {
+        return side === "new" ? "bg-[#dafbe1] text-[var(--text-primary)]" : "bg-[var(--surface-canvas)]";
+      }
+      return "bg-[var(--surface-canvas)] text-[var(--text-primary)]";
+    };
+
+    const sideGutterClass = (row: ParsedDiffRow | undefined, side: "old" | "new") => {
+      if (!row) {
+        return "bg-[var(--surface-canvas)]";
+      }
+      if (row.kind === "deletion") {
+        return side === "old" ? "bg-[#ffd7d5]" : "bg-[var(--surface-canvas)]";
+      }
+      if (row.kind === "addition") {
+        return side === "new" ? "bg-[#aceebb]" : "bg-[var(--surface-canvas)]";
+      }
+      return "bg-[var(--surface-canvas)]";
+    };
+
+    const renderSplitPatch = () => (
+      <div className="overflow-auto border-t border-[var(--border-muted)] text-xs font-mono">
+        {toSplitDiffRows(rows).map((row, index) => {
+          if (row.kind === "hunk") {
+            return (
+              <div key={`${file.path}-split-hunk-${index}`} className="grid grid-cols-[48px_minmax(0,1fr)_48px_minmax(0,1fr)] leading-5 bg-[#ddf4ff] text-[var(--text-link)]">
+                <span className="px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] bg-[#b6e3ff]">...</span>
+                <span className="px-2 whitespace-pre border-r border-[rgba(27,31,36,0.08)]">{row.text}</span>
+                <span className="px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] bg-[#b6e3ff]">...</span>
+                <span className="px-2 whitespace-pre">{row.text}</span>
+              </div>
+            );
+          }
+
+          const oldRow = row.oldRow;
+          const newRow = row.newRow;
+          const oldText = oldRow ? oldRow.text : "";
+          const newText = newRow ? newRow.text : "";
+
+          return (
+            <div key={`${file.path}-split-${index}`} className="grid grid-cols-[48px_minmax(0,1fr)_48px_minmax(0,1fr)] leading-5">
+              <span className={`px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] ${sideGutterClass(oldRow, "old")}`}>
+                {oldRow?.oldDisplay || ""}
+              </span>
+              <span className={`px-2 whitespace-pre border-r border-[rgba(27,31,36,0.08)] ${sideCellClass(oldRow, "old")}`}>
+                {oldText}
+              </span>
+              <span className={`px-2 text-right select-none text-[var(--text-secondary)] border-r border-[rgba(27,31,36,0.08)] ${sideGutterClass(newRow, "new")}`}>
+                {newRow?.newDisplay || ""}
+              </span>
+              <span className={`px-2 whitespace-pre ${sideCellClass(newRow, "new")}`}>
+                {newText}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+
+    return diffView === "split" ? renderSplitPatch() : renderUnifiedPatch();
   };
 
   if (!hasExplicitCompareRange) {
@@ -774,7 +957,7 @@ export default function PullRequestComparePage({
           {hasChanges && existingPullRequest ? (
             <section className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex items-start gap-2">
-                <GitPullRequest size={17} className="mt-0.5 shrink-0 text-[var(--fgColor-open,#1a7f37)]" />
+                <GitPullRequestOcticon size={17} className="mt-0.5 shrink-0 text-[var(--fgColor-open,#1a7f37)]" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
                     {existingPullRequest.title} <span className="font-normal text-[var(--text-secondary)]">#{existingPullRequest.id.slice(0, 4)}</span>
@@ -786,10 +969,12 @@ export default function PullRequestComparePage({
               </div>
               <button
                 type="button"
-                className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center justify-center gap-2 hover:bg-[var(--accent-primary-hover)]"
+                disabled={openingPullRequest}
+                onClick={handleOpenExistingPullRequest}
+                className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center justify-center gap-2 hover:bg-[var(--accent-primary-hover)] disabled:opacity-45 disabled:cursor-not-allowed"
               >
-                <GitPullRequest size={15} />
-                View pull request
+                {openingPullRequest ? <Loader2 size={15} className="animate-spin" /> : <GitPullRequestOcticon size={15} />}
+                {openingPullRequest ? "Opening..." : "View pull request"}
               </button>
             </section>
           ) : null}
@@ -993,8 +1178,28 @@ export default function PullRequestComparePage({
                     and <span className="font-semibold">{compareData.summary.deletions} deletion{compareData.summary.deletions === 1 ? "" : "s"}</span>.
                   </p>
                   <div className="inline-flex self-start rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs">
-                    <button type="button" className="px-3 py-1.5 text-[var(--text-secondary)]">Split</button>
-                    <button type="button" className="px-3 py-1.5 rounded-r-md bg-[var(--surface-canvas)] text-[var(--text-primary)] border-l border-[var(--border-muted)]">Unified</button>
+                    <button
+                      type="button"
+                      onClick={() => setDiffView("split")}
+                      className={`px-3 py-1.5 rounded-l-md ${
+                        diffView === "split"
+                          ? "bg-[var(--surface-canvas)] text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      Split
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDiffView("unified")}
+                      className={`px-3 py-1.5 rounded-r-md border-l border-[var(--border-muted)] ${
+                        diffView === "unified"
+                          ? "bg-[var(--surface-canvas)] text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      Unified
+                    </button>
                   </div>
                 </div>
 

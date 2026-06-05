@@ -12,6 +12,7 @@ type PullRequestRepository interface {
 	ListByRepo(repoID uuid.UUID) ([]domain.PullRequest, error)
 	GetSequenceNumber(repoID uuid.UUID, prID uuid.UUID) (int, error)
 	UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error
+	UpdateCommitHashes(id uuid.UUID, sourceCommitHash string, targetCommitHash string) error
 	AddEvent(prID uuid.UUID, actorID uuid.UUID, eventType string) error
 	ListEvents(prID uuid.UUID) ([]domain.PullRequestEvent, error)
 }

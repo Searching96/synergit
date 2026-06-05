@@ -24,13 +24,15 @@ import {
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
-import type { PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
+import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
+import MergeOperationPanel from "./MergeOperationPanel";
 
 interface PullRequestDetailPageProps {
   repoId: string;
   currentUsername: string;
   pullNumber: string;
   onBack: () => void;
+  onOpenConflicts: () => void;
 }
 
 function relativeTime(timestamp: string): string {
@@ -153,9 +155,11 @@ export default function PullRequestDetailPage({
   currentUsername,
   pullNumber,
   onBack,
+  onOpenConflicts,
 }: PullRequestDetailPageProps) {
   const [pull, setPull] = useState<PullRequest | null>(null);
   const [compareData, setCompareData] = useState<PullRequestCompareResult | null>(null);
+  const [conflictFiles, setConflictFiles] = useState<ConflictFile[]>([]);
   const [events, setEvents] = useState<PullRequestEvent[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -191,18 +195,21 @@ export default function PullRequestDetailPage({
 
       if (!resolved) {
         setCompareData(null);
+        setConflictFiles([]);
         setEvents([]);
         return;
       }
 
-      const [freshPull, compare, pullEvents] = await Promise.all([
+      const [freshPull, compare, pullEvents, conflicts] = await Promise.all([
         pullsApi.get(repoId, resolved.id).catch(() => resolved),
         reposApi.getCompare(repoId, resolved.target_branch, resolved.source_branch).catch(() => null),
         pullsApi.listEvents(repoId, resolved.id).catch(() => []),
+        pullsApi.getConflicts(repoId, resolved.id).catch(() => []),
       ]);
       setPull(freshPull);
       setCompareData(compare);
       setEvents(pullEvents || []);
+      setConflictFiles(conflicts || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load pull request");
     } finally {
@@ -221,7 +228,17 @@ export default function PullRequestDetailPage({
   const additions = compareData?.summary.additions || 0;
   const deletions = compareData?.summary.deletions || 0;
   const contributorCount = compareData?.summary.contributor_count || 1;
-  const canMerge = pull?.status === "OPEN" && (compareData?.mergeable ?? true);
+  const hasRemainingConflicts = conflictFiles.length > 0;
+  const canMerge = pull?.status === "OPEN" && (
+    (compareData?.mergeable ?? true) ||
+    (!!compareData?.can_compare && !hasRemainingConflicts)
+  );
+  const mergedEvent = events.find((event) => event.event_type === "merged") || null;
+  const mergedTime = mergedEvent?.created_at || pull?.updated_at || "";
+  const mergeCommitHash = compareData?.commits.find((commit) => commit.message.toLowerCase().includes("merge"))?.hash ||
+    compareData?.commits[0]?.hash ||
+    pull?.source_commit_hash ||
+    "";
 
   const updatePull = async (action: "merge" | "close" | "reopen") => {
     if (!pull) return;
@@ -284,24 +301,27 @@ export default function PullRequestDetailPage({
               {copy.icon}
               {copy.label}
             </span>
-            <span>
-              <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> wants to merge{" "}
-              <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
-              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-              from{" "}
-              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>
-            </span>
+            {pull.status === "MERGED" ? (
+              <span>
+                <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> merged{" "}
+                <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
+                from{" "}
+                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>{" "}
+                <span title={fullTime(mergedTime)} className="hover:underline">{relativeTime(mergedTime)}</span>
+              </span>
+            ) : (
+              <span>
+                <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> wants to merge{" "}
+                <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
+                from{" "}
+                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>
+              </span>
+            )}
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
-          <span className={`h-8 px-3 rounded-md border text-sm font-semibold inline-flex items-center gap-2 ${
-            canMerge
-              ? "border-[var(--border-default)] bg-[var(--surface-canvas)] text-[var(--fgColor-open,#1a7f37)]"
-              : "border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)]"
-          }`}>
-            {canMerge ? <GitMergeReadyOcticon size={16} /> : <XCircle size={15} />}
-            {canMerge ? "Ready to merge" : pull.status === "OPEN" ? "Review required" : copy.label}
-          </span>
           <button type="button" className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm inline-flex items-center gap-2">
             Code <ChevronDown size={14} />
           </button>
@@ -421,83 +441,34 @@ export default function PullRequestDetailPage({
                     <span className="absolute left-[calc(var(--rail)_+_18px)] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
                       {(event.actor || creatorName).charAt(0)}
                     </span>
-                    <span className="pl-8 text-[var(--text-secondary)]">
-                      <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
-                      <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
-                    </span>
+                    {isMerged ? (
+                      <span className="pl-8 text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
+                        merged commit{" "}
+                        <span className="font-mono text-[var(--text-primary)]">{mergeCommitHash.slice(0, 7)}</span>{" "}
+                        into{" "}
+                        <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
+                        <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
+                      </span>
+                    ) : (
+                      <span className="pl-8 text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
+                        <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
+                      </span>
+                    )}
                   </li>
                 );
               })}
 
-              <li className="relative pl-16">
-                <span className={`absolute left-1 top-1 z-10 h-8 w-8 rounded-md text-white inline-flex items-center justify-center ${
-                  pull.status === "CLOSED" ? "bg-[var(--text-secondary)]" : "bg-[var(--fgColor-open,#1a7f37)]"
-                }`}>
-                  {pull.status === "CLOSED" ? <GitPullRequestOcticon size={18} /> : <GitMergeReadyOcticon size={22} />}
-                </span>
-                {pull.status === "CLOSED" ? (
-                  <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[var(--text-primary)]">Closed with unmerged commits</p>
-                      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                        This pull request is closed, but the{" "}
-                        <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">
-                          {pull.source_branch}
-                        </span>{" "}
-                        branch has unmerged commits.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                    >
-                      Delete branch
-                    </button>
-                  </div>
-                ) : (
-                  <div className={`rounded-md border ${
-                    canMerge
-                      ? "border-[var(--border-success-muted)]"
-                      : "border-[var(--border-danger-soft)]"
-                  } bg-[var(--surface-canvas)] overflow-hidden`}>
-                    <div className="px-4 py-4 inline-flex items-start gap-3">
-                      <span className={`mt-0.5 h-7 w-7 rounded-full text-white inline-flex items-center justify-center ${
-                        canMerge ? "bg-[var(--fgColor-open,#1a7f37)]" : "bg-[var(--text-danger)]"
-                      }`}>
-                        {canMerge ? <GitMergeReadyOcticon size={20} /> : <XCircle size={17} />}
-                      </span>
-                      <div>
-                        <p className="font-semibold text-[var(--text-primary)]">
-                          {canMerge ? "No conflicts with base branch" : "This pull request cannot be merged automatically"}
-                        </p>
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          {canMerge ? "Merging can be performed automatically." : "Resolve conflicts before merging this pull request."}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="border-t border-[var(--border-muted)] bg-[var(--surface-subtle)] px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                      {pull.status === "OPEN" ? (
-                        <button
-                          type="button"
-                          disabled={updating || !canMerge}
-                          onClick={() => void updatePull("merge")}
-                          className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Merge pull request
-                        </button>
-                      ) : (
-                        <span className="text-sm font-semibold text-[var(--text-accent-purple)] inline-flex items-center gap-2">
-                          <GitMerge size={15} />
-                          Pull request merged
-                        </span>
-                      )}
-                      <span className="text-xs text-[var(--text-secondary)]">
-                        You can also merge this with the command line.
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </li>
+              <MergeOperationPanel
+                status={pull.status}
+                sourceBranch={pull.source_branch}
+                canMerge={canMerge}
+                updating={updating}
+                conflictFiles={conflictFiles}
+                onMerge={() => void updatePull("merge")}
+                onOpenConflicts={onOpenConflicts}
+              />
             </ul>
           </div>
 

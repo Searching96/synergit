@@ -39,6 +39,7 @@ import {
   buildRepoNewFilePath,
   buildRepoIssuesNewPath,
   buildRepoIssueViewPath,
+  buildRepoPullConflictsPath,
   buildRepoPullViewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
@@ -229,6 +230,8 @@ function App () {
           } else {
             canonicalPath = buildRepoComparePath(owner, targetRepo.name);
           }
+        } else if (parsed.tab === 'pulls' && parsed.contentKind === 'pull-conflicts') {
+          canonicalPath = buildRepoPullConflictsPath(owner, targetRepo.name, parsed.contentPath);
         } else if (parsed.tab === 'pulls' && parsed.contentKind === 'pull-view') {
           canonicalPath = buildRepoPullViewPath(owner, targetRepo.name, parsed.contentPath);
         } else if (parsed.tab === 'issues' && parsed.contentKind === 'issues-new') {
@@ -478,8 +481,9 @@ function App () {
   const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
   const isFullBrowserMode =
     !!selectedRepo &&
-    activeTab === 'files' &&
-    (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit');
+    ((activeTab === 'files' &&
+      (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit')) ||
+      (activeTab === 'pulls' && routeContentKind === 'pull-conflicts'));
 
   useEffect(() => {
     applyRoute(window.location.pathname, window.location.search, { replace: true });
@@ -573,6 +577,11 @@ function App () {
     navigateToPath(buildRepoPullViewPath(owner, repo.name, pullNumber));
   }, [getRepoOwner, navigateToPath]);
 
+  const navigateToRepoPullConflicts = useCallback((repo: Repository, pullNumber: number | string) => {
+    const owner = getRepoOwner(repo);
+    navigateToPath(buildRepoPullConflictsPath(owner, repo.name, pullNumber));
+  }, [getRepoOwner, navigateToPath]);
+
   const handleSelectBranch = (branchName: string) => {
     setCurrentBranch(branchName);
 
@@ -605,7 +614,7 @@ function App () {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts') {
       return;
     }
 
@@ -868,7 +877,9 @@ function App () {
         />
       </header>
 
-      <main className="flex-1 w-full min-w-0 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] bg-[var(--surface-canvas)]">
+      <main className={`flex-1 w-full min-w-0 min-h-0 [scrollbar-gutter:stable_both-edges] bg-[var(--surface-canvas)] ${
+        isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto"
+      }`}>
         <RepoWorkspaceContent
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}
@@ -942,6 +953,13 @@ function App () {
             }
 
             navigateToRepoPullView(selectedRepo, pullNumber);
+          }}
+          onOpenPullRequestConflicts={(pullNumber) => {
+            if (!selectedRepo) {
+              return;
+            }
+
+            navigateToRepoPullConflicts(selectedRepo, pullNumber);
           }}
           onBackToPullRequests={() => {
             if (!selectedRepo) {

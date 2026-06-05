@@ -1232,13 +1232,13 @@ func (g *LocalGitAdapter) GetConflictingFiles(repoName string, sourceBranch stri
 		return nil, fmt.Errorf("failed to clone: %w: %s", cloneErr, strings.TrimSpace(cloneOut))
 	}
 
-	if chkoutOut, chkoutErr := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); chkoutErr != nil {
-		return nil, fmt.Errorf("failed to checkout target: %w: %s", chkoutErr, strings.TrimSpace(chkoutOut))
+	if chkoutOut, chkoutErr := runGit("checkout", "-B", sourceBranch, "origin/"+sourceBranch); chkoutErr != nil {
+		return nil, fmt.Errorf("failed to checkout source: %w: %s", chkoutErr, strings.TrimSpace(chkoutOut))
 	}
 
 	// Attempt the merge: conflict case is expected to return non-zero, but other failures
 	// (e.g. unknown branch) should surface as explicit errors.
-	mergeOut, mergeErr := runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	mergeOut, mergeErr := runGit("merge", "origin/"+targetBranch, "--no-commit", "--no-ff")
 
 	// Use index-level unmerged entries; this is more reliable than `git diff --diff-filter=U`.
 	unmergedOut, unmergedErr := runGit("ls-files", "-u")
@@ -1300,12 +1300,12 @@ func (g *LocalGitAdapter) GetConflictContent(repoName string, sourceBranch strin
 	if out, err := runGit("clone", bareRepoPath, tempDir); err != nil {
 		return "", fmt.Errorf("failed to clone: %w: %s", err, strings.TrimSpace(out))
 	}
-	if out, err := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); err != nil {
-		return "", fmt.Errorf("failed to checkout target: %w: %s", err, strings.TrimSpace(out))
+	if out, err := runGit("checkout", "-B", sourceBranch, "origin/"+sourceBranch); err != nil {
+		return "", fmt.Errorf("failed to checkout source: %w: %s", err, strings.TrimSpace(out))
 	}
 
 	// Trigger the conflict
-	mergeOut, mergeErr := runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	mergeOut, mergeErr := runGit("merge", "origin/"+targetBranch, "--no-commit", "--no-ff")
 	_ = mergeOut
 	_ = mergeErr
 
@@ -1347,10 +1347,10 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		return err
 	}
 
-	// 2. Checkout the target branch. Resolutions should be committed on target,
-	// preserving source branch history.
-	if err := runGit("checkout", "-B", targetBranch, "origin/"+targetBranch); err != nil {
-		return fmt.Errorf("failed to checkout target branch: %w", err)
+	// 2. Checkout the source branch. GitHub commits conflict resolutions to
+	// the pull request branch so it can be merged cleanly afterward.
+	if err := runGit("checkout", "-B", sourceBranch, "origin/"+sourceBranch); err != nil {
+		return fmt.Errorf("failed to checkout source branch: %w", err)
 	}
 
 	// 3. Configure Git user
@@ -1358,9 +1358,9 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 	runGit("config", "user.name", resolverName)
 	runGit("config", "user.email", resolverEmail)
 
-	// 4. Trigger conflict by merging source into target.
+	// 4. Trigger conflict by merging target into source.
 	// This will fail with a conflict, which is exactly what we want.
-	runGit("merge", "origin/"+sourceBranch, "--no-commit", "--no-ff")
+	runGit("merge", "origin/"+targetBranch, "--no-commit", "--no-ff")
 
 	// 5. Overwrite the conflicted files with the user's resolved text
 	for _, res := range resolutions {
@@ -1380,8 +1380,8 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 		return fmt.Errorf("failed to commit resolutions: %w", err)
 	}
 
-	// 7. Push the merged target branch back to the bare server.
-	if err := runGit("push", "origin", targetBranch); err != nil {
+	// 7. Push the resolved source branch back to the bare server.
+	if err := runGit("push", "origin", sourceBranch); err != nil {
 		return fmt.Errorf("failed to push resolved branch: %w", err)
 	}
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, GitBranch, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import type { Branch } from "../../../types";
 
 interface BranchTagMenuProps {
@@ -22,6 +22,26 @@ function isCommitLikeRef(value: string): boolean {
 
 function shortHash(hash: string): string {
   return hash.trim().slice(0, 7);
+}
+
+function GitBranchOcticon({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg
+      data-component="Octicon"
+      aria-hidden="true"
+      focusable="false"
+      className={`octicon octicon-git-branch fill-current ${className}`}
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      display="inline-block"
+      overflow="visible"
+      style={{ verticalAlign: "text-bottom" }}
+    >
+      <path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75.75 0 0 0 0-1.5Z" />
+    </svg>
+  );
 }
 
 export default function BranchTagMenu({
@@ -139,7 +159,7 @@ export default function BranchTagMenu({
         onClick={() => onOpenChange(!isOpen)}
         className={computedTriggerClassName}
       >
-        <GitBranch size={16} className="text-[var(--text-secondary)] shrink-0" />
+        <GitBranchOcticon size={16} className="text-[var(--text-secondary)] shrink-0" />
         <span className="truncate text-base">{activeBranchLabel}</span>
         <ChevronDown size={16} className="text-[var(--text-secondary)] ml-auto shrink-0" />
       </button>
@@ -205,7 +225,7 @@ export default function BranchTagMenu({
                   onClick={() => void handleCreateBranch()}
                   className="w-full px-3 py-2.5 text-left text-sm inline-flex items-center gap-2 text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
                 >
-                  <GitBranch size={14} className="text-[var(--text-secondary)] shrink-0" />
+                  <GitBranchOcticon size={14} className="text-[var(--text-secondary)] shrink-0" />
                   <span className="truncate">
                     {creatingBranch ? "Creating branch..." : `Create branch ${requestedBranchName} from ${activeBranch}`}
                   </span>

@@ -408,5 +408,15 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 		return fmt.Errorf("failed to resolve conflicts: %w", err)
 	}
 
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return err
+	}
+	sourceCommitHash := findBranchCommitHash(branches, pr.SourceBranch)
+	targetCommitHash := findBranchCommitHash(branches, pr.TargetBranch)
+	if err := s.prStore.UpdateCommitHashes(prID, sourceCommitHash, targetCommitHash); err != nil {
+		return err
+	}
+
 	return nil
 }

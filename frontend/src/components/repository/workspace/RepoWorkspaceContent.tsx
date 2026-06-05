@@ -14,6 +14,7 @@ import RepoSecurityPage from "../pages/RepoSecurityPage";
 import RepoSettingsPage from "../pages/RepoSettingsPage";
 import RepoWikiPage from "../pages/RepoWikiPage";
 import PullRequestComparePage from "../pulls/PullRequestComparePage";
+import ConflictResolver from "../pulls/ConflictResolver";
 import PullRequestDetailPage from "../pulls/PullRequestDetailPage";
 import PullRequestList from "../pulls/PullRequestList";
 import type { RepoContentKind } from "./utils/repoRouting";
@@ -50,6 +51,7 @@ interface RepoWorkspaceContentProps {
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
   onOpenPullRequest: (pullNumber: number) => void;
+  onOpenPullRequestConflicts: (pullNumber: number | string) => void;
   onBackToPullRequests: () => void;
   onOpenCreateIssue: () => void;
   onCloseCreateIssue: () => void;
@@ -84,6 +86,7 @@ export default function RepoWorkspaceContent({
   onOpenUploadFiles,
   onOpenRepoCompare,
   onOpenPullRequest,
+  onOpenPullRequestConflicts,
   onBackToPullRequests,
   onOpenCreateIssue,
   onCloseCreateIssue,
@@ -93,7 +96,7 @@ export default function RepoWorkspaceContent({
   onRepoDeleted,
 }: RepoWorkspaceContentProps) {
   return (
-    <div className={isFullBrowserMode ? "w-full min-h-full" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
+    <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
       {!selectedRepo ? (
         <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
           <div className="text-center space-y-3">
@@ -108,14 +111,14 @@ export default function RepoWorkspaceContent({
           </div>
         </div>
       ) : (
-        <div className={isFullBrowserMode ? "w-full min-h-full flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
+        <div className={isFullBrowserMode ? "w-full h-full min-h-0 flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
           {!isFullBrowserMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
 
             </div>
           ) : null}
 
-          <div className={isFullBrowserMode ? "w-full flex-1 min-h-full" : "flex-1 min-h-0"}>
+          <div className={isFullBrowserMode ? "w-full flex-1 min-h-0" : "flex-1 min-h-0"}>
             {activeTab === "files" && routeContentKind === "commits" && (
               <CommitHistory
                 repoId={selectedRepo.id}
@@ -232,15 +235,24 @@ export default function RepoWorkspaceContent({
                 onOpenPullRequest={onOpenPullRequest}
               />
             )}
+            {activeTab === "pulls" && routeContentKind === "pull-conflicts" && (
+              <ConflictResolver
+                repoId={selectedRepo.id}
+                pullNumber={routeContentPath}
+                onResolved={() => onOpenPullRequest(Number(routeContentPath))}
+                onBack={() => onOpenPullRequest(Number(routeContentPath))}
+              />
+            )}
             {activeTab === "pulls" && routeContentKind === "pull-view" && (
               <PullRequestDetailPage
                 repoId={selectedRepo.id}
                 currentUsername={currentUsername}
                 pullNumber={routeContentPath}
                 onBack={onBackToPullRequests}
+                onOpenConflicts={() => onOpenPullRequestConflicts(routeContentPath)}
               />
             )}
-            {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && (
+            {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && routeContentKind !== "pull-conflicts" && (
               <PullRequestList
                 repoId={selectedRepo.id}
                 currentUsername={currentUsername}

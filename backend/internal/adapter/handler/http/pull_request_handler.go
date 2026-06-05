@@ -266,6 +266,6 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, dto.MessageResponse{
-		Message: "conflicts resolved and pull request merged successfully",
+		Message: "conflicts resolved successfully",
 	})
 }

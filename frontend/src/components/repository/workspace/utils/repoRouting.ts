@@ -38,7 +38,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "issues-new" | "issue-view" | "pull-view";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -140,6 +140,10 @@ export function buildRepoIssueViewPath(owner: string, repoName: string, issueNum
 
 export function buildRepoPullViewPath(owner: string, repoName: string, pullNumber: number | string): string {
   return `${buildRepoBasePath(owner, repoName)}/pull/${encodeURIComponent(String(pullNumber))}`;
+}
+
+export function buildRepoPullConflictsPath(owner: string, repoName: string, pullNumber: number | string): string {
+  return `${buildRepoPullViewPath(owner, repoName, pullNumber)}/conflicts`;
 }
 
 export function buildRepoContentPath(
@@ -440,17 +444,18 @@ export function parseAppPath(pathname: string): ParsedRoute {
 
     if ((segments[2] === "pull" || tab === "pulls") && segments[3]) {
       const pullNumber = decodeURIComponent(segments[3]);
+      const isConflicts = segments[4] === "conflicts";
       return {
         viewMode: "repo",
         repoOwner: null,
         repoName: null,
         repoId,
         tab: "pulls",
-        contentKind: "pull-view",
+        contentKind: isConflicts ? "pull-conflicts" : "pull-view",
         contentPath: pullNumber,
         branch: "",
         globalPage: null,
-        normalizedPath: `/repos/${encodeURIComponent(repoId)}/pull/${encodeURIComponent(pullNumber)}`,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/pull/${encodeURIComponent(pullNumber)}${isConflicts ? "/conflicts" : ""}`,
       };
     }
 
@@ -613,17 +618,18 @@ export function parseAppPath(pathname: string): ParsedRoute {
 
     if ((third === "pull" || third === "pulls") && segments[3]) {
       const pullNumber = decodeURIComponent(segments[3]);
+      const isConflicts = segments[4] === "conflicts";
       return {
         viewMode: "repo",
         repoOwner,
         repoName,
         repoId: null,
         tab: "pulls",
-        contentKind: "pull-view",
+        contentKind: isConflicts ? "pull-conflicts" : "pull-view",
         contentPath: pullNumber,
         branch: "",
         globalPage: null,
-        normalizedPath: `${base}/pull/${encodeURIComponent(pullNumber)}`,
+        normalizedPath: `${base}/pull/${encodeURIComponent(pullNumber)}${isConflicts ? "/conflicts" : ""}`,
       };
     }
 

@@ -132,6 +132,17 @@ func (p *PostgresPullRequestStore) UpdateStatus(id uuid.UUID, status domain.Pull
 	return err
 }
 
+func (p *PostgresPullRequestStore) UpdateCommitHashes(id uuid.UUID, sourceCommitHash string,
+	targetCommitHash string) error {
+
+	query := `
+		UPDATE pull_requests
+		SET source_commit_hash = $1, target_commit_hash = $2, updated_at = NOW()
+		WHERE id = $3`
+	_, err := p.db.Exec(query, sourceCommitHash, targetCommitHash, id)
+	return err
+}
+
 func (p *PostgresPullRequestStore) AddEvent(prID uuid.UUID, actorID uuid.UUID,
 	eventType string) error {
 
