@@ -5,6 +5,7 @@ import { reposApi } from "../../../services/api/repos";
 import type { ProfileActivitySnapshot } from "../../../types";
 import type { ShowcaseRepo } from "./utils/profileTypes";
 import ContributionMatrix from "./ContributionMatrix";
+import ActivityChart from "./ActivityChart";
 
 interface ProfileOverviewPageProps {
   pinnedRepositories: ShowcaseRepo[];
@@ -13,14 +14,6 @@ interface ProfileOverviewPageProps {
   contributionColor: (level: number) => string;
   isProfileDataLoading: boolean;
   hasProfileDataError: boolean;
-}
-
-function toPercentage(value: number, total: number): number {
-  if (value <= 0 || total <= 0) {
-    return 0;
-  }
-
-  return Math.max(1, Math.round((value / total) * 100));
 }
 
 export default function ProfileOverviewPage({
@@ -83,74 +76,9 @@ export default function ProfileOverviewPage({
     pull_requests: 0,
   };
 
-  const activityTotal = activityChart.commits +
-    activityChart.code_reviews +
-    activityChart.issues +
-    activityChart.pull_requests;
-
-  const activitySplit = {
-    commits: toPercentage(activityChart.commits, activityTotal),
-    codeReview: toPercentage(activityChart.code_reviews, activityTotal),
-    issues: toPercentage(activityChart.issues, activityTotal),
-    pullRequests: toPercentage(activityChart.pull_requests, activityTotal),
-  };
-
-  const activityGraphCenter = 90;
-  const activityGraphRadius = 72;
-  const activityPoints = {
-    codeReview: {
-      value: activitySplit.codeReview,
-      x: activityGraphCenter,
-      y: activityGraphCenter - (activityGraphRadius * activitySplit.codeReview) / 100,
-    },
-    issues: {
-      value: activitySplit.issues,
-      x: activityGraphCenter + (activityGraphRadius * activitySplit.issues) / 100,
-      y: activityGraphCenter,
-    },
-    pullRequests: {
-      value: activitySplit.pullRequests,
-      x: activityGraphCenter,
-      y: activityGraphCenter + (activityGraphRadius * activitySplit.pullRequests) / 100,
-    },
-    commits: {
-      value: activitySplit.commits,
-      x: activityGraphCenter - (activityGraphRadius * activitySplit.commits) / 100,
-      y: activityGraphCenter,
-    },
-  };
-
-  const activityOrder = ["codeReview", "issues", "pullRequests", "commits"] as const;
-
-  const activityPolygonPoints = activityOrder
-    .map((axis) => {
-      const point = activityPoints[axis];
-      if (point.value <= 0) {
-        return `${activityGraphCenter},${activityGraphCenter}`;
-      }
-      return `${point.x},${point.y}`;
-    })
-    .join(" ");
-
-  const visibleActivityPoints = activityOrder
-    .map((axis) => ({ axis, ...activityPoints[axis] }))
-    .filter((point) => point.value > 0);
-
   const topRepositories = profileActivity?.activity_overview.top_repositories ?? [];
   const otherRepoCount = profileActivity?.activity_overview.other_repo_count ?? 0;
   const commitsLast365Days = profileActivity?.activity_overview.commits_last_365_days ?? 0;
-
-  const renderActivityAxisLabel = (label: string, percentage: number) => (
-    <>
-      {percentage > 0 ? (
-        <>
-          {percentage}%
-          <br />
-        </>
-      ) : null}
-      {label}
-    </>
-  );
 
   const otherRepositoriesHref = profileActivity?.username
     ? `/${encodeURIComponent(profileActivity.username)}?tab=repositories`
@@ -240,7 +168,7 @@ export default function ProfileOverviewPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_100px] gap-6 items-start">
-          <div className="space-y-4">
+          <div>
             <ContributionMatrix
             contributionDays={profileActivity?.contribution_days ?? []}
             selectedYear={selectedYear}
@@ -249,87 +177,52 @@ export default function ProfileOverviewPage({
             contributionColor={contributionColor}
           />
 
-          <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] p-4">
+          <div className="border border-[var(--border-default)] rounded-b-md bg-[var(--surface-canvas)] p-4">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Activity overview</h3>
 
-              <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_350px] gap-6">
-                <div className="text-sm text-[var(--text-secondary)] lg:pr-8 lg:border-r lg:border-[var(--border-muted)]">
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_325px] gap-6">
+                <div className="text-sm text-[var(--text-secondary)] lg:pr-6 lg:border-r lg:border-[var(--border-muted)]">
                   {topRepositories.length > 0 ? (
-                    <p className="text-[var(--text-primary)] leading-6">
-                      Contributed to{" "}
-                      {topRepositories.map((repo, index) => (
-                        <span key={repo.repository}>
-                          <a
-                            href={`/${repo.repository
-                              .split("/")
-                              .map((segment) => encodeURIComponent(segment))
-                              .join("/")}`}
-                            className="text-[var(--text-link)] hover:underline"
-                          >
-                            {repo.repository}
-                          </a>
-                          {index < topRepositories.length - 1 ? ", " : ""}
-                        </span>
-                      ))}
-                      {" "}and {otherRepoCount} other{" "}
-                      <a href={otherRepositoriesHref} className="text-[var(--text-link)] hover:underline">
-                        {otherRepoCount === 1 ? "repository" : "repositories"}
-                      </a>{" "}
-                      in the last 365 days.
-                    </p>
+                    <div className="flex gap-2 text-[var(--text-primary)] leading-6">
+                      <RepoIcon size={14} className="text-[var(--text-secondary)] shrink-0 mt-1" />
+                      <p>
+                        Contributed to{" "}
+                        {topRepositories.map((repo, index) => (
+                          <span key={repo.repository}>
+                            <a
+                              href={`/${repo.repository
+                                .split("/")
+                                .map((segment) => encodeURIComponent(segment))
+                                .join("/")}`}
+                              className="text-[var(--text-link)] hover:underline"
+                            >
+                              {repo.repository}
+                            </a>
+                            {index < topRepositories.length - 1 ? ", " : ""}
+                          </span>
+                        ))}
+                        {otherRepoCount > 0 ? (
+                          <>
+                            {" "}and {otherRepoCount} other{" "}
+                            <a href={otherRepositoriesHref} className="text-[var(--text-link)] hover:underline">
+                              {otherRepoCount === 1 ? "repository" : "repositories"}
+                            </a>
+                          </>
+                        ) : null}
+                        {" "}in the last 365 days.
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-[var(--text-primary)]">No repository contributions in the last 365 days.</p>
                   )}
                 </div>
 
-                <div className="flex items-center justify-center">
-                  <div className="relative w-full max-w-[320px] h-[190px] text-[var(--text-secondary)]">
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {renderActivityAxisLabel("Code review", activitySplit.codeReview)}
-                    </span>
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {renderActivityAxisLabel("Commits", activitySplit.commits)}
-                    </span>
-                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-center text-sm">
-                      {renderActivityAxisLabel("Issues", activitySplit.issues)}
-                    </span>
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center text-sm">
-                      {renderActivityAxisLabel("Pull requests", activitySplit.pullRequests)}
-                    </span>
-
-                    <svg viewBox="0 0 180 180" className="absolute left-1/2 top-1/2 h-[150px] w-[150px] -translate-x-1/2 -translate-y-1/2" role="img" aria-label="Activity distribution graph">
-                      <line x1={activityGraphCenter} y1={18} x2={activityGraphCenter} y2={162} stroke="var(--border-default)" strokeWidth="2" />
-                      <line x1={18} y1={activityGraphCenter} x2={162} y2={activityGraphCenter} stroke="var(--border-default)" strokeWidth="2" />
-
-                      {visibleActivityPoints.map((point) => (
-                        <line
-                          key={`activity-line-${point.axis}`}
-                          x1={activityGraphCenter}
-                          y1={activityGraphCenter}
-                          x2={point.x}
-                          y2={point.y}
-                          stroke="var(--accent-line)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                        />
-                      ))}
-
-                      <polygon points={activityPolygonPoints} fill="var(--contrib-level-1)" fillOpacity="0.65" stroke="var(--accent-line)" strokeWidth="2" />
-
-                      {visibleActivityPoints.map((point) => (
-                        <circle
-                          key={`activity-point-${point.axis}`}
-                          cx={point.x}
-                          cy={point.y}
-                          r="3.5"
-                          fill="var(--surface-canvas)"
-                          stroke="var(--accent-line)"
-                          strokeWidth="2"
-                        />
-                      ))}
-                    </svg>
-                  </div>
-                </div>
+                <ActivityChart
+                    commits={activityChart.commits}
+                    codeReviews={activityChart.code_reviews}
+                    issues={activityChart.issues}
+                    pullRequests={activityChart.pull_requests}
+                  />
               </div>
             </div>
             <div className="border-t border-[var(--border-muted)] p-4 space-y-2 text-sm text-[var(--text-secondary)]">
@@ -342,7 +235,7 @@ export default function ProfileOverviewPage({
             </div>
           </div>
 
-        <div className="w-full lg:w-[100px] rounded-md bg-[var(--surface-canvas)] overflow-hidden text-sm text-[var(--text-secondary)]">
+        <div className="w-full lg:w-[100px] lg:sticky lg:top-4 rounded-md bg-[var(--surface-canvas)] overflow-hidden text-sm text-[var(--text-secondary)]">
           {availableYears.length === 0 ? (
             <div className="px-3 py-2 text-xs text-[var(--text-secondary)]">No years</div>
           ) : (

@@ -266,11 +266,11 @@ export default function ContributionMatrix({
 
   return (
     <>
-      <p className="text-sm text-[var(--text-secondary)] mb-2">
+      <p className="text-sm text-[var(--text-secondary)] mb-3">
         <span className="font-semibold text-[var(--text-primary)]">{totalContributions.toLocaleString()} contributions</span>{" "}
         {isRollingLast365 ? "in the last year" : `in ${selectedYear}`}
       </p>
-      <section className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] overflow-hidden p-4">
+      <section className="border border-[var(--border-default)] rounded-t-md bg-[var(--surface-canvas)] overflow-hidden p-4">
       <div>
         <div ref={matrixHostRef} className="relative w-full overflow-x-auto overflow-y-visible" onMouseLeave={handleCellMouseLeave}>
           {hoveredTooltip ? (
