@@ -902,7 +902,7 @@ function App () {
         isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto"
       }`}>
         <div className="flex flex-col min-h-full">
-        <div className="flex-1">
+        <div className="flex-1 h-full">
         <RepoWorkspaceContent
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}

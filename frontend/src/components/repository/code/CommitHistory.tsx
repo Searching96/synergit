@@ -595,8 +595,8 @@ export default function CommitHistory({
 							className={`relative pl-8 ${groupIndex < groupedCommits.length - 1 ? "pb-6" : "pb-0"}`}
 						>
 							{/* 1. The Timeline Icon */}
-							<span className="absolute left-[-5px] top-[-2px] z-10 h-6 w-6 bg-transparent inline-flex items-center justify-center">
-								<GitCommitHorizontal size={24} className="text-[var(--text-secondary)]" />
+							<span className="absolute left-[-5px] top-[-2px] ml-[0.55px] z-10 h-6 w-6 bg-transparent inline-flex items-center justify-center">
+								<GitCommitHorizontal size={22} className="text-[var(--text-secondary)]" />
 							</span>
 
 							{/* 2. Bottom Line Segment */}
@@ -636,7 +636,7 @@ export default function CommitHistory({
 												<button
 													type="button"
 													onClick={() => onViewCommitDiff?.(commit.hash)}
-													className="font-mono text-xs text-[var(--text-link)] px-2 py-1 rounded border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)]"
+													className="font-mono text-xs text-[var(--text-link)] h-7 px-2 rounded hover:bg-[var(--surface-hover)] inline-flex items-center"
 												>
 													{shortHash(commit.hash)}
 												</button>
