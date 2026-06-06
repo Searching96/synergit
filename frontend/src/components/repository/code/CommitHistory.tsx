@@ -22,6 +22,7 @@ interface CommitHistoryProps {
 	onSelectBranch: (branchName: string) => void;
 	onBack?: () => void;
 	onBrowseAtCommit?: (commitHash: string) => void;
+	onViewCommitDiff?: (commitHash: string) => void;
 }
 
 function toDateKey(dateInput: string): string {
@@ -190,6 +191,7 @@ export default function CommitHistory({
 	branches,
 	onSelectBranch,
 	onBrowseAtCommit,
+	onViewCommitDiff,
 }: CommitHistoryProps) {
 	const [commits, setCommits] = useState<Commit[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
@@ -631,9 +633,13 @@ export default function CommitHistory({
 											</div>
 
 											<div className="flex items-center gap-1 shrink-0">
-												<span className="font-mono text-xs text-[var(--text-link)] px-2 py-1 rounded border border-[var(--border-default)] bg-[var(--surface-subtle)]">
+												<button
+													type="button"
+													onClick={() => onViewCommitDiff?.(commit.hash)}
+													className="font-mono text-xs text-[var(--text-link)] px-2 py-1 rounded border border-[var(--border-default)] bg-[var(--surface-subtle)] hover:bg-[var(--surface-hover)]"
+												>
 													{shortHash(commit.hash)}
-												</span>
+												</button>
 												<button
 													type="button"
 													onClick={() => void navigator.clipboard.writeText(commit.hash)}

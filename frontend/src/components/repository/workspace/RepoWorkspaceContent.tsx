@@ -1,6 +1,7 @@
 import type { Branch, Repository } from "../../../types";
 import { Loader2 } from "lucide-react";
 import CommitHistory from "../code/CommitHistory";
+import CommitDiffPage from "../code/CommitDiffPage";
 import FileExplorer from "../code/FileExplorer";
 import NewFilePage from "../code/NewFilePage";
 import RepoTreeBrowserPage from "../code/RepoTreeBrowserPage";
@@ -47,6 +48,7 @@ interface RepoWorkspaceContentProps {
   onBackToFiles: () => void;
   onNavigateRepoContent: (contentKind: "root" | "tree" | "blob", contentPath: string, branchName: string) => void;
   onOpenRepoCommits: (branchName: string, search?: string) => void;
+  onOpenCommitDiff: (commitHash: string) => void;
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
   onOpenEditFile: (branchName: string, filePath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
@@ -82,6 +84,7 @@ export default function RepoWorkspaceContent({
   onBackToFiles,
   onNavigateRepoContent,
   onOpenRepoCommits,
+  onOpenCommitDiff,
   onOpenCreateFile,
   onOpenEditFile,
   onOpenUploadFiles,
@@ -150,6 +153,15 @@ export default function RepoWorkspaceContent({
                 onSelectBranch={onSelectCommitBranch}
                 onBack={onBackToFiles}
                 onBrowseAtCommit={(commitHash) => onNavigateRepoContent("tree", "", commitHash)}
+                onViewCommitDiff={onOpenCommitDiff}
+              />
+            )}
+            {activeTab === "files" && routeContentKind === "commit-view" && (
+              <CommitDiffPage
+                repoId={selectedRepo.id}
+                commitHash={routeContentPath}
+                repoOwner={selectedRepo.owner || currentUsername}
+                repoName={selectedRepo.name}
               />
             )}
             {activeTab === "files" && routeContentKind === "new" && (

@@ -1530,3 +1530,112 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 
 	return nil
 }
+
+
+func (g *LocalGitAdapter) GetCommitDetail(repoPath string, commitHash string) (*domain.Commit, error) {
+	fullPath := g.resolveRepoPath(repoPath)
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	hash := plumbing.NewHash(commitHash)
+	commit, err := r.CommitObject(hash)
+	if err != nil {
+		return nil, fmt.Errorf("commit not found: %w", err)
+	}
+
+	return &domain.Commit{
+		Hash:    commit.Hash.String(),
+		Author:  commit.Author.Name,
+		Message: strings.TrimSpace(commit.Message),
+		Date:    commit.Author.When,
+	}, nil
+}
+
+func (g *LocalGitAdapter) GetCommitDiff(repoPath string, commitHash string) ([]domain.DiffFile, error) {
+	fullPath := g.resolveRepoPath(repoPath)
+
+	// Use git diff-tree to get the list of changed files with stats and patch
+	cmd := exec.Command("git", "diff-tree", "-p", "--no-commit-id", "--numstat", "-r", commitHash)
+	cmd.Dir = fullPath
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("git diff-tree failed: %w", err)
+	}
+
+	// Use git show --stat for file stats, and git show -p for patch per file
+	// Simpler: use git show --format="" --patch --numstat
+	statsCmd := exec.Command("git", "show", "--format=", "--numstat", "-m", "--first-parent", commitHash)
+	statsCmd.Dir = fullPath
+	var statsOut bytes.Buffer
+	statsCmd.Stdout = &statsOut
+	if err := statsCmd.Run(); err != nil {
+		return nil, fmt.Errorf("git show --numstat failed: %w", err)
+	}
+
+	// Parse numstat: "additions\tdeletions\tfilepath"
+	type fileStat struct {
+		additions int
+		deletions int
+		path      string
+	}
+	var stats []fileStat
+	for _, line := range strings.Split(strings.TrimSpace(statsOut.String()), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		add, _ := strconv.Atoi(parts[0])
+		del, _ := strconv.Atoi(parts[1])
+		stats = append(stats, fileStat{additions: add, deletions: del, path: parts[2]})
+	}
+
+	// Get the unified diff patch
+	patchCmd := exec.Command("git", "show", "--format=", "-p", "-m", "--first-parent", commitHash)
+	patchCmd.Dir = fullPath
+	var patchOut bytes.Buffer
+	patchCmd.Stdout = &patchOut
+	if err := patchCmd.Run(); err != nil {
+		return nil, fmt.Errorf("git show -p failed: %w", err)
+	}
+
+	// Split patches by "diff --git" boundaries
+	patchText := patchOut.String()
+	patches := splitDiffByFile(patchText)
+
+	// Build result
+	result := make([]domain.DiffFile, 0, len(stats))
+	for i, s := range stats {
+		patch := ""
+		if i < len(patches) {
+			patch = patches[i]
+		}
+		result = append(result, domain.DiffFile{
+			Path:      s.path,
+			Additions: s.additions,
+			Deletions: s.deletions,
+			Patch:     patch,
+		})
+	}
+
+	return result, nil
+}
+
+func splitDiffByFile(patch string) []string {
+	const marker = "diff --git "
+	var result []string
+	parts := strings.Split(patch, marker)
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" {
+			continue
+		}
+		result = append(result, trimmed)
+	}
+	return result
+}

@@ -26,6 +26,13 @@ type Commit struct {
 	Date    time.Time `json:"date"`
 }
 
+type DiffFile struct {
+	Path      string `json:"path"`
+	Additions int    `json:"additions"`
+	Deletions int    `json:"deletions"`
+	Patch     string `json:"patch"`
+}
+
 type Branch struct {
 	Name       string `json:"name"`
 	CommitHash string `json:"commit_hash"`

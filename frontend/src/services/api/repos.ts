@@ -93,6 +93,12 @@ export const reposApi = {
     return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
   },
 
+  getCommitDetail: (repoId: string, commitHash: string) =>
+    fetcher<Commit>(`/repos/${repoId}/commits/${encodeURIComponent(commitHash)}`),
+
+  getCommitDiff: (repoId: string, commitHash: string) =>
+    fetcher<Array<{ path: string; additions: number; deletions: number; patch: string }>>(`/repos/${repoId}/commits/${encodeURIComponent(commitHash)}/diff`),
+
   getCompare: (repoId: string, baseRef: string, headRef: string) =>
     fetcher<PullRequestCompareResult>(
       `/repos/${repoId}/compare?base=${encodeURIComponent(baseRef)}&head=${encodeURIComponent(headRef)}`,

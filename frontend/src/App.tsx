@@ -21,6 +21,7 @@ import {
   buildRepoBasePath,
   buildRepoComparePath,
   buildRepoCommitsPath,
+  buildRepoCommitViewPath,
   buildRepoContentPath,
   buildRepoEditFilePath,
   buildRepoNewFilePath,
@@ -254,6 +255,8 @@ function App () {
             canonicalPath = buildRepoEditFilePath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
           } else if (parsed.contentKind === 'upload') {
             canonicalPath = buildRepoUploadFilesPath(owner, targetRepo.name, parsed.branch || currentBranch || defaultBranchName, parsed.contentPath);
+          } else if (parsed.contentKind === 'commit-view') {
+            canonicalPath = buildRepoCommitViewPath(owner, targetRepo.name, parsed.contentPath);
           } else {
             canonicalPath = buildRepoBasePath(owner, targetRepo.name);
           }
@@ -654,7 +657,7 @@ function App () {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view') {
       return;
     }
 
@@ -938,6 +941,11 @@ function App () {
             }
 
             navigateToRepoCommits(selectedRepo, branchName, search);
+          }}
+          onOpenCommitDiff={(commitHash) => {
+            if (!selectedRepo) return;
+            const owner = getRepoOwner(selectedRepo);
+            navigateToPath(buildRepoCommitViewPath(owner, selectedRepo.name, commitHash));
           }}
           onOpenCreateFile={(branchName, directoryPath) => {
             if (!selectedRepo) {

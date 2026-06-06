@@ -456,6 +456,38 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	c.JSON(http.StatusOK, commits)
 }
 
+func (h *RepoHandler) HandleGetCommitDetail(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	commitHash := c.Param("commitHash")
+
+	commit, err := h.repoUseCase.GetCommitDetail(repoID, commitHash)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, commit)
+}
+
+func (h *RepoHandler) HandleGetCommitDiff(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	commitHash := c.Param("commitHash")
+
+	diff, err := h.repoUseCase.GetCommitDiff(repoID, commitHash)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, diff)
+}
+
 func (h *RepoHandler) HandleGetBranches(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

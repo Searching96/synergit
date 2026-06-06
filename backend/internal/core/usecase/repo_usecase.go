@@ -408,6 +408,22 @@ func (s *RepoService) GetRepoCommits(repoID uuid.UUID, branch string, path strin
 	return s.gitManager.GetCommits(repoPath, branch, path)
 }
 
+func (s *RepoService) GetCommitDetail(repoID uuid.UUID, commitHash string) (*domain.Commit, error) {
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return nil, err
+	}
+	return s.gitManager.GetCommitDetail(repoPath, commitHash)
+}
+
+func (s *RepoService) GetCommitDiff(repoID uuid.UUID, commitHash string) ([]domain.DiffFile, error) {
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return nil, err
+	}
+	return s.gitManager.GetCommitDiff(repoPath, commitHash)
+}
+
 func (s *RepoService) GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error) {
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {

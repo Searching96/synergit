@@ -44,6 +44,8 @@ type RepoUseCase interface {
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
 	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)
+	GetCommitDetail(repoID uuid.UUID, commitHash string) (*domain.Commit, error)
+	GetCommitDiff(repoID uuid.UUID, commitHash string) ([]domain.DiffFile, error)
 	GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
 	RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error)
