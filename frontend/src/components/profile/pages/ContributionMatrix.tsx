@@ -9,9 +9,7 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
   { label: "Fri", row: 5 },
 ];
 
-const MIN_CELL_SIZE = 2;
 const DEFAULT_CELL_GAP = 3;
-const COMPACT_CELL_GAP = 1;
 const MONTH_LABEL_MIN_GAP_PX = 24;
 
 type MonthAnchor = {
@@ -41,7 +39,7 @@ interface ContributionMatrixProps {
   contributionDays: ProfileActivitySnapshot["contribution_days"];
   selectedYear: number;
   isRollingLast365: boolean;
-  totalContributions?: number;
+  totalContributions: number;
   contributionColor: (level: number) => string;
 }
 
@@ -190,7 +188,6 @@ export default function ContributionMatrix({
   contributionColor,
 }: ContributionMatrixProps) {
   const matrixHostRef = useRef<HTMLDivElement | null>(null);
-  const [matrixHostWidth, setMatrixHostWidth] = useState(0);
   const [hoveredTooltip, setHoveredTooltip] = useState<ContributionTooltipState>(null);
 
   const dayContributionCount = useMemo(() => {
@@ -203,7 +200,7 @@ export default function ContributionMatrix({
     return countByDay;
   }, [contributionDays]);
 
-  const { weeks, monthAnchors, totalContributions: matrixTotalContributions } = useMemo(() => {
+  const { weeks, monthAnchors } = useMemo(() => {
     if (isRollingLast365) {
       const today = atStartOfDay(new Date());
       return buildContributionCalendar(
@@ -220,62 +217,15 @@ export default function ContributionMatrix({
     );
   }, [dayContributionCount, isRollingLast365, selectedYear]);
 
-  const resolvedTotalContributions = totalContributions ?? matrixTotalContributions;
-  const contributionCountText = `${resolvedTotalContributions.toLocaleString()} contributions`;
-  const contributionSuffix = isRollingLast365 ? "in the last year" : `in ${selectedYear}`;
   const weekCount = weeks.length;
 
   useEffect(() => {
     setHoveredTooltip(null);
   }, [contributionDays, selectedYear, isRollingLast365]);
 
-  useEffect(() => {
-    const host = matrixHostRef.current;
-    if (!host) {
-      return;
-    }
+  const matrixGap = DEFAULT_CELL_GAP;
 
-    const updateWidth = () => {
-      setMatrixHostWidth(host.clientWidth);
-    };
-
-    updateWidth();
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver(() => updateWidth());
-      observer.observe(host);
-    }
-
-    window.addEventListener("resize", updateWidth);
-
-    return () => {
-      window.removeEventListener("resize", updateWidth);
-      observer?.disconnect();
-    };
-  }, [weekCount]);
-
-  const matrixGap = useMemo(() => {
-    if (weekCount <= 1 || matrixHostWidth <= 0) {
-      return DEFAULT_CELL_GAP;
-    }
-
-    const labelColumnWidth = 40;
-    const tentativeCellSize =
-      (matrixHostWidth - labelColumnWidth - Math.max(weekCount - 1, 0) * DEFAULT_CELL_GAP) / weekCount;
-
-    return tentativeCellSize >= MIN_CELL_SIZE ? DEFAULT_CELL_GAP : COMPACT_CELL_GAP;
-  }, [matrixHostWidth, weekCount]);
-
-  const cellSize = useMemo(() => {
-    if (weekCount === 0 || matrixHostWidth <= 0) {
-      return MIN_CELL_SIZE;
-    }
-
-    const labelColumnWidth = 40;
-    const availableWidth = matrixHostWidth - labelColumnWidth - Math.max(weekCount - 1, 0) * matrixGap;
-    return Math.max(MIN_CELL_SIZE, Math.floor(availableWidth / weekCount));
-  }, [matrixGap, matrixHostWidth, weekCount]);
+  const cellSize = 8;
 
   const matrixWidth = weekCount * cellSize + Math.max(weekCount - 1, 0) * matrixGap;
   const matrixHeight = 7 * cellSize + 6 * matrixGap;
@@ -316,14 +266,13 @@ export default function ContributionMatrix({
 
   return (
     <>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">
-          <span className="font-semibold text-[var(--text-primary)]">{contributionCountText}</span> {contributionSuffix}
-        </p>
-      </div>
-
-      <div className="mt-3">
-        <div ref={matrixHostRef} className="relative w-full overflow-x-hidden overflow-y-visible" onMouseLeave={handleCellMouseLeave}>
+      <p className="text-sm text-[var(--text-secondary)] mb-2">
+        <span className="font-semibold text-[var(--text-primary)]">{totalContributions.toLocaleString()} contributions</span>{" "}
+        {isRollingLast365 ? "in the last year" : `in ${selectedYear}`}
+      </p>
+      <section className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] overflow-hidden p-4">
+      <div>
+        <div ref={matrixHostRef} className="relative w-full overflow-x-auto overflow-y-visible" onMouseLeave={handleCellMouseLeave}>
           {hoveredTooltip ? (
             <div
               className="pointer-events-none fixed z-[999] -translate-x-1/2 -translate-y-full rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] px-2 py-1 text-xs text-[var(--text-primary)] shadow whitespace-nowrap"
@@ -352,8 +301,8 @@ export default function ContributionMatrix({
               {DAY_ROW_LABELS.map((item) => (
                 <span
                   key={item.label}
-                  className="absolute left-0"
-                  style={{ top: `${item.row * (cellSize + matrixGap)}px` }}
+                  className="absolute left-0 leading-none"
+                  style={{ top: `${item.row * (cellSize + matrixGap)}px`, height: `${cellSize}px`, display: "flex", alignItems: "center" }}
                 >
                   {item.label}
                 </span>
@@ -367,13 +316,12 @@ export default function ContributionMatrix({
                     <span
                       key={`cell-${index}-${dayIndex}`}
                       className="rounded-[2px] cursor-default"
-                      title={formatContributionTooltip(cell.date, cell.contributionCount)}
-                      onMouseEnter={(event) => handleCellMouseEnter(event, cell)}
+                      title={cell.date ? formatContributionTooltip(cell.date, cell.contributionCount) : undefined}
+                      onMouseEnter={cell.date ? (event) => handleCellMouseEnter(event, cell) : undefined}
                       style={{
                         width: `${cellSize}px`,
                         height: `${cellSize}px`,
-                        backgroundColor: contributionColor(cell.level),
-                        border: "1px solid rgba(27, 31, 35, 0.06)",
+                        backgroundColor: cell.date ? contributionColor(cell.level) : "transparent",
                       }}
                     />
                   ))}
@@ -384,18 +332,19 @@ export default function ContributionMatrix({
         </div>
       </div>
 
-      <div className="mt-4 text-xs text-[var(--text-secondary)] flex items-center justify-between">
+      <div className="mt-4 px-4 text-xs text-[var(--text-secondary)] flex items-center justify-between">
         <span>Learn how we count contributions</span>
         <div className="inline-flex items-center gap-2">
           <span>Less</span>
-          <div className="inline-flex gap-1">
+          <div className="inline-flex" style={{ gap: `${matrixGap}px` }}>
             {[0, 1, 2, 3, 4].map((level) => (
-              <span key={`legend-${level}`} className="h-[10px] w-[10px] rounded-[2px]" style={{ backgroundColor: contributionColor(level), border: "1px solid rgba(27, 31, 35, 0.06)" }} />
+              <span key={`legend-${level}`} className="rounded-[2px]" style={{ width: `${cellSize}px`, height: `${cellSize}px`, backgroundColor: contributionColor(level) }} />
             ))}
           </div>
           <span>More</span>
         </div>
       </div>
+      </section>
     </>
   );
 }

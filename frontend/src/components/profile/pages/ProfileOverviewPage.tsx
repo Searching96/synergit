@@ -239,33 +239,17 @@ export default function ProfileOverviewPage({
           </button>
         </div>
       ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_100px] gap-6 items-start">
-        <div className="space-y-6">
-          <section className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] overflow-hidden">
-            <div className="p-4">
-              {loadError ? (
-                <div className="mt-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-3 py-2 text-xs text-[var(--text-secondary)] flex items-center justify-between gap-3">
-                  <span>{loadError}</span>
-                  <button
-                    type="button"
-                    onClick={() => setReloadNonce((value) => value + 1)}
-                    className="rounded-md border border-[var(--border-default)] px-2 py-1 text-[var(--text-link)] hover:bg-[var(--surface-hover)]"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : null}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_100px] gap-6 items-start">
+          <div className="space-y-4">
+            <ContributionMatrix
+            contributionDays={profileActivity?.contribution_days ?? []}
+            selectedYear={selectedYear}
+            isRollingLast365={isRollingLast365}
+            totalContributions={profileActivity?.total_contributions ?? 0}
+            contributionColor={contributionColor}
+          />
 
-              <ContributionMatrix
-                contributionDays={profileActivity?.contribution_days ?? []}
-                selectedYear={selectedYear}
-                isRollingLast365={isRollingLast365}
-                totalContributions={profileActivity?.total_contributions}
-                contributionColor={contributionColor}
-              />
-            </div>
-
-            <div className="border-t border-[var(--border-muted)] p-4">
+          <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] p-4">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Activity overview</h3>
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_350px] gap-6">
@@ -356,8 +340,7 @@ export default function ProfileOverviewPage({
               <p>Opened {activityChart.issues.toLocaleString()} issues</p>
               <p>Completed {activityChart.code_reviews.toLocaleString()} code reviews</p>
             </div>
-          </section>
-        </div>
+          </div>
 
         <div className="w-full lg:w-[100px] rounded-md bg-[var(--surface-canvas)] overflow-hidden text-sm text-[var(--text-secondary)]">
           {availableYears.length === 0 ? (
@@ -372,7 +355,7 @@ export default function ProfileOverviewPage({
                     key={year}
                     type="button"
                     onClick={() => setRequestedYear((current) => (current === year ? undefined : year))}
-                    className={`w-full h-10 px-3 text-left ${active ? "bg-[var(--text-link)] text-[var(--text-on-accent)] font-medium" : "hover:bg-[var(--surface-subtle)]"}`}
+                    className={`w-full h-8 px-3 text-left ${active ? "bg-[var(--text-link)] text-[var(--text-on-accent)] font-light" : "hover:bg-[var(--surface-subtle)]"}`}
                   >
                     {year}
                   </button>
