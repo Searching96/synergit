@@ -244,6 +244,7 @@ export default function GithubProfilePages({
     ) : activeTab === "repositories" ? (
       <ProfileRepositoriesPage
         profileRepositories={profileRepositories}
+        isLoading={hasFetchPending}
         onOpenWorkspace={onOpenWorkspace}
         onCreateRepository={onCreateRepository}
         languageColor={languageColor}
@@ -300,7 +301,7 @@ export default function GithubProfilePages({
         <ProfileInfo username={username} />
 
         <section className="min-w-0 w-full">
-          {fetchStatusMessage && activeTab !== "overview" ? (
+          {fetchStatusMessage && activeTab !== "overview" && activeTab !== "repositories" ? (
             <p className="mb-3 text-sm text-[var(--text-secondary)]">{fetchStatusMessage}</p>
           ) : null}
           {content}

@@ -69,6 +69,7 @@ function buildLastYearCommitSparkline(commits: Commit[]): number[] {
 
 interface ProfileRepositoriesPageProps {
   profileRepositories: ShowcaseRepo[];
+  isLoading?: boolean;
   onOpenWorkspace: (repoName: string) => void;
   onCreateRepository: () => void;
   languageColor: (language: string) => string;
@@ -96,6 +97,7 @@ function searchRepositoriesByName(repositories: ShowcaseRepo[], query: string): 
 
 export default function ProfileRepositoriesPage({
   profileRepositories,
+  isLoading,
   onOpenWorkspace,
   onCreateRepository,
   languageColor,
@@ -482,7 +484,9 @@ export default function ProfileRepositoriesPage({
       ) : null}
 
       <div className="border-t border-[var(--border-muted)]">
-        {filteredRepositories.map((repo) => (
+        {isLoading ? (
+          <p className="py-6 text-sm text-[var(--text-secondary)]">Loading...</p>
+        ) : filteredRepositories.map((repo) => (
           <article key={`repo-${repo.name}`} className="py-6 border-b border-[var(--border-muted)] flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -537,7 +541,7 @@ export default function ProfileRepositoriesPage({
           </article>
         ))}
 
-        {filteredRepositories.length === 0 ? (
+        {!isLoading && filteredRepositories.length === 0 ? (
           <div className="py-12 text-center text-sm text-[var(--text-secondary)]">
             No repositories matched the current search and filter options.
           </div>

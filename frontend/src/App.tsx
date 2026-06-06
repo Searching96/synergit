@@ -6,6 +6,7 @@ import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
 import TopHeader from "./components/layout/TopHeader";
+import SidebarMenu from "./components/layout/SidebarMenu";
 import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
@@ -97,6 +98,7 @@ function App () {
   const [backendStatus, setBackendStatus] = useState<"checking" | "available" | "unavailable">("checking");
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
   const [repoRouteResolved, setRepoRouteResolved] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(() => parseAppPath(window.location.pathname).viewMode);
@@ -869,6 +871,7 @@ function App () {
               </RouteButton>
             </div>
           ) : null}
+          onMenuClick={() => setIsSidebarMenuOpen(true)}
           onIssuesClick={() => navigateToPath('/issues')}
           onPullsClick={() => navigateToPath('/pulls')}
           onCreateClick={handleOpenCreateRepository}
@@ -895,6 +898,8 @@ function App () {
       <main className={`flex-1 w-full min-w-0 min-h-0 [scrollbar-gutter:stable_both-edges] bg-[var(--surface-canvas)] ${
         isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto"
       }`}>
+        <div className="flex flex-col min-h-full">
+        <div className="flex-1">
         <RepoWorkspaceContent
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}
@@ -1015,7 +1020,7 @@ function App () {
           onRepoDeleted={handleRepoDeleted}
           onGoToProfile={() => navigateToProfileTab('overview')}
         />
-      </main>
+        </div>
 
       {!isFullBrowserMode ? (
         <footer className="border-t border-[var(--border-muted)] py-4 text-xs text-[var(--text-secondary)] bg-[var(--surface-canvas)]">
@@ -1036,6 +1041,15 @@ function App () {
           </div>
         </footer>
       ) : null}
+      </div>
+      </main>
+
+      <SidebarMenu
+        username={currentUsername}
+        isOpen={isSidebarMenuOpen}
+        onClose={() => setIsSidebarMenuOpen(false)}
+        onNavigate={navigateToPath}
+      />
     </div>
   );
 }

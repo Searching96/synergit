@@ -7,6 +7,7 @@ import {
   Ellipsis,
   FileText,
   Link,
+  Loader2,
   Pencil,
   Plus,
   Search,
@@ -68,10 +69,6 @@ function getParentPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   parts.pop();
   return parts.join("/");
-}
-
-function commitMessagePlaceholder(item: RepoFile): string {
-  return item.type === "DIR" ? "Updated folder structure" : "Updated file";
 }
 
 function shortCommitHash(hash: string): string {
@@ -248,7 +245,14 @@ export default function FileExplorer({
   onOpenCreateFile,
   onOpenUploadFiles,
 }: FileExplorerProps) {
-  const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
+  const treeCacheKey = `repo-tree:${repoId}:${branch}`;
+  const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>(() => {
+    try {
+      const cached = localStorage.getItem(treeCacheKey);
+      if (cached) return { "": JSON.parse(cached) as RepoFile[] };
+    } catch { /* ignore */ }
+    return {} as Record<string, RepoFile[]>;
+  });
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
 
   const [currentDirPath, setCurrentDirPath] = useState<string>("");
@@ -257,9 +261,9 @@ export default function FileExplorer({
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [readmeContent, setReadmeContent] = useState<string | null>(null);
 
-  const [rootLoading, setRootLoading] = useState<boolean>(true);
+  const [rootLoading, setRootLoading] = useState<boolean>(() => !entriesByPath[""]);
   const [dirLoading, setDirLoading] = useState<boolean>(false);
-  const [readmeLoading, setReadmeLoading] = useState<boolean>(false);
+  const [readmeLoading, setReadmeLoading] = useState<boolean>(true);
 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -275,7 +279,7 @@ export default function FileExplorer({
   const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
-  const [commitsLoading, setCommitsLoading] = useState<boolean>(false);
+  const [commitsLoading, setCommitsLoading] = useState<boolean>(true);
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
   const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
@@ -303,8 +307,8 @@ export default function FileExplorer({
     const itemCommit = latestCommitByPath[item.path] || null;
 
     return {
-      message: itemCommit?.message?.trim() || commitMessagePlaceholder(item),
-      when: itemCommit ? formatRelativeCommitTime(itemCommit.date) : "-",
+      message: itemCommit?.message?.trim() || "",
+      when: itemCommit ? formatRelativeCommitTime(itemCommit.date) : "",
     };
   }, [latestCommitByPath]);
 
@@ -366,13 +370,17 @@ export default function FileExplorer({
       try {
         setLoadError(null);
         if (isRoot) {
-          setRootLoading(true);
+          const hasCache = !!localStorage.getItem(treeCacheKey);
+          if (!hasCache) setRootLoading(true);
         } else {
           setDirLoading(true);
         }
 
         const data = await reposApi.getTree(repoId, path, branch);
         setEntriesByPath((prev) => ({ ...prev, [path]: data || [] }));
+        if (isRoot && data) {
+          try { localStorage.setItem(treeCacheKey, JSON.stringify(data)); } catch { /* ignore */ }
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load directory";
         setLoadError(message);
@@ -388,7 +396,13 @@ export default function FileExplorer({
   );
 
   useEffect(() => {
-    setEntriesByPath({});
+    const cacheKey = `repo-tree:${repoId}:${branch}`;
+    let cached: RepoFile[] | null = null;
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) cached = JSON.parse(raw) as RepoFile[];
+    } catch { /* ignore */ }
+    setEntriesByPath(cached ? { "": cached } : {} as Record<string, RepoFile[]>);
     setExpandedDirs(new Set([""]));
     setCurrentDirPath("");
     setSelectedFilePath(null);
@@ -406,7 +420,7 @@ export default function FileExplorer({
     setLanguageBreakdown([]);
     setLanguageBreakdownLoading(false);
     setRecentCommits([]);
-    setCommitsLoading(false);
+    setCommitsLoading(true);
     setIsAddFileMenuOpen(false);
     setIsBranchMenuOpen(false);
     setIsCodeMenuOpen(false);
@@ -832,7 +846,11 @@ export default function FileExplorer({
               ))}
             </div>
           </div>
-        ) : rootLoading ? null : rootEntries.length === 0 ? (
+        ) : rootLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 size={28} className="animate-spin text-[var(--text-secondary)]" />
+          </div>
+        ) : rootEntries.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4">
@@ -932,6 +950,29 @@ export default function FileExplorer({
             </div>
           </div>
         ) : (
+        <>
+        <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <RepoForkedIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
+            <span className="text-xl font-semibold text-[var(--text-link)] truncate">{repoOwner}/{repoName}</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
+            >
+              <EyeIcon size={14} /> Watch
+            </button>
+            <button
+              type="button"
+              className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
+            >
+              <RepoForkedIcon size={14} /> Fork
+            </button>
+            <StarButton repoId={repoId} autoFetch showCount />
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           <section className="space-y-4 min-w-0">
             <div className="relative flex flex-wrap items-center gap-2">
@@ -1125,13 +1166,15 @@ export default function FileExplorer({
                     {((latestCommit?.author || repoOwner || "U").trim().charAt(0) || "U").toUpperCase()}
                   </div>
 
-                  {latestCommit ? (
+                  {commitsLoading ? (
+                    <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                  ) : latestCommit ? (
                     <div className="min-w-0 flex items-center gap-1 text-sm">
                       <span className="font-semibold text-[var(--text-primary)] truncate max-w-[180px]">{latestCommit.author}</span>
                       <span className="text-[var(--text-secondary)] truncate">{latestCommit.message}</span>
                     </div>
                   ) : (
-                    <p className="text-sm text-[var(--text-secondary)]">No commits yet.</p>
+                    <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
                   )}
                 </div>
 
@@ -1181,8 +1224,12 @@ export default function FileExplorer({
                           )}
                           <span className="truncate text-[var(--text-link)]">{item.name}</span>
                         </span>
-                        <span className="truncate text-left text-[var(--text-secondary)]">{details.message}</span>
-                        <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
+                        <span className="truncate text-left text-[var(--text-secondary)]">
+                          {commitsLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
+                        </span>
+                        <span className="text-right text-[var(--text-secondary)]">
+                          {commitsLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
+                        </span>
                       </button>
                     </li>
                   );
@@ -1280,7 +1327,11 @@ export default function FileExplorer({
                     </div>
                   </div>
                 ) : readmeLoading ? (
-                  <p className="text-sm text-[var(--text-secondary)]">Loading README...</p>
+                  <div className="p-6 space-y-3">
+                    <div className="h-4 w-48 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                    <div className="h-3 w-full rounded bg-[var(--surface-subtle)] animate-pulse" />
+                    <div className="h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                  </div>
                 ) : normalizedReadmeContent ? (
                   <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
                     <ReactMarkdown
@@ -1336,21 +1387,6 @@ export default function FileExplorer({
           </section>
 
           <aside className="xl:pl-2 space-y-6">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
-              >
-                <EyeIcon size={14} /> Watch
-              </button>
-              <button
-                type="button"
-                className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
-              >
-                <RepoForkedIcon size={14} /> Fork
-              </button>
-              <StarButton repoId={repoId} autoFetch showCount />
-            </div>
             <div>
               <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4">About</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-6">
@@ -1429,6 +1465,7 @@ export default function FileExplorer({
             </div>
           </aside>
         </div>
+        </>
         )
       ) : (
         <div className="h-full min-h-[560px] border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)] flex">

@@ -132,7 +132,7 @@ export default function RepoWorkspaceContent({
   }
 
   return (
-    <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
+    <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 pb-6 h-full"}>
       <div className={isFullBrowserMode ? "w-full h-full min-h-0 flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
           {!isFullBrowserMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
