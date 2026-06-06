@@ -223,9 +223,24 @@ export default function ContributionMatrix({
     setHoveredTooltip(null);
   }, [contributionDays, selectedYear, isRollingLast365]);
 
-  const matrixGap = DEFAULT_CELL_GAP;
+  const [matrixHostWidth, setMatrixHostWidth] = useState(0);
 
-  const cellSize = 8;
+  useEffect(() => {
+    const host = matrixHostRef.current;
+    if (!host) return;
+    const update = () => setMatrixHostWidth(host.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [weekCount]);
+
+  const labelColumnWidth = 40;
+  const matrixGap = DEFAULT_CELL_GAP;
+  const availableWidth = matrixHostWidth - labelColumnWidth;
+  const cellSize = weekCount > 0 && availableWidth > 0
+    ? Math.max(2, Math.floor((availableWidth - Math.max(weekCount - 1, 0) * matrixGap) / weekCount))
+    : 10;
 
   const matrixWidth = weekCount * cellSize + Math.max(weekCount - 1, 0) * matrixGap;
   const matrixHeight = 7 * cellSize + 6 * matrixGap;
@@ -282,7 +297,7 @@ export default function ContributionMatrix({
             </div>
           ) : null}
 
-          <div className="pl-10 pr-2">
+          <div className="pl-10">
             <div className="relative h-4 text-xs text-[var(--text-secondary)]" style={{ width: `${matrixWidth}px` }}>
               {displayMonthAnchors.map((month, index) => (
                 <span
