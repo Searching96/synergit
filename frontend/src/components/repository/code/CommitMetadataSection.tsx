@@ -29,7 +29,7 @@ export default function CommitMetadataSection({
             Commit <span className="bg-[var(--surface-subtle)] rounded px-1.5 py-0.5">{shortHash}</span>
           </h1>
           {commit && (
-            <p className="mt-2 text-sm text-[var(--text-secondary)] flex items-center gap-2">
+            <p className="my-2 text-sm text-[var(--text-secondary)] flex items-center gap-2">
               <span className="h-5 w-5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[10px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
                 {commit.author.charAt(0).toUpperCase()}
               </span>
@@ -62,7 +62,7 @@ export default function CommitMetadataSection({
           <button
             type="button"
             onClick={() => void navigator.clipboard.writeText(commitHash)}
-            className="h-5 w-5 rounded border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
+            className="h-5 w-5 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
             aria-label="Copy full SHA"
           >
             <Copy size={10} className="text-[var(--text-secondary)]" />

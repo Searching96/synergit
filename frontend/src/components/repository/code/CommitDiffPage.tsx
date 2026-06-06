@@ -63,7 +63,7 @@ export default function CommitDiffPage({ repoId, commitHash, onBrowseFiles }: Co
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col">
       <CommitMetadataSection
         commit={commit}
         commitHash={commitHash}

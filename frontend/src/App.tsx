@@ -901,8 +901,8 @@ function App () {
       <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${
         isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto"
       }`}>
-        <div className="flex flex-col min-h-full">
-        <div className="flex-1 h-full">
+        <div className="flex flex-col h-full">
+        <div className="flex-1 h-full min-h-0">
         <RepoWorkspaceContent
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}

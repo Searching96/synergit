@@ -143,7 +143,7 @@ export default function RepoWorkspaceContent({
             </div>
           ) : null}
 
-          <div className={isFullBrowserMode ? "w-full flex-1 min-h-0" : "flex-1 min-h-0"}>
+          <div className={isFullBrowserMode ? "w-full flex-1 min-h-0 flex flex-col" : "flex-1 min-h-0"}>
             {activeTab === "files" && routeContentKind === "commits" && (
               <CommitHistory
                 repoId={selectedRepo.id}
