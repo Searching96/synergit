@@ -222,6 +222,7 @@ export default function RepoWorkspaceContent({
                 repoName={selectedRepo.name}
                 repoDescription={selectedRepo.description}
                 repoOwner={selectedRepo.owner || currentUsername}
+                repoVisibility={selectedRepo.visibility}
                 repoStars={selectedRepo.stars}
                 repoForks={selectedRepo.forks}
                 repoWatchers={0}

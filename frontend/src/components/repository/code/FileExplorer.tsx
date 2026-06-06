@@ -43,6 +43,7 @@ interface FileExplorerProps {
   repoName: string;
   repoDescription?: string;
   repoOwner?: string;
+  repoVisibility?: string;
   repoStars?: number;
   repoForks?: number;
   repoWatchers?: number;
@@ -233,6 +234,7 @@ export default function FileExplorer({
   repoName,
   repoDescription,
   repoOwner,
+  repoVisibility,
   repoStars,
   repoForks,
   repoWatchers,
@@ -953,8 +955,15 @@ export default function FileExplorer({
         <>
         <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
           <div className="flex items-center gap-2 min-w-0">
-            <RepoForkedIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
-            <span className="text-xl font-semibold text-[var(--text-link)] truncate">{repoOwner}/{repoName}</span>
+            <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+              {((repoOwner || "U").charAt(0)).toUpperCase()}
+            </span>
+            <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-link)] hover:underline truncate">{repoName}</a>
+            {repoVisibility ? (
+              <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+                {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+              </span>
+            ) : null}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button

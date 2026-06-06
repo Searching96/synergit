@@ -308,19 +308,6 @@ export default function GithubProfilePages({
         </section>
       </main>
 
-      <footer className="border-t border-[var(--border-muted)] mt-8 py-6 text-xs text-[var(--text-secondary)]">
-        <div className="max-w-[1480px] mx-auto px-4 md:px-6 flex flex-wrap gap-4 items-center justify-center">
-          <span>&copy; 2026 GitHub, Inc.</span>
-          <span>Terms</span>
-          <span>Privacy</span>
-          <span>Security</span>
-          <span>Status</span>
-          <span>Community</span>
-          <span>Docs</span>
-          <span>Contact</span>
-        </div>
-      </footer>
-
       {isMenuOpen && (
         <div className="fixed inset-0 z-50">
           <button

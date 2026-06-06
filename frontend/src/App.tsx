@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Branch, CreateRepositoryPayload, Repository } from "./types/index";
-import { Github } from "lucide-react";
 import { ApiError, checkBackendAvailability, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
@@ -1030,25 +1029,6 @@ function App () {
         />
         </div>
 
-      {!isFullBrowserMode ? (
-        <footer className="border-t border-[var(--border-muted)] py-4 text-xs text-[var(--text-secondary)] bg-[var(--surface-canvas)]">
-          <div className="max-w-[1400px] mx-auto px-4 flex flex-wrap gap-4 items-center justify-center">
-            <span className="inline-flex items-center gap-1.5">
-              <Github size={16} className="text-[var(--text-secondary)]" />
-              (c) 2026 GitHub, Inc.
-            </span>
-            <span>Terms</span>
-            <span>Privacy</span>
-            <span>Security</span>
-            <span>Status</span>
-            <span>Community</span>
-            <span>Docs</span>
-            <span>Contact</span>
-            <span>Manage cookies</span>
-            <span>Do not share my personal information</span>
-          </div>
-        </footer>
-      ) : null}
       </div>
       </main>
 

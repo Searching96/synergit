@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Branch, Commit } from "../../../types";
 import {
 	Calendar,
-	CalendarDays,
 	ChevronDown,
 	Code,
 	Copy,
@@ -626,7 +625,9 @@ export default function CommitHistory({
 												<div className="min-w-0">
 													<p className="text-sm font-semibold text-[var(--text-primary)] truncate">{commit.message}</p>
 													<p className="mt-1 text-xs text-[var(--text-secondary)] inline-flex items-center gap-1.5">
-														<CalendarDays size={12} />
+														<span className="h-3 w-3 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[8px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+															{commit.author.charAt(0).toUpperCase()}
+														</span>
 														{commit.author} {formatCommittedAgo(commit.date)}
 													</p>
 												</div>

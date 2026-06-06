@@ -52,10 +52,22 @@ function parseUnifiedDiff(patch: string): Hunk[] {
 
     if (raw.startsWith("@@")) {
       flushPending();
-      const match = raw.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-      oldLine = match ? parseInt(match[1], 10) : 0;
-      newLine = match ? parseInt(match[2], 10) : 0;
-      currentHunk = { header: raw, rows: [{ kind: "hunk", header: raw }] };
+      const match = raw.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/);
+      let normalizedHeader = raw;
+      if (match) {
+        const oldStart = match[1];
+        const oldCount = match[2] ?? "1";
+        const newStart = match[3];
+        const newCount = match[4] ?? "1";
+        const trailing = match[5] ?? "";
+        normalizedHeader = `@@ -${oldStart},${oldCount} +${newStart},${newCount} @@${trailing}`;
+        oldLine = parseInt(oldStart, 10);
+        newLine = parseInt(newStart, 10);
+      } else {
+        oldLine = 0;
+        newLine = 0;
+      }
+      currentHunk = { header: normalizedHeader, rows: [{ kind: "hunk", header: normalizedHeader }] };
       hunks.push(currentHunk);
       continue;
     }
@@ -114,13 +126,13 @@ export default function FileDiffPanel({ path, additions, deletions, patch }: Fil
           <span className="text-red-600 font-semibold">-{deletions}</span>
         </span>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs font-mono border-collapse">
+      <div>
+        <table className="w-full text-xs font-mono border-collapse" style={{ tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: 40 }} />
-            <col />
+            <col style={{ width: "calc(50% - 40px)" }} />
             <col style={{ width: 40 }} />
-            <col />
+            <col style={{ width: "calc(50% - 40px)" }} />
           </colgroup>
           <tbody>
             {hunks.flatMap((hunk, hIdx) =>
@@ -129,17 +141,20 @@ export default function FileDiffPanel({ path, additions, deletions, patch }: Fil
                 if (row.kind === "hunk") {
                   return (
                     <tr key={key} className="bg-[#ddf4ff]">
-                      <td colSpan={4} className="px-3 py-0.5 text-[var(--text-link)] whitespace-pre">{row.header}</td>
+                      <td className="px-2 text-center text-[var(--text-muted)] select-none bg-[#b6e3ff]">
+                        <span className="inline-flex items-center justify-center">⋯</span>
+                      </td>
+                      <td colSpan={3} className="px-3 py-0.5 text-[var(--text-link)] whitespace-pre-wrap break-all">{row.header}</td>
                     </tr>
                   );
                 }
                 if (row.kind === "context") {
                   return (
                     <tr key={key}>
-                      <td className="px-2 text-right text-[var(--text-muted)] select-none border-r border-[var(--border-muted)] align-top">{row.oldNum}</td>
-                      <td className="px-3 whitespace-pre select-text text-[var(--text-primary)] border-r border-[var(--border-muted)]">{row.content}</td>
-                      <td className="px-2 text-right text-[var(--text-muted)] select-none border-r border-[var(--border-muted)] align-top">{row.newNum}</td>
-                      <td className="px-3 whitespace-pre select-text text-[var(--text-primary)]">{row.content}</td>
+                      <td className="px-2 py-0.5 text-right text-[var(--text-muted)] select-none align-top">{row.oldNum}</td>
+                      <td className="px-3 py-0.5 whitespace-pre-wrap break-all select-text text-[var(--text-primary)] border-r border-[var(--border-muted)]"><span className="select-none">  </span>{row.content}</td>
+                      <td className="px-2 py-0.5 text-right text-[var(--text-muted)] select-none align-top">{row.newNum}</td>
+                      <td className="px-3 py-0.5 whitespace-pre-wrap break-all select-text text-[var(--text-primary)]"><span className="select-none">  </span>{row.content}</td>
                     </tr>
                   );
                 }
@@ -148,13 +163,13 @@ export default function FileDiffPanel({ path, additions, deletions, patch }: Fil
                 const hasNew = row.newNum !== null;
                 return (
                   <tr key={key}>
-                    <td className={`px-2 text-right select-none border-r border-[var(--border-muted)] align-top ${hasOld ? "bg-[#ffd7d5] text-[var(--text-muted)]" : ""}`}>{row.oldNum ?? ""}</td>
-                    <td className={`px-3 whitespace-pre select-text border-r border-[var(--border-muted)] ${hasOld ? "bg-[#ffebe9] text-[#cf222e]" : ""}`}>
-                      {hasOld ? <><span className="select-none">-</span>{row.oldContent}</> : ""}
+                    <td className={`px-2 py-0.5 text-right select-none align-top ${hasOld ? "bg-[#ffaba8] text-[var(--text-muted)]" : ""}`}>{row.oldNum ?? ""}</td>
+                    <td className={`px-3 py-0.5 whitespace-pre-wrap break-all select-text border-r border-[var(--border-muted)] ${hasOld ? "bg-[#ffebe9] text-[#cf222e]" : ""}`}>
+                      {hasOld ? <><span className="select-none">- </span>{row.oldContent}</> : ""}
                     </td>
-                    <td className={`px-2 text-right select-none border-r border-[var(--border-muted)] align-top ${hasNew ? "bg-[#ccffd8] text-[var(--text-muted)]" : ""}`}>{row.newNum ?? ""}</td>
-                    <td className={`px-3 whitespace-pre select-text ${hasNew ? "bg-[#dafbe1] text-[#1a7f37]" : ""}`}>
-                      {hasNew ? <><span className="select-none">+</span>{row.newContent}</> : ""}
+                    <td className={`px-2 py-0.5 text-right select-none align-top ${hasNew ? "bg-[#aceebb] text-[var(--text-muted)]" : ""}`}>{row.newNum ?? ""}</td>
+                    <td className={`px-3 py-0.5 whitespace-pre-wrap break-all select-text ${hasNew ? "bg-[#dafbe1] text-[#1a7f37]" : ""}`}>
+                      {hasNew ? <><span className="select-none">+ </span>{row.newContent}</> : ""}
                     </td>
                   </tr>
                 );
