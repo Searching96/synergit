@@ -962,6 +962,7 @@ function App () {
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}
           selectedRepoVisibility={selectedRepoVisibility}
+          isResolvingRepo={profileFetchPending}
           isFullBrowserMode={isFullBrowserMode}
           activeTab={activeTab}
           routeContentKind={routeContentKind}
@@ -1075,6 +1076,7 @@ function App () {
           }}
           onRepoUpdated={handleRepoUpdated}
           onRepoDeleted={handleRepoDeleted}
+          onGoToProfile={() => navigateToProfileTab('overview')}
         />
       </main>
 

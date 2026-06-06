@@ -1,4 +1,5 @@
 import type { Branch, Repository } from "../../../types";
+import { Loader2 } from "lucide-react";
 import CommitHistory from "../code/CommitHistory";
 import FileExplorer from "../code/FileExplorer";
 import NewFilePage from "../code/NewFilePage";
@@ -29,6 +30,7 @@ interface RepoWorkspaceContentProps {
   selectedRepo: Repository | null;
   currentUsername: string;
   selectedRepoVisibility: string;
+  isResolvingRepo: boolean;
   isFullBrowserMode: boolean;
   activeTab: RepoTabKey;
   routeContentKind: RepoContentKind;
@@ -58,6 +60,7 @@ interface RepoWorkspaceContentProps {
   onBackToIssues: () => void;
   onRepoUpdated: (repo: Repository) => void;
   onRepoDeleted: (repoId: string) => void;
+  onGoToProfile: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -92,9 +95,40 @@ export default function RepoWorkspaceContent({
   onBackToIssues,
   onRepoUpdated,
   onRepoDeleted,
+  onGoToProfile,
+  isResolvingRepo,
 }: RepoWorkspaceContentProps) {
   if (!selectedRepo) {
-    return null;
+    if (isResolvingRepo) {
+      return (
+        <div
+          className={isFullBrowserMode ? "w-full h-full min-h-0 flex items-center justify-center" : "max-w-[1400px] mx-auto px-4 py-6 h-full flex items-center justify-center"}
+          role="status"
+          aria-label="Loading repository"
+        >
+          <Loader2 size={28} className="animate-spin text-[var(--text-secondary)]" />
+        </div>
+      );
+    }
+
+    return (
+      <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
+        <div className="mx-auto max-w-[560px] py-20 text-center">
+          <p className="text-[64px] leading-none font-semibold text-[var(--text-primary)]">404</p>
+          <h2 className="mt-4 text-xl font-semibold text-[var(--text-primary)]">This is not the repository you are looking for.</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            The repository may not exist, or you may not have access to it.
+          </p>
+          <button
+            type="button"
+            onClick={onGoToProfile}
+            className="mt-6 h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+          >
+            Go to your profile
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

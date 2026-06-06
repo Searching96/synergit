@@ -348,11 +348,8 @@ export default function ProfileOverviewPage({
                 </div>
               </div>
             </div>
-          </section>
-
-          <section className="space-y-3 text-sm text-[var(--text-secondary)]">
-            <h3 className="text-base font-semibold text-[var(--text-primary)]">Contribution activity</h3>
-            <div className="border border-[var(--border-default)] rounded-md p-4 bg-[var(--surface-canvas)] space-y-2">
+            <div className="border-t border-[var(--border-muted)] p-4 space-y-2 text-sm text-[var(--text-secondary)]">
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">Contribution activity</h3>
               <p className="text-[var(--text-primary)]">Last 365 days</p>
               <p>Created {commitsLast365Days.toLocaleString()} commits</p>
               <p>Opened {activityChart.pull_requests.toLocaleString()} pull requests</p>
