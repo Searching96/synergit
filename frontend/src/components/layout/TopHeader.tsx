@@ -12,7 +12,7 @@ import { Accessibility, ArrowLeftRight, Book, Bot, Building2, Code, FlaskConical
 
 interface TopHeaderProps {
   leftContent: ReactNode;
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
   menuAriaLabel?: string;
   onCreateClick?: () => void;
   onIssuesClick?: () => void;
@@ -68,14 +68,16 @@ export default function TopHeader({
   return (
     <div className="h-14 px-4 md:pl-6 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 min-w-0">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
-          aria-label={menuAriaLabel}
-        >
-          <ThreeBarsIcon size={16} className="text-[var(--text-secondary)]" />
-        </button>
+        {onMenuClick ? (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-page)] inline-flex items-center justify-center hover:bg-[var(--surface-hover)]"
+            aria-label={menuAriaLabel}
+          >
+            <ThreeBarsIcon size={16} className="text-[var(--text-secondary)]" />
+          </button>
+        ) : null}
 
         <span className="h-8 w-8 inline-flex items-center justify-center text-[var(--text-primary)] shrink-0">
           <MarkGithubIcon size={32} />

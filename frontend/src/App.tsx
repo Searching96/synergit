@@ -1,20 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Branch, CreateRepositoryPayload, Repository } from "./types/index";
-import {
-  Bot,
-  Compass,
-  CircleDot,
-  Gift,
-  Github,
-  Home,
-  GitPullRequest,
-  LayoutGrid,
-  Link2,
-  MessageCircle,
-  Monitor,
-  X,
-} from "lucide-react";
-import { RepoIcon } from "@primer/octicons-react";
+import { Github } from "lucide-react";
 import { ApiError, checkBackendAvailability, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
@@ -53,10 +39,6 @@ import {
 } from "./components/repository/workspace/utils/repoRouting";
 import type { ProfileTabKey } from "./components/profile/pages/utils/profileTypes";
 import { formatVisibilityLabel } from "./utils/visibility";
-
-function RepositoryIcon({ size = 16, className }: { size?: number; className?: string }) {
-  return <RepoIcon size={size} className={className} />;
-}
 
 function SiteUnavailablePage() {
   return (
@@ -115,9 +97,9 @@ function App () {
   const [backendStatus, setBackendStatus] = useState<"checking" | "available" | "unavailable">("checking");
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [repoRouteResolved, setRepoRouteResolved] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
-  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>('profile');
-  const [isRepoDrawerOpen, setIsRepoDrawerOpen] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(() => parseAppPath(window.location.pathname).viewMode);
   const [createRepoSubmitting, setCreateRepoSubmitting] = useState<boolean>(false);
   const [createRepoError, setCreateRepoError] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTabKey>('overview');
@@ -531,19 +513,6 @@ function App () {
     }
   }, [selectedRepoId, isAuthenticated]);
 
-  useEffect(() => {
-    if (!isRepoDrawerOpen) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsRepoDrawerOpen(false);
-      }
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isRepoDrawerOpen]);
-
   const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
   const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
@@ -567,6 +536,7 @@ function App () {
   useEffect(() => {
     if (!isAuthenticated) return;
     applyRoute(window.location.pathname, window.location.search, { replace: true });
+    if (repos.length > 0) setRepoRouteResolved(true);
   }, [applyRoute, isAuthenticated, repos]);
 
   const navigateToProfileTab = useCallback((tab: ProfileTabKey, options?: { replace?: boolean }) => {
@@ -748,11 +718,6 @@ function App () {
   };
 
   const handleOpenWorkspaceFromProfile = (repoName: string) => {
-    if (repos.length === 0) {
-      setIsRepoDrawerOpen(true);
-      return;
-    }
-
     const target =
       repos.find((repo) => repo.name.toLowerCase() === repoName.toLowerCase()) ||
       repos[0];
@@ -882,28 +847,6 @@ function App () {
     );
   }
 
-  const handleSidebarNavigate = (path: string) => {
-    setIsRepoDrawerOpen(false);
-    navigateToPath(path);
-  };
-
-  const primarySidebarItems: Array<{ key: string; label: string; icon: ComponentType<{ size?: number; className?: string }>; path: string }> = [
-    { key: 'home', label: 'Home', icon: Home, path: buildProfilePath(currentUsername, 'overview') },
-    { key: 'issues', label: 'Issues', icon: CircleDot, path: '/issues' },
-    { key: 'pulls', label: 'Pull requests', icon: GitPullRequest, path: '/pulls' },
-    { key: 'repositories', label: 'Repositories', icon: RepositoryIcon, path: buildProfilePath(currentUsername, 'repositories') },
-    { key: 'projects', label: 'Projects', icon: LayoutGrid, path: '/projects' },
-    { key: 'discussions', label: 'Discussions', icon: MessageCircle, path: '/discussions' },
-    { key: 'codespaces', label: 'Codespaces', icon: Monitor, path: '/codespaces' },
-    { key: 'copilot', label: 'Copilot', icon: Bot, path: '/copilot' },
-  ];
-
-  const secondarySidebarItems: Array<{ key: string; label: string; icon: ComponentType<{ size?: number; className?: string }>; path: string }> = [
-    { key: 'explore', label: 'Explore', icon: Compass, path: '/explore' },
-    { key: 'marketplace', label: 'Marketplace', icon: Gift, path: '/marketplace' },
-    { key: 'mcp-registry', label: 'MCP registry', icon: Link2, path: '/mcp-registry' },
-  ];
-
   return (
     <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
       <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
@@ -925,13 +868,7 @@ function App () {
                 {selectedRepo.name}
               </RouteButton>
             </div>
-          ) : (
-            <RouteButton selected onClick={() => setIsRepoDrawerOpen(true)} className="truncate">
-              select-repository
-            </RouteButton>
-          )}
-          onMenuClick={() => setIsRepoDrawerOpen(true)}
-          menuAriaLabel="Open repository menu"
+          ) : null}
           onIssuesClick={() => navigateToPath('/issues')}
           onPullsClick={() => navigateToPath('/pulls')}
           onCreateClick={handleOpenCreateRepository}
@@ -962,7 +899,7 @@ function App () {
           selectedRepo={selectedRepo}
           currentUsername={currentUsername}
           selectedRepoVisibility={selectedRepoVisibility}
-          isResolvingRepo={profileFetchPending}
+          isResolvingRepo={!selectedRepo && !profileFetchFailed && !repoRouteResolved}
           isFullBrowserMode={isFullBrowserMode}
           activeTab={activeTab}
           routeContentKind={routeContentKind}
@@ -1099,67 +1036,6 @@ function App () {
           </div>
         </footer>
       ) : null}
-
-      {isRepoDrawerOpen && (
-        <div className="fixed inset-0 z-50">
-          <button
-            type="button"
-            aria-label="Close repository menu"
-            onClick={() => setIsRepoDrawerOpen(false)}
-            className="absolute inset-0 bg-[var(--overlay-backdrop)]"
-          />
-
-          <aside className="absolute left-0 top-0 h-full w-[320px] bg-[var(--surface-canvas)] border-r border-[var(--border-default)] shadow-xl flex flex-col">
-            <div className="px-4 py-4 flex items-center justify-between">
-              <Github size={30} className="text-[var(--text-primary)]" />
-              <button
-                type="button"
-                onClick={() => setIsRepoDrawerOpen(false)}
-                className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-                aria-label="Close"
-              >
-                <X size={16} className="text-[var(--text-secondary)]" />
-              </button>
-            </div>
-
-            <div className="px-3 py-2 text-sm text-[var(--text-primary)] space-y-1">
-              {primarySidebarItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
-                  >
-                    <Icon size={17} className="text-[var(--text-secondary)]" />
-                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mx-4 my-2 border-t border-[var(--border-muted)]" />
-
-            <div className="px-3 py-1 text-sm text-[var(--text-primary)] space-y-1">
-              {secondarySidebarItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
-                  >
-                    <Icon size={17} className="text-[var(--text-secondary)]" />
-                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
-        </div>
-      )}
     </div>
   );
 }

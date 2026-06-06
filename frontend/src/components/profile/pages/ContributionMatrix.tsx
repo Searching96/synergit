@@ -9,7 +9,6 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
   { label: "Fri", row: 5 },
 ];
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_CELL_SIZE = 2;
 const DEFAULT_CELL_GAP = 3;
 const COMPACT_CELL_GAP = 1;
@@ -64,10 +63,6 @@ function endOfWeek(date: Date): Date {
   return addDays(date, 6 - date.getDay());
 }
 
-function diffInDays(fromDate: Date, toDate: Date): number {
-  return Math.floor((toDate.getTime() - fromDate.getTime()) / DAY_MS);
-}
-
 function toDateKey(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
@@ -98,22 +93,21 @@ function contributionLevel(contributionCount: number, maxContributionCount: numb
   return 4;
 }
 
-function buildMonthAnchors(rangeStart: Date, rangeEnd: Date, calendarStart: Date): MonthAnchor[] {
+function buildMonthAnchors(calendarStart: Date, weekCount: number): MonthAnchor[] {
   const monthAnchors: MonthAnchor[] = [];
-  const monthCursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
-  const lastMonthStart = new Date(rangeEnd.getFullYear(), rangeEnd.getMonth(), 1);
+  let previousMonth = -1;
 
-  while (monthCursor <= lastMonthStart) {
-    const anchorDate = monthCursor < rangeStart ? rangeStart : monthCursor;
-    const dayOffset = diffInDays(calendarStart, anchorDate);
-    const weekIndex = Math.floor(dayOffset / 7);
-    const label = MONTH_LABELS[monthCursor.getMonth()];
+  // A column belongs to the month of its first cell (the Sunday at the top of
+  // the column). The label for a month is placed on the first column that
+  // belongs to it.
+  for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+    const columnStart = addDays(calendarStart, weekIndex * 7);
+    const month = columnStart.getMonth();
 
-    if (monthAnchors.length === 0 || monthAnchors[monthAnchors.length - 1].weekIndex !== weekIndex) {
-      monthAnchors.push({ label, weekIndex });
+    if (month !== previousMonth) {
+      monthAnchors.push({ label: MONTH_LABELS[month], weekIndex });
+      previousMonth = month;
     }
-
-    monthCursor.setMonth(monthCursor.getMonth() + 1);
   }
 
   return monthAnchors;
@@ -168,7 +162,7 @@ function buildContributionCalendar(
 
   return {
     weeks,
-    monthAnchors: buildMonthAnchors(startDate, endDate, calendarStart),
+    monthAnchors: buildMonthAnchors(calendarStart, weeks.length),
     totalContributions,
   };
 }
@@ -326,12 +320,6 @@ export default function ContributionMatrix({
         <p className="text-sm text-[var(--text-secondary)]">
           <span className="font-semibold text-[var(--text-primary)]">{contributionCountText}</span> {contributionSuffix}
         </p>
-
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-stretch">
-          <button type="button" className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-            Contribution settings v
-          </button>
-        </div>
       </div>
 
       <div className="mt-3">
@@ -385,6 +373,7 @@ export default function ContributionMatrix({
                         width: `${cellSize}px`,
                         height: `${cellSize}px`,
                         backgroundColor: contributionColor(cell.level),
+                        border: "1px solid rgba(27, 31, 35, 0.06)",
                       }}
                     />
                   ))}
@@ -401,7 +390,7 @@ export default function ContributionMatrix({
           <span>Less</span>
           <div className="inline-flex gap-1">
             {[0, 1, 2, 3, 4].map((level) => (
-              <span key={`legend-${level}`} className="h-[10px] w-[10px] rounded-[2px]" style={{ backgroundColor: contributionColor(level) }} />
+              <span key={`legend-${level}`} className="h-[10px] w-[10px] rounded-[2px]" style={{ backgroundColor: contributionColor(level), border: "1px solid rgba(27, 31, 35, 0.06)" }} />
             ))}
           </div>
           <span>More</span>
