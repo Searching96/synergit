@@ -26,6 +26,10 @@ type UpdateRepoVisibilityRequest struct {
 	Visibility string `json:"visibility"`
 }
 
+type RenameRepoRequest struct {
+	Name string `json:"name"`
+}
+
 type CommitFileRequest struct {
 	Branch        string `json:"branch"`
 	Path          string `json:"path"`

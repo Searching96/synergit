@@ -39,7 +39,6 @@ interface RepoWorkspaceContentProps {
   branches: Branch[];
   explorerInitialLocation: ExplorerLocation;
   locationSearch: string;
-  onOpenRepoDrawer: () => void;
   onSelectBranch: (branchName: string) => void;
   onSelectCommitBranch: (branchName: string) => void;
   onNavigateRepoLocation: (location: ExplorerLocation) => void;
@@ -74,7 +73,6 @@ export default function RepoWorkspaceContent({
   branches,
   explorerInitialLocation,
   locationSearch,
-  onOpenRepoDrawer,
   onSelectBranch,
   onSelectCommitBranch,
   onNavigateRepoLocation,
@@ -95,23 +93,13 @@ export default function RepoWorkspaceContent({
   onRepoUpdated,
   onRepoDeleted,
 }: RepoWorkspaceContentProps) {
+  if (!selectedRepo) {
+    return null;
+  }
+
   return (
     <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 py-6 h-full"}>
-      {!selectedRepo ? (
-        <div className="flex h-full items-center justify-center text-[var(--text-secondary)]">
-          <div className="text-center space-y-3">
-            <h2 className="text-xl font-medium">Select a repository to view its content</h2>
-            <button
-              type="button"
-              onClick={onOpenRepoDrawer}
-              className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)]"
-            >
-              Open Repository Menu
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className={isFullBrowserMode ? "w-full h-full min-h-0 flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
+      <div className={isFullBrowserMode ? "w-full h-full min-h-0 flex flex-col" : "w-full h-full min-h-0 flex flex-col gap-4"}>
           {!isFullBrowserMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
 
@@ -276,7 +264,6 @@ export default function RepoWorkspaceContent({
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }

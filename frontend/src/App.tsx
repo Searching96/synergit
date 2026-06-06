@@ -15,8 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
-import { ApiError, checkBackendAvailability, issuesApi, reposApi } from "./services/api";
-import { pullsApi } from "./services/api/pull";
+import { ApiError, checkBackendAvailability, reposApi } from "./services/api";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./components/profile/GithubProfilePages";
 import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
@@ -28,6 +27,7 @@ import SearchResultsPage from "./components/layout/SearchResultsPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
 import { isRepositoryOwnedByUser } from "./components/profile/pages/utils/profileUtils";
+import { readCachedCount, writeCachedCount, repoCountCacheKey, repoTabCountsCacheKey, readRepoTabCounts, writeRepoTabCounts } from "./utils/countCache";
 import {
   GLOBAL_PAGE_TITLES,
   buildProfilePath,
@@ -78,17 +78,42 @@ function SiteUnavailablePage() {
   );
 }
 
+function getUsernameFromToken(): string {
+  const token = localStorage.getItem('token');
+  if (!token) return 'owner';
+
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return 'owner';
+
+    const normalizedBase64 = payloadPart
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const payloadJson = atob(normalizedBase64);
+    const payload = JSON.parse(payloadJson) as { username?: unknown };
+
+    if (typeof payload.username === 'string' && payload.username.trim()) {
+      return payload.username;
+    }
+  } catch {
+    return 'owner';
+  }
+
+  return 'owner';
+}
+
 function App () {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
 
   const [repos, setRepos] = useState<Repository[]>([]);
-  const [profileRepoCount, setProfileRepoCount] = useState<number>(0);
+  const [profileRepoCount, setProfileRepoCount] = useState<number>(
+    () => readCachedCount(repoCountCacheKey(getUsernameFromToken())) ?? 0,
+  );
   const [profileFetchFailed, setProfileFetchFailed] = useState<boolean>(false);
   const [profileRepoCountPending, setProfileRepoCountPending] = useState<boolean>(isAuthenticated);
   const [profileRepositoriesPending, setProfileRepositoriesPending] = useState<boolean>(false);
   const [backendStatus, setBackendStatus] = useState<"checking" | "available" | "unavailable">("checking");
   const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
-  const [tabCounts, setTabCounts] = useState<{ issues: number; pulls: number }>({ issues: 0, pulls: 0 });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>('profile');
@@ -122,61 +147,45 @@ function App () {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedRepoId) {
-      setTabCounts({ issues: 0, pulls: 0 });
-      return;
-    }
-    let cancelled = false;
-    void Promise.all([
-      issuesApi.list(selectedRepoId).catch(() => []),
-      pullsApi.list(selectedRepoId).catch(() => []),
-    ]).then(([issues, pulls]) => {
-      if (cancelled) return;
-      setTabCounts({
-        issues: issues.filter((i) => i.status === "OPEN").length,
-        pulls: pulls.filter((p) => p.status === "OPEN").length,
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRepoId, activeTab]);
+  const repoTabsWithCounts = useMemo(() => {
+    const selected = repos.find((repo) => repo.id === selectedRepoId);
 
-  const repoTabsWithCounts = useMemo(
-    () =>
-      REPO_TABS.map((tab) =>
-        tab.key === "issues" && tabCounts.issues > 0
-          ? { ...tab, count: tabCounts.issues }
-          : tab.key === "pulls" && tabCounts.pulls > 0
-            ? { ...tab, count: tabCounts.pulls }
-            : tab,
-      ),
-    [tabCounts],
-  );
+    let openIssues = 0;
+    let openPulls = 0;
+
+    if (selected) {
+      openIssues = selected.open_issues_count ?? 0;
+      openPulls = selected.open_pulls_count ?? 0;
+      if (selected.owner) {
+        writeRepoTabCounts(repoTabCountsCacheKey(selected.owner, selected.name), {
+          issues: openIssues,
+          pulls: openPulls,
+        });
+      }
+    } else {
+      // Cold load: the repositories list hasn't resolved yet, so seed the
+      // badges from the last known counts keyed by the URL's owner/name.
+      const parsed = parseAppPath(window.location.pathname);
+      if (parsed.repoOwner && parsed.repoName) {
+        const cached = readRepoTabCounts(repoTabCountsCacheKey(parsed.repoOwner, parsed.repoName));
+        if (cached) {
+          openIssues = cached.issues;
+          openPulls = cached.pulls;
+        }
+      }
+    }
+
+    return REPO_TABS.map((tab) =>
+      tab.key === "issues" && openIssues > 0
+        ? { ...tab, count: openIssues }
+        : tab.key === "pulls" && openPulls > 0
+          ? { ...tab, count: openPulls }
+          : tab,
+    );
+  }, [repos, selectedRepoId]);
 
   const getCurrentUsername = () => {
-    const token = localStorage.getItem('token');
-    if (!token) return 'owner';
-
-    try {
-      const payloadPart = token.split('.')[1];
-      if (!payloadPart) return 'owner';
-
-      const normalizedBase64 = payloadPart
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-      const payloadJson = atob(normalizedBase64);
-      const payload = JSON.parse(payloadJson) as { username?: unknown };
-
-      if (typeof payload.username === 'string' && payload.username.trim()) {
-        return payload.username;
-      }
-    } catch {
-      return 'owner';
-    }
-
-    return 'owner';
+    return getUsernameFromToken();
   };
 
   const currentUsername = getCurrentUsername();
@@ -436,6 +445,7 @@ function App () {
         setProfileFetchFailed(false);
         setProfileRepoCountPending(false);
         setProfileRepoCount(count);
+        writeCachedCount(repoCountCacheKey(getUsernameFromToken()), count);
       })
       .catch((err) => {
         if (cancelled) {
@@ -484,7 +494,9 @@ function App () {
         setProfileFetchFailed(false);
         setProfileRepositoriesPending(false);
         setRepos(repositories);
-        setProfileRepoCount(repositories.filter((repo) => isRepositoryOwnedByUser(repo, currentUsername)).length);
+        const ownedCount = repositories.filter((repo) => isRepositoryOwnedByUser(repo, currentUsername)).length;
+        setProfileRepoCount(ownedCount);
+        writeCachedCount(repoCountCacheKey(currentUsername), ownedCount);
         void hydratePrimaryLanguagesFromInsights(repositories);
       })
       .catch((err) => {
@@ -689,7 +701,11 @@ function App () {
 
   const handleRepoUpdated = useCallback((updatedRepo: Repository) => {
     setRepos((prev) => prev.map((repo) => (repo.id === updatedRepo.id ? { ...repo, ...updatedRepo } : repo)));
-  }, []);
+    if (selectedRepo && selectedRepo.id === updatedRepo.id && selectedRepo.name !== updatedRepo.name) {
+      const newPath = buildRepoTabPath(getRepoOwner(updatedRepo), updatedRepo.name, activeTab);
+      window.history.replaceState({}, '', newPath);
+    }
+  }, [selectedRepo, activeTab, getRepoOwner]);
 
   const handleRepoDeleted = useCallback((repoId: string) => {
     setRepos((prev) => prev.filter((repo) => repo.id !== repoId));
@@ -956,7 +972,6 @@ function App () {
           branches={branches}
           explorerInitialLocation={explorerInitialLocation}
           locationSearch={window.location.search}
-          onOpenRepoDrawer={() => setIsRepoDrawerOpen(true)}
           onSelectBranch={handleSelectBranch}
           onSelectCommitBranch={handleSelectCommitBranch}
           onNavigateRepoLocation={handleNavigateRepoLocation}

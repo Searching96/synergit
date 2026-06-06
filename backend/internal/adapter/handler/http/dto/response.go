@@ -33,4 +33,6 @@ type RepoResponse struct {
 	PrimaryLanguage string    `json:"primary_language,omitempty"`
 	Owner           string    `json:"owner"`
 	CloneURL        string    `json:"clone_url"`
+	OpenIssuesCount int       `json:"open_issues_count"`
+	OpenPullsCount  int       `json:"open_pulls_count"`
 }

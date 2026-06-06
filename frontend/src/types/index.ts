@@ -12,6 +12,8 @@ export interface Repository {
 	stars?: number;
 	forks?: number;
 	updated_at?: string;
+	open_issues_count?: number;
+	open_pulls_count?: number;
 }
 
 export type RepositoryVisibility = 'PUBLIC' | 'PRIVATE';

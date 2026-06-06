@@ -294,6 +294,45 @@ func (s *RepoService) UpdateRepositoryVisibility(repoID uuid.UUID, requesterID u
 	return repo, nil
 }
 
+func (s *RepoService) RenameRepository(repoID uuid.UUID, requesterID uuid.UUID,
+	newName string) (*domain.Repo, error) {
+
+	if err := domain.ValidateRepoName(newName); err != nil {
+		return nil, err
+	}
+	if err := s.requireOwner(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	newName = strings.TrimSpace(newName)
+	if newName == repo.Name {
+		return repo, nil
+	}
+
+	newPath, err := s.gitManager.RenameRepository(repo.Path, newName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.repoStore.RenameByID(repoID, newName, newPath); err != nil {
+		// Best-effort rollback of the on-disk rename so DB and disk stay consistent.
+		_, _ = s.gitManager.RenameRepository(newPath, repo.Name)
+		return nil, err
+	}
+
+	repo.Name = newName
+	repo.Path = newPath
+	return repo, nil
+}
+
 func (s *RepoService) DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) error {
 	if err := s.requireOwner(repoID, requesterID); err != nil {
 		return err

@@ -33,6 +33,13 @@ export const reposApi = {
       body: JSON.stringify({ visibility }),
     }),
 
+  renameRepo: (repoId: string, name: string) =>
+    fetcher<Repository>(`/repos/${repoId}/name`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    }),
+
   deleteRepo: (repoId: string) =>
     fetcher<{ message: string }>(`/repos/${repoId}`, {
       method: 'DELETE',

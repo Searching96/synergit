@@ -92,7 +92,9 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error) {
 	query := `
 		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.visibility, r.primary_language,
-		       COALESCE(owner_user.username, '')
+		       COALESCE(owner_user.username, ''),
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls
 		FROM repositories r
 		LEFT JOIN repository_collaborators rc
 			ON rc.repository_id = r.id AND rc.user_id = $1
@@ -113,7 +115,8 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 		repo := &domain.Repo{}
 		var description, visibility, primaryLanguage, owner sql.NullString
 		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
-			&description, &visibility, &primaryLanguage, &owner); err != nil {
+			&description, &visibility, &primaryLanguage, &owner,
+			&repo.OpenIssuesCount, &repo.OpenPullsCount); err != nil {
 			return nil, err
 		}
 		repo.Description = strings.TrimSpace(description.String)
@@ -215,6 +218,17 @@ func (p *PostgresRepoStore) UpdateVisibility(id uuid.UUID, visibility domain.Rep
 		`UPDATE repositories SET visibility = $2 WHERE id = $1`,
 		id,
 		visibility,
+	)
+
+	return err
+}
+
+func (p *PostgresRepoStore) RenameByID(id uuid.UUID, name string, path string) error {
+	_, err := p.db.Exec(
+		`UPDATE repositories SET name = $2, path = $3 WHERE id = $1`,
+		id,
+		name,
+		path,
 	)
 
 	return err

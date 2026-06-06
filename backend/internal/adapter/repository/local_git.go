@@ -177,6 +177,42 @@ func (g *LocalGitAdapter) DeleteRepository(repoPath string) error {
 	return nil
 }
 
+func (g *LocalGitAdapter) RenameRepository(repoPath string, newName string) (string, error) {
+	cleanName := strings.TrimSpace(newName)
+	if cleanName == "" || strings.ContainsAny(cleanName, "/\\") || strings.Contains(cleanName, "..") {
+		return "", errors.New("invalid repository name")
+	}
+
+	oldFull, err := filepath.Abs(g.resolveRepoPath(repoPath))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve repository path: %w", err)
+	}
+
+	absStorageRoot, err := filepath.Abs(g.storageRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve storage root: %w", err)
+	}
+
+	newFull := filepath.Join(filepath.Dir(oldFull), cleanName+".git")
+
+	for _, p := range []string{oldFull, newFull} {
+		rel, relErr := filepath.Rel(absStorageRoot, p)
+		if relErr != nil || rel == "." || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+			return "", errors.New("repository path is outside git storage root")
+		}
+	}
+
+	if _, err := os.Stat(newFull); !os.IsNotExist(err) {
+		return "", errors.New("a repository with this name already exists")
+	}
+
+	if err := os.Rename(oldFull, newFull); err != nil {
+		return "", fmt.Errorf("failed to rename repository files: %w", err)
+	}
+
+	return newFull, nil
+}
+
 func (g *LocalGitAdapter) BootstrapRepository(repoPath string, branch string,
 	authorName string, files map[string]string, commitMessage string) error {
 

@@ -129,6 +129,8 @@ func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string)
 		PrimaryLanguage: strings.TrimSpace(repo.PrimaryLanguage),
 		Owner:           owner,
 		CloneURL:        buildCloneURL(baseURL, owner, repo.Name),
+		OpenIssuesCount: repo.OpenIssuesCount,
+		OpenPullsCount:  repo.OpenPullsCount,
 	}
 }
 
@@ -350,6 +352,31 @@ func (h *RepoHandler) HandleUpdateRepoVisibility(c *gin.Context) {
 
 	repo, err := h.repoUseCase.UpdateRepositoryVisibility(repoID, requesterID,
 		domain.RepoVisibility(req.Visibility))
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toRepoResponse(c, repo, h.publicBaseURL))
+}
+
+func (h *RepoHandler) HandleRenameRepo(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.RenameRepoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	repo, err := h.repoUseCase.RenameRepository(repoID, requesterID, req.Name)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return

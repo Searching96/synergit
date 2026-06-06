@@ -40,6 +40,32 @@ export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }:
   const [renamingBranch, setRenamingBranch] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null);
 
+  const [nameInput, setNameInput] = useState<string>(repo.name);
+  const [renamingRepo, setRenamingRepo] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNameInput(repo.name);
+  }, [repo.name]);
+
+  const handleRenameRepo = async () => {
+    const nextName = nameInput.trim();
+    if (!nextName || nextName === repo.name) {
+      return;
+    }
+
+    try {
+      setRenamingRepo(true);
+      setNameError(null);
+      const updated = await reposApi.renameRepo(repo.id, nextName);
+      onRepoUpdated(updated);
+    } catch (error) {
+      setNameError(error instanceof Error ? error.message : "Failed to rename repository");
+    } finally {
+      setRenamingRepo(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     void reposApi
@@ -165,14 +191,24 @@ export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }:
             <div className="mt-2 flex items-center gap-2 max-w-[440px]">
               <input
                 type="text"
-                readOnly
-                value={repo.name}
-                className="h-9 flex-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
+                value={nameInput}
+                disabled={renamingRepo}
+                onChange={(event) => setNameInput(event.target.value)}
+                aria-label="Repository name"
+                className="h-9 flex-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)] disabled:opacity-60"
               />
-              <button type="button" className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)]">
-                Rename
+              <button
+                type="button"
+                onClick={() => void handleRenameRepo()}
+                disabled={renamingRepo || !nameInput.trim() || nameInput.trim() === repo.name}
+                className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)] disabled:opacity-60"
+              >
+                {renamingRepo ? "Renaming..." : "Rename"}
               </button>
             </div>
+            {nameError ? (
+              <p className="mt-2 text-sm text-[var(--text-danger)]">{nameError}</p>
+            ) : null}
           </div>
 
           <div>

@@ -30,6 +30,7 @@ import ProfileStarsPage from "./pages/ProfileStarsPage";
 import { PINNED_ORDER } from "./pages/utils/profileData";
 import type { StarredRepo } from "./pages/utils/profileTypes";
 import { starsApi } from "../../services/api";
+import { readCachedCount, writeCachedCount, starredCountCacheKey } from "../../utils/countCache";
 import type { ProfileTabKey, ShowcaseRepo } from "./pages/utils/profileTypes";
 import {
   buildDefaultRepositories,
@@ -98,19 +99,23 @@ export default function GithubProfilePages({
   );
 
   const [starred, setStarred] = useState<Repository[]>([]);
-  const [starredCount, setStarredCount] = useState<number>(0);
+  const [starredCount, setStarredCount] = useState<number>(
+    () => readCachedCount(starredCountCacheKey(username)) ?? 0,
+  );
   useEffect(() => {
     let cancelled = false;
     void starsApi
       .countStarred()
       .then(({ count }) => {
-        if (!cancelled) setStarredCount(count);
+        if (cancelled) return;
+        setStarredCount(count);
+        writeCachedCount(starredCountCacheKey(username), count);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [username]);
 
   useEffect(() => {
     if (activeTab !== "stars") {
@@ -127,12 +132,13 @@ export default function GithubProfilePages({
 
         setStarred(list);
         setStarredCount(list.length);
+        writeCachedCount(starredCountCacheKey(username), list.length);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [activeTab]);
+  }, [activeTab, username]);
 
   const starredRepos = useMemo<StarredRepo[]>(
     () =>
