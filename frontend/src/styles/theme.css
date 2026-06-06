@@ -69,3 +69,8 @@
   --status-link-subtle: #eaf5ff;
   --status-purple-subtle: #fbefff;
 }
+
+
+button {
+  cursor: pointer;
+}
