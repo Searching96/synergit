@@ -66,7 +66,7 @@ export default function TopHeader({
   ];
 
   return (
-    <div className="h-14 px-4 md:pl-6 flex items-center justify-between gap-4">
+    <div className="h-[42px] px-4 md:pl-6 flex items-center justify-between gap-4">
       <div className="flex items-center gap-3 min-w-0">
         {onMenuClick ? (
           <button

@@ -16,13 +16,13 @@ import {
   Package,
   Star,
   Table2,
-  Users,
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
 import RouteButton from "../layout/RouteButton";
 import TopNavigationTabs from "../layout/TopNavigationTabs";
 import ProfileOverviewPage from "./pages/ProfileOverviewPage";
+import ProfileInfo from "./ProfileInfo";
 import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
 import ProfileProjectsPage from "./pages/ProfileProjectsPage";
 import ProfilePackagesPage from "./pages/ProfilePackagesPage";
@@ -296,27 +296,8 @@ export default function GithubProfilePages({
         />
       </header>
 
-      <main className="w-full max-w-[1240px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] gap-8 lg:gap-10">
-        <aside className="w-full lg:w-[340px]">
-          <div className="w-[320px] max-w-full mx-auto lg:mx-0">
-            <div
-              className="w-full aspect-square rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[120px] font-semibold text-[var(--text-primary)] flex items-center justify-center"
-              aria-label={`${username} avatar`}
-            >
-              {avatarInitial}
-            </div>
-            <p className="text-[30px] leading-[34px] font-semibold text-[var(--text-primary)]">{username}</p>
-            <button
-              type="button"
-              className="mt-4 h-8 w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
-            >
-              Edit profile
-            </button>
-            <p className="mt-4 text-sm text-[var(--text-secondary)] inline-flex items-center gap-2">
-              <Users size={14} /> 0 follower &middot; 0 following
-            </p>
-          </div>
-        </aside>
+      <main className="w-full max-w-[1240px] mx-auto px-4 md:px-6 py-6 grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-8 lg:gap-10">
+        <ProfileInfo username={username} />
 
         <section className="min-w-0 w-full">
           {fetchStatusMessage && activeTab !== "overview" ? (

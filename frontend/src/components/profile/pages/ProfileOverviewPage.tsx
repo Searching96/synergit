@@ -134,7 +134,7 @@ export default function ProfileOverviewPage({
                 </span>
               </div>
               {repo.description ? (
-                <p className="mt-3 text-sm text-[var(--text-secondary)] min-h-[36px]">{repo.description}</p>
+                <p className="mt-3 text-sm text-[var(--text-secondary)]">{repo.description}</p>
               ) : null}
               {repo.language ? (
                 <div className="mt-3 ml-0.5 inline-flex items-center gap-2 text-xs text-[var(--text-secondary)]">
@@ -177,7 +177,7 @@ export default function ProfileOverviewPage({
             contributionColor={contributionColor}
           />
 
-          <div className="border border-[var(--border-default)] rounded-b-md bg-[var(--surface-canvas)] p-4">
+          <div className="border-x border-b border-[var(--border-default)] rounded-b-md bg-[var(--surface-canvas)] mb-4 p-4">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Activity overview</h3>
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_325px] gap-6">
@@ -225,7 +225,7 @@ export default function ProfileOverviewPage({
                   />
               </div>
             </div>
-            <div className="border-t border-[var(--border-muted)] p-4 space-y-2 text-sm text-[var(--text-secondary)]">
+            <div className="space-y-2 text-sm text-[var(--text-secondary)]">
               <h3 className="text-base font-semibold text-[var(--text-primary)]">Contribution activity</h3>
               <p className="text-[var(--text-primary)]">Last 365 days</p>
               <p>Created {commitsLast365Days.toLocaleString()} commits</p>
