@@ -524,7 +524,7 @@ function App () {
   const isFullBrowserMode =
     !!selectedRepo &&
     ((activeTab === 'files' &&
-      (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit')) ||
+      (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit' || routeContentKind === 'commit-view')) ||
       (activeTab === 'pulls' && routeContentKind === 'pull-conflicts'));
 
   useEffect(() => {
@@ -898,7 +898,7 @@ function App () {
         />
       </header>
 
-      <main className={`flex-1 w-full min-w-0 min-h-0 [scrollbar-gutter:stable_both-edges] bg-[var(--surface-canvas)] ${
+      <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${
         isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto"
       }`}>
         <div className="flex flex-col min-h-full">

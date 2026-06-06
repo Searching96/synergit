@@ -162,6 +162,7 @@ export default function RepoWorkspaceContent({
                 commitHash={routeContentPath}
                 repoOwner={selectedRepo.owner || currentUsername}
                 repoName={selectedRepo.name}
+                onBrowseFiles={(hash) => onNavigateRepoContent("tree", "", hash)}
               />
             )}
             {activeTab === "files" && routeContentKind === "new" && (

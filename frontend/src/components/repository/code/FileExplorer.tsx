@@ -1426,7 +1426,7 @@ export default function FileExplorer({
               <p>No packages published</p>
             </div>
 
-            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)] overflow-hidden">
               <p className="font-semibold text-[var(--text-primary)]">Languages</p>
 
               {languageBreakdownLoading ? (
