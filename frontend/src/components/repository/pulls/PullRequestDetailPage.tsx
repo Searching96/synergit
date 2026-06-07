@@ -482,7 +482,7 @@ export default function PullRequestDetailPage({
                   <li
                     key={event.id}
                     className={`relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-center text-sm ${
-                      isClosed ? "border-b-2 border-[var(--border-muted)]" : ""
+                      isClosed || isMerged ? "border-b-4 border-[var(--border-muted)]" : ""
                     }`}
                   >
                     <span className={`absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center ${badgeClass}`}>
