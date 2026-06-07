@@ -14,6 +14,7 @@ interface BranchTagMenuProps {
   menuClassName?: string;
   menuAlign?: "left" | "right";
   onViewAllBranches?: () => void;
+  label?: string;
 }
 
 function isCommitLikeRef(value: string): boolean {
@@ -56,6 +57,7 @@ export default function BranchTagMenu({
   menuClassName,
   menuAlign = "left",
   onViewAllBranches,
+  label,
 }: BranchTagMenuProps) {
   const [menuTab, setMenuTab] = useState<"branches" | "tags">("branches");
   const [query, setQuery] = useState<string>("");
@@ -148,9 +150,9 @@ export default function BranchTagMenu({
   };
 
   const wrapperClassName = className || "relative";
-  const computedTriggerClassName = triggerClassName || "inline-flex w-full min-w-0 items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-2 pr-2 h-9 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]";
+  const computedTriggerClassName = `inline-flex w-full min-w-0 items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-2 pr-2 h-8 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] ${triggerClassName || ""}`;
   const menuAlignClassName = menuAlign === "right" ? "right-0" : "left-0";
-  const computedMenuClassName = menuClassName || `absolute ${menuAlignClassName} top-[calc(100%+6px)] w-[320px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-xl overflow-hidden z-20`;
+  const computedMenuClassName = menuClassName || `absolute ${menuAlignClassName} top-[calc(100%+6px)] w-[320px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-xl overflow-hidden z-40`;
 
   return (
     <div className={wrapperClassName}>
@@ -160,12 +162,14 @@ export default function BranchTagMenu({
         className={computedTriggerClassName}
       >
         <GitBranchOcticon size={16} className="text-[var(--text-secondary)] shrink-0" />
-        <span className="truncate text-base">{activeBranchLabel}</span>
+        <span className="truncate">{label ? <><span className="text-[var(--text-secondary)]">{label}: </span>{activeBranchLabel}</> : activeBranchLabel}</span>
         <ChevronDown size={16} className="text-[var(--text-secondary)] ml-auto shrink-0" />
       </button>
 
       {isOpen ? (
-        <div className={computedMenuClassName}>
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => onOpenChange(false)} aria-hidden />
+          <div className={computedMenuClassName}>
           <div className="px-3 py-2 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-[var(--text-primary)]">Switch branches/tags</span>
             <button
@@ -280,6 +284,7 @@ export default function BranchTagMenu({
             View all branches
           </button>
         </div>
+        </>
       ) : null}
     </div>
   );
