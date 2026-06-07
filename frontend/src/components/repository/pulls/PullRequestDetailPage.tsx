@@ -182,6 +182,9 @@ export default function PullRequestDetailPage({
     try {
       setLoading(true);
       setError(null);
+      setCompareData(null);
+      setConflictFiles([]);
+      setEvents([]);
       const [pulls, collabs] = await Promise.all([
         pullsApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
