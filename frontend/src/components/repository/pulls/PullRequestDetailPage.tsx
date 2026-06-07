@@ -21,6 +21,7 @@ import {
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
+import { OcticonRepoPush, OcticonGitCommit } from "../../icons/Octicons";
 import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
 import MergeOperationPanel from "./MergeOperationPanel";
 
@@ -31,6 +32,7 @@ interface PullRequestDetailPageProps {
   onBack: () => void;
   onOpenConflicts: () => void;
   onOpenPullRequest: (pullNumber: number) => void;
+  onOpenCommitDiff?: (commitHash: string) => void;
 }
 
 function relativeTime(timestamp: string): string {
@@ -155,6 +157,7 @@ export default function PullRequestDetailPage({
   onBack,
   onOpenConflicts,
   onOpenPullRequest,
+  onOpenCommitDiff,
 }: PullRequestDetailPageProps) {
   const [pull, setPull] = useState<PullRequest | null>(null);
   const [compareData, setCompareData] = useState<PullRequestCompareResult | null>(null);
@@ -419,8 +422,8 @@ export default function PullRequestDetailPage({
             <span className="absolute left-[var(--rail)] -top-4 -bottom-6 w-0.5 bg-[var(--border-muted)]" aria-hidden />
             <ul className="space-y-4">
               <li className="relative pl-[calc(var(--rail)_+_17px)]">
-                <span className="absolute left-[calc(var(--rail)_-_11px)] top-1 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
-                  <GitCommitHorizontal size={14} />
+                <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                  <OcticonRepoPush size={14} />
                 </span>
                 <p className="text-sm text-[var(--text-secondary)]">
                   <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
@@ -428,27 +431,42 @@ export default function PullRequestDetailPage({
                 </p>
               </li>
 
-              {(compareData?.commits || []).map((commit) => (
-                <li key={commit.hash} className="relative pl-[calc(var(--rail)_+_17px)]">
-                  <span className="absolute left-[calc(var(--rail)_-_7px)] top-1/2 -translate-y-1/2 z-10 h-3.5 w-3.5 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)]" />
-                  <span className="absolute left-[calc(var(--rail)_+_18px)] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                    {(commit.author || creatorName).charAt(0)}
-                  </span>
-                  <div className="min-h-8 pl-8 flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 inline-flex items-center gap-2">
-                      <span className="truncate font-mono text-[var(--text-primary)] underline underline-offset-2 decoration-[var(--border-muted)] hover:text-[var(--text-link)]">
-                        {commit.message || "Untitled commit"}
-                      </span>
+              {(compareData?.commits || []).map((commit) => {
+                const author = commit.author || creatorName;
+                const authorInitial = (author.charAt(0) || "U").toUpperCase();
+                return (
+                  <li key={commit.hash} className="relative pl-[calc(var(--rail)_+_17px)]">
+                    <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                      <OcticonGitCommit size={14} />
                     </span>
-                    <span className="shrink-0 hidden sm:inline-flex items-center gap-3">
-                      <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
-                        Verified
+                    <div className="min-h-8 flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 inline-flex items-center gap-2">
+                        <span
+                          className="h-5 w-5 shrink-0 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]"
+                          title={author}
+                        >
+                          {authorInitial}
+                        </span>
+                        <span className="truncate text-[var(--text-primary)] underline underline-offset-2 decoration-[var(--border-muted)] hover:text-[var(--text-link)]">
+                          {commit.message || "Untitled commit"}
+                        </span>
                       </span>
-                      <span className="font-mono text-xs text-[var(--text-secondary)]">{commit.hash.slice(0, 7)}</span>
-                    </span>
-                  </div>
-                </li>
-              ))}
+                      <span className="shrink-0 hidden sm:inline-flex items-center gap-3">
+                        <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
+                          Verified
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenCommitDiff?.(commit.hash)}
+                          className="font-mono text-xs text-[var(--text-link)] hover:underline"
+                        >
+                          {commit.hash.slice(0, 7)}
+                        </button>
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
 
               {events.filter((event) => event.event_type !== "opened").map((event) => {
                 const isClosed = event.event_type === "closed";

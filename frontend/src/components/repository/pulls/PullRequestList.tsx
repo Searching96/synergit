@@ -12,8 +12,8 @@ import {
   Milestone,
   Search,
   Tag,
-  XCircle,
 } from "lucide-react";
+import { OcticonGitPullRequest, OcticonGitPullRequestClosed } from "../../icons/Octicons";
 
 interface PullRequestListProps {
   repoId: string;
@@ -346,17 +346,6 @@ export default function PullRequestList({
     [filteredPulls, selectedPullIds],
   );
 
-  const toRelativeTime = (timestamp: string) => {
-    const msDiff = Date.now() - Date.parse(timestamp);
-    const minutes = Math.floor(msDiff / 60000);
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-    const days = Math.floor(hours / 24);
-    return `${days} day${days === 1 ? "" : "s"} ago`;
-  };
-
   const applyFilter = (status: "OPEN" | "CLOSED") => {
     setActiveFilter(status);
     const nextQuery = replaceStateQueryToken(searchInput, status);
@@ -661,7 +650,7 @@ export default function PullRequestList({
                         onClick={() => void bulkMarkAs("CLOSED")}
                         className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
-                        <XCircle size={16} className="text-[var(--text-danger)]" />
+                        <OcticonGitPullRequestClosed size={16} className="text-[var(--text-danger)]" />
                         Closed
                       </button>
                     </li>
@@ -685,7 +674,7 @@ export default function PullRequestList({
                   onClick={() => applyFilter("OPEN")}
                   className={`inline-flex items-center gap-2 ${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                 >
-                  <GitPullRequest size={14} />
+                  <OcticonGitPullRequest size={14} />
                   {openCount} Open
                 </button>
 
@@ -901,11 +890,11 @@ export default function PullRequestList({
               const creatorName = collaboratorNameById[pull.creator_id] || "Someone";
               const statusIcon =
                 pull.status === "OPEN" ? (
-                  <GitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                  <OcticonGitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
                 ) : pull.status === "MERGED" ? (
                   <GitMerge size={16} className="text-[var(--text-accent-purple)]" />
                 ) : (
-                  <XCircle size={16} className="text-[var(--text-danger)]" />
+                  <OcticonGitPullRequestClosed size={16} className="text-[var(--text-danger)]" />
                 );
 
               const isSelected = selectedPullIds.has(pull.id);
@@ -913,7 +902,7 @@ export default function PullRequestList({
               return (
                 <div key={pull.id} className="px-3 py-2 hover:bg-[var(--surface-subtle)]">
                   <div className="grid grid-cols-[22px_18px_minmax(0,1fr)_160px] gap-3 items-start">
-                    <label className="pt-1 hidden md:block">
+                    <label className="hidden md:flex items-center h-6">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -928,19 +917,23 @@ export default function PullRequestList({
                       <button
                         type="button"
                         onClick={() => onOpenPullRequest(pullNo)}
-                        className="text-left text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] truncate w-full"
+                        title={pull.title}
+                        className="block text-left text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] w-full"
                       >
-                        {pull.title}
+                        {pull.title.length > 50 ? `${pull.title.slice(0, 50)}...` : pull.title}
                       </button>
 
                       <div className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
                         <span>#{pullNo}</span>
                         <span>opened</span>
-                        <span>{toRelativeTime(pull.created_at)}</span>
-                        <span>({formatPullDate(pull.created_at)})</span>
+                        <span>{formatPullDate(pull.created_at)}</span>
                         <span>by</span>
-                        <span className="text-[var(--text-primary)]">{creatorName}</span>
-                        <span className="ml-1">{pull.source_branch} into {pull.target_branch}</span>
+                        <button
+                          type="button"
+                          className="text-[var(--text-primary)] hover:text-[var(--text-link)]"
+                        >
+                          {creatorName}
+                        </button>
                       </div>
                     </div>
 
