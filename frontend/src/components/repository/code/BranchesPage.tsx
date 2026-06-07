@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Copy, Ellipsis, Search, Trash2 } from "lucide-react";
 import { reposApi } from "../../../services/api/repos";
 import type { Branch } from "../../../types";
+import CreateBranchPopup from "./CreateBranchPopup";
 
 interface BranchesPageProps {
   repoId: string;
   onBackToCode: () => void;
-  onCreateBranch: () => void;
 }
 
 type TabKey = "overview" | "yours" | "active" | "stale" | "all";
@@ -148,13 +148,27 @@ function BranchSection({ title, rows, isDefaultSection, onDelete }: BranchSectio
   );
 }
 
-export default function BranchesPage({ repoId, onBackToCode, onCreateBranch }: BranchesPageProps) {
+export default function BranchesPage({ repoId, onBackToCode }: BranchesPageProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [search, setSearch] = useState("");
   const [deletingBranch, setDeletingBranch] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const loadBranches = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await reposApi.getBranches(repoId);
+      setBranches(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load branches");
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +203,11 @@ export default function BranchesPage({ repoId, onBackToCode, onCreateBranch }: B
     }
   };
 
+  const handleCreated = () => {
+    setIsCreateOpen(false);
+    void loadBranches();
+  };
+
   const defaultBranch = useMemo(() => branches.find((b) => b.is_default) || null, [branches]);
   const nonDefault = useMemo(
     () => (defaultBranch ? branches.filter((b) => b.name !== defaultBranch.name) : branches),
@@ -212,13 +231,13 @@ export default function BranchesPage({ repoId, onBackToCode, onCreateBranch }: B
           <button
             type="button"
             onClick={onBackToCode}
-            className="h-8 px-3 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
+            className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
           >
             Back to code
           </button>
           <button
             type="button"
-            onClick={onCreateBranch}
+            onClick={() => setIsCreateOpen(true)}
             className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)]"
           >
             New branch
@@ -269,6 +288,16 @@ export default function BranchesPage({ repoId, onBackToCode, onCreateBranch }: B
           ) : null}
         </div>
       )}
+
+      {isCreateOpen ? (
+        <CreateBranchPopup
+          repoId={repoId}
+          branches={branches}
+          defaultSourceName={defaultBranch?.name}
+          onClose={() => setIsCreateOpen(false)}
+          onCreated={handleCreated}
+        />
+      ) : null}
     </div>
   );
 }

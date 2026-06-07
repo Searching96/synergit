@@ -172,7 +172,6 @@ export default function RepoWorkspaceContent({
               <BranchesPage
                 repoId={selectedRepo.id}
                 onBackToCode={onBackToFiles}
-                onCreateBranch={onBackToFiles}
               />
             )}
             {activeTab === "files" && routeContentKind === "new" && (
