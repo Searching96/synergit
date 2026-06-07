@@ -105,11 +105,14 @@ export default function AccountSettingsPage({ username }: AccountSettingsPagePro
     setSubmitting(true);
     setUsernameError(null);
     try {
-      await fetcher<{ message: string }>("/user/username", {
+      const result = await fetcher<{ message: string; token: string }>("/user/username", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ new_username: trimmed }),
       });
+      if (result.token) {
+        localStorage.setItem("token", result.token);
+      }
       setUsernameSuccess(true);
       setShowUsernameInput(false);
       window.location.reload();

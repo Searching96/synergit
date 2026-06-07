@@ -5,16 +5,18 @@ import (
 	"strings"
 	"synergit/internal/adapter/handler/http/dto"
 	"synergit/internal/core/port"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserSettingsHandler struct {
-	userStore port.UserRepository
+	userStore    port.UserRepository
+	tokenManager port.TokenManager
 }
 
-func NewUserSettingsHandler(us port.UserRepository) *UserSettingsHandler {
-	return &UserSettingsHandler{userStore: us}
+func NewUserSettingsHandler(us port.UserRepository, tm port.TokenManager) *UserSettingsHandler {
+	return &UserSettingsHandler{userStore: us, tokenManager: tm}
 }
 
 func (h *UserSettingsHandler) HandleChangeUsername(c *gin.Context) {
@@ -49,5 +51,13 @@ func (h *UserSettingsHandler) HandleChangeUsername(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.MessageResponse{Message: "username updated successfully"})
+	// Issue new token with updated username
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+	token, err := h.tokenManager.GenerateToken(requesterID.String(), newUsername, expiresAt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "username updated but failed to generate new token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "username updated successfully", "token": token})
 }

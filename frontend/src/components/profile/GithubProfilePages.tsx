@@ -287,6 +287,7 @@ export default function GithubProfilePages({
           profileInitial={avatarInitial}
           profileName={username}
           onSignOut={onLogout}
+          onSettings={() => onNavigateToPath('/settings/admin')}
           onSearch={onSearch}
         />
 
