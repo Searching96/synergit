@@ -847,7 +847,7 @@ function App () {
       );
     }
     if (activeGlobalPage === 'settings') {
-      return <AccountSettingsPage username={currentUsername} />;
+      return <AccountSettingsPage username={currentUsername} onGoToProfile={() => navigateToProfileTab('overview')} />;
     }
     return (
       <GlobalPlaceholderPage

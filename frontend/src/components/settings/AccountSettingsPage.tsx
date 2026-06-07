@@ -24,6 +24,7 @@ import {
 
 interface AccountSettingsPageProps {
   username: string;
+  onGoToProfile?: () => void;
 }
 
 interface NavItem {
@@ -89,7 +90,7 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
   },
 ];
 
-export default function AccountSettingsPage({ username }: AccountSettingsPageProps) {
+export default function AccountSettingsPage({ username, onGoToProfile }: AccountSettingsPageProps) {
   const [newUsername, setNewUsername] = useState("");
   const [showUsernameInput, setShowUsernameInput] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
@@ -137,6 +138,7 @@ export default function AccountSettingsPage({ username }: AccountSettingsPagePro
         </div>
         <button
           type="button"
+          onClick={onGoToProfile}
           className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
         >
           Go to your personal profile
