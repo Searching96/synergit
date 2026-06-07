@@ -1,7 +1,10 @@
 import { AlertTriangle, ChevronDown, File, GitMerge } from "lucide-react";
+import { useState } from "react";
+import { reposApi } from "../../../services/api/repos";
 import type { ConflictFile, PullRequest } from "../../../types";
 
 interface MergeOperationPanelProps {
+  repoId: string;
   status: PullRequest["status"];
   sourceBranch: string;
   canMerge: boolean;
@@ -9,6 +12,7 @@ interface MergeOperationPanelProps {
   conflictFiles: ConflictFile[];
   onMerge: () => void;
   onOpenConflicts: () => void;
+  onBranchDeleted?: () => void;
 }
 
 function GitPullRequestOcticon({ size = 16 }: { size?: number }) {
@@ -72,6 +76,7 @@ function CheckOcticon({ size = 16 }: { size?: number }) {
 }
 
 export default function MergeOperationPanel({
+  repoId,
   status,
   sourceBranch,
   canMerge,
@@ -79,10 +84,30 @@ export default function MergeOperationPanel({
   conflictFiles,
   onMerge,
   onOpenConflicts,
+  onBranchDeleted,
 }: MergeOperationPanelProps) {
   const isClosed = status === "CLOSED";
   const isMerged = status === "MERGED";
   const hasConflicts = status === "OPEN" && !canMerge;
+  const [deletingBranch, setDeletingBranch] = useState(false);
+  const [branchDeleted, setBranchDeleted] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteBranch = async () => {
+    if (!sourceBranch) return;
+    if (!window.confirm(`Delete branch "${sourceBranch}"? This action cannot be undone.`)) return;
+    setDeletingBranch(true);
+    setDeleteError(null);
+    try {
+      await reposApi.deleteBranch(repoId, sourceBranch);
+      setBranchDeleted(true);
+      onBranchDeleted?.();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete branch");
+    } finally {
+      setDeletingBranch(false);
+    }
+  };
 
   return (
     <li className="relative pl-16">
@@ -101,38 +126,60 @@ export default function MergeOperationPanel({
           <div className="min-w-0">
             <p className="font-semibold text-[var(--text-primary)]">Pull request successfully merged and closed</p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              You&apos;re all set — the{" "}
-              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">
-                {sourceBranch}
-              </span>{" "}
-              branch can be safely deleted.
+              {branchDeleted ? (
+                <>The <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{sourceBranch}</span> branch was deleted.</>
+              ) : (
+                <>You&apos;re all set — the{" "}
+                  <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">
+                    {sourceBranch}
+                  </span>{" "}
+                  branch can be safely deleted.</>
+              )}
             </p>
+            {deleteError ? (
+              <p className="mt-1 text-xs text-[var(--accent-danger,#cf222e)]">{deleteError}</p>
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-          >
-            Delete branch
-          </button>
+          {!branchDeleted ? (
+            <button
+              type="button"
+              onClick={() => void handleDeleteBranch()}
+              disabled={deletingBranch}
+              className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
+            >
+              {deletingBranch ? "Deleting..." : "Delete branch"}
+            </button>
+          ) : null}
         </div>
       ) : isClosed ? (
         <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-semibold text-[var(--text-primary)]">Closed with unmerged commits</p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              This pull request is closed, but the{" "}
-              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">
-                {sourceBranch}
-              </span>{" "}
-              branch has unmerged commits.
+              {branchDeleted ? (
+                <>The <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{sourceBranch}</span> branch was deleted.</>
+              ) : (
+                <>This pull request is closed, but the{" "}
+                  <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">
+                    {sourceBranch}
+                  </span>{" "}
+                  branch has unmerged commits.</>
+              )}
             </p>
+            {deleteError ? (
+              <p className="mt-1 text-xs text-[var(--accent-danger,#cf222e)]">{deleteError}</p>
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-          >
-            Delete branch
-          </button>
+          {!branchDeleted ? (
+            <button
+              type="button"
+              onClick={() => void handleDeleteBranch()}
+              disabled={deletingBranch}
+              className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
+            >
+              {deletingBranch ? "Deleting..." : "Delete branch"}
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className={`rounded-md border ${

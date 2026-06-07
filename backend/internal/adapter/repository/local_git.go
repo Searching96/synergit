@@ -482,7 +482,7 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter 
 
 	normalizedPath := normalizeCommitPath(pathFilter)
 	if normalizedPath == "" {
-		return listCommits(r, &git.LogOptions{From: ref.Hash()})
+		return listCommits(r, &git.LogOptions{From: ref.Hash(), Order: git.LogOrderCommitterTime})
 	}
 
 	isDirectory, err := isDirectoryPathAtRef(r, ref.Hash(), normalizedPath)
@@ -497,6 +497,7 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter 
 	return listCommits(r, &git.LogOptions{
 		From:     ref.Hash(),
 		FileName: &normalizedPath,
+		Order:    git.LogOrderCommitterTime,
 	})
 }
 
@@ -574,7 +575,7 @@ func isDirectoryPathAtRef(r *git.Repository, refHash plumbing.Hash, normalizedPa
 func listDirectoryCommits(r *git.Repository, refHash plumbing.Hash,
 	normalizedDirPath string) ([]domain.Commit, error) {
 
-	commitIter, err := r.Log(&git.LogOptions{From: refHash})
+	commitIter, err := r.Log(&git.LogOptions{From: refHash, Order: git.LogOrderCommitterTime})
 	if err != nil {
 		return nil, err
 	}

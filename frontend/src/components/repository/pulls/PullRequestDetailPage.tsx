@@ -493,6 +493,7 @@ export default function PullRequestDetailPage({
               })}
 
               <MergeOperationPanel
+                repoId={repoId}
                 status={pull.status}
                 sourceBranch={pull.source_branch}
                 canMerge={canMerge}
