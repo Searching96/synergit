@@ -21,6 +21,7 @@ interface TopHeaderProps {
   onProfileClick?: () => void;
   onSearch?: (query: string) => void;
   onSignOut?: () => void;
+  onSettings?: () => void;
   profileInitial?: string;
   profileName?: string;
   searchPlaceholder?: string;
@@ -37,6 +38,7 @@ export default function TopHeader({
   onProfileClick,
   onSearch,
   onSignOut,
+  onSettings,
   profileInitial = "U",
   profileName,
   searchPlaceholder = "Type / to search",
@@ -55,7 +57,7 @@ export default function TopHeader({
       { icon: Heart, label: "Sponsors" },
     ],
     [
-      { icon: Settings, label: "Settings" },
+      { icon: Settings, label: "Settings", onClick: onSettings },
       { icon: Bot, label: "Copilot settings" },
       { icon: FlaskConical, label: "Feature preview", badge: "New" },
       { icon: Paintbrush, label: "Appearance" },

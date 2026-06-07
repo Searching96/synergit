@@ -20,7 +20,8 @@ export type GlobalPageKey =
   | "explore"
   | "marketplace"
   | "mcp-registry"
-  | "search";
+  | "search"
+  | "settings";
 
 export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
   issues: "Issues",
@@ -34,6 +35,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
   marketplace: "Marketplace",
   "mcp-registry": "MCP registry",
   search: "Search",
+  settings: "Settings",
 };
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
@@ -312,6 +314,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
       branch: "",
       globalPage: null,
       normalizedPath: "/new",
+    };
+  }
+
+  if (segments.length >= 1 && segments[0] === "settings") {
+    return {
+      viewMode: "global",
+      repoOwner: null,
+      repoName: null,
+      repoId: null,
+      tab: "files",
+      contentKind: "root",
+      contentPath: "",
+      branch: "",
+      globalPage: "settings",
+      normalizedPath: "/settings/admin",
     };
   }
 

@@ -9,6 +9,7 @@ import SidebarMenu from "./components/layout/SidebarMenu";
 import RouteButton from "./components/layout/RouteButton";
 import TopNavigationTabs from "./components/layout/TopNavigationTabs";
 import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
+import AccountSettingsPage from "./components/settings/AccountSettingsPage";
 import SearchResultsPage from "./components/layout/SearchResultsPage";
 import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
 import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
@@ -845,6 +846,9 @@ function App () {
         />
       );
     }
+    if (activeGlobalPage === 'settings') {
+      return <AccountSettingsPage username={currentUsername} />;
+    }
     return (
       <GlobalPlaceholderPage
         title={currentGlobalTitle}
@@ -884,6 +888,7 @@ function App () {
           profileInitial={currentUsername}
           profileName={currentUsername}
           onSignOut={handleLogout}
+          onSettings={() => navigateToPath('/settings/admin')}
           onSearch={handleSearch}
         />
 
