@@ -164,3 +164,21 @@ CREATE TABLE IF NOT EXISTS repo_stars (
 
 CREATE INDEX IF NOT EXISTS idx_repo_stars_repo ON repo_stars (repo_id);
 CREATE INDEX IF NOT EXISTS idx_repo_stars_user ON repo_stars (user_id, created_at DESC);
+
+
+CREATE TABLE IF NOT EXISTS pull_request_labels (
+    pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
+    label_id UUID NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+    PRIMARY KEY (pull_request_id, label_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pr_labels_pr ON pull_request_labels (pull_request_id);
+
+CREATE TABLE IF NOT EXISTS pull_request_assignees (
+    pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (pull_request_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pr_assignees_pr ON pull_request_assignees (pull_request_id, assigned_at);

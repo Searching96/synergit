@@ -21,6 +21,15 @@ interface PullRequestBoardProps {
   onOpenPullRequest: (pullNumber: number) => void;
 }
 
+function labelTextColor(hex: string): string {
+  const c = hex.replace("#", "");
+  if (c.length < 6) return "#1f2328";
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#1f2328" : "#ffffff";
+}
+
 function replaceStateQueryToken(query: string, nextStatus: "OPEN" | "CLOSED"): string {
   const stripped = query
     .replace(/\bis:pr\b/gi, "")
@@ -195,12 +204,13 @@ export default function PullRequestBoard({
   const [appliedSearch, setAppliedSearch] = useState<string>("is:pr state:open");
   const [selectedPullIds, setSelectedPullIds] = useState<Set<string>>(new Set());
   const [labelFilter, setLabelFilter] = useState<string>("");
+  const [labelsByPullId, setLabelsByPullId] = useState<Record<string, Label[]>>({});
+  const [assigneesByPullId, setAssigneesByPullId] = useState<Record<string, Array<{ user_id: string }>>>({});
   const [openMenu, setOpenMenu] = useState<
     "mark" | "filter-author" | "filter-label" | "filter-project" | "filter-milestone" | "filter-review" | "filter-assignee" | "filter-sort" | null
   >(null);
   const [showMaintainerTip, setShowMaintainerTip] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const fetchPulls = useCallback(
     async (silent = false) => {
@@ -210,7 +220,32 @@ export default function PullRequestBoard({
         }
         setError(null);
         const data = await pullsApi.list(repoId);
-        setPulls(Array.isArray(data) ? data : []);
+        const pullList = Array.isArray(data) ? data : [];
+        setPulls(pullList);
+
+        const labelEntries = await Promise.all(
+          pullList.map(async (pull) => {
+            try {
+              const labels = await pullsApi.listPRLabels(repoId, pull.id);
+              return [pull.id, labels || []] as const;
+            } catch {
+              return [pull.id, []] as const;
+            }
+          }),
+        );
+        setLabelsByPullId(Object.fromEntries(labelEntries));
+
+        const assigneeEntries = await Promise.all(
+          pullList.map(async (pull) => {
+            try {
+              const assignees = await pullsApi.listPRAssignees(repoId, pull.id);
+              return [pull.id, assignees || []] as const;
+            } catch {
+              return [pull.id, []] as const;
+            }
+          }),
+        );
+        setAssigneesByPullId(Object.fromEntries(assigneeEntries));
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to load pull requests");
       } finally {
@@ -227,7 +262,6 @@ export default function PullRequestBoard({
     void collaboratorsApi.list(repoId).then((list) => setCollaborators(list || [])).catch(() => setCollaborators([]));
     void labelsApi.listForRepo(repoId).then((labels) => setRepoLabels(labels || [])).catch(() => setRepoLabels([]));
     setShowFiltersMenu(false);
-    setMessage(null);
     setError(null);
     setActiveFilter("OPEN");
     setSortOrder("newest");
@@ -449,7 +483,6 @@ export default function PullRequestBoard({
     setOpenMenu(null);
     try {
       setError(null);
-      setMessage(null);
       await Promise.all(
         selectedVisible
           .filter((pull) => {
@@ -462,9 +495,47 @@ export default function PullRequestBoard({
       );
       setSelectedPullIds(new Set());
       await fetchPulls(true);
-      setMessage("Pull requests updated.");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update pull requests");
+    }
+  };
+
+  const [checkedLabels, setCheckedLabels] = useState<Set<string>>(new Set());
+  const [checkedAssignees, setCheckedAssignees] = useState<Set<string>>(new Set());
+
+  const togglePRLabel = async (labelId: string) => {
+    const isChecked = checkedLabels.has(labelId);
+    console.log("togglePRLabel", { labelId, isChecked, selectedVisible: selectedVisible.map(p => p.id) });
+    try {
+      setError(null);
+      if (isChecked) {
+        await Promise.all(selectedVisible.map((pull) => pullsApi.removePRLabel(repoId, pull.id, labelId)));
+        setCheckedLabels((prev) => { const next = new Set(prev); next.delete(labelId); return next; });
+      } else {
+        await Promise.all(selectedVisible.map((pull) => pullsApi.addPRLabel(repoId, pull.id, labelId)));
+        setCheckedLabels((prev) => new Set(prev).add(labelId));
+      }
+      await fetchPulls(true);
+      console.log("togglePRLabel success");
+    } catch (err: unknown) {
+      console.error("togglePRLabel error", err);
+      setError(err instanceof Error ? err.message : "Failed to update labels");
+    }
+  };
+
+  const togglePRAssignee = async (userId: string) => {
+    const isChecked = checkedAssignees.has(userId);
+    try {
+      setError(null);
+      if (isChecked) {
+        await Promise.all(selectedVisible.map((pull) => pullsApi.removePRAssignee(repoId, pull.id, userId)));
+        setCheckedAssignees((prev) => { const next = new Set(prev); next.delete(userId); return next; });
+      } else {
+        await Promise.all(selectedVisible.map((pull) => pullsApi.addPRAssignee(repoId, pull.id, userId)));
+        setCheckedAssignees((prev) => new Set(prev).add(userId));
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update assignees");
     }
   };
 
@@ -488,18 +559,12 @@ export default function PullRequestBoard({
         </div>
       )}
 
-      {message && (
-        <div className="p-3 text-sm border border-[var(--border-info-muted)] bg-[var(--surface-info-subtle)] text-[var(--text-link)] rounded-md">
-          {message}
-        </div>
-      )}
-
       {showMaintainerTip ? (
         <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] p-4 text-center relative">
           <button
             type="button"
             onClick={() => setShowMaintainerTip(false)}
-            className="absolute top-3 right-3 text-sm text-[var(--text-link)] hover:underline"
+            className="absolute top-0 right-1 text-sm text-[var(--text-link)] hover:underline"
           >
             Dismiss
           </button>
@@ -679,11 +744,16 @@ export default function PullRequestBoard({
                           <li key={label.id}>
                             <button
                               type="button"
+                              onClick={() => void togglePRLabel(label.id)}
                               className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                             >
+                              <input type="checkbox" readOnly checked={checkedLabels.has(label.id)} className="mt-0.5 h-4 w-4" />
                               <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
                               <span className="min-w-0 flex-1">
                                 <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                {label.description ? (
+                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                ) : null}
                               </span>
                             </button>
                           </li>
@@ -722,8 +792,10 @@ export default function PullRequestBoard({
                           <button
                             key={collaborator.user_id}
                             type="button"
+                            onClick={() => void togglePRAssignee(collaborator.user_id)}
                             className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                           >
+                            <input type="checkbox" readOnly checked={checkedAssignees.has(collaborator.user_id)} className="h-4 w-4" />
                             <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
                               {name.charAt(0)}
                             </span>
@@ -978,28 +1050,40 @@ export default function PullRequestBoard({
               const isSelected = selectedPullIds.has(pull.id);
 
               return (
-                <div key={pull.id} className="px-3 py-2 hover:bg-[var(--surface-subtle)]">
-                  <div className="grid grid-cols-[22px_18px_minmax(0,1fr)_160px] gap-3 items-start">
+                <div key={pull.id} className="px-4 py-2 hover:bg-[var(--surface-subtle)]">
+                  <div className="grid grid-cols-[20px_18px_minmax(0,1fr)_160px] gap-3 items-start">
                     <label className="hidden md:flex items-center h-6">
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectPull(pull.id)}
                         aria-label={`Select pull request ${pull.title}`}
+                        className="h-4 w-4"
                       />
                     </label>
 
                     <div className="pt-1">{statusIcon}</div>
 
                     <div className="min-w-0 pr-2">
+                      <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => onOpenPullRequest(pullNo)}
                         title={pull.title}
-                        className="block text-left text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] w-full"
+                        className="text-left text-base font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)]"
                       >
                         {pull.title.length > 50 ? `${pull.title.slice(0, 50)}...` : pull.title}
                       </button>
+                      {(labelsByPullId[pull.id] || []).map((label) => (
+                        <span
+                          key={label.id}
+                          className="rounded-full px-2 py-0.5 text-[11px] font-semibold leading-tight"
+                          style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                        >
+                          {label.name}
+                        </span>
+                      ))}
+                      </div>
 
                       <div className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
                         <span>#{pullNo}</span>
@@ -1016,6 +1100,22 @@ export default function PullRequestBoard({
                     </div>
 
                     <div className="hidden md:flex items-center justify-end gap-3 pt-1 text-xs text-[var(--text-secondary)]">
+                      {(assigneesByPullId[pull.id] || []).length > 0 ? (
+                        <span className="inline-flex items-center -space-x-1">
+                          {(assigneesByPullId[pull.id] || []).map((a) => {
+                            const name = collaboratorNameById[a.user_id] || a.user_id;
+                            return (
+                              <span
+                                key={a.user_id}
+                                title={name}
+                                className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)] ring-1 ring-[var(--surface-canvas)]"
+                              >
+                                {name.charAt(0)}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      ) : null}
                       <span className="inline-flex items-center gap-1">
                         <MessageSquare size={13} />
                         0

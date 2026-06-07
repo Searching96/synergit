@@ -1,5 +1,5 @@
 import { fetcher } from "./client";
-import type { ConflictFile, CreatePullRequestPayload, PullRequest, PullRequestEvent, ResolveConflictsPayload } from "../../types";
+import type { ConflictFile, CreatePullRequestPayload, Label, PullRequest, PullRequestEvent, ResolveConflictsPayload } from "../../types";
 
 export const pullsApi = {
   create: (repoId: string, payload: CreatePullRequestPayload): Promise<PullRequest> => {
@@ -59,4 +59,36 @@ export const pullsApi = {
       body: JSON.stringify(payload),
     });
   },
+
+  // PR Labels
+  listPRLabels: (repoId: string, pullId: string) =>
+    fetcher<Label[]>(`/repos/${repoId}/pulls/${pullId}/labels`),
+
+  addPRLabel: (repoId: string, pullId: string, labelId: string) =>
+    fetcher<{ message: string }>(`/repos/${repoId}/pulls/${pullId}/labels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label_id: labelId }),
+    }),
+
+  removePRLabel: (repoId: string, pullId: string, labelId: string) =>
+    fetcher<void>(`/repos/${repoId}/pulls/${pullId}/labels/${encodeURIComponent(labelId)}`, {
+      method: 'DELETE',
+    }),
+
+  // PR Assignees
+  listPRAssignees: (repoId: string, pullId: string) =>
+    fetcher<Array<{ user_id: string; assigned_at: string }>>(`/repos/${repoId}/pulls/${pullId}/assignees`),
+
+  addPRAssignee: (repoId: string, pullId: string, userId: string) =>
+    fetcher<{ message: string }>(`/repos/${repoId}/pulls/${pullId}/assignees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId }),
+    }),
+
+  removePRAssignee: (repoId: string, pullId: string, userId: string) =>
+    fetcher<void>(`/repos/${repoId}/pulls/${pullId}/assignees/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    }),
 };

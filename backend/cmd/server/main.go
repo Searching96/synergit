@@ -95,6 +95,9 @@ func main() {
 	labelHandler := httpHandler.NewLabelHandler(labelUseCase)
 	starHandler := httpHandler.NewStarHandler(starUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
+	prLabelStore := postgres.NewPullRequestLabelStore(db)
+	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
+	prLabelHandler := httpHandler.NewPRLabelHandler(prLabelStore, prAssigneeStore)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
@@ -169,6 +172,14 @@ func main() {
 			repos.POST("/:repo_id/pulls/:pull_id/revert", prHandler.HandleRevertPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/reopen", prHandler.HandleReopenPullRequest)
+
+			// PR labels & assignees
+			repos.GET("/:repo_id/pulls/:pull_id/labels", prLabelHandler.HandleListLabels)
+			repos.POST("/:repo_id/pulls/:pull_id/labels", prLabelHandler.HandleAddLabel)
+			repos.DELETE("/:repo_id/pulls/:pull_id/labels/:label_id", prLabelHandler.HandleRemoveLabel)
+			repos.GET("/:repo_id/pulls/:pull_id/assignees", prLabelHandler.HandleListAssignees)
+			repos.POST("/:repo_id/pulls/:pull_id/assignees", prLabelHandler.HandleAssign)
+			repos.DELETE("/:repo_id/pulls/:pull_id/assignees/:user_id", prLabelHandler.HandleUnassign)
 
 			// Issue routes
 			repos.POST("/:repo_id/issues", issueHandler.HandleCreateIssue)
