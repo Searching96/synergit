@@ -98,6 +98,7 @@ func main() {
 	prLabelStore := postgres.NewPullRequestLabelStore(db)
 	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
 	prLabelHandler := httpHandler.NewPRLabelHandler(prLabelStore, prAssigneeStore)
+	userSettingsHandler := httpHandler.NewUserSettingsHandler(dbUserAdapter)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
@@ -135,6 +136,14 @@ func main() {
 		// Repo routes secured with JWT
 		repos := v1.Group("/repos")
 		repos.Use(middleware.AuthMiddleware(jwtSecret))
+
+		// User settings routes secured with JWT
+		userSettings := v1.Group("/user")
+		userSettings.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			userSettings.PATCH("/username", userSettingsHandler.HandleChangeUsername)
+		}
+
 		{
 			// Repo routes
 			repos.POST("", repoHandler.HandleCreateRepo)

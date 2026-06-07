@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { fetcher } from "../../services/api/client";
 import {
   Bell,
   BookOpen,
@@ -88,6 +90,35 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
 ];
 
 export default function AccountSettingsPage({ username }: AccountSettingsPageProps) {
+  const [newUsername, setNewUsername] = useState("");
+  const [showUsernameInput, setShowUsernameInput] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameSuccess, setUsernameSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleChangeUsername = async () => {
+    const trimmed = newUsername.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setUsernameError("Username must be at least 3 characters");
+      return;
+    }
+    setSubmitting(true);
+    setUsernameError(null);
+    try {
+      await fetcher<{ message: string }>("/user/username", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_username: trimmed }),
+      });
+      setUsernameSuccess(true);
+      setShowUsernameInput(false);
+      window.location.reload();
+    } catch (err) {
+      setUsernameError(err instanceof Error ? err.message : "Failed to change username");
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8">
       {/* Header */}
@@ -165,10 +196,41 @@ export default function AccountSettingsPage({ username }: AccountSettingsPagePro
             </p>
             <button
               type="button"
+              onClick={() => setShowUsernameInput(true)}
               className="mt-3 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Change username
             </button>
+            {showUsernameInput ? (
+              <div className="mt-3 space-y-2">
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => { setNewUsername(e.target.value); setUsernameError(null); }}
+                  placeholder="New username"
+                  className="h-9 w-64 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleChangeUsername()}
+                    disabled={submitting}
+                    className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                  >
+                    {submitting ? "Updating..." : "Update username"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowUsernameInput(false); setUsernameError(null); }}
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {usernameError ? <p className="text-xs text-red-600">{usernameError}</p> : null}
+                {usernameSuccess ? <p className="text-xs text-green-600">Username updated!</p> : null}
+              </div>
+            ) : null}
             <p className="mt-4 text-xs text-[var(--text-secondary)] flex items-center gap-1">
               <span className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-[var(--border-default)] text-[10px]">i</span>
               Looking to manage account security settings? You can find them in the <span className="text-[var(--text-link)] underline">Password and authentication</span> page.

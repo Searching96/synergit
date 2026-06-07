@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetUserByUserName(username string) (*domain.User, error)
 	GetUserByEmail(email string) (*domain.User, error)
 	GetUserByID(id uuid.UUID) (*domain.User, error)
+	UpdateUsername(id uuid.UUID, newUsername string) error
 }
 
 type AuthUseCase interface {

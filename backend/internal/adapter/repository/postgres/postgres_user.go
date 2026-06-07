@@ -90,3 +90,9 @@ func (p *PostgresUserStore) GetUserByID(id uuid.UUID) (*domain.User, error) {
 
 	return user, nil
 }
+
+
+func (p *PostgresUserStore) UpdateUsername(id uuid.UUID, newUsername string) error {
+	_, err := p.db.Exec(`UPDATE users SET username = $1 WHERE id = $2`, newUsername, id)
+	return err
+}
