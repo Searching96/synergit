@@ -204,7 +204,15 @@ export default function PullRequestDetailPage({
 
       const [freshPull, compare, pullEvents, conflicts] = await Promise.all([
         pullsApi.get(repoId, resolved.id).catch(() => resolved),
-        reposApi.getCompare(repoId, resolved.target_branch, resolved.source_branch).catch(() => null),
+        reposApi.getCompare(
+          repoId,
+          resolved.status === "MERGED" && resolved.target_commit_hash
+            ? `${resolved.target_commit_hash}^1`
+            : resolved.status === "OPEN"
+              ? resolved.target_branch
+              : (resolved.target_commit_hash || resolved.target_branch),
+          resolved.status === "OPEN" ? resolved.source_branch : (resolved.source_commit_hash || resolved.source_branch),
+        ).catch(() => null),
         pullsApi.listEvents(repoId, resolved.id).catch(() => []),
         pullsApi.getConflicts(repoId, resolved.id).catch(() => []),
       ]);

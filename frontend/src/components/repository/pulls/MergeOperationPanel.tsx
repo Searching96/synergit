@@ -122,7 +122,7 @@ export default function MergeOperationPanel({
       </span>
 
       {isMerged ? (
-        <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-md border border-[var(--text-accent-purple)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-semibold text-[var(--text-primary)]">Pull request successfully merged and closed</p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -152,7 +152,7 @@ export default function MergeOperationPanel({
           ) : null}
         </div>
       ) : isClosed ? (
-        <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="rounded-md border border-[var(--text-secondary)] bg-[var(--surface-canvas)] px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-semibold text-[var(--text-primary)]">Closed with unmerged commits</p>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -184,8 +184,8 @@ export default function MergeOperationPanel({
       ) : (
         <div className={`rounded-md border ${
           canMerge
-            ? "border-[var(--border-success-muted)]"
-            : "border-[var(--border-default)]"
+            ? "border-[var(--fgColor-open,#1a7f37)]"
+            : "border-[var(--text-secondary)]"
         } bg-[var(--surface-canvas)] overflow-hidden`}>
           <div className="px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex items-start gap-3">
