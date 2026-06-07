@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import {
   Bold,
   CheckCircle2,
-  ChevronDown,
   CircleDot,
   CircleSlash,
   Code,
@@ -152,7 +151,7 @@ function FilterDropdown({
         className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
       >
         {label}
-        <ChevronDown size={14} />
+        <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
       </button>
       {open ? (
         <>
@@ -192,7 +191,7 @@ function ToolbarDropdown({
       >
         {icon}
         {label}
-        <ChevronDown size={14} />
+        <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
       </button>
       {open ? (
         <>
@@ -546,7 +545,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
     setSearchInput(nextQuery);
     setAppliedSearch(nextQuery);
-    setOpenMenu(null);
+    if (replace) setOpenMenu(null);
   };
 
   const applySortToken = (nextSortOrder: "newest" | "oldest") => {
@@ -1161,7 +1160,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                     <path d="M1.5 13.737a2.25 2.25 0 0 1 2.262-2.25L4 11.49v1.938c0 .218.26.331.42.183l2.883-2.677a.25.25 0 0 0 0-.366L4.42 7.89a.25.25 0 0 0-.42.183V9.99l-.23-.001A3.75 3.75 0 0 0 0 13.738v1.012a.75.75 0 0 0 1.5 0v-1.013Z" />
                   </svg>
                   Project
-                  <ChevronDown size={14} />
+                  <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
                 </button>
 
                 <button
@@ -1170,7 +1169,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                 >
                   <Milestone size={14} />
                   Milestone
-                  <ChevronDown size={14} />
+                  <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
                 </button>
               </div>
             </>
@@ -1220,7 +1219,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                       <li key={author}>
                         <button
                           type="button"
-                          onClick={() => applySearchToken("author", author)}
+                          onClick={() => applySearchToken("author", author, false)}
                           className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                         >
                           <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
@@ -1322,7 +1321,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                         <li key={collaborator.user_id}>
                           <button
                             type="button"
-                            onClick={() => applySearchToken("assignee", name)}
+                            onClick={() => applySearchToken("assignee", name, false)}
                             className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                           >
                             <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">

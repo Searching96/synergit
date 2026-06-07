@@ -5,7 +5,6 @@ import { collaboratorsApi, labelsApi } from "../../../services/api";
 import {
   Check,
   CheckCircle2,
-  ChevronDown,
   GitMerge,
   GitPullRequest,
   MessageSquare,
@@ -123,7 +122,7 @@ function FilterDropdown({
         className="h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1"
       >
         {label}
-        <ChevronDown size={14} />
+        <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
       </button>
       {open ? (
         <>
@@ -163,7 +162,7 @@ function ToolbarDropdown({
       >
         {icon}
         {label}
-        <ChevronDown size={14} />
+        <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
       </button>
       {open ? (
         <>
@@ -522,7 +521,7 @@ export default function PullRequestList({
               className="h-9 px-3 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-1"
             >
               Filters
-              <ChevronDown size={14} />
+              <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
             </button>
 
             {showFiltersMenu ? (
