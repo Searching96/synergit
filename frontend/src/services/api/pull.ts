@@ -22,9 +22,11 @@ export const pullsApi = {
     return fetcher(`/repos/${repoId}/pulls/${pullId}/events`);
   },
 
-  merge: (repoId: string, pullId: string): Promise<{ message: string }> => {
+  merge: (repoId: string, pullId: string, commitMessage?: string, description?: string): Promise<{ message: string }> => {
     return fetcher(`/repos/${repoId}/pulls/${pullId}/merge`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commit_message: commitMessage || '', description: description || '' }),
     });
   },
 

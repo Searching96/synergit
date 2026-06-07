@@ -7,10 +7,12 @@ interface MergeOperationPanelProps {
   repoId: string;
   status: PullRequest["status"];
   sourceBranch: string;
+  pullNumber: number;
+  currentUsername: string;
   canMerge: boolean;
   updating: boolean;
   conflictFiles: ConflictFile[];
-  onMerge: () => void;
+  onMerge: (commitMessage?: string, description?: string) => void;
   onOpenConflicts: () => void;
   onBranchDeleted?: () => void;
 }
@@ -79,6 +81,8 @@ export default function MergeOperationPanel({
   repoId,
   status,
   sourceBranch,
+  pullNumber,
+  currentUsername,
   canMerge,
   updating,
   conflictFiles,
@@ -92,6 +96,12 @@ export default function MergeOperationPanel({
   const [deletingBranch, setDeletingBranch] = useState(false);
   const [branchDeleted, setBranchDeleted] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showConfirmForm, setShowConfirmForm] = useState(false);
+  const [mergeCommitMessage, setMergeCommitMessage] = useState("");
+  const [mergeDescription, setMergeDescription] = useState("");
+
+  const defaultMergeMessage = `Merge pull request #${pullNumber} from ${currentUsername}/${sourceBranch}`;
+  const displayedCommitMessage = mergeCommitMessage || defaultMergeMessage;
 
   const handleDeleteBranch = async () => {
     if (!sourceBranch) return;
@@ -238,26 +248,66 @@ export default function MergeOperationPanel({
 
           <div className="border-t border-[var(--border-muted)] bg-[var(--surface-subtle)] px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             {status === "OPEN" ? (
-              <div className="inline-flex self-start">
-                <button
-                  type="button"
-                  disabled={updating || !canMerge}
-                  onClick={onMerge}
-                  className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:bg-[var(--surface-muted)] disabled:text-[var(--text-secondary)] disabled:opacity-100 disabled:cursor-not-allowed"
-                >
-                  Merge pull request
-                </button>
-              </div>
+              !showConfirmForm ? (
+                <div className="inline-flex self-start">
+                  <button
+                    type="button"
+                    disabled={updating || !canMerge}
+                    onClick={() => setShowConfirmForm(true)}
+                    className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:bg-[var(--surface-muted)] disabled:text-[var(--text-secondary)] disabled:opacity-100 disabled:cursor-not-allowed"
+                  >
+                    Merge pull request
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full space-y-3 py-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">Commit message</label>
+                    <input
+                      type="text"
+                      value={displayedCommitMessage}
+                      onChange={(e) => setMergeCommitMessage(e.target.value)}
+                      placeholder="Merge pull request"
+                      className="w-full h-9 px-3 rounded-md border border-[var(--text-link)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">Extended description</label>
+                    <textarea
+                      value={mergeDescription}
+                      onChange={(e) => setMergeDescription(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] resize-y focus:outline-none focus:border-[var(--text-link)]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={updating}
+                      onClick={() => {
+                        onMerge(displayedCommitMessage || undefined, mergeDescription || undefined);
+                      }}
+                      className="h-9 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updating ? "Merging..." : "Confirm merge"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmForm(false)}
+                      disabled={updating}
+                      className="h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
             ) : (
               <span className="text-sm font-semibold text-[var(--text-accent-purple)] inline-flex items-center gap-2">
                 <GitMerge size={15} />
                 Pull request merged
               </span>
             )}
-            <span className="text-xs text-[var(--text-secondary)]">
-              You can also merge this with the command line.{" "}
-              <span className="text-[var(--text-link)] underline-offset-2 hover:underline">View command line instructions.</span>
-            </span>
           </div>
         </div>
       )}

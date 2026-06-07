@@ -157,7 +157,14 @@ func (h *PullRequestHandler) HandleMergePullRequest(c *gin.Context) {
 		return
 	}
 
-	err = h.prUseCase.MergePullRequest(pullID, requestID)
+	var body struct {
+		CommitMessage string `json:"commit_message"`
+		Description   string `json:"description"`
+	}
+	// ignore bind errors — body is optional
+	_ = c.ShouldBindJSON(&body)
+
+	err = h.prUseCase.MergePullRequest(pullID, requestID, body.CommitMessage, body.Description)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return

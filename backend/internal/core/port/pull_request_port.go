@@ -30,7 +30,7 @@ type PullRequestUseCase interface {
 
 	// This will involve complex logic: checking permissions,
 	// calling the Git port to actually merge the code and updating DB
-	MergePullRequest(prID uuid.UUID, mergerID uuid.UUID) error
+	MergePullRequest(prID uuid.UUID, mergerID uuid.UUID, commitMessage string, description string) error
 	RevertPullRequest(prID uuid.UUID, requesterID uuid.UUID) (*domain.PullRequest, error)
 	ClosePullRequest(prID uuid.UUID, closerID uuid.UUID) error
 	ReopenPullRequest(prID uuid.UUID, requesterID uuid.UUID) error

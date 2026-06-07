@@ -298,7 +298,7 @@ export default function ConflictResolver({ repoId, pullNumber, onResolved, onBac
 						disabled={submitting}
 						className="h-8 px-4 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
 					>
-						{submitting ? "Committing..." : "Commit merge"}
+						{submitting ? "Committing..." : "Commit changes"}
 					</button>
 				) : null}
 			</header>

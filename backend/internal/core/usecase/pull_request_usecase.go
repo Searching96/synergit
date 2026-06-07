@@ -198,7 +198,7 @@ func (s *PullRequestService) ListPullRequestEvents(repoID uuid.UUID, prID uuid.U
 	return s.prStore.ListEvents(prID)
 }
 
-func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID) error {
+func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID, customCommitMessage string, customDescription string) error {
 	// 1. Fetch the PR
 	pr, err := s.prStore.GetByID(prID)
 	if err != nil || pr == nil {
@@ -231,7 +231,14 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 	if err != nil {
 		return err
 	}
-	commitMessage := fmt.Sprintf("Merge branch '%s' into '%s' (PR #%d)", pr.SourceBranch, pr.TargetBranch, prNumber)
+	commitMessage := fmt.Sprintf("Merge pull request #%d from %s/%s", prNumber, merger.Username, pr.SourceBranch)
+	if customCommitMessage != "" {
+		body := customCommitMessage
+		if customDescription != "" {
+			body = body + "\n\n" + customDescription
+		}
+		commitMessage = body
+	}
 
 	// 4. Perform the actual Git merge on the server filesystem
 	err = s.gitManager.MergeBranches(repo.Path, pr.SourceBranch,

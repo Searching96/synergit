@@ -253,14 +253,14 @@ export default function PullRequestDetailPage({
     pull?.source_commit_hash ||
     "";
 
-  const updatePull = async (action: "merge" | "close" | "reopen") => {
+  const updatePull = async (action: "merge" | "close" | "reopen", commitMessage?: string, description?: string) => {
     if (!pull) return;
     try {
       setUpdating(true);
       setError(null);
       setMessage(null);
       if (action === "merge") {
-        await pullsApi.merge(repoId, pull.id);
+        await pullsApi.merge(repoId, pull.id, commitMessage, description);
       } else if (action === "close") {
         await pullsApi.close(repoId, pull.id);
       } else {
@@ -525,10 +525,12 @@ export default function PullRequestDetailPage({
                 repoId={repoId}
                 status={pull.status}
                 sourceBranch={pull.source_branch}
+                pullNumber={Number(pullNumber)}
+                currentUsername={currentUsername}
                 canMerge={canMerge}
                 updating={updating}
                 conflictFiles={conflictFiles}
-                onMerge={() => void updatePull("merge")}
+                onMerge={(msg, desc) => void updatePull("merge", msg, desc)}
                 onOpenConflicts={onOpenConflicts}
               />
             </ul>
