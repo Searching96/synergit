@@ -45,6 +45,10 @@ export interface Branch {
 	name: string;
 	commit_hash: string;
 	is_default: boolean;
+	last_author?: string;
+	last_updated?: string;
+	behind_count?: number;
+	ahead_count?: number;
 }
 
 export interface CommitTrendPoint {

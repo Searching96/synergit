@@ -59,6 +59,11 @@ export const reposApi = {
       body: JSON.stringify(payload),
     }),
 
+  deleteBranch: (repoId: string, branchName: string) =>
+    fetcher<void>(`/repos/${repoId}/branches/${encodeURIComponent(branchName)}`, {
+      method: 'DELETE',
+    }),
+
   commitFileChange: (repoId: string, payload: CommitFileChangePayload) =>
     fetcher<{ message: string }>(`/repos/${repoId}/commit-file`, {
       method: 'POST',

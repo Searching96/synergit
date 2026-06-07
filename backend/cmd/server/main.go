@@ -143,6 +143,7 @@ func main() {
 			repos.POST("/:repo_id/branches", repoHandler.HandleCreateBranch)
 			repos.PATCH("/:repo_id/branches", repoHandler.HandleRenameBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
+			repos.DELETE("/:repo_id/branches/:branchName", repoHandler.HandleDeleteBranch)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)

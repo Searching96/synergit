@@ -49,6 +49,7 @@ type RepoUseCase interface {
 	GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
 	RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error)
+	DeleteRepoBranch(repoID uuid.UUID, branchName string) error
 	CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,
 		filePath string, content string, commitMessage string) error
 	CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,

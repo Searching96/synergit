@@ -34,9 +34,13 @@ type DiffFile struct {
 }
 
 type Branch struct {
-	Name       string `json:"name"`
-	CommitHash string `json:"commit_hash"`
-	IsDefault  bool   `json:"is_default"`
+	Name        string    `json:"name"`
+	CommitHash  string    `json:"commit_hash"`
+	IsDefault   bool      `json:"is_default"`
+	LastAuthor  string    `json:"last_author"`
+	LastUpdated time.Time `json:"last_updated"`
+	BehindCount int       `json:"behind_count"`
+	AheadCount  int       `json:"ahead_count"`
 }
 
 func ValidateBranchName(branch string) error {

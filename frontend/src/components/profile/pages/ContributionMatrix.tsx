@@ -9,7 +9,7 @@ const DAY_ROW_LABELS: Array<{ label: string; row: number }> = [
   { label: "Fri", row: 5 },
 ];
 
-const DEFAULT_CELL_GAP = 3;
+const DEFAULT_CELL_GAP = 1.5;
 const MONTH_LABEL_MIN_GAP_PX = 24;
 
 type MonthAnchor = {

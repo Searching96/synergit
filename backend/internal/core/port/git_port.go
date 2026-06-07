@@ -41,6 +41,7 @@ type GitManager interface {
 		fromBranch string) (*domain.Branch, error)
 	RenameBranch(repoPath string, oldBranch string,
 		newBranch string) (*domain.Branch, error)
+	DeleteBranch(repoPath string, branchName string) error
 	CommitFileChange(repoPath string, branch string, filePath string,
 		content string, authorName string, commitMessage string) error
 	CommitFilesChange(repoPath string, branch string, files map[string]string,

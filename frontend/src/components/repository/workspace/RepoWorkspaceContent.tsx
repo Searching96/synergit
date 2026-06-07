@@ -2,6 +2,7 @@ import type { Branch, Repository } from "../../../types";
 import { Loader2 } from "lucide-react";
 import CommitHistory from "../code/CommitHistory";
 import CommitDiffPage from "../code/CommitDiffPage";
+import BranchesPage from "../code/BranchesPage";
 import FileExplorer from "../code/FileExplorer";
 import NewFilePage from "../code/NewFilePage";
 import RepoTreeBrowserPage from "../code/RepoTreeBrowserPage";
@@ -49,6 +50,7 @@ interface RepoWorkspaceContentProps {
   onNavigateRepoContent: (contentKind: "root" | "tree" | "blob", contentPath: string, branchName: string) => void;
   onOpenRepoCommits: (branchName: string, search?: string) => void;
   onOpenCommitDiff: (commitHash: string) => void;
+  onOpenBranches: () => void;
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
   onOpenEditFile: (branchName: string, filePath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
@@ -85,6 +87,7 @@ export default function RepoWorkspaceContent({
   onNavigateRepoContent,
   onOpenRepoCommits,
   onOpenCommitDiff,
+  onOpenBranches,
   onOpenCreateFile,
   onOpenEditFile,
   onOpenUploadFiles,
@@ -165,6 +168,13 @@ export default function RepoWorkspaceContent({
                 onBrowseFiles={(hash) => onNavigateRepoContent("tree", "", hash)}
               />
             )}
+            {activeTab === "files" && routeContentKind === "branches" && (
+              <BranchesPage
+                repoId={selectedRepo.id}
+                onBackToCode={onBackToFiles}
+                onCreateBranch={onBackToFiles}
+              />
+            )}
             {activeTab === "files" && routeContentKind === "new" && (
               <NewFilePage
                 mode="create"
@@ -233,6 +243,7 @@ export default function RepoWorkspaceContent({
                 onNavigateLocation={onNavigateRepoLocation}
                 onSelectBranch={onSelectBranch}
                 onOpenCommitHistory={(branchName) => onOpenRepoCommits(branchName)}
+                onOpenBranches={onOpenBranches}
                 onOpenCreateFile={onOpenCreateFile}
                 onOpenUploadFiles={onOpenUploadFiles}
               />

@@ -462,6 +462,19 @@ func (s *RepoService) RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBr
 	return s.gitManager.RenameBranch(repoPath, oldBranch, newBranch)
 }
 
+func (s *RepoService) DeleteRepoBranch(repoID uuid.UUID, branchName string) error {
+	if err := domain.ValidateBranchName(branchName); err != nil {
+		return err
+	}
+
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return err
+	}
+
+	return s.gitManager.DeleteBranch(repoPath, branchName)
+}
+
 type repoCommitContext struct {
 	RepoPath   string
 	AuthorName string

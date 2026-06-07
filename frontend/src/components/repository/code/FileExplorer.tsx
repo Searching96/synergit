@@ -54,6 +54,7 @@ interface FileExplorerProps {
   branches: Branch[];
   onSelectBranch: (branchName: string) => void;
   onOpenCommitHistory?: (branchName: string) => void;
+  onOpenBranches?: () => void;
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
 }
@@ -244,6 +245,7 @@ export default function FileExplorer({
   branches,
   onSelectBranch,
   onOpenCommitHistory,
+  onOpenBranches,
   onOpenCreateFile,
   onOpenUploadFiles,
 }: FileExplorerProps) {
@@ -1016,9 +1018,9 @@ export default function FileExplorer({
                   }}
                   onCreateBranch={handleCreateBranch}
                   onViewAllBranches={() => {
-                    setIsBranchesPageOpen(true);
                     setIsCodeMenuOpen(false);
                     setIsAddFileMenuOpen(false);
+                    onOpenBranches?.();
                   }}
                 />
               </div>
@@ -1026,10 +1028,10 @@ export default function FileExplorer({
               <button
                 type="button"
                 onClick={() => {
-                  setIsBranchesPageOpen(true);
                   setIsBranchMenuOpen(false);
                   setIsCodeMenuOpen(false);
                   setIsAddFileMenuOpen(false);
+                  onOpenBranches?.();
                 }}
                 className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
               >

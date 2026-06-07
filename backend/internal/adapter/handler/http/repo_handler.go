@@ -543,6 +543,26 @@ func (h *RepoHandler) HandleRenameBranch(c *gin.Context) {
 	c.JSON(http.StatusOK, branch)
 }
 
+func (h *RepoHandler) HandleDeleteBranch(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	branchName := c.Param("branchName")
+	if branchName == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "branch name is required"})
+		return
+	}
+
+	if err := h.repoUseCase.DeleteRepoBranch(repoID, branchName); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

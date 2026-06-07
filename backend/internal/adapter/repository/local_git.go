@@ -654,8 +654,10 @@ func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) 
 	// Get the default branch from HEAD
 	headRef, _ := r.Head()
 	headBranchName := ""
+	defaultHash := plumbing.ZeroHash
 	if headRef != nil {
 		headBranchName = headRef.Name().Short()
+		defaultHash = headRef.Hash()
 	}
 
 	iter, err := r.Branches()
@@ -665,15 +667,52 @@ func (g *LocalGitAdapter) GetBranches(repoPath string) ([]domain.Branch, error) 
 
 	var branches []domain.Branch
 	err = iter.ForEach(func(ref *plumbing.Reference) error {
-		branches = append(branches, domain.Branch{
-			Name:       ref.Name().Short(),
+		branchName := ref.Name().Short()
+		isDefault := branchName == headBranchName
+
+		b := domain.Branch{
+			Name:       branchName,
 			CommitHash: ref.Hash().String(),
-			IsDefault:  ref.Name().Short() == headBranchName,
-		})
+			IsDefault:  isDefault,
+		}
+
+		// Last commit author + date
+		if commit, err := r.CommitObject(ref.Hash()); err == nil {
+			b.LastAuthor = commit.Author.Name
+			b.LastUpdated = commit.Author.When
+		}
+
+		// Behind/ahead vs default branch (skip for default itself)
+		if !isDefault && defaultHash != plumbing.ZeroHash {
+			behind, ahead := countBehindAhead(fullPath, defaultHash.String(), ref.Hash().String())
+			b.BehindCount = behind
+			b.AheadCount = ahead
+		}
+
+		branches = append(branches, b)
 		return nil
 	})
 
 	return branches, err
+}
+
+// countBehindAhead returns (behind, ahead) for branchHash relative to baseHash.
+// behind = commits in base not in branch, ahead = commits in branch not in base.
+func countBehindAhead(repoPath, baseHash, branchHash string) (int, int) {
+	count := func(rangeSpec string) int {
+		cmd := exec.Command("git", "rev-list", "--count", rangeSpec)
+		cmd.Dir = repoPath
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		if err := cmd.Run(); err != nil {
+			return 0
+		}
+		n, _ := strconv.Atoi(strings.TrimSpace(out.String()))
+		return n
+	}
+	behind := count(branchHash + ".." + baseHash)
+	ahead := count(baseHash + ".." + branchHash)
+	return behind, ahead
 }
 
 func (g *LocalGitAdapter) CreateBranch(repoPath string, newBranch string,
@@ -769,6 +808,34 @@ func (g *LocalGitAdapter) RenameBranch(repoPath string, oldBranch string,
 		CommitHash: oldRef.Hash().String(),
 		IsDefault:  isDefault,
 	}, nil
+}
+
+func (g *LocalGitAdapter) DeleteBranch(repoPath string, branchName string) error {
+	fullPath := g.resolveRepoPath(repoPath)
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to open repo: %w", err)
+	}
+
+	refName := plumbing.NewBranchReferenceName(branchName)
+
+	// Refuse to delete the default branch (HEAD target).
+	if headRef, err := r.Head(); err == nil && headRef.Name() == refName {
+		return errors.New("cannot delete the default branch")
+	}
+
+	if _, err := r.Reference(refName, false); err != nil {
+		if err == plumbing.ErrReferenceNotFound {
+			return errors.New("branch not found")
+		}
+		return err
+	}
+
+	if err := r.Storer.RemoveReference(refName); err != nil {
+		return fmt.Errorf("failed to delete branch: %w", err)
+	}
+
+	return nil
 }
 
 func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
