@@ -6,15 +6,15 @@ import {
   Check,
   CheckCircle2,
   GitMerge,
-  GitPullRequest,
   MessageSquare,
   Milestone,
   Search,
   Tag,
+  Users,
 } from "lucide-react";
 import { OcticonGitPullRequest, OcticonGitPullRequestClosed } from "../../icons/Octicons";
 
-interface PullRequestListProps {
+interface PullRequestBoardProps {
   repoId: string;
   currentUsername: string;
   onOpenCompare: () => void;
@@ -178,12 +178,12 @@ function ToolbarDropdown({
   );
 }
 
-export default function PullRequestList({
+export default function PullRequestBoard({
   repoId,
   currentUsername,
   onOpenCompare,
   onOpenPullRequest,
-}: PullRequestListProps) {
+}: PullRequestBoardProps) {
   const [pulls, setPulls] = useState<PullRequest[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [repoLabels, setRepoLabels] = useState<Label[]>([]);
@@ -626,7 +626,7 @@ export default function PullRequestList({
 
               <div className="flex flex-wrap items-center gap-2">
                 <ToolbarDropdown
-                  icon={<GitPullRequest size={14} />}
+                  icon={<OcticonGitPullRequest size={14} />}
                   label="Mark as"
                   open={openMenu === "mark"}
                   onToggle={() => toggleMenu("mark")}
@@ -639,7 +639,7 @@ export default function PullRequestList({
                         onClick={() => void bulkMarkAs("OPEN")}
                         className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
-                        <GitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                        <OcticonGitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
                         Open
                       </button>
                     </li>
@@ -654,6 +654,85 @@ export default function PullRequestList({
                       </button>
                     </li>
                   </ul>
+                </ToolbarDropdown>
+
+                <ToolbarDropdown
+                  icon={<Tag size={14} />}
+                  label="Label"
+                  open={openMenu === "filter-label"}
+                  onToggle={() => toggleMenu("filter-label")}
+                  width="w-80"
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels</p>
+                    <input
+                      value={labelFilter}
+                      onChange={(e) => setLabelFilter(e.target.value)}
+                      placeholder="Filter labels"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleLabels.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                      ) : (
+                        visibleLabels.map((label) => (
+                          <li key={label.id}>
+                            <button
+                              type="button"
+                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </ToolbarDropdown>
+
+                <ToolbarDropdown
+                  icon={<Milestone size={14} />}
+                  label="Milestone"
+                  open={openMenu === "filter-milestone"}
+                  onToggle={() => toggleMenu("filter-milestone")}
+                >
+                  <div className="p-3 text-sm">
+                    <p className="font-semibold text-[var(--text-primary)]">Set milestone</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">No milestones are available.</p>
+                  </div>
+                </ToolbarDropdown>
+
+                <ToolbarDropdown
+                  icon={<Users size={14} />}
+                  label="Assign"
+                  open={openMenu === "filter-assignee"}
+                  onToggle={() => toggleMenu("filter-assignee")}
+                >
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Assign to</p>
+                    {collaborators.length === 0 ? (
+                      <p className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</p>
+                    ) : (
+                      collaborators.map((collaborator) => {
+                        const name = collaborator.username ?? collaborator.user_id;
+                        return (
+                          <button
+                            key={collaborator.user_id}
+                            type="button"
+                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                              {name.charAt(0)}
+                            </span>
+                            <span className="flex-1 text-sm text-[var(--text-primary)]">{name}</span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
                 </ToolbarDropdown>
               </div>
             </>
@@ -874,7 +953,7 @@ export default function PullRequestList({
 
         {loading ? null : filteredPulls.length === 0 ? (
           <div className="py-16 text-center space-y-2">
-            <GitPullRequest size={26} className="mx-auto text-[var(--text-muted)]" />
+            <OcticonGitPullRequest size={26} className="mx-auto text-[var(--text-muted)]" />
             <p className="text-[36px] leading-[1.2] font-semibold text-[var(--text-primary)]">
               There aren&apos;t any {activeFilter === "OPEN" ? "open" : "closed"} pull requests.
             </p>

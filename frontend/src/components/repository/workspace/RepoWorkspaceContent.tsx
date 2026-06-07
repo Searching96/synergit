@@ -19,7 +19,7 @@ import RepoWikiPage from "../pages/RepoWikiPage";
 import PullRequestComparePage from "../pulls/PullRequestComparePage";
 import ConflictResolver from "../pulls/ConflictResolver";
 import PullRequestDetailPage from "../pulls/PullRequestDetailPage";
-import PullRequestList from "../pulls/PullRequestList";
+import PullRequestBoard from "../pulls/PullRequestBoard";
 import type { RepoContentKind } from "./utils/repoRouting";
 import type { RepoTabKey } from "./utils/repoTabs";
 
@@ -301,7 +301,7 @@ export default function RepoWorkspaceContent({
               />
             )}
             {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && routeContentKind !== "pull-conflicts" && (
-              <PullRequestList
+              <PullRequestBoard
                 repoId={selectedRepo.id}
                 currentUsername={currentUsername}
                 onOpenCompare={() => onOpenRepoCompare()}
