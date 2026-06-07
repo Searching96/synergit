@@ -98,7 +98,7 @@ func main() {
 	prLabelStore := postgres.NewPullRequestLabelStore(db)
 	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
 	prLabelHandler := httpHandler.NewPRLabelHandler(prLabelStore, prAssigneeStore)
-	userSettingsHandler := httpHandler.NewUserSettingsHandler(dbUserAdapter, tokenManager)
+	userSettingsHandler := httpHandler.NewUserSettingsHandler(dbUserAdapter, tokenManager, gitRoot, db)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
