@@ -1,0 +1,26 @@
+{
+  "name": "synergit-report",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Generates the Synergit .docx report and screenshots all UI figures referenced from the LaTeX source.",
+  "type": "commonjs",
+  "scripts": {
+    "content": "node build-content.js",
+    "docx": "node make.js",
+    "build": "node build-content.js && node make.js",
+    "capture": "node capture.mjs",
+    "capture:headed": "node capture.mjs --headed",
+    "diagrams": "node render-diagrams.mjs",
+    "all": "node capture.mjs && node render-diagrams.mjs && node build-content.js && node make.js"
+  },
+  "dependencies": {
+    "docx": "9.7.1",
+    "mupdf": "^1.27.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.60.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

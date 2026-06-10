@@ -7,3 +7,5 @@ tectonic.exe
 node_modules/
 latex/
 synergit-report/
+
+*.pdf

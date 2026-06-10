@@ -1,0 +1,245 @@
+\chapter{Xây dựng website}
+
+Chương 4 trình bày quá trình xây dựng giao diện và hiện thực hoá các chức năng của hệ thống Synergit, từ việc thiết kế template giao diện (layout, hệ màu, font chữ, bộ thành phần dùng chung) đến việc áp dụng template để xây dựng các trang chính: đăng nhập, dashboard repository, code browser, pull request, issue, profile và settings. Chương cũng minh hoạ một số đoạn mã tiêu biểu ở cả frontend và backend.
+
+\section{Thiết kế Template}
+
+\subsection{Phác thảo layout website}
+Giao diện Synergit lấy cảm hứng trực tiếp từ GitHub để giảm chi phí học của người dùng. Toàn bộ ứng dụng dùng layout dạng \textit{TopHeader} (thanh điều hướng dọc trên cùng) + \textit{nội dung chính} dạng tab, không có sidebar trái -- y hệt GitHub. Các trang con bên trong một repository chia thành 4 tab cố định: \textbf{Code}, \textbf{Pull Requests}, \textbf{Issues}, \textbf{Insights}.
+
+\subsection{Hệ màu và nhận diện thương hiệu}
+Synergit dùng bảng màu lấy cảm hứng từ GitHub: tông \textbf{xanh lam} \texttt{\#0969DA} (\texttt{sgBlue}) làm màu nhấn chủ đạo, kết hợp nền nhạt \texttt{\#F6F8FA} (\texttt{sgCream}), chữ màu mực \texttt{\#1F2328} (\texttt{sgInk}) và đường kẻ phân chia \texttt{\#D0D7DE} (\texttt{sgLine}). Màu phụ \texttt{\#2DA44E} (\texttt{sgAccent}) được dùng cho trạng thái thành công (PR đã merged). Hệ màu được định nghĩa thành các \textit{CSS variables} trong Tailwind, cho phép chuyển sang giao diện tối trong tương lai.
+
+\subsection{Font chữ và iconography}
+Hệ thống sử dụng font sans-serif hệ thống (\texttt{system-ui}) cho phần lớn giao diện và font \texttt{ui-monospace} cho code/diff. Bộ icon kết hợp:
+\begin{itemize}
+\item \textbf{Lucide:} cho các thao tác chung (settings, search, x, plus\ldots).
+\item \textbf{Octicons (do GitHub thiết kế):} cho các icon đặc trưng của hệ thống quản lý mã nguồn -- \textit{git-branch}, \textit{git-commit}, \textit{git-pull-request}, \textit{git-pull-request-closed}, \textit{git-merge}, \textit{git-compare}, \textit{repo}, \textit{issue-opened}, \textit{issue-closed}, \textit{star}\ldots
+\end{itemize}
+
+Các Octicon được vẽ thuần SVG ngay trong file \texttt{components/icons/Octicons.tsx} để bảo đảm hiển thị sắc nét và không phụ thuộc thư viện ngoài.
+
+\section{Áp dụng Template xây dựng các trang web}
+
+\subsection{Trang đăng nhập và đăng ký}
+Trang đăng nhập là điểm vào của ứng dụng. Người dùng nhập tên đăng nhập (hoặc email) và mật khẩu; nếu hợp lệ, hệ thống cấp JWT và chuyển tới dashboard. Trang đăng ký tương tự, yêu cầu thêm email và mật khẩu tối thiểu 6 ký tự.
+
+\figauto{image/synergit-dang-nhap.png}{Giao diện trang đăng nhập}{7cm}
+\figauto{image/synergit-dang-ky.png}{Giao diện trang đăng ký tài khoản}{7cm}
+
+\subsection{Trang dashboard repository (Home)}
+Sau khi đăng nhập, người dùng vào dashboard hiển thị danh sách các repository sở hữu/cộng tác, kèm các thẻ thống kê (số repo, số star, số PR). Trang có nút ``New repository'' nổi bật để tạo nhanh.
+
+\figauto{image/synergit-dashboard.png}{Giao diện Dashboard liệt kê repository}{6.5cm}
+
+\subsection{Trang tạo repository}
+Trang tạo repo cho phép nhập tên, mô tả, chọn visibility (PUBLIC/PRIVATE), bật/tắt khởi tạo file \texttt{README.md}, chọn template \texttt{.gitignore} và \texttt{LICENSE}. Sau khi tạo, người dùng được chuyển tới trang Code của repo mới.
+
+\figauto{image/synergit-tao-repo.png}{Giao diện tạo repository mới}{6.5cm}
+
+\subsection{Trang Code -- Code browser}
+Trang Code là trung tâm nghiệp vụ của một repository. Trang này hiển thị: thanh điều hướng repo (Code/PR/Issues/Insights), thanh chọn branch (\texttt{BranchTagMenu}), nút điều hướng nhánh (Branches), file explorer dạng tree, và phần xem nội dung file (kèm tô màu cú pháp). Khi mở một file, panel commit history hiển thị lịch sử commit của file đó.
+
+\figauto{image/synergit-code-browser.png}{Giao diện trang Code -- File explorer + Commit history}{8cm}
+\figauto{image/synergit-file-content.png}{Giao diện xem nội dung file kèm syntax highlight}{6.5cm}
+
+Đoạn mã sau minh hoạ cách frontend gọi API để lấy cây thư mục:
+
+\begin{lstlisting}[language=TypeScript, caption={Lấy cây thư mục của repo theo branch (frontend)}]
+// services/api/repos.ts (rút gọn)
+export const reposApi = {
+  getTree: (repoId: string, path = '', branch = '') =>
+    fetcher<RepoFile[]>(
+      `/repos/${repoId}/tree?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`,
+    ),
+
+  getBlob: (repoId: string, path: string, branch = '') =>
+    fetcher<{ content: string } | string>(
+      `/repos/${repoId}/blob?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`,
+    ),
+
+  getCommits: (repoId: string, branch = '', path = '') => {
+    const params = new URLSearchParams();
+    params.set('branch', branch);
+    if (path.trim()) params.set('path', path);
+    return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
+  },
+};
+\end{lstlisting}
+
+Phía backend (dịch vụ Core), handler nhận request và uỷ quyền cho usecase rồi gọi GitStorage qua HTTP client adapter:
+
+\begin{lstlisting}[language=Go, caption={Handler lấy tree (Core service, rút gọn)}]
+// HandleGetTree kiểm tra quyền truy cập repo, gọi usecase, trả JSON.
+func (h *RepoHandler) HandleGetTree(c *gin.Context) {
+    requesterID, _ := parseRequesterID(c)
+    repoID := uuid.MustParse(c.Param("repo_id"))
+    branch := c.Query("branch")
+    path := c.Query("path")
+
+    files, err := h.repoUseCase.GetTree(c, requesterID, repoID, path, branch)
+    if err != nil { response.Error(c, err); return }
+    c.JSON(http.StatusOK, files)
+}
+\end{lstlisting}
+
+\subsection{Trang Branches}
+Trang Branches liệt kê toàn bộ branch của repository, cho mỗi branch hiển thị: tên, người commit gần nhất, thời điểm cập nhật, số commit ahead/behind so với branch mặc định. Người dùng có thể tạo branch mới (từ branch nào tuỳ chọn), đổi tên, xoá branch.
+
+\figauto{image/synergit-branches.png}{Giao diện trang Branches}{6.5cm}
+
+\subsection{Trang Commits và chi tiết Commit}
+Trang Commit history liệt kê các commit theo branch hiện tại; mỗi commit hiển thị: avatar tác giả (chữ cái đầu), tên, message, hash rút gọn (kèm nút copy), thời gian. Nhấp vào hash mở trang chi tiết commit với diff theo từng file (unified diff).
+
+\figauto{image/synergit-commits.png}{Giao diện danh sách commit}{6cm}
+\figauto{image/synergit-commit-diff.png}{Giao diện chi tiết commit kèm diff theo file}{8cm}
+
+\subsection{Trang Pull Requests}
+Trang \textbf{Pull Requests Board} liệt kê các PR theo bộ lọc trạng thái (Open/Closed); mỗi PR hiển thị: title (kèm icon trạng thái), số PR, branch source $\to$ target, label, assignee (avatar), comment count. Bộ lọc đa lựa chọn cho author, label, assignee.
+
+\figauto{image/synergit-pr-board.png}{Giao diện danh sách Pull Request (Board)}{7.5cm}
+
+\subsubsection{Tạo Pull Request: trang Compare}
+Trước khi tạo PR, người dùng chọn base/head trên trang Compare; hệ thống hiển thị các commit khác biệt và các file thay đổi. Nếu base = head, hiện thông báo ``There isn't anything to compare''.
+
+\figauto{image/synergit-compare.png}{Giao diện so sánh hai branch (Compare)}{7cm}
+
+\subsubsection{Chi tiết Pull Request}
+Trang chi tiết PR có 4 phần: tiêu đề + trạng thái, dòng thời gian sự kiện (event timeline), tab Conversation/Commits/Files changed, panel Merge bên dưới. Khi PR ở trạng thái OPEN, panel Merge cho phép chọn commit message (mặc định theo format GitHub), nhấn ``Merge pull request''. Khi đã merged, panel hiện nút ``Revert''.
+
+\figauto{image/synergit-pr-detail.png}{Giao diện chi tiết Pull Request kèm event timeline}{8cm}
+\figauto{image/synergit-pr-merge.png}{Giao diện panel Merge với commit message tuỳ chỉnh}{6cm}
+
+Đoạn mã sau minh hoạ luồng merge phía backend (Core service):
+
+\begin{lstlisting}[language=Go, caption={Usecase merge pull request (Core service)}]
+// MergePullRequest: kiểm tra quyền, gọi GitStorage để merge, cập nhật trạng thái.
+func (s *PullRequestService) MergePullRequest(
+    ctx context.Context, requesterID, repoID, pullID uuid.UUID,
+    commitMessage, commitDescription string,
+) error {
+    pr, err := s.prStore.GetByID(pullID)
+    if err != nil { return err }
+    if pr.Status != domain.PullRequestStatusOpen {
+        return errors.New("pull request is not open")
+    }
+
+    role, _ := s.collabStore.GetRole(repoID, requesterID)
+    if !role.CanManageCollaborators() { // OWNER hoặc MAINTAINER
+        return errors.New("permission denied")
+    }
+
+    repo, _ := s.repoStore.GetByID(repoID)
+    merger, _ := s.userStore.GetUserByID(requesterID)
+
+    // Gọi GitStorage qua port.GitManager (HTTP client trong môi trường multi-service).
+    if err := s.gitManager.MergeBranches(
+        repo.Path, pr.SourceBranch, pr.TargetBranch,
+        merger.Username, buildMessage(commitMessage, commitDescription),
+    ); err != nil {
+        return err
+    }
+
+    // Cập nhật trạng thái PR và ghi sự kiện.
+    pr.Status = domain.PullRequestStatusMerged
+    s.prStore.Update(pr)
+    s.prStore.AddEvent(pullID, requesterID, "merged")
+    return nil
+}
+\end{lstlisting}
+
+\subsubsection{Resolve conflicts}
+Khi merge gặp conflict, frontend chuyển sang trang Resolve. Mỗi file conflict hiển thị nội dung kèm marker chuẩn của Git (\texttt{<<<<<<<}, \texttt{=======}, \texttt{>>>>>>>}); người dùng chỉnh sửa trong trình soạn thảo và nhấn ``Mark as resolved''. Sau khi tất cả file được resolve, nhấn ``Commit merge'' để gửi nội dung đã giải quyết về backend.
+
+\figauto{image/synergit-resolve.png}{Giao diện resolve conflict}{7cm}
+
+\subsection{Trang Issues}
+Trang \textbf{Issue Board} cũng có cấu trúc tương tự PR: bộ lọc trạng thái Open/Closed, lọc theo author/label/assignee. Trang chi tiết issue cho phép comment (Markdown), gán/bỏ assignee, gán/bỏ label, đóng kèm lý do (COMPLETED/NOT\_PLANNED/DUPLICATE) hoặc mở lại.
+
+\figauto{image/synergit-issue-board.png}{Giao diện danh sách Issue (Board)}{7cm}
+\figauto{image/synergit-issue-detail.png}{Giao diện chi tiết Issue với comment và timeline}{7.5cm}
+
+\subsection{Trang Insights -- Repo Insights}
+Trang Repo Insights hiển thị các bảng phân tích cho repository: commit trend 30 ngày (line chart), top contributors (bảng), branch activity (bảng), language breakdown (biểu đồ tròn). Nút ``Recompute'' ở góc phải kích hoạt tính lại snapshot.
+
+\figauto{image/synergit-repo-insights.png}{Giao diện Repo Insights}{7.5cm}
+
+\subsection{Trang Profile -- Contribution Graph}
+Trang Profile hiển thị thông tin người dùng (avatar, username, bio) cùng \textbf{Contribution Graph} kiểu GitHub -- một heatmap 7 hàng x ~53 cột thể hiện số commit mỗi ngày trong 365 ngày qua. Bên dưới là Activity Overview (số commit, code review, issue, PR; top repository đóng góp).
+
+\figauto{image/synergit-profile-overview.png}{Giao diện Profile kèm Contribution Graph 365 ngày}{8cm}
+\figauto{image/synergit-profile-repos.png}{Giao diện Profile -- Tab Repositories}{6.5cm}
+
+Đoạn mã sau minh hoạ cách dịch vụ Insights tổng hợp dữ liệu Profile Activity:
+
+\begin{lstlisting}[language=Go, caption={Tổng hợp Profile Activity (Insights service, rút gọn)}]
+// GetProfileActivity tính toán contribution graph 365 ngày + activity overview.
+func (s *RepoInsightsService) GetProfileActivity(
+    requesterID uuid.UUID, year int,
+) (*domain.ProfileActivitySnapshot, error) {
+    user, _ := s.userStore.GetUserByID(requesterID)
+    repos, _ := s.repoStore.ListRepositoriesForUser(requesterID)
+
+    // Đếm contribution theo ngày bằng cách quét commits của tất cả repo.
+    activity, err := s.metricComputer.ComputeProfileCommitActivity(
+        ctx, repos, user.Username, year, time.Now(),
+    )
+    if err != nil { return nil, err }
+
+    // Đếm số issue & PR đã tạo (đọc qua adapter sang core schema).
+    issues := s.issueStore.CountByCreatorAndYear(requesterID, year)
+    prs := s.prStore.CountByCreatorAndYear(requesterID, year)
+
+    return &domain.ProfileActivitySnapshot{
+        Username: user.Username, SelectedYear: year,
+        ContributionDays: activity.ContributionDays,
+        TotalContributions: activity.TotalContributions,
+        ActivityChart: domain.ProfileActivityChart{
+            Commits: activity.TotalContributions,
+            Issues: issues, PullRequests: prs,
+        },
+        ActivityOverview: domain.ProfileActivityOverview{
+            TopRepositories: activity.TopRepositories,
+            OtherRepoCount: activity.OtherRepoCount,
+            CommitsLast365Days: activity.CommitsLast365Days,
+        },
+    }, nil
+}
+\end{lstlisting}
+
+\subsection{Trang Settings -- Account}
+Trang Settings/Account cho phép người dùng đổi tên đăng nhập (đổi cả thư mục lưu repo, đường dẫn trong DB và phát hành JWT mới), đăng xuất khỏi tất cả thiết bị (vô hiệu hoá JWT cũ).
+
+\figauto{image/synergit-settings.png}{Giao diện trang Settings -- Account (đổi username)}{6.5cm}
+
+\subsection{API Gateway và phân tách dịch vụ}
+Toàn bộ frontend chỉ giao tiếp với một URL duy nhất (\texttt{http://localhost:8080}) -- chính là Gateway. Gateway dùng \texttt{net/http/httputil.ReverseProxy} để định tuyến request:
+
+\begin{lstlisting}[language=Go, caption={Định tuyến của Gateway theo prefix đường dẫn}]
+// internal/proxy/router.go (rút gọn)
+type Rule struct {
+    Prefix   string
+    Upstream *url.URL
+}
+
+func BuildRules(env Env) []Rule {
+    return []Rule{
+        {Prefix: "/api/v1/insights", Upstream: env.InsightsURL},
+        {Prefix: "/api/v1/profile/activity", Upstream: env.InsightsURL},
+        {Prefix: "/api/v1/git", Upstream: env.GitStorageURL},
+        // Mặc định: tất cả request không khớp prefix nào ở trên -> Core.
+        {Prefix: "/", Upstream: env.CoreURL},
+    }
+}
+
+func (rt *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    for _, rule := range rt.rules {
+        if strings.HasPrefix(r.URL.Path, rule.Prefix) {
+            httputil.NewSingleHostReverseProxy(rule.Upstream).ServeHTTP(w, r)
+            return
+        }
+    }
+}
+\end{lstlisting}
+
+Với cách định tuyến này, frontend không cần biết về số lượng và vị trí của các dịch vụ backend: thêm/bớt dịch vụ chỉ là việc thêm/bớt rule trong Gateway và biến môi trường.

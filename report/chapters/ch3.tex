@@ -1,0 +1,327 @@
+\chapter{Phân tích thiết kế hệ thống}
+
+Chương này đi sâu vào phân tích các yêu cầu chức năng và phi chức năng của hệ thống Synergit, được mô hình hoá chi tiết qua lược đồ Usecase và danh sách tác nhân. Đồng thời, chương trình bày thiết kế \textit{kiến trúc Microservices} với 4 dịch vụ độc lập, thiết kế cơ sở dữ liệu quan hệ (ERD) cùng đặc tả cấu trúc các bảng dữ liệu, và các nghiệp vụ đặc thù như giao thức Git Smart HTTP, máy trạng thái pull request, máy trạng thái issue.
+
+\section{Xác định yêu cầu}
+
+\subsection{Khảo sát hiện trạng các nền tảng quản lý mã nguồn}
+Trước khi xây dựng hệ thống, nhóm đã khảo sát các nền tảng quản lý mã nguồn phổ biến hiện nay. Bảng~\ref{tab:khaosat} so sánh các nền tảng tiêu biểu trên những tiêu chí quan trọng đối với một đội phát triển nội bộ tại Việt Nam.
+
+\renewcommand{\arraystretch}{1.3}
+\begin{longtable}{|>{\raggedright\arraybackslash}m{2.9cm}|>{\centering\arraybackslash}m{2.6cm}|>{\centering\arraybackslash}m{2.4cm}|>{\centering\arraybackslash}m{2.4cm}|>{\centering\arraybackslash}m{2.2cm}|}
+\caption{Bảng khảo sát các nền tảng quản lý mã nguồn}\label{tab:khaosat}\\
+\hline\rowcolor{sgCream}
+\textbf{Tiêu chí} & \textbf{GitHub.com (SaaS)} & \textbf{GitLab Self-hosted} & \textbf{Gitea Self-hosted} & \textbf{Synergit}\\
+\hline\endfirsthead
+\hline\rowcolor{sgCream}\textbf{Tiêu chí} & \textbf{GitHub.com (SaaS)} & \textbf{GitLab Self-hosted} & \textbf{Gitea Self-hosted} & \textbf{Synergit}\\\hline\endhead
+Tự triển khai (self-hosted) & Không & Có & Có & \textbf{Có}\\\hline
+Sở hữu dữ liệu \& mã nguồn & Không & Có & Có & \textbf{Có}\\\hline
+Quy trình PR \& Issue đầy đủ & Có & Có & Có & \textbf{Có}\\\hline
+Insights / Analytics tích hợp & Có (nâng cao) & Có (nâng cao) & Hạn chế & \textbf{Có (cơ bản)}\\\hline
+Kiến trúc microservices rõ ràng & N/A (kín) & Một phần & Không (monolith) & \textbf{Có (4 dịch vụ)}\\\hline
+Mã nguồn mở (open source) & Không & Có (CE) & Có & N/A (đồ án)\\\hline
+Yêu cầu tài nguyên triển khai & N/A & Cao (Ruby + PG + Redis + ElasticSearch+\ldots) & Thấp & \textbf{Trung bình}\\\hline
+Mức độ phức tạp vận hành & Không (do nhà cung cấp) & Cao & Thấp & \textbf{Trung bình}\\\hline
+Mục đích chính & Sản phẩm SaaS & Sản phẩm DevOps đầy đủ & Git server gọn nhẹ & \textbf{Đồ án mô phỏng kiến trúc}\\\hline
+\end{longtable}
+
+\noindent\textbf{Nhận xét:} GitHub.com là tiêu chuẩn vàng nhưng là dịch vụ kín và không tự triển khai được; GitLab CE rất mạnh nhưng quá ``nặng'' cho nhu cầu nội bộ vừa và nhỏ; Gitea gọn nhẹ nhưng chỉ là một monolith Go đơn giản, không có insights và không phải mô hình tham khảo cho microservices. Synergit hướng tới dung hoà: cung cấp các tính năng cộng tác cốt lõi giống GitHub (PR, issue, insights) trong một kiến trúc microservices rõ ràng làm mô hình tham khảo, đồng thời vẫn nhẹ đủ để chạy được trên một máy phát triển.
+
+\subsection{Những vấn đề còn tồn tại}
+\begin{itemize}
+\item \textbf{Phụ thuộc dịch vụ nước ngoài:} Mã nguồn nội bộ (đặc biệt là dự án nhạy cảm) đặt trên GitHub/Bitbucket gây lo ngại về chủ quyền dữ liệu.
+\item \textbf{Chi phí sử dụng theo người dùng:} Các nền tảng SaaS tính phí theo seat; chi phí tăng tuyến tính khi đội phát triển mở rộng.
+\item \textbf{Nền tảng tự triển khai sẵn quá phức tạp hoặc quá đơn giản:} GitLab self-hosted yêu cầu tài nguyên cao và kiến trúc phức tạp; Gitea đơn giản nhưng thiếu các tính năng phân tích và là một monolith chặt chẽ -- không phải mô hình tham khảo cho microservices.
+\item \textbf{Thiếu mô hình tham khảo kiến trúc:} Sinh viên/kỹ sư trẻ ít có cơ hội tiếp cận mã nguồn của một hệ thống quản lý mã nguồn được tách dịch vụ rõ ràng theo DDD.
+\end{itemize}
+
+\subsection{Vấn đề đề tài tập trung giải quyết}
+\begin{itemize}
+\item \textbf{Tự triển khai \& sở hữu dữ liệu:} Synergit là phần mềm có thể tự triển khai trên máy chủ nội bộ; toàn bộ mã nguồn và dữ liệu nằm trong tầm kiểm soát của tổ chức.
+\item \textbf{Đầy đủ tính năng cộng tác cốt lõi:} Pull request, code review qua diff, issue tracker, label, assignee, comment, event timeline, insights, contribution graph.
+\item \textbf{Kiến trúc Microservices rõ ràng theo DDD:} Mô hình tham khảo cho việc tách dịch vụ theo bounded context; tận dụng Clean Architecture để tách dịch vụ trở thành thao tác kỹ thuật minh bạch (thay adapter).
+\item \textbf{Đơn giản trong vận hành:} Chỉ 4 binary Go + 1 Postgres + frontend tĩnh; có thể chạy bằng Docker Compose trên một máy phát triển.
+\end{itemize}
+
+\section{Phân tích yêu cầu}
+
+\subsection{Yêu cầu chức năng}
+\textbf{Nhóm chức năng cho người dùng đăng ký (Authenticated User):}
+\begin{itemize}
+\item Quản lý tài khoản: đăng ký, đăng nhập, đổi tên đăng nhập, đổi mật khẩu, đăng xuất.
+\item Quản lý hồ sơ cá nhân: ảnh đại diện, mô tả; xem trang profile của bản thân.
+\item Tạo và quản lý repository: tạo mới (với tuỳ chọn khởi tạo README/.gitignore/LICENSE), đổi tên, đổi visibility, xoá.
+\item Push/clone/pull mã nguồn qua Git Smart HTTP cho repository sở hữu hoặc được cấp quyền.
+\item Duyệt repository: cây thư mục, nội dung file, lịch sử commit, chi tiết commit (diff).
+\item Quản lý branch: tạo từ branch khác, đổi tên, xoá.
+\item Commit thay đổi qua giao diện web: chỉnh sửa file đơn lẻ hoặc nhiều file cùng lúc.
+\item Tạo và quản lý pull request: so sánh branch, tạo PR, merge, revert, đóng/mở lại, gán label, gán assignee.
+\item Giải quyết xung đột (merge conflict) qua giao diện web.
+\item Tạo và quản lý issue: tạo, gán label/assignee, comment, đóng (kèm lý do)/mở lại.
+\item Quản lý label của repository (tạo, sửa, xoá, áp dụng cho issue và PR).
+\item Quản lý collaborator: thêm/gỡ thành viên với vai trò OWNER/MAINTAINER/WRITE.
+\item Đánh dấu sao (star) repository; xem danh sách repository đã star.
+\item Xem Repo Insights (commit trend, top contributor, language breakdown\ldots) và Profile Activity (contribution graph 365 ngày).
+\end{itemize}
+
+\textbf{Nhóm chức năng cho khách (Guest -- chưa đăng nhập):}
+\begin{itemize}
+\item Đăng ký tài khoản mới, đăng nhập tài khoản đã có.
+\item Xem các repository công khai (PUBLIC) của người dùng khác qua URL.
+\item Clone hoặc pull repository công khai qua Git Smart HTTP (không cần xác thực).
+\item Xem trang profile công khai của người dùng khác.
+\end{itemize}
+
+\subsection{Yêu cầu phi chức năng}
+Hệ thống cần đáp ứng các tiêu chuẩn kỹ thuật sau:
+
+\subsubsection{Hiệu năng (Performance)}
+\begin{itemize}
+\item Các trang nội dung chính (cây thư mục, danh sách commit, danh sách PR/issue) tải xong trong vòng dưới 2 giây ở quy mô nhỏ (< 100 commit/PR/issue).
+\item Các thao tác Git \texttt{clone}/\texttt{push}/\texttt{pull} thực hiện trực tiếp qua go-git, không phải shell-out, tận dụng tối đa concurrency của Go.
+\item Tách các tác vụ phân tích nặng (recompute insights) ra dịch vụ riêng để không ảnh hưởng tới luồng nghiệp vụ chính.
+\end{itemize}
+
+\subsubsection{Bảo mật (Security)}
+\begin{itemize}
+\item Xác thực bằng JWT (HMAC-SHA256, hạn 7 ngày), token gắn vào header \texttt{Authorization: Bearer ...}.
+\item Mật khẩu băm một chiều bằng bcrypt; không lưu mật khẩu thô.
+\item Phân quyền theo vai trò collaborator (OWNER/MAINTAINER/WRITE); kiểm tra ở tầng usecase.
+\item Visibility của repository: PUBLIC ai cũng xem được (kể cả guest); PRIVATE chỉ owner và collaborator xem được.
+\item Tất cả dịch vụ backend cùng dùng một secret JWT, tránh việc gọi xác thực trung tâm tăng độ trễ.
+\item Validate dữ liệu đầu vào ở tầng handler; toàn bộ giao tiếp qua HTTPS khi triển khai.
+\end{itemize}
+
+\subsubsection{Khả năng mở rộng (Scalability)}
+\begin{itemize}
+\item Kiến trúc microservices với 4 dịch vụ độc lập, mỗi dịch vụ có thể nhân bản (scale horizontal) độc lập.
+\item Schema-per-service đảm bảo độc lập dữ liệu, tránh ràng buộc cứng giữa các dịch vụ.
+\item Clean Architecture cho phép thay đổi adapter (PostgreSQL $\to$ Postgres khác, hệ thống tệp $\to$ object storage) mà không ảnh hưởng usecase.
+\item Đóng gói bằng Docker để dễ nhân bản (scale) khi tải tăng.
+\item Tương thích các trình duyệt phổ biến (Chrome, Firefox, Edge, Safari).
+\end{itemize}
+
+\subsubsection{Trải nghiệm người dùng (Usability \& UX)}
+\begin{itemize}
+\item Giao diện lấy cảm hứng trực tiếp từ GitHub: layout, hệ màu, thuật ngữ, icon (Octicons) -- người dùng quen với GitHub có thể sử dụng Synergit ngay lập tức mà không cần học lại.
+\item Code browser hỗ trợ tô màu cú pháp; diff viewer hiển thị thêm/bớt theo dòng kiểu unified diff.
+\item Contribution graph 365 ngày được vẽ chính xác kiểu GitHub (heatmap 7 hàng x ~53 cột).
+\item Thông báo lỗi rõ ràng, có hướng dẫn nhập liệu (validation) ngay trên biểu mẫu.
+\end{itemize}
+
+\section{Mô hình hoá chức năng hệ thống (Usecase)}
+
+\subsection{Danh sách tác nhân (Actors)}
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{|c|p{3.6cm}|p{9.3cm}|}
+\caption{Danh sách tác nhân của hệ thống}\label{tab:actors}\\
+\hline\rowcolor{sgCream}\textbf{STT} & \textbf{Tác nhân} & \textbf{Mô tả}\\\hline\endfirsthead
+\hline\rowcolor{sgCream}\textbf{STT} & \textbf{Tác nhân} & \textbf{Mô tả}\\\hline\endhead
+1 & Khách (Guest) & Người dùng chưa đăng nhập; xem repository công khai, profile công khai, clone qua Git.\\\hline
+2 & Người dùng (Authenticated User) & Người dùng đã đăng ký; tạo repository riêng, push/pull, tạo PR/issue.\\\hline
+3 & Chủ sở hữu (Owner) & Người dùng tạo repository; toàn quyền: quản lý collaborator, đổi visibility, xoá repo, merge PR.\\\hline
+4 & Maintainer & Cộng tác viên với quyền cao: thêm/gỡ collaborator (trừ OWNER), merge PR, quản lý label.\\\hline
+5 & Writer & Cộng tác viên với quyền ghi: push, commit, tạo PR/issue, comment.\\\hline
+\end{longtable}
+
+\subsection{Sơ đồ Usecase tổng quát}
+Sơ đồ Usecase tổng quát mô tả tương tác giữa các tác nhân và các nhóm chức năng chính của hệ thống được trình bày trong Hình~\ref{fig:usecase}.
+
+\input{figures/usecase}
+
+\subsection{Danh sách Usecase}
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{|c|c|p{5.2cm}|p{6.0cm}|}
+\caption{Danh sách Usecase chính}\label{tab:uclist}\\
+\hline\rowcolor{sgCream}\textbf{STT} & \textbf{ID} & \textbf{Tên usecase} & \textbf{Mô tả}\\\hline\endfirsthead
+\hline\rowcolor{sgCream}\textbf{STT} & \textbf{ID} & \textbf{Tên usecase} & \textbf{Mô tả}\\\hline\endhead
+1  & UC-01 & Đăng ký tài khoản & Khách tạo tài khoản mới.\\\hline
+2  & UC-02 & Đăng nhập & Người dùng đăng nhập bằng tên đăng nhập/mật khẩu.\\\hline
+3  & UC-03 & Đổi tên đăng nhập & Người dùng đổi username; hệ thống đổi tên thư mục lưu repo và phát hành JWT mới.\\\hline
+4  & UC-04 & Tạo repository & Tạo repo mới với tuỳ chọn README, .gitignore, LICENSE.\\\hline
+5  & UC-05 & Quản lý repository & Đổi tên, đổi visibility, xoá repo.\\\hline
+6  & UC-06 & Push/Clone/Pull qua Git & Thao tác Git Smart HTTP với repo.\\\hline
+7  & UC-07 & Duyệt cây thư mục \& xem file & Xem tree theo branch, xem nội dung file.\\\hline
+8  & UC-08 & Xem lịch sử commit & Liệt kê commit theo branch, lọc theo path.\\\hline
+9  & UC-09 & Xem chi tiết commit (diff) & Xem diff của một commit theo từng file.\\\hline
+10 & UC-10 & Quản lý branch & Tạo, đổi tên, xoá; xem ahead/behind so với mặc định.\\\hline
+11 & UC-11 & Commit qua giao diện web & Chỉnh sửa file đơn lẻ hoặc nhiều file rồi commit.\\\hline
+12 & UC-12 & So sánh hai branch (compare) & Hiển thị commit và file thay đổi giữa base và head.\\\hline
+13 & UC-13 & Tạo Pull Request & Tạo PR từ kết quả compare; nhập title, description.\\\hline
+14 & UC-14 & Xem PR \& timeline & Xem chi tiết PR cùng dòng thời gian sự kiện.\\\hline
+15 & UC-15 & Merge Pull Request & Merge nếu sạch; chuyển luồng resolve khi có xung đột.\\\hline
+16 & UC-16 & Giải quyết xung đột (merge conflict) & Hiển thị file xung đột với marker, người dùng nhập nội dung đã giải quyết, hệ thống commit.\\\hline
+17 & UC-17 & Revert Pull Request đã merge & Tạo branch revert + commit revert tự động.\\\hline
+18 & UC-18 & Đóng/Mở lại PR & Chuyển trạng thái PR.\\\hline
+19 & UC-19 & Tạo Issue & Tạo issue (title, description) cho repo.\\\hline
+20 & UC-20 & Quản lý Issue & Comment, gán/bỏ assignee, đóng (kèm lý do)/mở lại.\\\hline
+21 & UC-21 & Quản lý Label & Tạo, sửa, xoá label; gán cho issue/PR.\\\hline
+22 & UC-22 & Quản lý Collaborator & Thêm/gỡ collaborator với vai trò OWNER/MAINTAINER/WRITE.\\\hline
+23 & UC-23 & Star/Unstar repository & Đánh dấu yêu thích; xem starred của bản thân.\\\hline
+24 & UC-24 & Xem Repo Insights & Commit trend, contributors, branch activity, language breakdown.\\\hline
+25 & UC-25 & Recompute Insights & Người dùng chủ động tính lại insights cho repo.\\\hline
+26 & UC-26 & Xem Profile Activity & Contribution graph 365 ngày, activity overview.\\\hline
+\end{longtable}
+
+\subsection{Mô tả các Usecase chính}
+Phần này đặc tả chi tiết các usecase tiêu biểu, đại diện đầy đủ cho các luồng nghiệp vụ và các tác nhân của hệ thống.
+
+\input{chapters/ch3-usecases}
+
+\section{Thiết kế kiến trúc hệ thống}
+
+\subsection{Kiến trúc Microservices}
+Hệ thống Synergit được thiết kế theo kiến trúc \textit{Microservices} dựa trên triết lý ``Majestic Monolith + Strategic Services'' của GitHub. Hệ thống gồm bốn binary độc lập:
+
+\begin{itemize}
+\item \textbf{Gateway (cổng :8080):} Reverse proxy đứng trước, định tuyến request từ frontend tới dịch vụ phù hợp dựa trên prefix đường dẫn. Frontend chỉ cần biết một URL duy nhất.
+\item \textbf{Core (cổng :8081 -- ``majestic monolith''):} Chứa phần lớn nghiệp vụ: xác thực (auth), siêu dữ liệu repository, pull request, issue, label, collaborator, star. Sở hữu schema PostgreSQL \texttt{core}.
+\item \textbf{GitStorage (cổng :8082):} Dịch vụ duy nhất được phép truy cập hệ thống tệp \texttt{D:\textbackslash SynergitRepo\textbackslash}; phơi các thao tác Git (cây thư mục, nội dung file, log, diff, branch, commit qua web, merge, revert, conflict resolution) qua HTTP. Cũng phơi ba endpoint Git Smart HTTP (\texttt{info/refs}, \texttt{git-upload-pack}, \texttt{git-receive-pack}). Không sở hữu DB schema.
+\item \textbf{Insights (cổng :8083):} Dịch vụ phân tích/CPU-bound, lưu kết quả vào schema \texttt{insights.repo\_insights}; được phép \textit{đọc} bảng của \texttt{core} (ngoại lệ duy nhất). Phơi endpoint Repo Insights và Profile Activity.
+\end{itemize}
+
+Các dịch vụ giao tiếp với nhau qua HTTP/REST, sử dụng JSON cho payload. Tất cả dịch vụ chia sẻ một biến môi trường \texttt{JWT\_SECRET} để xác thực token cục bộ -- không có dịch vụ ``auth trung tâm''. Sơ đồ kiến trúc tổng thể được trình bày trong Hình~\ref{fig:architecture}.
+
+\input{figures/architecture}
+
+\subsection{Vai trò của Clean Architecture trong việc tách dịch vụ}
+Mỗi dịch vụ Synergit tuân thủ Clean Architecture với 4 tầng (\textit{domain}, \textit{port}, \textit{usecase}, \textit{adapter}). Điểm đặc biệt: \textbf{interface \texttt{port.GitManager}} (gồm khoảng 25 phương thức như \texttt{InitBareRepo}, \texttt{GetTree}, \texttt{GetCommits}, \texttt{MergeBranches}\ldots) là ``đường nối'' giữa Core và GitStorage.
+
+\begin{itemize}
+\item Trong dịch vụ \textbf{GitStorage}, interface \texttt{GitManager} được hiện thực bởi \texttt{LocalGitAdapter} -- adapter thao tác trực tiếp lên hệ thống tệp qua go-git.
+\item Trong dịch vụ \textbf{Core} (và Insights), interface \texttt{GitManager} cũng được hiện thực bởi một adapter khác: \texttt{GitStorageHTTPClient} -- adapter chuyển mỗi lời gọi method thành một HTTP request tới GitStorage.
+\end{itemize}
+
+\textit{Tầng usecase của Core không biết đến sự khác biệt này} -- nó chỉ biết về interface. Nhờ đó, việc tách GitStorage ra khỏi monolith ban đầu chỉ là việc thay adapter, không cần sửa logic nghiệp vụ.
+
+\subsection{Vòng đời xử lý một request}
+Mỗi request HTTP đi qua chuỗi sau:
+\begin{enumerate}
+\item Browser gọi \texttt{http://gateway:8080/api/v1/...} với header \texttt{Authorization: Bearer <jwt>}.
+\item Gateway kiểm tra prefix đường dẫn, chọn upstream, forward request (giữ nguyên header).
+\item Dịch vụ đích chạy middleware: ID request, log, CORS, JWT verification (qua secret chia sẻ).
+\item Handler bind \& validate request body/query.
+\item Handler gọi tầng \textit{usecase} (logic nghiệp vụ thuần).
+\item Usecase gọi các \textit{port} (interface) đã được tiêm phụ thuộc:
+  \begin{itemize}
+  \item \texttt{RepoRepository} $\to$ \texttt{PostgresRepoStore} (đọc/ghi DB).
+  \item \texttt{GitManager} $\to$ \texttt{LocalGitAdapter} (trong GitStorage) hoặc \texttt{GitStorageHTTPClient} (trong Core).
+  \end{itemize}
+\item Kết quả chạy ngược về handler, được serialize thành JSON và trả về client.
+\end{enumerate}
+
+\subsection{Luồng tạo và merge Pull Request}
+Luồng tạo và merge một pull request là luồng phức tạp nhất, liên quan đến nhiều dịch vụ. Sơ đồ chi tiết được trình bày trong Hình~\ref{fig:prflow}.
+
+\input{figures/checkout-flow}
+
+\subsection{Sở hữu hệ thống tệp}
+Toàn bộ thư mục lưu trữ Git (\texttt{D:\textbackslash SynergitRepo\textbackslash<username>\textbackslash<repo>.git}) chỉ được dịch vụ \textbf{GitStorage} truy cập. Khi Core cần thực hiện một thao tác liên quan đến hệ thống tệp -- ví dụ tạo repository mới, đổi tên thư mục khi đổi username, hoặc bootstrap repo với file README -- Core sẽ gọi qua HTTP tới GitStorage. Cách này đảm bảo:
+
+\begin{itemize}
+\item Một nguồn sự thật duy nhất cho dữ liệu Git (không có race condition đọc/ghi từ nhiều dịch vụ).
+\item Có thể thay GitStorage bằng triển khai khác (ví dụ chạy trên cluster với Spokes-like replication) mà không cần đụng tới Core.
+\item Phù hợp với mô hình của GitHub thực tế (dịch vụ Spokes của họ là chủ duy nhất của object database).
+\end{itemize}
+
+\section{Thiết kế cơ sở dữ liệu}
+
+\subsection{Sơ đồ quan hệ (ERD)}
+Cơ sở dữ liệu được tổ chức theo \textit{schema-per-service}: dịch vụ Core sở hữu schema \texttt{core.*}, dịch vụ Insights sở hữu schema \texttt{insights.*}. Trong báo cáo này, để dễ theo dõi, ERD được nhóm theo các \textit{bounded context} bên trong schema \texttt{core}: identity, repository catalog, pull request, issue. Quan hệ trong cùng schema (có khoá ngoại) vẽ bằng nét liền; tham chiếu sang schema khác vẽ bằng nét đứt. Chi tiết đầy đủ từng bảng xem mục~\ref{sec:dbdetail}.
+
+\subsubsection{Identity (xác thực và người dùng)}
+\input{figures/erd-auth}
+
+\subsubsection{Repository Catalog (siêu dữ liệu repository)}
+\input{figures/erd-repository}
+
+\subsubsection{Pull Request và sự kiện}
+\input{figures/erd-pullrequest}
+
+\subsubsection{Issue, comment và sự kiện}
+\input{figures/erd-issue}
+
+\subsubsection{Insights (snapshot phân tích)}
+\input{figures/erd-insights}
+
+\subsection{Danh sách các bảng dữ liệu}
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{|c|>{\ttfamily\small}p{5.0cm}|p{7.0cm}|}
+\caption{Danh sách các bảng dữ liệu}\label{tab:tablelist}\\
+\hline\rowcolor{sgCream}\textbf{STT} & \normalfont\textbf{Tên bảng} & \textbf{Ý nghĩa}\\\hline\endfirsthead
+\hline\rowcolor{sgCream}\textbf{STT} & \normalfont\textbf{Tên bảng} & \textbf{Ý nghĩa}\\\hline\endhead
+1  & core.users & Tài khoản người dùng (định danh, email, mật khẩu băm).\\\hline
+2  & core.repositories & Siêu dữ liệu repository (tên, đường dẫn, mô tả, visibility, ngôn ngữ chính).\\\hline
+3  & core.repository\_collaborators & Quan hệ user--repo với vai trò (OWNER/MAINTAINER/WRITE).\\\hline
+4  & core.pull\_requests & Pull request với source/target branch, commit hash, trạng thái.\\\hline
+5  & core.pull\_request\_events & Nhật ký sự kiện của PR (created/merged/closed/reopened/commented).\\\hline
+6  & core.pull\_request\_labels & Gán label cho PR.\\\hline
+7  & core.pull\_request\_assignees & Gán người phụ trách cho PR.\\\hline
+8  & core.issues & Issue (title, description, status, close\_reason).\\\hline
+9  & core.issue\_assignees & Gán người phụ trách cho issue.\\\hline
+10 & core.issue\_events & Nhật ký sự kiện của issue.\\\hline
+11 & core.issue\_comments & Bình luận trên issue.\\\hline
+12 & core.issue\_labels & Gán label cho issue.\\\hline
+13 & core.labels & Label (tên, màu, mô tả) thuộc về một repository.\\\hline
+14 & core.repo\_stars & Quan hệ user--repo cho chức năng star.\\\hline
+15 & insights.repo\_insights & Snapshot kết quả phân tích cho từng repository.\\\hline
+\end{longtable}
+
+\subsection{Thiết kế chi tiết các bảng dữ liệu}\label{sec:dbdetail}
+\input{chapters/ch3-dbtables}
+
+\section{Thiết kế nghiệp vụ đặc thù}
+
+\subsection{Giao thức Git Smart HTTP}
+Synergit hiện thực đầy đủ ba endpoint của Git Smart HTTP ở dịch vụ GitStorage để hỗ trợ \texttt{git clone/push/pull/fetch}:
+
+\begin{itemize}
+\item \texttt{GET /:username/:repo.git/info/refs?service=<service>} -- advertise refs.
+\item \texttt{POST /:username/:repo.git/git-upload-pack} -- gửi packfile cho client (clone/fetch).
+\item \texttt{POST /:username/:repo.git/git-receive-pack} -- nhận packfile từ client (push).
+\end{itemize}
+
+Cả ba endpoint được Gateway forward thẳng tới GitStorage. Không yêu cầu xác thực JWT đối với repository PUBLIC; với repository PRIVATE, GitStorage trả về \texttt{401 Unauthorized}.
+
+\subsection{Đảm bảo nhất quán khi đổi username}
+Khi người dùng đổi username, có ba thay đổi phải xảy ra cùng lúc:
+
+\begin{enumerate}
+\item Cập nhật trường \texttt{username} trong \texttt{core.users}.
+\item Đổi tên thư mục \texttt{D:\textbackslash SynergitRepo\textbackslash<old\_username>\textbackslash} $\to$ \texttt{D:\textbackslash SynergitRepo\textbackslash<new\_username>\textbackslash}.
+\item Cập nhật cột \texttt{path} trong \texttt{core.repositories} cho mọi repo của user (thay tiền tố \texttt{<old>/} bằng \texttt{<new>/}).
+\item Phát hành JWT mới chứa username mới (vì JWT cũ vẫn ghi username cũ).
+\end{enumerate}
+
+Dịch vụ Core thực hiện toàn bộ các bước trên trong cùng một handler: cập nhật DB, gọi GitStorage qua HTTP để đổi tên thư mục, cập nhật \texttt{repositories.path}, phát hành JWT mới và trả về client. Frontend nhận JWT mới, lưu vào \texttt{localStorage} và reload trang.
+
+\subsection{Máy trạng thái Pull Request}
+Mỗi pull request tuân theo một máy trạng thái (FSM); mọi chuyển trạng thái đều được ghi vào bảng \texttt{core.pull\_request\_events} kèm thời điểm và người thực hiện. Sơ đồ FSM được trình bày trong Hình~\ref{fig:pr-fsm}.
+
+\input{figures/repo-state-fsm}
+
+\subsection{Cơ chế giải quyết xung đột merge}
+Khi merge một pull request, dịch vụ Core gọi \texttt{CompareRefs} qua GitStorage để kiểm tra khả năng merge. Nếu \texttt{Mergeable = false}:
+
+\begin{enumerate}
+\item Frontend chuyển sang giao diện ``Resolve conflicts'' và gọi \texttt{GET /api/v1/repos/:repo\_id/pulls/:pull\_id/conflicts}.
+\item Core gọi GitStorage \texttt{GetConflictingFiles} để lấy danh sách file xung đột; với mỗi file, gọi \texttt{GetConflictContent} để lấy nội dung file đã chèn marker (\texttt{<<<<<<<}, \texttt{=======}, \texttt{>>>>>>>}).
+\item Người dùng chỉnh sửa nội dung trên trình soạn thảo trong giao diện web để giải quyết xung đột.
+\item Frontend gửi danh sách \texttt{ConflictResolution\{Path, ResolvedContent\}} qua \texttt{POST /api/v1/repos/:repo\_id/pulls/:pull\_id/conflicts/resolve}.
+\item Core gọi GitStorage \texttt{ResolveConflictsAndCommit}; GitStorage commit nội dung đã giải quyết lên source branch của PR và push.
+\item PR có thể merge ở lần thử tiếp theo.
+\end{enumerate}
+
+\subsection{Tính toán Insights theo yêu cầu}
+Insights được tính theo phương thức ``recompute on demand'': khi người dùng vào trang Insights của một repo, frontend gọi \texttt{GET /api/v1/repos/:id/insights} để lấy snapshot mới nhất từ \texttt{insights.repo\_insights}. Người dùng có nút ``Recompute'' để chủ động tính lại; khi đó frontend gọi \texttt{POST /api/v1/repos/:id/insights/recompute}, dịch vụ Insights:
+
+\begin{enumerate}
+\item Lấy danh sách commit của tất cả branch (qua GitStorage HTTP).
+\item Lấy thông tin từng branch (last commit, ahead/behind).
+\item Tính \textit{commits\_last\_30d}, \textit{commit\_trend} (group by ngày), \textit{top\_contributors} (group by author).
+\item Tính \textit{branch\_activity} (số commit mỗi branch).
+\item Gọi GitStorage \texttt{GetLanguageBreakdown} để lấy phân bố ngôn ngữ (theo \% byte).
+\item Lưu kết quả vào \texttt{insights.repo\_insights} (upsert theo \texttt{repo\_id}).
+\end{enumerate}
+
+Profile Activity tương tự nhưng tổng hợp dữ liệu commit của tất cả repo mà người dùng có quyền, kết hợp với số lượng issue và PR đã tạo từ \texttt{core.*}.

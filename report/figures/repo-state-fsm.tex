@@ -1,0 +1,44 @@
+% ====================== Máy trạng thái Pull Request (TikZ) =================
+\begin{figure}[H]
+\centering
+\resizebox{0.92\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small, node distance=2.0cm,
+  st/.style={draw=sgBlue, fill=sgCream, rounded corners, minimum height=0.95cm,
+             minimum width=2.4cm, align=center, font=\sffamily\footnotesize},
+  term/.style={st, fill=green!12, draw=sgAccent},
+  cancel/.style={st, fill=red!10, draw=red!60},
+  arr/.style={-{Latex[length=2mm]}, draw=sgBlue, thick, font=\sffamily\scriptsize},
+]
+\node[st] (open) {OPEN\\\scriptsize đang mở};
+\node[term, right=of open] (merged) {MERGED\\\scriptsize đã merge};
+\node[cancel, below=1.4cm of merged] (closed) {CLOSED\\\scriptsize đã đóng};
+
+\draw[arr] (open) -- node[above, midway]{merge} (merged);
+\draw[arr] (open) to[bend right=15] node[below, near start]{close} (closed);
+\draw[arr] (closed) to[bend right=15] node[above, near end]{reopen} (open);
+\draw[arr] (merged) -- node[right, midway]{revert (tạo PR mới)} (closed);
+\end{tikzpicture}}
+\caption{Máy trạng thái (FSM) vòng đời Pull Request}
+\label{fig:pr-fsm}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.7\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small, node distance=2.0cm,
+  st/.style={draw=sgBlue, fill=sgCream, rounded corners, minimum height=0.95cm,
+             minimum width=2.4cm, align=center, font=\sffamily\footnotesize},
+  cancel/.style={st, fill=red!10, draw=red!60},
+  arr/.style={-{Latex[length=2mm]}, draw=sgBlue, thick, font=\sffamily\scriptsize},
+]
+\node[st] (open) {OPEN\\\scriptsize đang mở};
+\node[cancel, right=of open] (closed) {CLOSED\\\scriptsize đã đóng};
+
+\draw[arr] (open) to[bend left=15] node[above, midway]{close (lý do)} (closed);
+\draw[arr] (closed) to[bend left=15] node[below, midway]{reopen} (open);
+\end{tikzpicture}}
+\caption{Máy trạng thái (FSM) vòng đời Issue (lý do đóng: COMPLETED / NOT\_PLANNED / DUPLICATE)}
+\label{fig:issue-fsm}
+\end{figure}

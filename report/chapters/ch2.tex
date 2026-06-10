@@ -1,0 +1,136 @@
+\chapter{Cơ sở lý thuyết}
+
+Chương này trình bày các kiến thức nền tảng và cơ sở lý thuyết về các công nghệ, ngôn ngữ lập trình, kiến trúc hệ thống và hạ tầng được áp dụng để xây dựng nền tảng Synergit. Đặc biệt, chương dành phần riêng để giới thiệu Git internals và giao thức Git Smart HTTP -- nền tảng nghiệp vụ cốt lõi của một hệ thống quản lý mã nguồn.
+
+\section{Git và quản lý phiên bản phân tán}
+
+\subsection{Hệ thống quản lý phiên bản phân tán (DVCS)}
+\textbf{Git} là một hệ thống quản lý phiên bản phân tán (Distributed Version Control System -- DVCS) được Linus Torvalds phát triển năm 2005 để phục vụ việc phát triển nhân Linux. Khác với các hệ thống quản lý phiên bản tập trung trước đây (CVS, Subversion) -- nơi chỉ một máy chủ duy nhất giữ lịch sử thay đổi -- Git cho phép \textit{mỗi bản sao (clone)} của kho mã nguồn đều là một bản sao đầy đủ của lịch sử. Đặc tính phân tán này cho phép người dùng làm việc ngoại tuyến, đồng thời tạo ra nhiều mô hình cộng tác mới, trong đó nổi bật nhất là mô hình ``pull request'' do GitHub phổ biến.
+
+\subsection{Mô hình đối tượng của Git}
+Bên dưới mỗi kho Git (\texttt{.git/}) là một cơ sở dữ liệu đối tượng dạng đồ thị có hướng không chu trình (DAG). Có bốn loại đối tượng cơ bản, mỗi đối tượng được định danh bằng một mã băm \textbf{SHA-1} (40 ký tự hex):
+
+\begin{itemize}
+\item \textbf{Blob (Binary Large Object):} đại diện cho nội dung của một file (không có tên file, chỉ có nội dung).
+\item \textbf{Tree:} đại diện cho một thư mục, gồm danh sách các entry (\textit{tên} $\to$ \textit{blob/tree con}).
+\item \textbf{Commit:} đại diện cho một snapshot, chứa: tham chiếu tới một tree gốc, danh sách parent commit (0 -- nhiều), thông tin tác giả, người commit, thời gian, message.
+\item \textbf{Tag:} đại diện cho một nhãn dán không thể thay đổi trỏ tới một commit (ví dụ \texttt{v1.0.0}).
+\end{itemize}
+
+\textit{Branch} (nhánh) trong Git đơn giản chỉ là một con trỏ trỏ tới một commit; \textit{HEAD} là con trỏ trỏ tới branch hiện tại. Khi bạn commit, Git tạo một commit mới có parent là commit hiện tại, rồi cập nhật con trỏ branch để trỏ tới commit mới này.
+
+\subsection{Giao thức Git Smart HTTP}
+Để client (\texttt{git clone}, \texttt{git push}\ldots) trao đổi dữ liệu với máy chủ, Git định nghĩa một số giao thức truyền tải; trong đó \textbf{Smart HTTP} là giao thức được dùng phổ biến nhất hiện nay (qua HTTPS). Giao thức này gồm ba endpoint:
+
+\begin{itemize}
+\item \texttt{GET /<repo>/info/refs?service=<service>}: trả về danh sách ref hiện có trên máy chủ (advertise refs). \texttt{service} có thể là \texttt{git-upload-pack} (cho clone/fetch) hoặc \texttt{git-receive-pack} (cho push).
+\item \texttt{POST /<repo>/git-upload-pack}: client gửi danh sách ref cần lấy, server gửi packfile chứa các đối tượng còn thiếu (phục vụ \texttt{git clone}, \texttt{git fetch}, \texttt{git pull}).
+\item \texttt{POST /<repo>/git-receive-pack}: client gửi packfile chứa commit mới + cập nhật ref, server áp dụng cập nhật (phục vụ \texttt{git push}).
+\end{itemize}
+
+Synergit hiện thực ba endpoint này ở dịch vụ \textit{GitStorage}, sử dụng thư viện \texttt{go-git/v5} để parse và sinh packfile theo đúng giao thức.
+
+\subsection{Thư viện go-git}
+\texttt{go-git} là thư viện Git thuần Go, không phụ thuộc vào binary \texttt{git} của hệ điều hành. Thư viện cho phép thao tác với toàn bộ object database, refs, packfile, blame, diff\ldots ở mức API. Synergit sử dụng \texttt{go-git} để hiện thực: \texttt{InitBareRepo}, đọc tree/blob, log/commit/diff, tạo/đổi tên/xoá branch, tạo commit qua giao diện web (commit file change), merge và revert hai branch, phát hiện và giải quyết xung đột.
+
+\section{Công nghệ phát triển giao diện người dùng (Frontend)}
+
+\subsection{React và TypeScript}
+\begin{itemize}
+\item \textbf{React 19:} Là thư viện nền tảng để xây dựng giao diện theo hướng thành phần (component-based). Mô hình khai báo (declarative) cùng cơ chế Virtual DOM giúp giao diện cập nhật hiệu quả khi trạng thái thay đổi, đặc biệt phù hợp với các màn hình nhiều tương tác như code browser, diff viewer hay danh sách pull request có nhiều bộ lọc.
+\item \textbf{TypeScript 5:} Được dùng làm ngôn ngữ chủ đạo thay cho JavaScript thuần. TypeScript cung cấp hệ thống kiểm tra kiểu tĩnh, giúp định nghĩa chặt chẽ cấu trúc dữ liệu (Repository, PullRequest, Issue, Commit\ldots) chia sẻ giữa các thành phần giao diện và lớp \texttt{services/api}, giảm thiểu lỗi lúc chạy và hỗ trợ tái cấu trúc mã nguồn an toàn.
+\end{itemize}
+
+\subsection{Vite}
+\textbf{Vite 6} là công cụ build cho ứng dụng web hiện đại, sử dụng ES modules tự nhiên trong môi trường phát triển và Rollup khi đóng gói cho production. So với các công cụ truyền thống, Vite có thời gian khởi động nhanh (cold start) và Hot Module Replacement (HMR) tức thời, rất phù hợp cho dự án có nhiều thành phần như Synergit.
+
+\subsection{Tailwind CSS}
+\textbf{Tailwind CSS 4} là một framework CSS theo triết lý \textit{utility-first}: thay vì viết các tệp CSS dài và khó bảo trì, Tailwind cung cấp các lớp tiện ích nguyên tử để kiểm soát thuộc tính hiển thị trực tiếp trong JSX. Synergit dùng Tailwind để xây dựng hệ thống thiết kế nhất quán với GitHub, đồng thời áp dụng \textit{CSS variables} để cho phép chuyển đổi giữa giao diện sáng và tối thuận tiện.
+
+\subsection{Octicons và Lucide}
+Synergit kết hợp hai bộ icon: \textbf{Lucide} (bộ icon mở phổ biến) cho các thao tác chung, và \textbf{Octicons} (icon do GitHub thiết kế) cho các thao tác đặc trưng của một hệ thống quản lý mã nguồn (commit, branch, pull request, issue\ldots). Các icon được vẽ thuần SVG để bảo đảm hiển thị sắc nét ở mọi độ phân giải.
+
+\section{Công nghệ phát triển hệ thống (Backend)}
+
+\subsection{Ngôn ngữ Go và framework Gin}
+\begin{itemize}
+\item \textbf{Go (Golang) 1.22:} Backend được xây dựng bằng Go nhờ hiệu năng cao, mô hình đồng thời (concurrency) mạnh mẽ qua goroutine, biên dịch ra một tệp nhị phân tĩnh duy nhất rất thuận tiện cho việc đóng gói Docker. Go đặc biệt phù hợp cho các dịch vụ web cần xử lý nhiều kết nối đồng thời và các tác vụ I/O nặng (đọc/ghi packfile của Git).
+\item \textbf{Gin:} Là web framework HTTP hiệu năng cao cho Go. Gin cung cấp router nhanh, cơ chế middleware linh hoạt (dùng cho RequestID, ghi log, xác thực JWT, CORS) và binding/validation cho dữ liệu request. Mỗi dịch vụ trong Synergit (Gateway, Core, GitStorage, Insights) đều sử dụng Gin để phơi các endpoint HTTP.
+\end{itemize}
+
+\subsection{Truy cập dữ liệu: database/sql + lib/pq}
+Synergit dùng gói \texttt{database/sql} chuẩn của Go kết hợp với driver \texttt{lib/pq} (cho PostgreSQL). Cách tiếp cận này giữ được sự đơn giản và minh bạch của SQL: mọi truy vấn được viết tay, tận dụng tối đa các tính năng của PostgreSQL (CTE, partial index, window function\ldots), đồng thời lập trình viên có toàn quyền kiểm soát plan thực thi. Mỗi adapter postgres trong tầng \textit{adapter} của Clean Architecture là một struct giữ \texttt{*sql.DB} và phơi các phương thức tương ứng với interface \textit{port} của miền nghiệp vụ.
+
+\subsection{go-git: thao tác Git ở mức object}
+Như đã giới thiệu ở mục 2.1, thư viện \textbf{go-git/v5} là cốt lõi của dịch vụ GitStorage. Thư viện cho phép Synergit hiện thực toàn bộ các thao tác Git thuần Go (không cần shell-out tới binary \texttt{git}), từ đó dễ dàng đóng gói thành một binary tĩnh và triển khai bằng Docker.
+
+\section{Hệ quản trị Cơ sở dữ liệu}
+\textbf{PostgreSQL 16} được lựa chọn làm hệ quản trị cơ sở dữ liệu nhờ tuân thủ nguyên tắc ACID (tính nguyên tố, nhất quán, độc lập, bền vững), hỗ trợ tốt các kiểu dữ liệu phong phú (UUID, JSONB, NUMERIC, TIMESTAMPTZ) và các truy vấn quan hệ phức tạp.
+
+Một điểm thiết kế đặc trưng của Synergit là sử dụng \textit{schema-per-service}: tuy chỉ có một cơ sở dữ liệu PostgreSQL, mỗi dịch vụ sở hữu một \textit{schema} riêng:
+\begin{itemize}
+\item \texttt{core}: chứa toàn bộ bảng nghiệp vụ chính (\texttt{users}, \texttt{repositories}, \texttt{repository\_collaborators}, \texttt{pull\_requests}, \texttt{pull\_request\_*}, \texttt{issues}, \texttt{issue\_*}, \texttt{labels}, \texttt{repo\_stars}). Dịch vụ \textit{Core} là chủ sở hữu duy nhất, chỉ Core được phép ghi.
+\item \texttt{insights}: chứa bảng \texttt{repo\_insights} lưu snapshot kết quả tính toán phân tích. Dịch vụ \textit{Insights} sở hữu, đồng thời được phép \textit{đọc} các bảng của \texttt{core} (đây là ngoại lệ duy nhất so với nguyên tắc cô lập tuyệt đối -- vì Insights tổng hợp dữ liệu từ nhiều bảng nghiệp vụ).
+\end{itemize}
+
+Cách phân tách này phản ánh trực tiếp ranh giới microservice ở tầng dữ liệu, giúp tránh việc một dịch vụ vô tình ghi vào bảng của dịch vụ khác. Các tham chiếu giữa các schema (nếu có) là \textit{tham chiếu mềm} (không đặt khoá ngoại xuyên schema) để giữ tính độc lập.
+
+\section{Kiến trúc Microservices và DDD}
+
+\subsection{Microservices: triết lý GitHub}
+GitHub được biết tới như một ứng dụng có quy mô khổng lồ, nhưng kiến trúc của nó không phải là ``tất cả là microservice''. Theo các bài blog kỹ thuật của GitHub, công ty này áp dụng một mô hình \textit{hybrid} mà họ gọi là \textbf{``Majestic Monolith + Strategic Services''}:
+
+\begin{itemize}
+\item Phần lớn nghiệp vụ vẫn nằm trong một ứng dụng Ruby on Rails khổng lồ (kho \texttt{github/github}), gọi là ``majestic monolith''.
+\item Chỉ những phần có \textit{áp lực kỹ thuật rõ ràng} -- routing Git nặng I/O, code search nặng CPU, syntax highlighting -- mới được \textit{tách} ra thành microservice riêng (thường viết bằng Go hoặc Rust để tận dụng concurrency và bare-metal performance).
+\end{itemize}
+
+Triết lý cốt lõi: \textit{``Extract for scale, not for trend''} -- chỉ tách dịch vụ khi gặp giới hạn kỹ thuật cứng, không tách theo trào lưu. Điều này đối lập với các nhóm áp dụng máy móc ``tất cả là microservice''. Synergit thừa hưởng triết lý này: hệ thống chỉ có 4 binary (Gateway, Core, GitStorage, Insights), trong đó Core là ``majestic monolith'' chứa phần lớn nghiệp vụ; GitStorage và Insights được tách vì có lý do kỹ thuật rõ ràng.
+
+\subsection{Domain-Driven Design (DDD) và Bounded Context}
+\textbf{Domain-Driven Design (DDD)} là cách tiếp cận thiết kế phần mềm do Eric Evans đề xuất, đặt trọng tâm vào \textit{miền nghiệp vụ} (business domain). Một khái niệm trung tâm của DDD là \textit{bounded context} -- ranh giới ngữ cảnh, nơi một mô hình ngữ nghĩa nhất quán tồn tại độc lập với các ngữ cảnh khác. Trong Synergit, các bounded context được nhận diện rõ ràng:
+
+\begin{itemize}
+\item \textbf{Identity \& Access}: \texttt{User}, \texttt{auth}, JWT, bcrypt, user settings.
+\item \textbf{Repository Catalog}: \texttt{Repo}, \texttt{Collaborator}, \texttt{Star} (siêu dữ liệu về repo trong DB).
+\item \textbf{Git Storage}: \texttt{Branch}, \texttt{Commit}, \texttt{File}, \texttt{Diff} (thao tác Git trên hệ thống tệp).
+\item \textbf{Pull Requests}: \texttt{PullRequest}, \texttt{PullRequestEvent}, label, assignee.
+\item \textbf{Issues}: \texttt{Issue}, \texttt{IssueComment}, \texttt{IssueEvent}, label, assignee.
+\item \textbf{Insights}: \texttt{RepoInsightsSnapshot}, \texttt{ProfileActivity}.
+\end{itemize}
+
+Việc tách microservice trong Synergit dựa chính xác trên các bounded context này: GitStorage tách riêng vì là context có tính chất kỹ thuật khác biệt (I/O hệ thống tệp); Insights tách riêng vì context phân tích/CPU-bound; các context còn lại được giữ chung trong Core để giảm độ phức tạp vận hành.
+
+\subsection{Clean Architecture (Hexagonal / Ports \& Adapters)}
+\textbf{Clean Architecture} (do Robert C. Martin đề xuất, còn gọi là \textit{Hexagonal} hay \textit{Ports \& Adapters} của Alistair Cockburn) tổ chức mã nguồn theo các vòng đồng tâm với \textit{quy tắc phụ thuộc} (dependency rule): các vòng bên trong không được phụ thuộc vào các vòng bên ngoài. Synergit áp dụng kiến trúc này trong từng dịch vụ:
+
+\begin{itemize}
+\item \textbf{Tầng Domain (\texttt{internal/core/domain/}):} Các thực thể nghiệp vụ thuần Go (\texttt{User}, \texttt{Repo}, \texttt{PullRequest}, \texttt{Issue}\ldots) cùng các hàm validate. Không phụ thuộc vào bất cứ thứ gì bên ngoài.
+\item \textbf{Tầng Port (\texttt{internal/core/port/}):} Các interface mô tả \textit{cách} usecase tương tác với thế giới bên ngoài: \texttt{GitManager} (thao tác Git), \texttt{RepoRepository} (lưu trữ dữ liệu repo)\ldots Đây là các ``cổng'' (port) mà adapter cần hiện thực.
+\item \textbf{Tầng Usecase (\texttt{internal/core/usecase/}):} Logic nghiệp vụ thuần. Mỗi usecase phụ thuộc vào các port (interface), không biết về implementation cụ thể.
+\item \textbf{Tầng Adapter (\texttt{internal/adapter/}):} Hiện thực các port: PostgreSQL adapter, Local Git adapter (cho dịch vụ GitStorage), HTTP client adapter (cho dịch vụ Core/Insights gọi GitStorage), HTTP handler (Gin handler -- adapter ngược, đưa request từ ngoài vào usecase).
+\end{itemize}
+
+Lợi ích lớn nhất của Clean Architecture đối với việc tách microservice: khi tách dịch vụ GitStorage ra, dịch vụ Core không cần thay đổi \textit{usecase} nào -- chỉ cần thay \texttt{LocalGitAdapter} bằng một \texttt{GitStorageHTTPClient} (cũng hiện thực interface \texttt{GitManager}) là xong. Logic nghiệp vụ hoàn toàn không biết là Git được thao tác cục bộ hay qua HTTP.
+
+\subsection{API Gateway}
+\textbf{API Gateway} là một lớp đứng giữa client và các dịch vụ backend, đóng vai trò ``cửa vào duy nhất''. Trong Synergit, Gateway là một dịch vụ Go nhỏ dùng \texttt{net/http/httputil.ReverseProxy} để định tuyến request theo prefix đường dẫn:
+
+\begin{itemize}
+\item \texttt{/api/v1/insights/*} và \texttt{/api/v1/profile/activity} $\rightarrow$ Insights service.
+\item \texttt{/api/v1/git/*} và các đường Git Smart HTTP $\rightarrow$ GitStorage service.
+\item Phần còn lại $\rightarrow$ Core service.
+\end{itemize}
+
+Nhờ Gateway, frontend chỉ cần biết một URL (ví dụ \texttt{http://localhost:8080}), không cần biết về số lượng và vị trí các dịch vụ backend. Đây cũng là điểm tập trung CORS, rate limit, và (trong tương lai) cache HTTP.
+
+\section{Cơ chế xác thực và Bảo mật hệ thống}
+\begin{itemize}
+\item \textbf{Xác thực bằng JWT (HMAC-SHA256):} Hệ thống sử dụng JSON Web Token với thuật toán HMAC để quản lý đăng nhập. Khi đăng nhập thành công, dịch vụ Core cấp một token đã ký chứa thông tin định danh người dùng (\texttt{user\_id}, \texttt{username}) và thời hạn (7 ngày). Client gửi kèm token này trong header \texttt{Authorization: Bearer ...} trên mỗi request. Cơ chế \textit{stateless} này giúp hệ thống dễ mở rộng lên nhiều dịch vụ.
+\item \textbf{Chia sẻ secret giữa các dịch vụ:} Tất cả 3 dịch vụ backend (Core, GitStorage, Insights) đều cấu hình cùng một biến môi trường \texttt{JWT\_SECRET}, và mỗi dịch vụ \textit{tự xác thực token cục bộ} qua middleware. Cách làm này tránh việc mỗi dịch vụ phải gọi tới Core để xác thực (giảm độ trễ và phụ thuộc).
+\item \textbf{Issue lại token khi đổi username:} Vì JWT chứa username, khi người dùng đổi tên đăng nhập, dịch vụ Core sẽ phát hành token mới với username mới và frontend lưu lại trước khi reload, tránh việc giao diện hiển thị nhầm tên cũ.
+\item \textbf{Băm mật khẩu:} Mật khẩu người dùng được băm một chiều bằng \textbf{bcrypt} trước khi lưu vào bảng \texttt{users}, không bao giờ lưu mật khẩu thô. bcrypt có chi phí điều chỉnh được (cost factor) và sinh \textit{salt} ngẫu nhiên cho mỗi mật khẩu, chống được tấn công \textit{rainbow table}.
+\item \textbf{Phân quyền dựa trên vai trò Collaborator:} Hệ thống định nghĩa ba vai trò trong một repository: \texttt{OWNER}, \texttt{MAINTAINER}, \texttt{WRITE}. Các thao tác như xoá repo, đổi visibility, gỡ collaborator chỉ cho phép \texttt{OWNER}; merge PR cho phép \texttt{OWNER}/\texttt{MAINTAINER}; commit/push được phép cho cả \texttt{WRITE}.
+\item \textbf{Visibility của repository:} Repository ở chế độ \texttt{PRIVATE} chỉ hiển thị cho chủ sở hữu và các collaborator; repository \texttt{PUBLIC} hiển thị cho tất cả người dùng (kể cả khách chưa đăng nhập, cho thao tác đọc và clone qua Git Smart HTTP).
+\item \textbf{Các lớp bảo vệ khác:} CORS được cấu hình ở Gateway; toàn bộ giao tiếp qua HTTPS khi triển khai thực tế; validate dữ liệu đầu vào ở tầng handler để chống lỗi dữ liệu.
+\end{itemize}

@@ -1,0 +1,18 @@
+% ====================== ERD Repository Catalog =============================
+\begin{figure}[H]\centering
+\resizebox{0.95\linewidth}{!}{%
+\begin{tikzpicture}[node distance=1.0cm and 1.6cm]
+\node[erdent, text width=3.6cm] (repo) {\textbf{core.repositories}\\\hrule\vspace{1pt} id (PK)\\ name\\ path (unique)\\ description\\ visibility\\ primary\_language};
+\node[erdent, right=of repo, text width=3.6cm] (collab) {\textbf{core.repository\_\\collaborators}\\\hrule\vspace{1pt} repository\_id (PK,FK)\\ user\_id (PK,FK)\\ role (OWNER/MAINTAINER/WRITE)\\ created\_at};
+\node[erdent, right=of collab, text width=3.0cm] (star) {\textbf{core.repo\_stars}\\\hrule\vspace{1pt} user\_id (PK,FK)\\ repo\_id (PK,FK)\\ created\_at};
+\node[erdent, below=of repo, text width=3.4cm] (label) {\textbf{core.labels}\\\hrule\vspace{1pt} id (PK)\\ repo\_id (FK)\\ name\\ color\\ description};
+\node[erdext, below=of star] (users) {core.users\\(cùng schema)};
+
+\draw[erdrel] (repo) -- (collab) node[erdcard,midway]{1..n};
+\draw[erdrel] (repo) -- (label) node[erdcard,midway]{1..n};
+\draw[erdrel] (repo.south east) to[bend left=10] node[erdcard,midway,below]{1..n} (star.south west);
+\draw[erdrel] (collab.south) -- node[erdcard,midway]{n..1} (users.north);
+\draw[erdrel] (star.south) -- (users.north east);
+\end{tikzpicture}}
+\caption{ERD bounded context Repository Catalog (\texttt{repositories}, \texttt{collaborators}, \texttt{labels}, \texttt{stars})}\label{fig:erd-repo}
+\end{figure}

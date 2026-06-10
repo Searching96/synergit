@@ -1,0 +1,355 @@
+% ====================== Đặc tả các Usecase chính ============================
+
+\paragraph{UC-01: Đăng ký tài khoản}
+\begin{ucspec}{uc01}{Đặc tả Usecase Đăng ký tài khoản}
+Use Case ID & UC-01 \\\hline
+Tên Usecase & Đăng ký tài khoản \\\hline
+Mô tả & Khách tạo tài khoản mới bằng tên đăng nhập và mật khẩu. \\\hline
+Tác nhân & Khách (Guest) \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Tên đăng nhập và email chưa tồn tại trong hệ thống. \\\hline
+Hậu điều kiện & Tài khoản được tạo, người dùng có thể đăng nhập ngay lập tức. \\\hline
+Luồng chính &
+1. Khách nhập tên đăng nhập, email, mật khẩu (tối thiểu 6 ký tự).\newline
+2. Hệ thống kiểm tra hợp lệ (username/email chưa tồn tại, mật khẩu đủ mạnh, email có ký tự ``@'').\newline
+3. Hệ thống băm mật khẩu (bcrypt) và lưu bản ghi mới vào \texttt{core.users}.\newline
+4. Trả về thông báo thành công; chuyển sang trang đăng nhập (UC-02). \\\hline
+Luồng ngoại lệ & A1: Username/email đã tồn tại $\rightarrow$ báo lỗi và đề nghị đăng nhập.\newline A2: Mật khẩu yếu (< 6 ký tự) $\rightarrow$ hiển thị yêu cầu cụ thể. \\\hline
+\end{ucspec}
+
+\paragraph{UC-02: Đăng nhập}
+\begin{ucspec}{uc02}{Đặc tả Usecase Đăng nhập}
+Use Case ID & UC-02 \\\hline
+Tên Usecase & Đăng nhập \\\hline
+Mô tả & Người dùng đăng nhập bằng tên đăng nhập/email và mật khẩu để nhận JWT. \\\hline
+Tác nhân & Người dùng đã đăng ký \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Tài khoản đã tồn tại. \\\hline
+Hậu điều kiện & Người dùng nhận được JWT, lưu trên client; được chuyển tới dashboard. \\\hline
+Luồng chính &
+1. Người dùng nhập username (hoặc email) và mật khẩu.\newline
+2. Hệ thống tìm bản ghi trong \texttt{core.users} và so khớp \texttt{password\_hash} bằng bcrypt.\newline
+3. Nếu hợp lệ, sinh JWT (HMAC-SHA256, hạn 7 ngày) chứa \texttt{user\_id} và \texttt{username}.\newline
+4. Trả token cho client; client lưu vào \texttt{localStorage} và đính kèm header \texttt{Authorization: Bearer ...} cho mọi request sau đó.\newline
+5. Chuyển hướng tới dashboard repository. \\\hline
+Luồng ngoại lệ & A1: Sai username/mật khẩu $\rightarrow$ báo lỗi chung (không tiết lộ trường nào sai). \\\hline
+\end{ucspec}
+
+\paragraph{UC-03: Đổi tên đăng nhập}
+\begin{ucspec}{uc03}{Đặc tả Usecase Đổi tên đăng nhập}
+Use Case ID & UC-03 \\\hline
+Tên Usecase & Đổi tên đăng nhập \\\hline
+Mô tả & Người dùng đổi username; hệ thống đổi tên thư mục lưu repo và phát hành JWT mới. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Trung bình \\\hline
+Tiền điều kiện & Người dùng đã đăng nhập; username mới chưa tồn tại. \\\hline
+Hậu điều kiện & Username được cập nhật ở DB, hệ thống tệp, và trong JWT. \\\hline
+Luồng chính &
+1. Người dùng vào trang Settings, nhập username mới.\newline
+2. Core kiểm tra username mới chưa tồn tại trong \texttt{core.users}.\newline
+3. Cập nhật \texttt{core.users.username} cho user.\newline
+4. Cập nhật cột \texttt{path} của các bản ghi trong \texttt{core.repositories} (thay tiền tố \texttt{<old>/} bằng \texttt{<new>/}).\newline
+5. Gọi GitStorage qua HTTP (\texttt{POST /git/users/:old/rename}) để đổi tên thư mục \texttt{<gitRoot>\textbackslash<old>\textbackslash}~$\rightarrow$~\texttt{<gitRoot>\textbackslash<new>\textbackslash}.\newline
+6. Phát hành JWT mới chứa username mới và trả về client.\newline
+7. Client lưu JWT mới vào \texttt{localStorage} và reload trang. \\\hline
+Luồng ngoại lệ & A1: Username mới đã tồn tại $\rightarrow$ HTTP 409 Conflict.\newline A2: Username quá ngắn (< 3 ký tự) $\rightarrow$ HTTP 400 Bad Request. \\\hline
+\end{ucspec}
+
+\paragraph{UC-04: Tạo repository}
+\begin{ucspec}{uc04}{Đặc tả Usecase Tạo repository}
+Use Case ID & UC-04 \\\hline
+Tên Usecase & Tạo repository \\\hline
+Mô tả & Người dùng tạo repository mới với tuỳ chọn khởi tạo README/.gitignore/LICENSE. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Người dùng đã đăng nhập; repo cùng tên chưa tồn tại trong tài khoản. \\\hline
+Hậu điều kiện & Repo được tạo trong DB và trên hệ thống tệp; user là OWNER; nếu chọn khởi tạo, repo có commit đầu tiên. \\\hline
+Luồng chính &
+1. Người dùng nhập tên repo, mô tả, chọn visibility (PUBLIC/PRIVATE), bật/tắt khởi tạo README và chọn .gitignore/LICENSE template.\newline
+2. Core kiểm tra hợp lệ: tên không rỗng, không trùng với repo khác cùng owner.\newline
+3. Core gọi GitStorage \texttt{InitBareRepo(<owner>/<name>)} để tạo bare repository trên hệ thống tệp.\newline
+4. Nếu chọn khởi tạo, Core gọi GitStorage \texttt{BootstrapRepository} với danh sách file ban đầu (README, .gitignore, LICENSE) và message \texttt{Initial commit}.\newline
+5. Core ghi bản ghi vào \texttt{core.repositories} và \texttt{core.repository\_collaborators} (vai trò OWNER).\newline
+6. Core seed 9 label mặc định kiểu GitHub vào \texttt{core.labels}.\newline
+7. Core trigger Insights tính lần đầu (background, không chặn).\newline
+8. Trả về thông tin repo, frontend chuyển tới trang Code của repo. \\\hline
+Luồng ngoại lệ & A1: Tên repo trùng $\rightarrow$ HTTP 409.\newline A2: Tên rỗng/không hợp lệ $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-06: Push/Clone/Pull qua Git Smart HTTP}
+\begin{ucspec}{uc06}{Đặc tả Usecase Push/Clone/Pull qua Git Smart HTTP}
+Use Case ID & UC-06 \\\hline
+Tên Usecase & Push/Clone/Pull qua Git Smart HTTP \\\hline
+Mô tả & Người dùng dùng \texttt{git} CLI tương tác với repo qua HTTP. \\\hline
+Tác nhân & Người dùng / Khách (cho repo PUBLIC, chỉ đọc) \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Repo tồn tại trên hệ thống tệp; visibility PUBLIC hoặc client có quyền (PRIVATE). \\\hline
+Hậu điều kiện & Object được trao đổi đúng giao thức Git Smart HTTP. \\\hline
+Luồng chính &
+1. Client gọi \texttt{git clone http://gateway/<owner>/<repo>.git} (hoặc \texttt{push}/\texttt{pull}).\newline
+2. Gateway nhận, định tuyến tới GitStorage.\newline
+3. GitStorage chạy theo nghiệp vụ Smart HTTP:\newline\hspace*{1em}- \texttt{GET .../info/refs?service=git-upload-pack} (hoặc \texttt{git-receive-pack}).\newline\hspace*{1em}- \texttt{POST .../git-upload-pack} hoặc \texttt{git-receive-pack}.\newline
+4. GitStorage dùng go-git để parse/sinh packfile và phản hồi.\newline
+5. Client áp dụng cập nhật (clone/checkout/push refs). \\\hline
+Luồng ngoại lệ & A1: Repo PRIVATE và không có quyền $\rightarrow$ HTTP 401.\newline A2: Repo không tồn tại $\rightarrow$ HTTP 404. \\\hline
+\end{ucspec}
+
+\paragraph{UC-07: Duyệt cây thư mục và xem nội dung file}
+\begin{ucspec}{uc07}{Đặc tả Usecase Duyệt cây thư mục và xem nội dung file}
+Use Case ID & UC-07 \\\hline
+Tên Usecase & Duyệt cây thư mục \& xem nội dung file \\\hline
+Mô tả & Người dùng duyệt cây thư mục theo branch và xem nội dung file. \\\hline
+Tác nhân & Người dùng / Khách (cho repo PUBLIC) \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Repo tồn tại; branch tồn tại. \\\hline
+Hậu điều kiện & Hiển thị danh sách entry hoặc nội dung file. \\\hline
+Luồng chính &
+1. Frontend gọi \texttt{GET /api/v1/repos/:id/tree?path=<path>\&branch=<b>}.\newline
+2. Core gọi GitStorage \texttt{GetTree(repoPath, path, branch)} qua HTTP.\newline
+3. GitStorage parse tree object qua go-git, trả về danh sách \texttt{RepoFile\{name, path, type\}}.\newline
+4. Khi nhấp file, frontend gọi \texttt{GET /api/v1/repos/:id/blob?path=<file>\&branch=<b>}.\newline
+5. GitStorage trả về nội dung blob; frontend tô màu cú pháp theo phần mở rộng. \\\hline
+Luồng ngoại lệ & A1: Path không tồn tại $\rightarrow$ HTTP 404.\newline A2: Branch không tồn tại $\rightarrow$ HTTP 404. \\\hline
+\end{ucspec}
+
+\paragraph{UC-09: Xem chi tiết commit và diff}
+\begin{ucspec}{uc09}{Đặc tả Usecase Xem chi tiết commit và diff}
+Use Case ID & UC-09 \\\hline
+Tên Usecase & Xem chi tiết commit (diff) \\\hline
+Mô tả & Người dùng xem nội dung diff của một commit theo từng file. \\\hline
+Tác nhân & Người dùng / Khách (cho repo PUBLIC) \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Commit tồn tại trong repo. \\\hline
+Hậu điều kiện & Hiển thị danh sách file thay đổi với patch unified diff. \\\hline
+Luồng chính &
+1. Frontend gọi \texttt{GET /api/v1/repos/:id/commits/:hash} để lấy thông tin commit (author, message, date).\newline
+2. Frontend gọi \texttt{GET /api/v1/repos/:id/commits/:hash/diff} để lấy danh sách \texttt{DiffFile}.\newline
+3. Core forward sang GitStorage \texttt{GetCommitDiff}.\newline
+4. GitStorage so sánh tree của commit với tree của parent (commit gốc thì so với rỗng), sinh patch unified.\newline
+5. Frontend hiển thị side-by-side hoặc unified, tô màu xanh (added) và đỏ (deleted) theo dòng. \\\hline
+Luồng ngoại lệ & A1: Commit hash không tồn tại $\rightarrow$ HTTP 404. \\\hline
+\end{ucspec}
+
+\paragraph{UC-11: Commit qua giao diện web}
+\begin{ucspec}{uc11}{Đặc tả Usecase Commit qua giao diện web}
+Use Case ID & UC-11 \\\hline
+Tên Usecase & Commit qua giao diện web \\\hline
+Mô tả & Người dùng chỉnh sửa file đơn lẻ (hoặc nhiều file) trên giao diện web rồi commit. \\\hline
+Tác nhân & Người dùng có vai trò $\geq$ WRITE \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Người dùng có quyền ghi vào repo; branch tồn tại. \\\hline
+Hậu điều kiện & Commit mới được tạo trên branch chỉ định. \\\hline
+Luồng chính &
+1. Người dùng mở file trong code browser, nhấn ``Edit'', chỉnh nội dung.\newline
+2. Người dùng nhập commit message và nhấn ``Commit changes''.\newline
+3. Frontend gọi \texttt{POST /api/v1/repos/:id/commit-file} (hoặc \texttt{/commit-files} cho nhiều file).\newline
+4. Core kiểm tra vai trò người dùng trên repo (phải $\geq$ WRITE).\newline
+5. Core gọi GitStorage \texttt{CommitFileChange(repoPath, branch, filePath, content, authorName, message)}.\newline
+6. GitStorage dùng go-git tạo blob mới, tree mới, commit mới với parent = HEAD branch hiện tại; cập nhật ref.\newline
+7. Frontend reload code browser ở branch hiện tại. \\\hline
+Luồng ngoại lệ & A1: Không có quyền ghi $\rightarrow$ HTTP 403.\newline A2: File path/Branch không tồn tại $\rightarrow$ HTTP 404. \\\hline
+\end{ucspec}
+
+\paragraph{UC-12: So sánh hai branch (compare)}
+\begin{ucspec}{uc12}{Đặc tả Usecase So sánh hai branch}
+Use Case ID & UC-12 \\\hline
+Tên Usecase & So sánh hai branch (compare) \\\hline
+Mô tả & Người dùng chọn base và head, hệ thống hiển thị các commit khác biệt và file thay đổi. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Cả hai ref (base, head) tồn tại trong repo. \\\hline
+Hậu điều kiện & Hiển thị danh sách commit, file thay đổi, summary; gợi ý mergeable. \\\hline
+Luồng chính &
+1. Người dùng vào trang Compare, chọn base (mặc định là default branch) và head.\newline
+2. Frontend gọi \texttt{GET /api/v1/repos/:id/compare?base=<b>\&head=<h>}.\newline
+3. Core gọi GitStorage \texttt{CompareRefs(repoPath, base, head)}.\newline
+4. GitStorage tính: danh sách commit của head không có trong base, danh sách file thay đổi (added/modified/deleted/renamed), summary (commits, files\_changed, additions, deletions, contributor\_count), kiểm tra khả năng merge.\newline
+5. Frontend hiển thị tab Commits, tab Files changed, summary; nút ``Create pull request'' nếu \texttt{can\_compare = true}. \\\hline
+Luồng ngoại lệ & A1: Base = head $\rightarrow$ thông báo ``There isn't anything to compare''.\newline A2: Ref không tồn tại $\rightarrow$ HTTP 404. \\\hline
+\end{ucspec}
+
+\paragraph{UC-13: Tạo Pull Request}
+\begin{ucspec}{uc13}{Đặc tả Usecase Tạo Pull Request}
+Use Case ID & UC-13 \\\hline
+Tên Usecase & Tạo Pull Request \\\hline
+Mô tả & Tạo PR từ kết quả compare; PR ở trạng thái OPEN. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Compare cho thấy có commit khác biệt; source branch khác target branch. \\\hline
+Hậu điều kiện & PR được tạo trong \texttt{core.pull\_requests}, có sự kiện \texttt{created} trong \texttt{core.pull\_request\_events}. \\\hline
+Luồng chính &
+1. Người dùng từ trang Compare nhập title, description, nhấn ``Create pull request''.\newline
+2. Frontend gọi \texttt{POST /api/v1/repos/:id/pulls} với body \{title, description, source\_branch, target\_branch\}.\newline
+3. Core validate đầu vào (title không rỗng, source $\neq$ target).\newline
+4. Core gọi GitStorage \texttt{CompareRefs} để lấy \texttt{source\_commit\_hash} và \texttt{target\_commit\_hash}.\newline
+5. Core ghi PR vào \texttt{core.pull\_requests} với trạng thái OPEN.\newline
+6. Core ghi sự kiện \texttt{created} vào \texttt{core.pull\_request\_events}.\newline
+7. Frontend chuyển tới trang chi tiết PR. \\\hline
+Luồng ngoại lệ & A1: Title rỗng $\rightarrow$ HTTP 400.\newline A2: Source = target $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-15: Merge Pull Request}
+\begin{ucspec}{uc15}{Đặc tả Usecase Merge Pull Request}
+Use Case ID & UC-15 \\\hline
+Tên Usecase & Merge Pull Request \\\hline
+Mô tả & Hợp nhất source branch của PR vào target branch. \\\hline
+Tác nhân & Người dùng có vai trò $\geq$ MAINTAINER \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & PR đang OPEN; source branch không có conflict với target. \\\hline
+Hậu điều kiện & Source branch được merge vào target; PR chuyển sang trạng thái MERGED; sự kiện \texttt{merged} được ghi. \\\hline
+Luồng chính &
+1. Người dùng nhấn nút ``Merge'' ở trang PR.\newline
+2. Frontend cho người dùng tuỳ chỉnh commit message (mặc định theo format GitHub).\newline
+3. Frontend gọi \texttt{POST /api/v1/repos/:id/pulls/:pull\_id/merge} với body \{commit\_message, commit\_description\}.\newline
+4. Core kiểm tra vai trò người dùng ($\geq$ MAINTAINER).\newline
+5. Core gọi GitStorage \texttt{CompareRefs} để xác minh khả năng merge.\newline
+6. Nếu sạch: gọi \texttt{MergeBranches(repoPath, source, target, mergerName, message)}; cập nhật trạng thái PR thành MERGED; ghi sự kiện.\newline
+7. Nếu có xung đột: trả về HTTP 409 với danh sách file conflict; frontend chuyển sang luồng resolve (UC-16). \\\hline
+Luồng ngoại lệ & A1: PR đã MERGED/CLOSED $\rightarrow$ HTTP 400.\newline A2: Không có quyền merge $\rightarrow$ HTTP 403.\newline A3: Conflict $\rightarrow$ HTTP 409, chuyển sang UC-16. \\\hline
+\end{ucspec}
+
+\paragraph{UC-16: Giải quyết xung đột merge}
+\begin{ucspec}{uc16}{Đặc tả Usecase Giải quyết xung đột merge}
+Use Case ID & UC-16 \\\hline
+Tên Usecase & Giải quyết xung đột (merge conflict) \\\hline
+Mô tả & Người dùng chỉnh sửa file xung đột trong giao diện web rồi commit nội dung đã giải quyết. \\\hline
+Tác nhân & Người dùng có vai trò $\geq$ MAINTAINER \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Merge ở UC-15 trả về conflict. \\\hline
+Hậu điều kiện & Source branch được commit nội dung đã giải quyết; PR có thể merge ở lần thử kế tiếp. \\\hline
+Luồng chính &
+1. Frontend gọi \texttt{GET /api/v1/repos/:id/pulls/:pull\_id/conflicts} để lấy danh sách file xung đột.\newline
+2. Core gọi GitStorage \texttt{GetConflictingFiles}, sau đó \texttt{GetConflictContent} cho từng file để lấy nội dung có chèn marker (\texttt{<<<<<<<}, \texttt{=======}, \texttt{>>>>>>>}).\newline
+3. Người dùng chỉnh nội dung file trong trình soạn thảo trên giao diện.\newline
+4. Frontend gửi danh sách \texttt{ConflictResolution\{path, resolved\_content\}} qua \texttt{POST .../conflicts/resolve}.\newline
+5. Core gọi GitStorage \texttt{ResolveConflictsAndCommit}; GitStorage commit nội dung lên source branch và push.\newline
+6. Người dùng quay lại nhấn ``Merge'' ở UC-15, lần này sạch. \\\hline
+Luồng ngoại lệ & A1: Resolution thiếu file $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-17: Revert Pull Request đã merge}
+\begin{ucspec}{uc17}{Đặc tả Usecase Revert Pull Request đã merge}
+Use Case ID & UC-17 \\\hline
+Tên Usecase & Revert Pull Request đã merge \\\hline
+Mô tả & Tạo branch revert và commit revert tự động cho PR đã MERGED. \\\hline
+Tác nhân & Người dùng có vai trò $\geq$ MAINTAINER \\\hline
+Độ ưu tiên & Trung bình \\\hline
+Tiền điều kiện & PR ở trạng thái MERGED. \\\hline
+Hậu điều kiện & Branch revert được tạo từ target branch của PR gốc, kèm commit revert; người dùng có thể tạo PR revert. \\\hline
+Luồng chính &
+1. Người dùng nhấn ``Revert'' trên trang PR đã merge.\newline
+2. Frontend gọi \texttt{POST /api/v1/repos/:id/pulls/:pull\_id/revert}.\newline
+3. Core lấy PR gốc, gọi GitStorage \texttt{CreateRevertBranch(target, revertBranchName, mergeCommitHash, authorName, message)}.\newline
+4. GitStorage tạo branch \texttt{revert-<pull\_number>-<source\_branch>} từ target, sinh commit revert (đảo ngược diff của merge commit).\newline
+5. Frontend chuyển tới trang Compare để người dùng tạo PR revert. \\\hline
+Luồng ngoại lệ & A1: PR chưa MERGED $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-19: Tạo Issue}
+\begin{ucspec}{uc19}{Đặc tả Usecase Tạo Issue}
+Use Case ID & UC-19 \\\hline
+Tên Usecase & Tạo Issue \\\hline
+Mô tả & Người dùng tạo issue mới cho repository. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Người dùng đã đăng nhập; có quyền truy cập repo. \\\hline
+Hậu điều kiện & Issue được tạo ở trạng thái OPEN; sự kiện \texttt{created} được ghi. \\\hline
+Luồng chính &
+1. Người dùng vào tab Issues, nhấn ``New issue''.\newline
+2. Nhập title (bắt buộc), description (Markdown).\newline
+3. Tuỳ chọn: gán label, gán assignee.\newline
+4. Frontend gọi \texttt{POST /api/v1/repos/:id/issues}.\newline
+5. Core ghi vào \texttt{core.issues}, \texttt{core.issue\_events} (\texttt{created}); nếu có label/assignee thì ghi tương ứng vào các bảng phụ.\newline
+6. Frontend chuyển tới trang chi tiết issue. \\\hline
+Luồng ngoại lệ & A1: Title rỗng $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-20: Quản lý Issue (đóng/mở/comment)}
+\begin{ucspec}{uc20}{Đặc tả Usecase Quản lý Issue}
+Use Case ID & UC-20 \\\hline
+Tên Usecase & Quản lý Issue \\\hline
+Mô tả & Người dùng comment, đóng (kèm lý do)/mở lại issue. \\\hline
+Tác nhân & Người dùng \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Issue tồn tại; người dùng có quyền truy cập repo. \\\hline
+Hậu điều kiện & Trạng thái/comment được cập nhật; sự kiện được ghi vào \texttt{core.issue\_events}. \\\hline
+Luồng chính &
+1. \textit{Comment}: người dùng nhập nội dung và nhấn ``Comment''. Frontend gọi \texttt{POST /api/v1/repos/:id/issues/:issue\_id/comments}.\newline
+2. \textit{Đóng issue}: chọn lý do COMPLETED/NOT\_PLANNED/DUPLICATE và nhấn ``Close issue''. Frontend gọi \texttt{PATCH .../issues/:issue\_id/status} với \{status: CLOSED, close\_reason: <reason>\}.\newline
+3. \textit{Mở lại}: nhấn ``Reopen''. Frontend gọi \texttt{PATCH .../issues/:issue\_id/status} với \{status: OPEN\}.\newline
+4. Core validate transition (chỉ cho chuyển nếu khác status hiện tại).\newline
+5. Core ghi sự kiện vào \texttt{core.issue\_events}. \\\hline
+Luồng ngoại lệ & A1: Đóng issue đã CLOSED $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-22: Quản lý Collaborator}
+\begin{ucspec}{uc22}{Đặc tả Usecase Quản lý Collaborator}
+Use Case ID & UC-22 \\\hline
+Tên Usecase & Quản lý Collaborator \\\hline
+Mô tả & OWNER/MAINTAINER thêm hoặc gỡ thành viên khỏi repo. \\\hline
+Tác nhân & OWNER, MAINTAINER \\\hline
+Độ ưu tiên & Cao \\\hline
+Tiền điều kiện & Người dùng có vai trò $\geq$ MAINTAINER trên repo. \\\hline
+Hậu điều kiện & Bản ghi trong \texttt{core.repository\_collaborators} được thêm/gỡ. \\\hline
+Luồng chính &
+1. \textit{Thêm}: người dùng tìm theo username, chọn vai trò OWNER/MAINTAINER/WRITE. Frontend gọi \texttt{POST /api/v1/repos/:id/collabs}.\newline
+2. Core kiểm tra vai trò người gọi và vai trò mục tiêu (chỉ OWNER mới được tạo OWNER).\newline
+3. \textit{Gỡ}: nhấn ``Remove'' trên hàng tương ứng. Frontend gọi \texttt{DELETE /api/v1/repos/:id/collabs/:user\_id}.\newline
+4. Core ghi/xoá bản ghi tương ứng. \\\hline
+Luồng ngoại lệ & A1: Vai trò không hợp lệ $\rightarrow$ HTTP 400.\newline A2: Người gọi không đủ quyền $\rightarrow$ HTTP 403.\newline A3: Tự gỡ OWNER duy nhất $\rightarrow$ HTTP 400. \\\hline
+\end{ucspec}
+
+\paragraph{UC-24: Xem Repo Insights}
+\begin{ucspec}{uc24}{Đặc tả Usecase Xem Repo Insights}
+Use Case ID & UC-24 \\\hline
+Tên Usecase & Xem Repo Insights \\\hline
+Mô tả & Hiển thị các bảng phân tích cho repository: commit trend 30 ngày, top contributors, branch activity, language breakdown. \\\hline
+Tác nhân & Người dùng / Khách (cho repo PUBLIC) \\\hline
+Độ ưu tiên & Trung bình \\\hline
+Tiền điều kiện & Repo tồn tại; insights snapshot có sẵn (hoặc được tính tự động lần đầu khi tạo repo). \\\hline
+Hậu điều kiện & Hiển thị các biểu đồ; người dùng có thể nhấn ``Recompute'' để tính lại. \\\hline
+Luồng chính &
+1. Người dùng vào tab Insights của repo.\newline
+2. Frontend gọi \texttt{GET /api/v1/repos/:id/insights}.\newline
+3. Gateway forward sang dịch vụ Insights (do prefix \texttt{/api/v1/insights} hoặc theo cấu hình).\newline
+4. Insights service đọc \texttt{insights.repo\_insights} theo \texttt{repo\_id}, trả về snapshot JSON.\newline
+5. Frontend vẽ: biểu đồ commit trend (line chart), bảng top contributors, bảng branch activity, biểu đồ tròn language breakdown. \\\hline
+Luồng ngoại lệ & A1: Chưa có snapshot $\rightarrow$ trả về null/200, frontend hiện ``Insights are being computed''. \\\hline
+\end{ucspec}
+
+\paragraph{UC-25: Recompute Insights}
+\begin{ucspec}{uc25}{Đặc tả Usecase Recompute Insights}
+Use Case ID & UC-25 \\\hline
+Tên Usecase & Recompute Insights \\\hline
+Mô tả & Người dùng yêu cầu tính lại insights cho repo. \\\hline
+Tác nhân & Người dùng có quyền truy cập repo \\\hline
+Độ ưu tiên & Thấp \\\hline
+Tiền điều kiện & Repo tồn tại. \\\hline
+Hậu điều kiện & \texttt{insights.repo\_insights} được upsert với snapshot mới. \\\hline
+Luồng chính &
+1. Người dùng nhấn ``Recompute'' trên trang Insights.\newline
+2. Frontend gọi \texttt{POST /api/v1/repos/:id/insights/recompute}.\newline
+3. Insights service:\newline\hspace*{1em}- Gọi GitStorage \texttt{GetBranches} để lấy danh sách branch.\newline\hspace*{1em}- Gọi \texttt{GetCommits} cho từng branch để lấy lịch sử.\newline\hspace*{1em}- Gọi \texttt{GetLanguageBreakdown} để lấy phân bố ngôn ngữ.\newline
+4. Insights tính: commits\_last\_30d, commit\_trend, top\_contributors, branch\_activity, primary\_language.\newline
+5. Insights upsert vào \texttt{insights.repo\_insights}.\newline
+6. Frontend reload trang Insights. \\\hline
+Luồng ngoại lệ & A1: Repo không có commit nào $\rightarrow$ snapshot rỗng. \\\hline
+\end{ucspec}
+
+\paragraph{UC-26: Xem Profile Activity}
+\begin{ucspec}{uc26}{Đặc tả Usecase Xem Profile Activity}
+Use Case ID & UC-26 \\\hline
+Tên Usecase & Xem Profile Activity \\\hline
+Mô tả & Hiển thị contribution graph 365 ngày kiểu GitHub cùng activity overview. \\\hline
+Tác nhân & Người dùng / Khách (cho profile PUBLIC) \\\hline
+Độ ưu tiên & Trung bình \\\hline
+Tiền điều kiện & User tồn tại. \\\hline
+Hậu điều kiện & Hiển thị contribution graph và các thống kê. \\\hline
+Luồng chính &
+1. Người dùng vào trang \texttt{/<username>}.\newline
+2. Frontend gọi \texttt{GET /api/v1/profile/activity?year=<year>}.\newline
+3. Gateway forward sang dịch vụ Insights.\newline
+4. Insights service:\newline\hspace*{1em}- Lấy danh sách repo của user (đọc \texttt{core.repositories} \& \texttt{core.repository\_collaborators}).\newline\hspace*{1em}- Với mỗi repo, gọi GitStorage \texttt{GetCommits} và lọc theo năm + author = user.\newline\hspace*{1em}- Tính \texttt{contribution\_days} (group by date), \texttt{total\_contributions}, \texttt{top\_repositories}.\newline\hspace*{1em}- Tính \texttt{activity\_chart}: số commit, code reviews, issues, pull requests trong năm (đọc \texttt{core.issues}, \texttt{core.pull\_requests}).\newline
+5. Frontend vẽ heatmap 7$\times$53 ô (53 tuần), tô màu theo độ đậm tương ứng số commit. \\\hline
+Luồng ngoại lệ & A1: Năm không có dữ liệu $\rightarrow$ heatmap rỗng. \\\hline
+\end{ucspec}

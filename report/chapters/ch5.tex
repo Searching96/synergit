@@ -1,0 +1,49 @@
+\chapter{Kết luận}
+
+Sau quá trình nghiên cứu, thiết kế và triển khai thực nghiệm, đề tài \textit{``Synergit -- Ứng dụng quản lý quy trình phát triển phần mềm tích hợp quản lý mã nguồn dự án áp dụng kiến trúc Microservices''} đã hoàn thành các mục tiêu đặt ra. Dự án không chỉ là một ``GitHub thu nhỏ'' về mặt tính năng (đăng ký, repository, push/pull/clone, code browser, pull request, issue, label, collaborator, star, insights, profile activity), mà còn là một mô hình tham khảo cho việc áp dụng \textit{Domain-Driven Design (DDD)} và \textit{Clean Architecture} để xây dựng một hệ thống Microservices thực dụng theo triết lý ``Majestic Monolith + Strategic Services'' của GitHub. Việc kết hợp Go + Gin ở backend, React + TypeScript + Vite ở frontend, PostgreSQL với schema-per-service và go-git ở dịch vụ GitStorage đã tạo nên một nền tảng vững chắc, đáp ứng nhu cầu của một đội phát triển nội bộ vừa và nhỏ muốn tự triển khai (self-hosted) hệ thống quản lý mã nguồn của riêng mình.
+
+\section{Ưu điểm của đồ án}
+\begin{itemize}
+\item \textbf{Tính năng cộng tác đầy đủ kiểu GitHub:} Hệ thống cung cấp toàn bộ vòng đời phát triển: tạo repository, push/clone/pull qua Git Smart HTTP, duyệt mã nguồn với syntax highlight, commit qua web, quản lý branch (kèm thông tin ahead/behind), so sánh branch (compare), pull request với event timeline, merge và revert, phát hiện và giải quyết xung đột (merge conflict) qua giao diện web, issue tracking với label/assignee/comment và lý do đóng (completed/not\_planned/duplicate), star repository, contribution graph 365 ngày kiểu GitHub.
+\item \textbf{Kiến trúc Microservices thực dụng theo triết lý GitHub:} Hệ thống được tách thành 4 binary độc lập (Gateway, Core, GitStorage, Insights) -- không tách theo trào lưu mà theo \textit{áp lực kỹ thuật rõ ràng}: GitStorage tách vì I/O nặng và sở hữu hệ thống tệp; Insights tách vì CPU-bound; Core giữ phần lớn nghiệp vụ như ``majestic monolith''. Đây là mô hình tham khảo hiếm có cho sinh viên/kỹ sư trẻ muốn học cách áp dụng microservices một cách thực dụng.
+\item \textbf{Clean Architecture cho phép tách dịch vụ thuận tiện:} Trong từng dịch vụ, mã nguồn được tổ chức theo Clean Architecture (\textit{domain} -- \textit{port} -- \textit{usecase} -- \textit{adapter}). Đặc biệt, interface \texttt{port.GitManager} là ``đường nối'' giữa Core và GitStorage: cùng một interface, GitStorage hiện thực bằng \texttt{LocalGitAdapter} (thao tác trên hệ thống tệp), Core hiện thực bằng \texttt{GitStorageHTTPClient} (gọi qua HTTP). Logic nghiệp vụ trong Core hoàn toàn không thay đổi khi chuyển từ monolith sang microservices.
+\item \textbf{API Gateway giữ frontend không đổi:} Frontend chỉ giao tiếp với một URL duy nhất; Gateway định tuyến theo prefix đường dẫn. Việc thêm dịch vụ mới hoặc tách lại dịch vụ chỉ cần đổi cấu hình Gateway, không phải sửa frontend.
+\item \textbf{Schema-per-service đảm bảo độc lập dữ liệu:} Dịch vụ Core sở hữu schema \texttt{core.*} (15 bảng), Insights sở hữu \texttt{insights.repo\_insights}; không có khoá ngoại xuyên schema; Insights được phép \textit{đọc} \texttt{core.*} với danh nghĩa rõ ràng (analytics ngoại lệ).
+\item \textbf{Bảo mật chuẩn mực:} Xác thực JWT (HMAC-SHA256) chia sẻ giữa các dịch vụ -- mỗi dịch vụ tự xác thực cục bộ, không có round-trip auth. Mật khẩu băm bằng bcrypt. Phân quyền theo vai trò collaborator (OWNER/MAINTAINER/WRITE). Repository PRIVATE chỉ owner và collaborator truy cập được kể cả qua Git Smart HTTP. Khi người dùng đổi username, hệ thống đồng bộ DB, hệ thống tệp và phát hành JWT mới trong cùng một thao tác.
+\item \textbf{Hỗ trợ Git Smart HTTP đầy đủ:} Người dùng có thể \texttt{git clone}, \texttt{git push}, \texttt{git pull}, \texttt{git fetch} với repository Synergit như với một remote bất kỳ. Cài đặt thuần Go bằng go-git, không phụ thuộc binary \texttt{git} của OS, dễ đóng gói Docker.
+\item \textbf{Giải quyết xung đột merge qua giao diện web:} Tính năng đặc thù không phải hệ thống nào cũng có. Người dùng có thể giải quyết xung đột ngay trong trình duyệt mà không cần checkout local.
+\item \textbf{Insights và Profile Activity giàu dữ liệu:} Dashboard Insights cung cấp commit trend 30 ngày, top contributors, branch activity, language breakdown. Trang Profile có Contribution Graph 365 ngày kiểu GitHub được tính chính xác từ commit log.
+\item \textbf{Vận hành đơn giản:} Chỉ 4 binary Go + 1 PostgreSQL + frontend tĩnh; có thể chạy bằng Docker Compose trên một máy phát triển. Không cần Kubernetes, service mesh, message queue hay distributed tracing -- giữ đúng triết lý ``không flashy''.
+\end{itemize}
+
+\section{Hạn chế của đồ án}
+\begin{itemize}
+\item \textbf{Chưa hỗ trợ code review chi tiết theo dòng:} Hiện hệ thống chỉ hỗ trợ comment ở mức pull request (timeline) và issue, chưa có \textit{review comment} gắn vào dòng cụ thể của file diff như GitHub -- đây là một trong những tính năng cốt lõi của review.
+\item \textbf{Chưa tích hợp CI/CD pipeline:} Hệ thống chưa có cơ chế trigger pipeline khi push/PR (như GitHub Actions). Việc tích hợp này đòi hỏi bổ sung một dịch vụ runner và một hệ thống mô tả workflow (YAML).
+\item \textbf{Webhook \& tích hợp ngoài:} Chưa có cơ chế webhook để repository thông báo cho hệ thống ngoài khi có sự kiện push/PR -- một tính năng quan trọng trong môi trường DevOps thực tế.
+\item \textbf{Insights chạy theo yêu cầu, chưa tự động:} Insights được tính lại khi người dùng nhấn ``Recompute'' (hoặc lần đầu khi tạo repo). Cần một cơ chế nền (cron + queue) để tự cập nhật khi có push mới.
+\item \textbf{Cập nhật trạng thái theo cơ chế polling:} Hiện trang PR và issue dùng polling để cập nhật trạng thái và comment mới. Với quy mô lớn hơn nên chuyển sang cơ chế thời gian thực (WebSocket/SSE) để giảm tải.
+\item \textbf{Chưa hỗ trợ nhánh được bảo vệ (protected branch):} Mọi MAINTAINER+ đều có thể merge bất kỳ PR nào. Một hệ thống thật cần \textit{branch protection rules}: yêu cầu N lần approval, kiểm tra CI pass, không cho force push\ldots
+\item \textbf{Chưa hỗ trợ tổ chức (organization) và team:} Chỉ có người dùng cá nhân; chưa hỗ trợ tổ chức nhiều thành viên với hệ thống team và quyền theo team.
+\item \textbf{Quy mô kiểm thử \& dữ liệu thực tế còn hạn chế:} Hệ thống chủ yếu được kiểm thử với dữ liệu seed; cần thêm kiểm thử hiệu năng và thử nghiệm với dữ liệu vận hành thực tế (vài chục repository, vài trăm commit) để tinh chỉnh.
+\end{itemize}
+
+\section{Hướng phát triển của đồ án}
+\begin{itemize}
+\item \textbf{Code review theo dòng:} Bổ sung \textit{review comment} gắn vào dòng cụ thể của file trong diff, kèm cơ chế approval/request changes -- để PR review trở thành một quy trình hoàn chỉnh.
+\item \textbf{CI/CD tích hợp (Synergit Actions):} Tích hợp một dịch vụ runner mới (\texttt{Runner} service) để chạy pipeline mô tả bằng YAML mỗi khi có sự kiện push/PR. Đây cũng là một bounded context tốt để tách dịch vụ riêng.
+\item \textbf{Webhook \& app integration:} Bổ sung dịch vụ \texttt{Webhooks} chuyên xử lý webhook và xếp hàng (queue) các event trước khi gửi tới hệ thống ngoài.
+\item \textbf{Tự động cập nhật Insights:} Khi có push mới, tự động enqueue một job recompute insights để dashboard luôn cập nhật.
+\item \textbf{Thời gian thực:} Thay polling bằng WebSocket/SSE cho thông báo, comment và cập nhật trạng thái PR/issue.
+\item \textbf{Branch protection và policy:} Cấu hình rule cho từng branch (PR approval, status check, không force push, không xoá), dạng JSON lưu trong DB.
+\item \textbf{Tổ chức (Organization) \& team:} Bổ sung khái niệm tổ chức (sở hữu repo), team (nhóm thành viên) và phân quyền theo team -- mở đường cho hệ thống doanh nghiệp.
+\item \textbf{Mở rộng dịch vụ Insights:} Thêm các bảng phân tích nâng cao: tốc độ merge PR (cycle time), thời gian đóng issue, churn rate (file thay đổi nhiều lần)\ldots
+\item \textbf{Hệ thống tệp phân tán cho GitStorage:} Khi quy mô tăng, có thể thay \texttt{LocalGitAdapter} bằng adapter dùng object storage (MinIO/S3) hoặc một hệ replication kiểu GitHub Spokes (3 replica/quorum).
+\item \textbf{Dark mode \& accessibility:} Hoàn thiện hệ thống thiết kế cho giao diện tối, kiểm tra a11y (alt text, ARIA, contrast).
+\end{itemize}
+
+\vspace{6pt}
+\noindent\textbf{Liên kết sản phẩm:}
+\begin{itemize}
+\item Mã nguồn: \texttt{https://github.com/Searching96/synergit}
+\end{itemize}

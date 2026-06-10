@@ -1,0 +1,142 @@
+% ====================== Đặc tả chi tiết các bảng dữ liệu =====================
+
+\subsubsection{Bảng core.users}
+\begin{dbtable}{db-users}{Chi tiết bảng core.users}
+1 & id & uuid & Khoá chính (gen\_random\_uuid).\\\hline
+2 & username & varchar(50) & Tên đăng nhập (duy nhất).\\\hline
+3 & email & varchar(255) & Email (duy nhất).\\\hline
+4 & password\_hash & varchar(255) & Mật khẩu băm bằng bcrypt.\\\hline
+5 & created\_at & timestamptz & Thời điểm đăng ký.\\\hline
+6 & updated\_at & timestamptz & Thời điểm cập nhật gần nhất (vd. đổi username).\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.repositories}
+\begin{dbtable}{db-repos}{Chi tiết bảng core.repositories}
+1 & id & uuid & Khoá chính.\\\hline
+2 & name & varchar(255) & Tên repository.\\\hline
+3 & path & varchar(1024) & Đường dẫn tương đối tới thư mục repo trên hệ thống tệp, dạng \texttt{<owner>/<name>.git} (duy nhất).\\\hline
+4 & created\_at & timestamptz & Thời điểm tạo.\\\hline
+5 & description & text & Mô tả repo.\\\hline
+6 & visibility & varchar(16) & PUBLIC / PRIVATE.\\\hline
+7 & primary\_language & varchar(64) & Ngôn ngữ chính (cập nhật bởi Insights).\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.repository\_collaborators}
+\begin{dbtable}{db-collab}{Chi tiết bảng core.repository\_collaborators}
+1 & repository\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.repositories(id)} ON DELETE CASCADE.\\\hline
+2 & user\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.users(id)} ON DELETE CASCADE.\\\hline
+3 & role & varchar(20) & Vai trò: OWNER / MAINTAINER / WRITE.\\\hline
+4 & created\_at & timestamptz & Thời điểm thêm collaborator.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.pull\_requests}
+\begin{dbtable}{db-pulls}{Chi tiết bảng core.pull\_requests}
+1 & id & uuid & Khoá chính.\\\hline
+2 & repo\_id & uuid & FK $\to$ \texttt{core.repositories(id)} ON DELETE CASCADE.\\\hline
+3 & creator\_id & uuid & FK $\to$ \texttt{core.users(id)}.\\\hline
+4 & title & varchar(255) & Tiêu đề PR.\\\hline
+5 & description & text & Mô tả PR (Markdown).\\\hline
+6 & source\_branch & varchar(255) & Branch nguồn (head).\\\hline
+7 & target\_branch & varchar(255) & Branch đích (base).\\\hline
+8 & source\_commit\_hash & varchar(64) & SHA-1 commit head ở thời điểm tạo PR.\\\hline
+9 & target\_commit\_hash & varchar(64) & SHA-1 commit base ở thời điểm tạo PR.\\\hline
+10 & status & varchar(16) & OPEN / MERGED / CLOSED.\\\hline
+11 & created\_at & timestamptz & Thời điểm tạo PR.\\\hline
+12 & updated\_at & timestamptz & Thời điểm cập nhật trạng thái cuối.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.pull\_request\_events}
+\begin{dbtable}{db-prevents}{Chi tiết bảng core.pull\_request\_events}
+1 & id & uuid & Khoá chính.\\\hline
+2 & pull\_request\_id & uuid & FK $\to$ \texttt{core.pull\_requests(id)} ON DELETE CASCADE.\\\hline
+3 & actor\_id & uuid & FK $\to$ \texttt{core.users(id)}.\\\hline
+4 & event\_type & varchar(32) & Loại sự kiện: created / merged / closed / reopened / commented \ldots\\\hline
+5 & created\_at & timestamptz & Thời điểm sự kiện.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.pull\_request\_labels}
+\begin{dbtable}{db-prlabel}{Chi tiết bảng core.pull\_request\_labels}
+1 & pull\_request\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.pull\_requests(id)} ON DELETE CASCADE.\\\hline
+2 & label\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.labels(id)} ON DELETE CASCADE.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.pull\_request\_assignees}
+\begin{dbtable}{db-prassign}{Chi tiết bảng core.pull\_request\_assignees}
+1 & pull\_request\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.pull\_requests(id)} ON DELETE CASCADE.\\\hline
+2 & user\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.users(id)} ON DELETE CASCADE.\\\hline
+3 & assigned\_at & timestamptz & Thời điểm gán.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.issues}
+\begin{dbtable}{db-issues}{Chi tiết bảng core.issues}
+1 & id & uuid & Khoá chính.\\\hline
+2 & repo\_id & uuid & FK $\to$ \texttt{core.repositories(id)} ON DELETE CASCADE.\\\hline
+3 & creator\_id & uuid & FK $\to$ \texttt{core.users(id)}.\\\hline
+4 & title & text & Tiêu đề issue.\\\hline
+5 & description & text & Mô tả issue (Markdown).\\\hline
+6 & status & varchar(16) & OPEN / CLOSED.\\\hline
+7 & close\_reason & varchar(24) & COMPLETED / NOT\_PLANNED / DUPLICATE (NULL nếu OPEN).\\\hline
+8 & created\_at & timestamptz & Thời điểm tạo.\\\hline
+9 & updated\_at & timestamptz & Thời điểm cập nhật trạng thái cuối.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.issue\_assignees}
+\begin{dbtable}{db-issueassign}{Chi tiết bảng core.issue\_assignees}
+1 & issue\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.issues(id)} ON DELETE CASCADE.\\\hline
+2 & user\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.users(id)} ON DELETE CASCADE.\\\hline
+3 & assigned\_at & timestamptz & Thời điểm gán.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.issue\_events}
+\begin{dbtable}{db-issueevents}{Chi tiết bảng core.issue\_events}
+1 & id & uuid & Khoá chính.\\\hline
+2 & issue\_id & uuid & FK $\to$ \texttt{core.issues(id)} ON DELETE CASCADE.\\\hline
+3 & actor\_id & uuid & FK $\to$ \texttt{core.users(id)}.\\\hline
+4 & event\_type & varchar(32) & Loại sự kiện: created / closed / reopened / commented / labeled / assigned \ldots\\\hline
+5 & created\_at & timestamptz & Thời điểm sự kiện.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.issue\_comments}
+\begin{dbtable}{db-issuecmt}{Chi tiết bảng core.issue\_comments}
+1 & id & uuid & Khoá chính.\\\hline
+2 & issue\_id & uuid & FK $\to$ \texttt{core.issues(id)} ON DELETE CASCADE.\\\hline
+3 & author\_id & uuid & FK $\to$ \texttt{core.users(id)}.\\\hline
+4 & body & text & Nội dung comment (Markdown).\\\hline
+5 & created\_at & timestamptz & Thời điểm comment.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.issue\_labels}
+\begin{dbtable}{db-issuelabel}{Chi tiết bảng core.issue\_labels}
+1 & issue\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.issues(id)} ON DELETE CASCADE.\\\hline
+2 & label\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.labels(id)} ON DELETE CASCADE.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.labels}
+\begin{dbtable}{db-labels}{Chi tiết bảng core.labels}
+1 & id & uuid & Khoá chính.\\\hline
+2 & repo\_id & uuid & FK $\to$ \texttt{core.repositories(id)} ON DELETE CASCADE.\\\hline
+3 & name & varchar(50) & Tên label (duy nhất trong cùng repo).\\\hline
+4 & color & varchar(7) & Mã màu HEX, ví dụ \texttt{\#d73a4a}.\\\hline
+5 & description & text & Mô tả label.\\\hline
+6 & created\_at & timestamptz & Thời điểm tạo.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng core.repo\_stars}
+\begin{dbtable}{db-stars}{Chi tiết bảng core.repo\_stars}
+1 & user\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.users(id)} ON DELETE CASCADE.\\\hline
+2 & repo\_id & uuid & Khoá chính (kết hợp), FK $\to$ \texttt{core.repositories(id)} ON DELETE CASCADE.\\\hline
+3 & created\_at & timestamptz & Thời điểm star.\\\hline
+\end{dbtable}
+
+\subsubsection{Bảng insights.repo\_insights}
+\begin{dbtable}{db-insights}{Chi tiết bảng insights.repo\_insights}
+1 & repo\_id & uuid & Khoá chính, tham chiếu mềm tới \texttt{core.repositories(id)}.\\\hline
+2 & computed\_at & timestamptz & Thời điểm tính toán snapshot.\\\hline
+3 & commits\_last\_30d & int & Số commit trong 30 ngày gần nhất.\\\hline
+4 & commit\_trend & jsonb & Mảng \texttt{[\{date, commit\_count\}]} group theo ngày.\\\hline
+5 & top\_contributors & jsonb & Mảng \texttt{[\{author\_name, commit\_count\}]} top theo số commit.\\\hline
+6 & branch\_activity & jsonb & Mảng \texttt{[\{branch\_name, commit\_count\}]}.\\\hline
+7 & primary\_language & varchar(64) & Ngôn ngữ chiếm tỉ lệ cao nhất.\\\hline
+8 & language\_breakdown & jsonb & Mảng \texttt{[\{language, bytes, percentage\}]}.\\\hline
+9 & last\_error & text & Thông báo lỗi của lần tính cuối (NULL nếu thành công).\\\hline
+\end{dbtable}

@@ -1,0 +1,81 @@
+% ====================== Sơ đồ Usecase tổng quát Synergit (TikZ) ============
+\begin{figure}[H]\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily,
+  actor/.pic={
+    \draw[thick] (0,0.32)  circle [radius=0.14];
+    \draw[thick] (0,0.18) -- (0,-0.20);
+    \draw[thick] (-0.22,0.02) -- (0.22,0.02);
+    \draw[thick] (0,-0.20) -- (-0.18,-0.50);
+    \draw[thick] (0,-0.20) -- (0.18,-0.50);
+  },
+  albl/.style={font=\scriptsize\bfseries, align=center},
+  uc/.style={draw=sgBlue, fill=sgCream, ellipse, align=center,
+             font=\scriptsize, inner sep=1pt, minimum width=3.4cm, minimum height=1.0cm,
+             text width=3.0cm},
+  assoc/.style={draw=sgLine, line width=0.4pt},
+]
+
+% ---------------- Tác nhân (trái) ----------------
+\node (guest) at (0,8.0) {}; \pic at (guest) {actor}; \node[albl,below=0.45cm of guest] {Khách\\(Guest)};
+\node (user)  at (0,4.0) {}; \pic at (user)  {actor}; \node[albl,below=0.45cm of user]  {Người dùng\\đã đăng ký};
+
+% ---------------- Tác nhân (phải) ----------------
+\node (writer) at (14,8.6) {}; \pic at (writer) {actor}; \node[albl,below=0.45cm of writer] {Writer\\(WRITE)};
+\node (maint)  at (14,5.6) {}; \pic at (maint)  {actor}; \node[albl,below=0.45cm of maint]  {Maintainer};
+\node (owner)  at (14,2.6) {}; \pic at (owner)  {actor}; \node[albl,below=0.45cm of owner]  {Chủ sở hữu\\(Owner)};
+
+% ---------------- Use cases: cột trái (người dùng / khách) ----------------
+\node[uc] (u1) at (4.6,8.6)  {Đăng ký / Đăng nhập};
+\node[uc] (u2) at (4.6,7.2)  {Xem repo công khai};
+\node[uc] (u3) at (4.6,5.8)  {Clone / Pull qua Git};
+\node[uc] (u4) at (4.6,4.4)  {Tạo repository};
+\node[uc] (u5) at (4.6,3.0)  {Đổi tên đăng nhập};
+\node[uc] (u6) at (4.6,1.6)  {Xem Profile Activity};
+\node[uc] (u7) at (4.6,0.2)  {Quản lý hồ sơ};
+
+% ---------------- Use cases: cột phải (cộng tác trên repo) ----------------
+\node[uc] (r1) at (9.4,9.0)  {Push / Commit qua web};
+\node[uc] (r2) at (9.4,7.7)  {Quản lý branch};
+\node[uc] (r3) at (9.4,6.4)  {Tạo \& bình luận PR};
+\node[uc] (r4) at (9.4,5.1)  {Tạo \& quản lý Issue};
+\node[uc] (r5) at (9.4,3.8)  {Merge / Revert PR};
+\node[uc] (r6) at (9.4,2.5)  {Resolve conflict};
+\node[uc] (r7) at (9.4,1.2)  {Quản lý Collaborator};
+\node[uc] (r8) at (9.4,-0.1) {Đổi visibility / Xoá repo};
+
+% ---------------- Ranh giới hệ thống ----------------
+\begin{scope}[on background layer]
+\node[draw=sgBlue, very thick, rounded corners, fill=sgBlue!3,
+      fit=(u1)(u7)(r1)(r8), inner sep=16pt,
+      label={[font=\sffamily\bfseries, text=sgBlue]above:HỆ THỐNG SYNERGIT}] {};
+\end{scope}
+
+% ---------------- Liên kết tác nhân trái ----------------
+\draw[assoc] (guest) -- (u1.west);
+\draw[assoc] (guest) -- (u2.west);
+\draw[assoc] (guest) -- (u3.west);
+\draw[assoc] (user) -- (u4.west);
+\draw[assoc] (user) -- (u5.west);
+\draw[assoc] (user) -- (u6.west);
+\draw[assoc] (user) -- (u7.west);
+\draw[assoc] (user) -- (u3.west);
+
+% ---------------- Liên kết tác nhân phải ----------------
+% Writer (push, branch, tạo PR/issue/comment)
+\draw[assoc] (writer) -- (r1.east);
+\draw[assoc] (writer) -- (r2.east);
+\draw[assoc] (writer) -- (r3.east);
+\draw[assoc] (writer) -- (r4.east);
+% Maintainer
+\draw[assoc] (maint) -- (r5.east);
+\draw[assoc] (maint) -- (r6.east);
+\draw[assoc] (maint) -- (r7.east);
+% Owner: bao trùm tất cả (chỉ vẽ một số quan trọng để gọn)
+\draw[assoc] (owner) -- (r5.east);
+\draw[assoc] (owner) -- (r7.east);
+\draw[assoc] (owner) -- (r8.east);
+\end{tikzpicture}}
+\caption{Sơ đồ Usecase tổng quát của hệ thống Synergit}\label{fig:usecase}
+\end{figure}

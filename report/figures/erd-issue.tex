@@ -1,0 +1,19 @@
+% ====================== ERD Issue ==========================================
+\begin{figure}[H]\centering
+\resizebox{0.95\linewidth}{!}{%
+\begin{tikzpicture}
+\node[erdent, text width=3.8cm] (is) at (0,0) {\textbf{core.issues}\\\hrule\vspace{1pt} id (PK)\\ repo\_id (FK)\\ creator\_id (FK)\\ title / description\\ status (OPEN/CLOSED)\\ close\_reason\\ created\_at / updated\_at};
+\node[erdent, text width=3.4cm] (cm) at (6.5,2.2) {\textbf{core.issue\_comments}\\\hrule\vspace{1pt} id (PK)\\ issue\_id (FK)\\ author\_id (FK)\\ body\\ created\_at};
+\node[erdent, text width=3.4cm] (ev) at (6.5,0.0) {\textbf{core.issue\_events}\\\hrule\vspace{1pt} id (PK)\\ issue\_id (FK)\\ actor\_id (FK)\\ event\_type\\ created\_at};
+\node[erdent, text width=3.4cm] (lb) at (6.5,-2.0) {\textbf{core.issue\_labels}\\\hrule\vspace{1pt} issue\_id (PK,FK)\\ label\_id (PK,FK)};
+\node[erdent, text width=3.4cm] (as) at (6.5,-3.7) {\textbf{core.issue\_assignees}\\\hrule\vspace{1pt} issue\_id (PK,FK)\\ user\_id (PK,FK)\\ assigned\_at};
+\node[erdext, left=1.4cm of is] (repos) {core.repositories\\(cùng schema)};
+
+\draw[erdrel] (is.east) to[bend left=10] node[erdcard,near end,above]{1..n} (cm.west);
+\draw[erdrel] (is.east) -- node[erdcard,near end,above]{1..n} (ev.west);
+\draw[erdrel] (is.east) to[bend right=8] node[erdcard,near end,below]{n..n} (lb.west);
+\draw[erdrel] (is.east) to[bend right=18] node[erdcard,near end,below]{n..n} (as.west);
+\draw[erdrel] (repos.east) -- node[erdcard,midway,above]{1..n} (is.west);
+\end{tikzpicture}}
+\caption{ERD bounded context Issue (issue + comments + sự kiện + labels + assignees)}\label{fig:erd-issue}
+\end{figure}

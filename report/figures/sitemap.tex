@@ -1,0 +1,61 @@
+% ====================== Sơ đồ Sitemap Synergit (TikZ) ======================
+\begin{figure}[H]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  app/.style={draw=sgBlue, fill=sgCream, thick, rounded corners, align=center,
+              minimum width=3.0cm, minimum height=0.85cm},
+  pg/.style={draw=sgLine, fill=white, align=center, rounded corners,
+             minimum width=3.0cm, minimum height=0.6cm, font=\sffamily\scriptsize},
+  root/.style={draw=sgBlue, fill=sgBlue, text=white, thick, rounded corners,
+               align=center, minimum width=3.4cm, minimum height=0.9cm},
+  edge/.style={draw=sgLine, thick},
+  level distance=1.1cm,
+]
+\node[root] (root) {SYNERGIT\\\scriptsize Hệ thống quản lý mã nguồn};
+
+\node[app, below=1.1cm of root, xshift=-5.0cm]   (auth)    {\textbf{Auth}\\\scriptsize Đăng nhập / Đăng ký};
+\node[app, below=1.1cm of root, xshift=-1.7cm]   (home)    {\textbf{Home / Profile}\\\scriptsize Dashboard, repository};
+\node[app, below=1.1cm of root, xshift=1.7cm]    (repo)    {\textbf{Repository}\\\scriptsize Trang chi tiết repo};
+\node[app, below=1.1cm of root, xshift=5.0cm]    (settings){\textbf{Settings}\\\scriptsize Account, profile};
+
+\draw[edge] (root) -- (auth);
+\draw[edge] (root) -- (home);
+\draw[edge] (root) -- (repo);
+\draw[edge] (root) -- (settings);
+
+% auth pages
+\node[pg, below=0.5cm of auth]      (a1) {Đăng nhập};
+\node[pg, below=0.18cm of a1]       (a2) {Đăng ký};
+\draw[edge] (auth) -- (a1);
+
+% home/profile pages
+\node[pg, below=0.5cm of home]      (h1) {Dashboard repos};
+\node[pg, below=0.18cm of h1]       (h2) {Tạo repository};
+\node[pg, below=0.18cm of h2]       (h3) {Profile / Overview};
+\node[pg, below=0.18cm of h3]       (h4) {Profile / Repos};
+\node[pg, below=0.18cm of h4]       (h5) {Contribution graph};
+\draw[edge] (home) -- (h1);
+
+% repo pages
+\node[pg, below=0.5cm of repo]      (r1) {Code / File browser};
+\node[pg, below=0.18cm of r1]       (r2) {Branches};
+\node[pg, below=0.18cm of r2]       (r3) {Commits / Diff};
+\node[pg, below=0.18cm of r3]       (r4) {Pull Requests};
+\node[pg, below=0.18cm of r4]       (r5) {Compare \& Create PR};
+\node[pg, below=0.18cm of r5]       (r6) {Resolve conflicts};
+\node[pg, below=0.18cm of r6]       (r7) {Issues};
+\node[pg, below=0.18cm of r7]       (r8) {Labels};
+\node[pg, below=0.18cm of r8]       (r9) {Insights};
+\node[pg, below=0.18cm of r9]       (r10){Repo Settings};
+\draw[edge] (repo) -- (r1);
+
+% settings pages
+\node[pg, below=0.5cm of settings]  (s1) {Account (đổi username)};
+\node[pg, below=0.18cm of s1]       (s2) {Profile};
+\draw[edge] (settings) -- (s1);
+\end{tikzpicture}}
+\caption{Sơ đồ sitemap tổng quát của hệ thống Synergit}
+\label{fig:sitemap}
+\end{figure}

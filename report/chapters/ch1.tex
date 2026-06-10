@@ -1,0 +1,159 @@
+\chapter{Giới thiệu đề tài}
+
+Chương 1 tập trung giới thiệu tổng quan về đề tài \textit{``Synergit -- Ứng dụng quản lý quy trình phát triển phần mềm tích hợp quản lý mã nguồn dự án áp dụng kiến trúc Microservices''}, từ việc phân tích thực trạng quản lý mã nguồn của các đội phát triển hiện nay đến việc xác định các mục tiêu nghiệp vụ và công nghệ then chốt. Nội dung chương phác thảo chi tiết các chức năng cốt lõi, sơ đồ cấu trúc hệ thống (Sitemap) cùng danh mục công nghệ hiện đại được ứng dụng như Go, Gin, React, TypeScript, PostgreSQL và kiến trúc Microservices.
+
+\section{Tên đề tài}
+\textbf{SYNERGIT -- ỨNG DỤNG QUẢN LÝ QUY TRÌNH PHÁT TRIỂN PHẦN MỀM TÍCH HỢP QUẢN LÝ MÃ NGUỒN DỰ ÁN ÁP DỤNG KIẾN TRÚC MICROSERVICES.}
+
+\section{Lý do chọn đề tài}
+Trong hai thập kỷ qua, \textbf{Git} đã trở thành chuẩn không chính thức cho việc quản lý phiên bản mã nguồn trong ngành công nghiệp phần mềm. Theo cùng đó, các nền tảng cộng tác dựa trên Git như \textbf{GitHub}, \textbf{GitLab}, \textbf{Bitbucket} đã đóng vai trò trung tâm trong vòng đời phát triển phần mềm: không chỉ lưu trữ mã nguồn, các nền tảng này còn tích hợp toàn bộ \textit{quy trình cộng tác} -- pull request, code review, issue tracking, dòng thời gian sự kiện, thống kê đóng góp, tích hợp CI/CD -- và do đó trở thành ``hệ điều hành'' của mọi đội phát triển hiện đại.
+
+Tuy nhiên, các đội phát triển nội bộ tại Việt Nam (và nhiều nước khác) gặp một số vấn đề khi phụ thuộc vào các nền tảng SaaS công cộng:
+
+\begin{itemize}
+\item \textbf{Phụ thuộc dịch vụ nước ngoài cho mã nguồn nhạy cảm:} Mã nguồn của các dự án nội bộ (đặc biệt là dự án thuộc lĩnh vực tài chính, y tế, chính phủ) là tài sản trí tuệ nhạy cảm, việc đặt trên dịch vụ nước ngoài đặt ra các câu hỏi về chủ quyền dữ liệu, bảo mật và tuân thủ.
+\item \textbf{Chi phí cao khi mở rộng:} Các tính năng nâng cao (tổ chức đội nhóm lớn, kiểm soát truy cập chi tiết, báo cáo, runner CI/CD\ldots) thường đòi hỏi gói trả phí. Khi đội ngũ tăng lên hàng trăm thành viên, chi phí năm có thể lên tới hàng tỷ đồng.
+\item \textbf{Thiếu mô hình tham khảo kiến trúc:} Sinh viên và kỹ sư trẻ thường chỉ được biết tới khái niệm ``một ứng dụng GitHub'' nhưng không có cơ hội tiếp cận với kiến trúc bên trong. GitHub đã công bố nhiều bài viết kỹ thuật về cách họ phân tách hệ thống theo \textit{Domain-Driven Design (DDD)} và áp dụng kiến trúc microservices một cách thực dụng (``extract for scale, not for trend''), nhưng chưa có nhiều dự án mở mô phỏng kiến trúc này ở quy mô đồ án.
+\end{itemize}
+
+Xuất phát từ những bất cập đó, đề tài \textbf{Synergit} được hình thành với hai mục tiêu song song. \textit{Thứ nhất}, về mặt sản phẩm, xây dựng một nền tảng quản lý mã nguồn và quy trình phát triển phần mềm theo mô hình GitHub thu nhỏ, có thể tự triển khai (self-hosted) cho đội phát triển nội bộ -- giải quyết các vấn đề phụ thuộc và chi phí ở trên. \textit{Thứ hai}, về mặt kỹ thuật, xây dựng hệ thống theo \textit{kiến trúc microservices} dựa trên triết lý của GitHub: chỉ tách dịch vụ khi có lý do về quy mô hoặc tổ chức, không tách theo trào lưu. Đề tài là một mô hình tham khảo cho việc áp dụng DDD và Clean Architecture vào hệ thống thực, nơi ranh giới dịch vụ chính là ranh giới \textit{bounded context} của miền nghiệp vụ.
+
+\section{Mục tiêu}
+
+\subsection{Về mặt nghiệp vụ}
+\begin{itemize}
+\item Cho phép người dùng đăng ký tài khoản và đăng nhập, đồng thời quản lý hồ sơ cá nhân (đổi tên đăng nhập, ảnh đại diện, giới thiệu).
+\item Cho phép người dùng tạo kho mã nguồn (repository) công khai hoặc riêng tư, cấu hình mô tả, đổi tên, đổi chế độ hiển thị và xoá.
+\item Hỗ trợ đầy đủ các thao tác Git cơ bản qua giao thức Git Smart HTTP: \texttt{git clone}, \texttt{git push}, \texttt{git pull}, \texttt{git fetch}.
+\item Cho phép duyệt cây thư mục, xem nội dung file (kèm tô màu cú pháp), xem lịch sử commit, xem chi tiết một commit cùng diff theo file.
+\item Cho phép tạo, đổi tên, xoá và xem danh sách các nhánh (branch) cùng các thông tin: nhánh mặc định, lần commit gần nhất, số commit ahead/behind so với mặc định.
+\item Hỗ trợ \textit{quy trình cộng tác} đầy đủ:
+  \begin{itemize}
+  \item \textbf{Pull Request:} tạo, so sánh hai nhánh (diff), merge, revert, đóng/mở lại; theo dõi event timeline.
+  \item \textbf{Giải quyết xung đột (conflict):} khi merge có xung đột, hệ thống hiển thị các file xung đột với marker chuẩn của Git và cho phép người dùng nhập nội dung đã giải quyết để commit.
+  \item \textbf{Issue:} tạo, gán nhãn (label), gán người phụ trách (assignee), bình luận (comment), đóng (kèm lý do: completed/not\_planned/duplicate) hoặc mở lại.
+  \item \textbf{Label:} tạo, sửa, xoá nhãn cho repository; gán nhãn cho issue và pull request.
+  \item \textbf{Collaborator:} thêm người cộng tác với vai trò OWNER/MAINTAINER/WRITE.
+  \item \textbf{Star:} đánh dấu yêu thích repository; xem danh sách starred của bản thân.
+  \end{itemize}
+\item Cung cấp các bảng \textbf{Insights} theo phong cách GitHub:
+  \begin{itemize}
+  \item \textit{Repo Insights}: xu hướng commit (commit trend) 30 ngày gần nhất, top contributor, branch activity, language breakdown.
+  \item \textit{Profile Activity}: contribution graph kiểu GitHub (heatmap 365 ngày), activity overview (số commit, số PR, số issue, số code review), top repositories đóng góp, danh sách năm có dữ liệu.
+  \end{itemize}
+\item Hỗ trợ duyệt repository công khai của người dùng khác (visibility = PUBLIC).
+\end{itemize}
+
+\subsection{Về mặt công nghệ}
+\begin{itemize}
+\item Áp dụng \textit{kiến trúc Microservices} dựa trên triết lý ``Majestic Monolith + Strategic Services'' của GitHub: tách dịch vụ theo \textit{bounded context} (DDD) và theo nhu cầu kỹ thuật (I/O nặng / CPU nặng / nghiệp vụ thuần).
+\item Áp dụng \textit{Clean Architecture} (Hexagonal / Ports \& Adapters) trong từng dịch vụ: tầng \textit{domain}, \textit{port} (interface), \textit{usecase}, \textit{adapter} -- nhờ đó việc tách dịch vụ chỉ là việc thay thế adapter mà không phải sửa logic nghiệp vụ.
+\item Sử dụng API Gateway (cổng vào duy nhất) để frontend chỉ cần giao tiếp với một URL, các dịch vụ nội bộ không lộ ra ngoài.
+\item Truy cập dữ liệu qua PostgreSQL theo mô hình \textit{schema-per-service}: mỗi dịch vụ sở hữu một schema riêng (\texttt{core.*}, \texttt{insights.*}), không có khoá ngoại xuyên schema.
+\item Quản lý hệ thống tệp các kho Git tập trung tại một dịch vụ (GitStorage); mọi thao tác Git được gọi qua HTTP.
+\item Xác thực bằng JWT (HMAC) chia sẻ giữa các dịch vụ; mỗi dịch vụ tự xác thực token cục bộ, không có cuộc gọi xác thực trung tâm để giảm độ trễ.
+\item Frontend hiện đại bằng React 19 + TypeScript + Vite; sử dụng Tailwind CSS cho hệ thống thiết kế nhất quán.
+\end{itemize}
+
+\section{Các chức năng}
+Hệ thống Synergit cung cấp các nhóm chức năng chính sau:
+
+\begin{itemize}
+\item \textbf{Tài khoản \& hồ sơ:}
+  \begin{itemize}
+  \item Đăng ký, đăng nhập bằng tên đăng nhập/email và mật khẩu; xác thực bằng JWT.
+  \item Trang hồ sơ cá nhân (profile) hiển thị ảnh đại diện, danh sách repository, contribution graph 365 ngày.
+  \item Cài đặt tài khoản: đổi tên đăng nhập (kèm việc tự động đổi tên thư mục lưu repo và phát hành JWT mới).
+  \end{itemize}
+\item \textbf{Quản lý repository:}
+  \begin{itemize}
+  \item Tạo repository mới (đặt tên, mô tả, chọn visibility, tuỳ chọn khởi tạo file \texttt{README.md}, \texttt{.gitignore}, \texttt{LICENSE}).
+  \item Đổi tên repository, đổi visibility (public/private), xoá repository.
+  \item Liệt kê repository sở hữu/cộng tác; đếm số lượng repository.
+  \item Quản lý collaborator: thêm với vai trò OWNER/MAINTAINER/WRITE, gỡ bỏ.
+  \item Đánh dấu sao (star), bỏ sao; liệt kê các repository đã star.
+  \end{itemize}
+\item \textbf{Thao tác Git \& duyệt mã nguồn:}
+  \begin{itemize}
+  \item Hỗ trợ \texttt{git clone/push/pull/fetch} qua Git Smart HTTP cho repository công khai.
+  \item Duyệt cây thư mục theo branch, xem nội dung file (text \& binary).
+  \item Xem lịch sử commit của repository (kèm lọc theo branch và đường dẫn).
+  \item Xem chi tiết một commit kèm diff theo từng file (additions, deletions, patch).
+  \item Quản lý branch: tạo từ một branch khác, đổi tên, xoá, lấy danh sách branch (kèm thông tin commit gần nhất, ahead/behind).
+  \item Commit thay đổi một hoặc nhiều file qua giao diện web (in-browser editor).
+  \end{itemize}
+\item \textbf{Pull Request:}
+  \begin{itemize}
+  \item So sánh hai branch (compare): hiển thị danh sách commit, file thay đổi và summary (commit count, files changed, additions, deletions).
+  \item Tạo pull request từ kết quả so sánh; gán title, description, source/target branch.
+  \item Liệt kê pull request của repo, lọc theo trạng thái OPEN/MERGED/CLOSED.
+  \item Xem chi tiết pull request kèm timeline sự kiện (event log: created, merged, closed, reopened, commented\ldots).
+  \item Merge pull request: hệ thống tự kiểm tra xung đột; nếu sạch, thực hiện merge với commit message tuỳ chỉnh; nếu có xung đột, chuyển sang luồng resolve conflict.
+  \item Revert pull request đã merge (tạo branch revert và commit revert tự động).
+  \item Đóng (close) hoặc mở lại (reopen) pull request.
+  \item Quản lý label và assignee cho pull request.
+  \end{itemize}
+\item \textbf{Issue:}
+  \begin{itemize}
+  \item Tạo issue (title, description), liệt kê và lọc theo trạng thái OPEN/CLOSED.
+  \item Xem chi tiết issue kèm comment, timeline sự kiện và danh sách assignee.
+  \item Đóng issue (kèm lý do: COMPLETED/NOT\_PLANNED/DUPLICATE) hoặc mở lại.
+  \item Bình luận (comment) trên issue.
+  \item Quản lý label và assignee cho issue.
+  \end{itemize}
+\item \textbf{Label:}
+  \begin{itemize}
+  \item Mỗi repository được khởi tạo với 9 label mặc định kiểu GitHub (\textit{bug}, \textit{enhancement}, \textit{question}, \textit{documentation}, \textit{duplicate}, \textit{good first issue}, \textit{help wanted}, \textit{invalid}, \textit{wontfix}).
+  \item Liệt kê, gán/bỏ gán label cho issue và pull request.
+  \end{itemize}
+\item \textbf{Insights \& Analytics:}
+  \begin{itemize}
+  \item \textit{Repo Insights}: commit trend 30 ngày, top contributors, branch activity, language breakdown (\% byte).
+  \item Cơ chế tính lại (recompute) chủ động theo yêu cầu (manual trigger).
+  \item \textit{Profile Activity}: contribution graph 365 ngày, activity chart (commit/PR/issue/review), top repositories đóng góp.
+  \end{itemize}
+\end{itemize}
+
+\section{Sơ đồ sitemap của Website}
+Hệ thống Synergit là một ứng dụng web đơn lẻ (Single Page Application) với hệ thống điều hướng giống GitHub: trang tổng quan, trang profile cá nhân, các trang con bên trong từng repository (Code, Pull Requests, Issues, Insights). Sơ đồ sitemap tổng quát của hệ thống được trình bày trong Hình~\ref{fig:sitemap}.
+
+\input{figures/sitemap}
+
+\section{Công nghệ sử dụng}
+\begin{itemize}
+\item \textbf{Frontend (giao diện):}
+  \begin{itemize}
+  \item Framework: React 19, build bằng Vite 6.
+  \item Ngôn ngữ: TypeScript 5.
+  \item Giao diện: Tailwind CSS 4, icon Lucide kết hợp Octicon (vẽ thuần SVG).
+  \item Markdown: \texttt{react-markdown} cho render comment và mô tả issue/PR.
+  \end{itemize}
+\item \textbf{Backend (xử lý nghiệp vụ):}
+  \begin{itemize}
+  \item Ngôn ngữ \& framework: Go 1.22, Gin (HTTP).
+  \item Kiến trúc: Microservices (4 binary: Gateway, Core, GitStorage, Insights), Clean Architecture trong từng dịch vụ.
+  \item Truy cập dữ liệu: \texttt{database/sql} chuẩn của Go với driver \texttt{lib/pq}.
+  \item Thư viện Git: \texttt{go-git/v5} (đọc/ghi repository Git ở mức object thuần Go).
+  \item Bảo mật: JWT (\texttt{golang-jwt/jwt/v5}), băm mật khẩu bằng bcrypt.
+  \item Định danh: UUID (\texttt{google/uuid}).
+  \end{itemize}
+\item \textbf{Cơ sở dữ liệu:} PostgreSQL 16, mô hình \textit{schema-per-service} (\texttt{core.*}, \texttt{insights.*}).
+\item \textbf{Lưu trữ Git:} Hệ thống tệp cục bộ tại \texttt{D:\textbackslash SynergitRepo\textbackslash} (cấu hình qua biến môi trường \texttt{GIT\_ROOT}); chỉ dịch vụ GitStorage được phép truy cập.
+\item \textbf{Triển khai (DevOps):} Docker \& Docker Compose; Nginx (reverse proxy ngoài, tuỳ chọn); CI/CD qua GitHub Actions.
+\end{itemize}
+
+\section{Môi trường thiết kế}
+\begin{itemize}
+\item \textbf{IDE:} Visual Studio Code (frontend \& backend), GoLand (backend Go).
+\item \textbf{Quản lý CSDL:} pgAdmin / DBeaver, công cụ migration thuần SQL.
+\item \textbf{Trình duyệt kiểm thử:} Google Chrome, Mozilla Firefox, Microsoft Edge.
+\item \textbf{Hệ điều hành phát triển:} Windows 11 (chính), macOS, Linux (qua Docker).
+\end{itemize}
+
+\section{Công cụ hỗ trợ}
+\begin{itemize}
+\item \textbf{Quản lý mã nguồn:} Git, GitHub (cho repo phát triển đề tài).
+\item \textbf{Thiết kế giao diện (UI/UX):} Figma; tham khảo trực tiếp giao diện GitHub làm mẫu chuẩn.
+\item \textbf{Kiểm thử API:} cURL, Postman; trình duyệt DevTools để theo dõi network.
+\item \textbf{Đóng gói \& triển khai:} Docker, Docker Compose.
+\end{itemize}

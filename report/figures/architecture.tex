@@ -1,0 +1,70 @@
+% ====================== Sơ đồ kiến trúc Microservices Synergit (TikZ) =======
+\begin{figure}[H]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  tier/.style={draw=sgBlue, very thick, rounded corners, inner sep=10pt},
+  box/.style={draw=sgLine, fill=white, rounded corners, align=center,
+              minimum width=2.6cm, minimum height=0.85cm, font=\sffamily\footnotesize},
+  svc/.style={draw=sgBlue, fill=sgCream, rounded corners, align=center,
+              minimum width=3.0cm, minimum height=1.4cm, font=\sffamily\footnotesize, thick},
+  gw/.style={draw=sgBlue, fill=sgBlue, text=white, rounded corners, align=center,
+              minimum width=4.0cm, minimum height=1.0cm, font=\sffamily\bfseries\footnotesize, thick},
+  lbl/.style={font=\sffamily\bfseries\footnotesize, text=sgBlue},
+  arr/.style={-{Latex[length=2mm]}, draw=sgBlue, thick},
+  arrhttp/.style={-{Latex[length=2mm]}, draw=sgLine, thick, dashed},
+]
+% ---- Client tier ----
+\node[box, fill=sgCream, draw=sgBlue, minimum width=4.6cm] (browser) {Trình duyệt (React SPA)\\\scriptsize VITE\_API\_BASE\_URL = http://localhost:8080};
+\begin{scope}[on background layer]
+  \node[tier, fill=blue!3, fit=(browser),
+        label={[lbl]above:TẦNG CLIENT — React 19 + Vite + TypeScript}] (client) {};
+\end{scope}
+
+% ---- Gateway ----
+\node[gw, below=1.2cm of browser] (gateway) {Gateway :8080\\\scriptsize Reverse proxy, định tuyến theo prefix};
+
+% ---- Backend services ----
+\node[svc, below left=1.7cm and 0.6cm of gateway] (core) {\textbf{Core :8081}\\\scriptsize ``majestic monolith''\\\scriptsize auth · repo metadata\\\scriptsize PR · issue · label · star};
+\node[svc, below=1.7cm of gateway] (gitstorage) {\textbf{GitStorage :8082}\\\scriptsize Hệ thống tệp Git\\\scriptsize go-git + Smart HTTP\\\scriptsize tree · log · diff · merge};
+\node[svc, below right=1.7cm and 0.6cm of gateway] (insights) {\textbf{Insights :8083}\\\scriptsize Phân tích / CPU-bound\\\scriptsize commit trend · contributors\\\scriptsize language breakdown};
+
+\begin{scope}[on background layer]
+  \node[tier, fill=sgBlue!4, fit=(core)(gitstorage)(insights),
+        label={[lbl]above:TẦNG BACKEND — Go 1.22 + Gin (4 binary, Clean Architecture, JWT chia sẻ)}] (backend) {};
+\end{scope}
+
+% ---- Data tier ----
+\node[box, below=1.6cm of core, minimum width=3.0cm] (corepg) {PostgreSQL\\\scriptsize schema: \texttt{core.*}};
+\node[box, below=1.6cm of gitstorage, minimum width=3.0cm] (fs) {Hệ thống tệp\\\scriptsize \texttt{D:\textbackslash SynergitRepo\textbackslash}};
+\node[box, below=1.6cm of insights, minimum width=3.0cm] (insightspg) {PostgreSQL\\\scriptsize schema: \texttt{insights.*}};
+
+\begin{scope}[on background layer]
+  \node[tier, fill=green!4, fit=(corepg)(fs)(insightspg),
+        label={[lbl]below:TẦNG DỮ LIỆU — Postgres schema-per-service + Filesystem do GitStorage sở hữu}] (data) {};
+\end{scope}
+
+% ---- arrows ----
+\draw[arr] (browser) -- (gateway);
+\draw[arr] (gateway.south) -- ++(0,-0.4) -| (core.north);
+\draw[arr] (gateway.south) -- (gitstorage.north);
+\draw[arr] (gateway.south) -- ++(0,-0.4) -| (insights.north);
+
+% Core <-> GitStorage (HTTP, qua port.GitManager)
+\draw[arrhttp] (core.east) -- node[above, font=\scriptsize, sloped]{HTTP (port.GitManager)} (gitstorage.west);
+% Insights <-> GitStorage
+\draw[arrhttp] (insights.west) -- node[above, font=\scriptsize, sloped]{HTTP (read-only Git)} (gitstorage.east);
+% Insights -> Core schema (read-only)
+\draw[arrhttp, bend right=20] (insights.south) to node[below, font=\scriptsize, sloped]{read-only \texttt{core.*}} (corepg.east);
+
+% Core -> own DB
+\draw[arr] (core) -- (corepg);
+% GitStorage -> filesystem
+\draw[arr] (gitstorage) -- (fs);
+% Insights -> own DB
+\draw[arr] (insights) -- (insightspg);
+\end{tikzpicture}}
+\caption{Sơ đồ kiến trúc Microservices của hệ thống Synergit}
+\label{fig:architecture}
+\end{figure}

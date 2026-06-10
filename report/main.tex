@@ -1,0 +1,115 @@
+% ===========================================================================
+%  BÁO CÁO ĐỒ ÁN MÔN HỌC — CÔNG NGHỆ WEB VÀ ỨNG DỤNG
+%  Đề tài: SYNERGIT — Ứng dụng quản lý quy trình phát triển phần mềm
+%          tích hợp quản lý mã nguồn dự án áp dụng kiến trúc Microservices
+%
+%  Biên dịch:  tectonic main.tex      (khuyến nghị)
+%          hoặc xelatex main.tex  (chạy 2–3 lần để cập nhật mục lục)
+%  KHÔNG dùng pdflatex (tài liệu dùng fontspec/XeLaTeX cho tiếng Việt).
+% ===========================================================================
+\documentclass[13pt,a4paper,oneside]{report}
+\input{preamble}
+
+% ---------------------------------------------------------------------------
+%  THÔNG TIN TRANG BÌA  — SỬA CÁC GIÁ TRỊ DƯỚI ĐÂY CHO NHÓM CỦA BẠN
+% ---------------------------------------------------------------------------
+\newcommand{\BoGiaoDuc}{BỘ GIÁO DỤC VÀ ĐÀO TẠO}
+\newcommand{\TruongDH}{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN}
+\newcommand{\Khoa}{KHOA CÔNG NGHỆ PHẦN MỀM}
+\newcommand{\TenMonHoc}{ĐỒ ÁN 2}
+\newcommand{\TenDeTaiNgan}{SYNERGIT}
+\newcommand{\TenDeTai}{ỨNG DỤNG QUẢN LÝ QUY TRÌNH PHÁT TRIỂN PHẦN MỀM\\ TÍCH HỢP QUẢN LÝ MÃ NGUỒN DỰ ÁN ÁP DỤNG\\ KIẾN TRÚC MICROSERVICES}
+% Lưu ý: thêm học vị (ThS./TS.) trước tên GVHD nếu cần.
+\newcommand{\GVHD}{TS. Huỳnh Minh Đức}
+\newcommand{\Lop}{SE122.Q21}
+% Sinh viên thực hiện (đồ án 1 người — chỉnh sửa cho phù hợp nếu là nhóm 2 người)
+\newcommand{\SVMot}{Nguyễn Phúc Thịnh}
+\newcommand{\MSSVMot}{23521503}
+\newcommand{\DiaDiemThoiGian}{Tp.\ Hồ Chí Minh, tháng 6 năm 2026}
+
+\begin{document}
+
+% =========================== TRANG BÌA =====================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture, overlay]
+  \draw[line width=0.8pt]
+    ([xshift=0.8cm,yshift=-0.8cm]current page.north west)
+    rectangle
+    ([xshift=-0.8cm,yshift=0.8cm]current page.south east);
+  \draw[line width=0.4pt]
+    ([xshift=0.95cm,yshift=-0.95cm]current page.north west)
+    rectangle
+    ([xshift=-0.95cm,yshift=0.95cm]current page.south east);
+\end{tikzpicture}
+\centering
+\setstretch{1.3}
+{\bfseries\fontsize{14pt}{17pt}\selectfont \BoGiaoDuc\par}
+{\bfseries\fontsize{14pt}{17pt}\selectfont \TruongDH\par}
+{\bfseries\fontsize{14pt}{17pt}\selectfont \Khoa\par}
+\vspace{1.0cm}
+
+% Logo trường — tự hiện khi có file image/logo-truong.png
+\IfFileExists{image/logo-truong.png}{%
+  \includegraphics[height=3.4cm, keepaspectratio]{image/logo-truong.png}%
+}{%
+  \IfFileExists{../latex/image/logo-truong.png}{%
+    \includegraphics[height=3.4cm, keepaspectratio]{../latex/image/logo-truong.png}%
+  }{%
+    \begin{tcolorbox}[width=3.4cm, height=3.4cm, halign=center, valign=center,
+       colback=bkCream, colframe=bkLine, sharp corners, boxrule=0.6pt]
+       {\color{bkBrown}\itshape \footnotesize Đặt logo:\\ \texttt{\scriptsize image/logo-truong.png}}
+    \end{tcolorbox}%
+  }%
+}
+
+\vspace{1.0cm}
+{\bfseries\fontsize{18pt}{22pt}\selectfont BÁO CÁO\par}
+\vspace{0.3cm}
+{\bfseries\fontsize{16pt}{20pt}\selectfont \TenMonHoc\par}
+\vspace{1.4cm}
+
+{\bfseries\fontsize{22pt}{27pt}\selectfont \TenDeTaiNgan\par}
+\vspace{0.35cm}
+{\bfseries\fontsize{17pt}{22pt}\selectfont \TenDeTai\par}
+
+\vspace{1.4cm}
+\begin{minipage}{0.80\textwidth}
+\bfseries\fontsize{14pt}{20pt}\selectfont
+\begin{tabular}{@{}ll@{}}
+Giảng viên hướng dẫn & : \GVHD\\[5pt]
+Lớp & : \Lop\\[5pt]
+Sinh viên thực hiện & : \SVMot\ -- \MSSVMot\\[5pt]
+\end{tabular}
+\end{minipage}
+
+\vfill
+{\bfseries\fontsize{13pt}{16pt}\selectfont \DiaDiemThoiGian\par}
+\end{titlepage}
+
+% =========================== PHẦN ĐẦU ======================================
+\pagenumbering{roman}
+
+\input{frontmatter/assignment}
+\input{frontmatter/acknowledgement}
+
+% --- Mục lục, mục lục bảng, mục lục hình ------------------------------------
+\tableofcontents
+\clearpage
+\listoftables
+\clearpage
+\listoffigures
+\clearpage
+\input{frontmatter/abbreviations}
+
+% =========================== NỘI DUNG =======================================
+\pagenumbering{arabic}
+
+\input{frontmatter/abstract}   % TÓM TẮT ĐỀ TÀI
+\input{chapters/ch1}
+\input{chapters/ch2}
+\input{chapters/ch3}
+\input{chapters/ch4}
+\input{chapters/ch5}
+\input{chapters/references}
+
+\end{document}

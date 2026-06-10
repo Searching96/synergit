@@ -1,0 +1,10 @@
+% ====================== ERD Insights schema ================================
+\begin{figure}[H]\centering
+\resizebox{0.85\linewidth}{!}{%
+\begin{tikzpicture}[node distance=1.0cm and 2.2cm]
+\node[erdent, text width=4.0cm] (ri) {\textbf{insights.repo\_insights}\\\hrule\vspace{1pt} repo\_id (PK)\\ computed\_at\\ commits\_last\_30d\\ commit\_trend (jsonb)\\ top\_contributors (jsonb)\\ branch\_activity (jsonb)\\ primary\_language\\ language\_breakdown (jsonb)\\ last\_error};
+\node[erdext, right=of ri] (cr) {core.repositories\\(schema khác,\\tham chiếu mềm)};
+\draw[erdsoft] (ri) -- node[erdcard, midway, align=center]{1..1\\soft ref} (cr);
+\end{tikzpicture}}
+\caption{ERD schema \texttt{insights} (snapshot phân tích cho từng repository, tham chiếu mềm tới schema \texttt{core})}\label{fig:erd-insights}
+\end{figure}

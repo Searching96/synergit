@@ -1,0 +1,17 @@
+% ====================== ERD Pull Request ===================================
+\begin{figure}[H]\centering
+\resizebox{0.95\linewidth}{!}{%
+\begin{tikzpicture}
+\node[erdent, text width=3.8cm] (pr) at (0,0) {\textbf{core.pull\_requests}\\\hrule\vspace{1pt} id (PK)\\ repo\_id (FK)\\ creator\_id (FK)\\ title / description\\ source\_branch / target\_branch\\ source\_commit\_hash / target\_commit\_hash\\ status (OPEN/MERGED/CLOSED)\\ created\_at / updated\_at};
+\node[erdent, text width=3.4cm] (ev) at (6.5,2.0) {\textbf{core.pull\_request\_events}\\\hrule\vspace{1pt} id (PK)\\ pull\_request\_id (FK)\\ actor\_id (FK)\\ event\_type\\ created\_at};
+\node[erdent, text width=3.4cm] (lbl) at (6.5,-0.2) {\textbf{core.pull\_request\_labels}\\\hrule\vspace{1pt} pull\_request\_id (PK,FK)\\ label\_id (PK,FK)};
+\node[erdent, text width=3.4cm] (asn) at (6.5,-2.4) {\textbf{core.pull\_request\_assignees}\\\hrule\vspace{1pt} pull\_request\_id (PK,FK)\\ user\_id (PK,FK)\\ assigned\_at};
+\node[erdext, left=1.4cm of pr] (repos) {core.repositories\\(cùng schema)};
+
+\draw[erdrel] (pr.east) to[bend left=10] node[erdcard,near end,above]{1..n} (ev.west);
+\draw[erdrel] (pr.east) -- node[erdcard,near end,above]{n..n via labels} (lbl.west);
+\draw[erdrel] (pr.east) to[bend right=10] node[erdcard,near end,below]{n..n via users} (asn.west);
+\draw[erdrel] (repos.east) -- node[erdcard,midway,above]{1..n} (pr.west);
+\end{tikzpicture}}
+\caption{ERD bounded context Pull Request (PR + sự kiện + labels + assignees)}\label{fig:erd-pr}
+\end{figure}

@@ -1,0 +1,224 @@
+% ===========================================================================
+%  preamble.tex — Cấu hình gói, font, kiểu trình bày cho báo cáo Synergit
+%  Biên dịch bằng XeLaTeX / Tectonic (hỗ trợ tiếng Việt qua fontspec).
+% ===========================================================================
+
+\usepackage{fontspec}
+% Dùng font mặc định của LaTeX: Latin Modern (Computer Modern) — hỗ trợ đầy đủ
+% glyph tiếng Việt. fontspec tự nạp Latin Modern khi không chỉ định font khác.
+\setmainfont{lmroman10-regular.otf}[
+  BoldFont = lmroman10-bold.otf,
+  ItalicFont = lmroman10-italic.otf,
+  BoldItalicFont = lmroman10-bolditalic.otf ]
+\setsansfont{lmsans10-regular.otf}[
+  BoldFont = lmsans10-bold.otf,
+  ItalicFont = lmsans10-oblique.otf,
+  BoldItalicFont = lmsans10-boldoblique.otf ]
+\setmonofont{lmmonolt10-regular.otf}[
+  BoldFont = lmmonolt10-bold.otf,
+  ItalicFont = lmmonolt10-oblique.otf,
+  BoldItalicFont = lmmonolt10-boldoblique.otf, Scale = 0.95 ]
+
+\usepackage{geometry}
+\geometry{a4paper, left=3cm, right=2cm, top=2cm, bottom=2cm}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{ragged2e}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{titletoc}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}   % cho phép URL dài tự ngắt dòng
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc, backgrounds, matrix}
+\usepackage{tcolorbox}
+
+% --- Màu chủ đề (Synergit: xanh lam GitHub-ish) -----------------------------
+\definecolor{sgBlue}{HTML}{0969DA}
+\definecolor{sgInk}{HTML}{1F2328}
+\definecolor{sgCream}{HTML}{F6F8FA}
+\definecolor{sgLine}{HTML}{D0D7DE}
+\definecolor{sgAccent}{HTML}{2DA44E}
+\colorlet{bkCream}{sgCream}
+\colorlet{bkLine}{sgLine}
+\colorlet{bkBrown}{sgInk}
+\definecolor{codebg}{HTML}{F4F4F4}
+\definecolor{codekw}{HTML}{0969DA}
+\definecolor{codecm}{HTML}{6A737D}
+\definecolor{codestr}{HTML}{1B7A43}
+
+% Kiểu dùng chung cho các sơ đồ ERD theo schema
+\tikzset{
+  erdent/.style={draw=sgBlue, fill=sgCream, rounded corners, align=left,
+                 inner sep=4pt, font=\scriptsize, text width=3.05cm},
+  erdext/.style={draw=sgLine, dashed, fill=white, rounded corners, align=center,
+                 inner sep=4pt, font=\scriptsize\itshape, text width=2.6cm},
+  erdrel/.style={draw=sgLine, thick},
+  erdsoft/.style={draw=sgLine, thick, dashed},
+  erdcard/.style={font=\scriptsize, text=sgBlue, fill=white, inner sep=1pt},
+}
+\tcbuselibrary{skins, breakable}
+\usepackage{listings}
+
+% --- Cỡ chữ 13pt, giãn dòng 1.5 (chuẩn báo cáo đồ án) -----------------------
+\renewcommand{\normalsize}{\fontsize{13pt}{19.5pt}\selectfont}
+\normalsize
+\setstretch{1.42}
+
+% --- Canh lề hai bên, hạn chế ngắt từ tiếng Việt ---------------------------
+\justifying
+\hyphenpenalty=8000
+\tolerance=2000
+\setlength{\emergencystretch}{3em}
+
+% --- Nhãn tiếng Việt cho Hình / Bảng / Mục lục -----------------------------
+\captionsetup{labelsep=colon, font=small, labelfont=bf}
+\captionsetup[figure]{name=Hình}
+\captionsetup[table]{name=Bảng}
+\renewcommand{\chaptername}{Chương}
+\renewcommand{\contentsname}{MỤC LỤC}
+\renewcommand{\listfigurename}{MỤC LỤC HÌNH ẢNH}
+\renewcommand{\listtablename}{MỤC LỤC BẢNG}
+\renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+
+% --- Đánh số Hình/Bảng theo chương -----------------------------------------
+\usepackage{chngcntr}
+\counterwithin{figure}{chapter}
+\counterwithin{table}{chapter}
+
+% --- Kiểu tiêu đề Chương / Mục ---------------------------------------------
+\titleformat{\chapter}[display]
+  {\centering\bfseries\fontsize{15pt}{18pt}\selectfont}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter}
+  {6pt}
+  {\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{0pt}{18pt}
+
+\titleformat{\section}
+  {\bfseries\fontsize{13.5pt}{16pt}\selectfont}{\thesection.}{0.5em}{}
+\titleformat{\subsection}
+  {\bfseries\itshape\fontsize{13pt}{16pt}\selectfont}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}
+  {\itshape\fontsize{13pt}{16pt}\selectfont}{\thesubsubsection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{10pt}{4pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+\titlespacing*{\subsubsection}{0pt}{6pt}{3pt}
+
+% --- Header / footer (số trang góc dưới) -----------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\thepage}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+% --- Danh sách gọn hơn ------------------------------------------------------
+\setlist[itemize]{leftmargin=1.4em, topsep=2pt, itemsep=1pt, parsep=0pt}
+\setlist[enumerate]{leftmargin=1.8em, topsep=2pt, itemsep=1pt, parsep=0pt}
+
+% --- Kiểu khối mã nguồn -----------------------------------------------------
+\lstdefinestyle{sg}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekw}\bfseries,
+  commentstyle=\color{codecm}\itshape,
+  stringstyle=\color{codestr},
+  numbers=left, numberstyle=\tiny\color{codecm}, numbersep=8pt,
+  breaklines=true, showstringspaces=false, tabsize=2,
+  frame=single, rulecolor=\color{sgLine},
+  framexleftmargin=4pt, xleftmargin=14pt, aboveskip=8pt, belowskip=6pt,
+  columns=fullflexible, keepspaces=true,
+}
+\lstset{style=sg}
+\lstdefinelanguage{Go}{
+  keywords={func,package,import,type,struct,interface,map,chan,go,defer,return,if,else,for,range,switch,case,default,var,const,nil,error,select},
+  ndkeywords={string,int,int64,bool,uint,byte,UUID,context},
+  sensitive=true, comment=[l]{//}, morecomment=[s]{/*}{*/},
+  morestring=[b]", morestring=[b]`,
+}
+\lstdefinelanguage{TypeScript}{
+  keywords={const,let,var,function,async,await,return,if,else,for,of,in,while,
+            import,export,from,type,interface,class,extends,implements,new,
+            public,private,readonly,as,enum,void,null,undefined,true,false},
+  ndkeywords={string,number,boolean,Promise,Record,Array,Partial},
+  sensitive=true, comment=[l]{//}, morecomment=[s]{/*}{*/},
+  morestring=[b]", morestring=[b]', morestring=[b]`,
+}
+
+% --- Lệnh chèn ảnh placeholder (chờ ảnh chụp màn hình thật) -----------------
+% \phimg{<caption>}{<chiều cao>}  — ví dụ \phimg{Giao diện trang Home}{6cm}
+\newcommand{\phimg}[2]{%
+  \begin{figure}[H]\centering
+  \begin{tcolorbox}[width=0.88\linewidth, height=#2, halign=center, valign=center,
+      colback=sgCream, colframe=sgLine, sharp corners, boxrule=0.6pt,
+      before skip=4pt, after skip=2pt]
+      {\color{sgInk}\itshape [\,Ảnh minh hoạ:\ #1\,]\\[4pt]\footnotesize (chèn ảnh chụp màn hình thật tại đây)}
+  \end{tcolorbox}
+  \caption{#1}
+  \end{figure}}
+
+% --- Lệnh chèn ảnh "thông minh" (skeleton) ---------------------------------
+% \figauto[<nhãn>]{<đường dẫn file>}{<caption>}{<chiều cao tối đa>}
+%   • Nếu file ảnh TỒN TẠI  -> tự chèn ảnh (giới hạn theo bề rộng & chiều cao).
+%   • Nếu CHƯA có file       -> hiện khung placeholder ghi rõ tên file cần bỏ vào.
+\newcommand{\figautolabel}{}
+\newcommand{\figauto}[4][]{%
+  \renewcommand{\figautolabel}{#1}%
+  \begin{figure}[H]\centering
+  \IfFileExists{#2}{%
+    \includegraphics[width=0.95\linewidth, height=\dimexpr#4*13/10\relax, keepaspectratio]{#2}%
+  }{%
+    \begin{tcolorbox}[width=0.88\linewidth, height=#4, halign=center, valign=center,
+        colback=sgCream, colframe=sgLine, sharp corners, boxrule=0.6pt,
+        before skip=4pt, after skip=2pt]
+        {\color{sgInk}\itshape [\,Đặt ảnh vào:\ \texttt{#2}\,]\\[4pt]
+         \footnotesize #3}
+    \end{tcolorbox}%
+  }%
+  \caption{#3}%
+  \ifx\figautolabel\empty\else\label{#1}\fi
+  \end{figure}}
+
+% --- Tiêu đề trang phụ (không đánh số chương) cho phần đầu ------------------
+\newcommand{\plainheading}[1]{%
+  \par\vspace{6pt}\begin{center}\bfseries\fontsize{15pt}{18pt}\selectfont\MakeUppercase{#1}\end{center}\vspace{4pt}}
+
+% --- Bảng đặc tả Usecase ----------------------------------------------------
+% Dùng:  \begin{ucspec}{nhãn}{Tiêu đề bảng}  ... các dòng "Trường & Giá trị \\\hline" ... \end{ucspec}
+\newenvironment{ucspec}[2]{%
+  \renewcommand{\arraystretch}{1.25}\small
+  \begin{longtable}{|>{\bfseries\raggedright\arraybackslash}p{3.4cm}|p{10.3cm}|}
+  \caption{#2}\label{#1}\\
+  \hline\endfirsthead
+  \hline\multicolumn{2}{|r|}{\textit{(tiếp theo)}}\\\hline\endhead
+}{%
+  \end{longtable}\normalsize}
+
+% --- Bảng đặc tả chi tiết bảng dữ liệu --------------------------------------
+% Dùng:  \begin{dbtable}{nhãn}{Tiêu đề}  ... "STT & trường & kiểu & mô tả \\\hline" ... \end{dbtable}
+\newenvironment{dbtable}[2]{%
+  \renewcommand{\arraystretch}{1.2}\small
+  \begin{longtable}{|c|>{\ttfamily}p{3.5cm}|>{\ttfamily}p{2.8cm}|p{5.3cm}|}
+  \caption{#2}\label{#1}\\
+  \hline\rowcolor{sgCream}
+  \textbf{STT} & \normalfont\textbf{Tên trường} & \normalfont\textbf{Kiểu dữ liệu} & \textbf{Mô tả}\\\hline
+  \endfirsthead
+  \hline\rowcolor{sgCream}
+  \textbf{STT} & \normalfont\textbf{Tên trường} & \normalfont\textbf{Kiểu dữ liệu} & \textbf{Mô tả}\\\hline
+  \endhead
+}{%
+  \end{longtable}\normalsize}

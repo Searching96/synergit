@@ -1,0 +1,20 @@
+% ====================== TÓM TẮT ĐỀ TÀI =====================================
+\chapter*{TÓM TẮT ĐỀ TÀI}
+\addcontentsline{toc}{chapter}{TÓM TẮT ĐỀ TÀI}
+
+\hspace{1.2em}Trong xu thế phát triển phần mềm hiện đại, Git đã trở thành chuẩn không chính thức cho việc quản lý mã nguồn, kéo theo đó là sự thống trị của các nền tảng cộng tác như GitHub và GitLab. Các nền tảng này không chỉ đơn thuần lưu trữ kho mã nguồn mà còn tích hợp toàn bộ \textit{quy trình phát triển phần mềm}: pull request, code review, issue tracking, dòng thời gian sự kiện, thống kê đóng góp\ldots Tuy nhiên, các đội phát triển nội bộ tại Việt Nam thường gặp ba vấn đề: (1) phụ thuộc vào dịch vụ nước ngoài cho mã nguồn nhạy cảm, (2) chi phí cao khi cần nâng cấp tính năng cho đội nhiều thành viên, và (3) thiếu một mô hình tham khảo kiến trúc rõ ràng nếu muốn xây dựng hệ thống tương đương ở quy mô vừa.
+
+\hspace{1.2em}Đề tài \textbf{``Synergit -- Ứng dụng quản lý quy trình phát triển phần mềm tích hợp quản lý mã nguồn dự án áp dụng kiến trúc Microservices''} được phát triển nhằm xây dựng một nền tảng quản lý mã nguồn và quy trình phát triển phần mềm theo mô hình GitHub thu nhỏ, có thể tự triển khai (self-hosted) cho đội phát triển nội bộ. Hệ thống cho phép người dùng đăng ký tài khoản, tạo repository công khai/riêng tư, push/pull mã nguồn qua giao thức Git Smart HTTP, duyệt cây thư mục, xem nội dung file và lịch sử commit, tạo và quản lý nhánh (branch). Đặc biệt, hệ thống hỗ trợ đầy đủ \textit{quy trình cộng tác}: tạo pull request, so sánh branch (diff), giải quyết xung đột (merge conflict), merge và revert, theo dõi event timeline; quản lý issue với label, assignee, comment; cùng các bảng phân tích thống kê (commit trend, language breakdown, contributor stats, contribution graph kiểu GitHub).
+
+\hspace{1.2em}Về mặt kỹ thuật, Synergit được thiết kế và triển khai theo \textit{kiến trúc microservices} dựa trên triết lý ``Majestic Monolith + Strategic Services'' của GitHub: hệ thống gồm một API Gateway (cổng vào duy nhất), một dịch vụ \textit{Core} chứa phần lớn nghiệp vụ (auth, repo metadata, pull request, issue, label, collaborator, star), một dịch vụ \textit{GitStorage} chuyên xử lý các thao tác Git nặng I/O và sở hữu hệ thống tệp các kho mã nguồn, và một dịch vụ \textit{Insights} chuyên xử lý các tác vụ phân tích/CPU-bound. Các dịch vụ giao tiếp qua HTTP/REST, chia sẻ chung cơ chế xác thực JWT (HMAC), và mỗi dịch vụ sở hữu một schema PostgreSQL riêng (\texttt{core.*}, \texttt{insights.*}). Backend viết bằng Go (Gin), tận dụng Clean Architecture với các tầng \textit{domain}, \textit{port}, \textit{usecase}, \textit{adapter} -- nhờ đó việc tách dịch vụ chỉ là việc thay thế \textit{adapter} mà không làm thay đổi \textit{usecase}. Frontend là một ứng dụng React + Vite + TypeScript đơn lẻ.
+
+\hspace{1.2em}Nội dung đồ án được trình bày gồm 5 chương:
+
+\begin{itemize}
+\item \textbf{Chương 1 -- Giới thiệu đề tài:} Bối cảnh, lý do chọn đề tài, mục tiêu nghiệp vụ và kỹ thuật, phạm vi chức năng, sơ đồ sitemap, công nghệ, môi trường và công cụ sử dụng.
+\item \textbf{Chương 2 -- Cơ sở lý thuyết:} Kiến thức nền tảng về Git internals và giao thức Git Smart HTTP, công nghệ Frontend (React, TypeScript, Vite, Tailwind CSS), Backend (Go, Gin), hệ quản trị CSDL PostgreSQL, kiến trúc Microservices và Clean Architecture, cùng cơ chế xác thực JWT và bảo mật hệ thống.
+\item \textbf{Chương 3 -- Phân tích thiết kế hệ thống:} Khảo sát hiện trạng, phân tích yêu cầu chức năng/phi chức năng, mô hình hoá bằng Usecase, kiến trúc microservices và thiết kế cơ sở dữ liệu (ERD, đặc tả bảng).
+\item \textbf{Chương 4 -- Xây dựng website:} Thiết kế template giao diện và hiện thực hoá các trang chính của ứng dụng (đăng nhập, dashboard repository, code browser, pull request, issue, profile).
+\item \textbf{Chương 5 -- Kết luận:} Tổng kết ưu điểm, hạn chế và đề xuất các hướng phát triển trong tương lai.
+\end{itemize}
+\clearpage

@@ -1,0 +1,8 @@
+% ====================== ERD Identity (xác thực và người dùng) ===============
+\begin{figure}[H]\centering
+\resizebox{0.7\linewidth}{!}{%
+\begin{tikzpicture}[node distance=1.2cm and 2.0cm]
+\node[erdent, text width=3.6cm] (users) {\textbf{core.users}\\\hrule\vspace{1pt} id (PK)\\ username (unique)\\ email (unique)\\ password\_hash\\ created\_at / updated\_at};
+\end{tikzpicture}}
+\caption{ERD bounded context Identity -- Bảng \texttt{core.users}}\label{fig:erd-auth}
+\end{figure}
