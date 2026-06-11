@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.IssueRepository = (*PostgresIssueStore)(nil)
+var _ output.IssueRepository = (*PostgresIssueStore)(nil)
 
 type PostgresIssueStore struct {
 	db *sql.DB

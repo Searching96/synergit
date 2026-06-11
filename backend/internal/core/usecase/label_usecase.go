@@ -3,21 +3,21 @@ package usecase
 import (
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.LabelUseCase = (*LabelService)(nil)
+var _ output.LabelUseCase = (*LabelService)(nil)
 
 type LabelService struct {
-	labelStore  port.LabelRepository
-	issueStore  port.IssueRepository
-	collabStore port.CollaboratorRepository
+	labelStore  output.LabelRepository
+	issueStore  output.IssueRepository
+	collabStore output.CollaboratorRepository
 }
 
-func NewLabelService(labelStore port.LabelRepository, issueStore port.IssueRepository,
-	collabStore port.CollaboratorRepository) *LabelService {
+func NewLabelService(labelStore output.LabelRepository, issueStore output.IssueRepository,
+	collabStore output.CollaboratorRepository) *LabelService {
 
 	return &LabelService{
 		labelStore:  labelStore,

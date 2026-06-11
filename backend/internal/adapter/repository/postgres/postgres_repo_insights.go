@@ -6,12 +6,12 @@ import (
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.RepoInsightsRepository = (*PostgresRepoInsightsStore)(nil)
+var _ output.RepoInsightsRepository = (*PostgresRepoInsightsStore)(nil)
 
 type PostgresRepoInsightsStore struct {
 	db *sql.DB

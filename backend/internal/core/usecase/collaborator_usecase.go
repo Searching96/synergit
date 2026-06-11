@@ -3,16 +3,16 @@ package usecase
 import (
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
 type CollaboratorService struct {
-	collaboratorStore port.CollaboratorRepository
+	collaboratorStore output.CollaboratorRepository
 }
 
-func NewCollaboratorService(collaboratorStore port.CollaboratorRepository) *CollaboratorService {
+func NewCollaboratorService(collaboratorStore output.CollaboratorRepository) *CollaboratorService {
 	return &CollaboratorService{
 		collaboratorStore: collaboratorStore,
 	}

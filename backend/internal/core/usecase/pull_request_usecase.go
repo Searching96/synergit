@@ -6,20 +6,20 @@ import (
 	"sort"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type PullRequestService struct {
-	prStore     port.PullRequestRepository
-	collabStore port.CollaboratorRepository
-	gitManager  port.GitManager
-	userStore   port.UserRepository
-
-	// We need this to get the repository's string name for the GitManager
-	repoStore port.RepoRepository
+	prStore       output.PullRequestRepository
+	collabStore   output.CollaboratorRepository
+	gitManager    output.GitManager
+	repoStore     output.RepoRepository
+	userStore     output.UserRepository
+	labelStore    output.PullRequestLabelRepository
+	assigneeStore output.PullRequestAssigneeRepository
 }
 
 func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (int, error) {
@@ -31,19 +31,48 @@ func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (
 	return sequenceNumber, nil
 }
 
-func NewPullRequestService(prStore port.PullRequestRepository,
-	collabStore port.CollaboratorRepository,
-	gitManager port.GitManager,
-	repoStore port.RepoRepository,
-	userStore port.UserRepository,
+func NewPullRequestService(
+	prStore output.PullRequestRepository,
+	collabStore output.CollaboratorRepository,
+	gitManager output.GitManager,
+	repoStore output.RepoRepository,
+	userStore output.UserRepository,
+	labelStore output.PullRequestLabelRepository,
+	assigneeStore output.PullRequestAssigneeRepository,
 ) *PullRequestService {
 	return &PullRequestService{
-		prStore:     prStore,
-		collabStore: collabStore,
-		gitManager:  gitManager,
-		repoStore:   repoStore,
-		userStore:   userStore,
+		prStore:       prStore,
+		collabStore:   collabStore,
+		gitManager:    gitManager,
+		repoStore:     repoStore,
+		userStore:     userStore,
+		labelStore:    labelStore,
+		assigneeStore: assigneeStore,
 	}
+}
+
+func (s *PullRequestService) AddLabelToPR(prID uuid.UUID, labelID uuid.UUID) error {
+	return s.labelStore.Add(prID, labelID)
+}
+
+func (s *PullRequestService) RemoveLabelFromPR(prID uuid.UUID, labelID uuid.UUID) error {
+	return s.labelStore.Remove(prID, labelID)
+}
+
+func (s *PullRequestService) ListPRLabels(prID uuid.UUID) ([]domain.Label, error) {
+	return s.labelStore.ListForPR(prID)
+}
+
+func (s *PullRequestService) AssignPR(prID uuid.UUID, userID uuid.UUID) error {
+	return s.assigneeStore.Assign(prID, userID)
+}
+
+func (s *PullRequestService) UnassignPR(prID uuid.UUID, userID uuid.UUID) error {
+	return s.assigneeStore.Unassign(prID, userID)
+}
+
+func (s *PullRequestService) ListPRAssignees(prID uuid.UUID) ([]domain.PRAssignee, error) {
+	return s.assigneeStore.List(prID)
 }
 
 func findBranchCommitHash(branches []domain.Branch, branchName string) string {

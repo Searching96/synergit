@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -21,11 +21,11 @@ import (
 )
 
 // --- Compile-time interface check ---
-// If LocalGitAdapter ever fails to implement port.GitManager,
+// If LocalGitAdapter ever fails to implement output.GitManager,
 // the compiler will throw an error exactly on this line.
-var _ port.GitManager = (*LocalGitAdapter)(nil)
+var _ output.GitManager = (*LocalGitAdapter)(nil)
 
-// LocalGitAdapter implements port.GitManager using the local OS
+// LocalGitAdapter implements output.GitManager using the local OS
 type LocalGitAdapter struct {
 	storageRoot string
 }
@@ -115,7 +115,7 @@ func parseRenamePath(rawPath string) (string, string) {
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 }
 
-// InitBareRepo satisfies the port.GitManager interface
+// InitBareRepo satisfies the output.GitManager interface
 func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
 	cleanSlug := path.Clean(strings.TrimSpace(repoSlug))
 	if cleanSlug == "." || strings.HasPrefix(cleanSlug, "../") ||
@@ -211,6 +211,17 @@ func (g *LocalGitAdapter) RenameRepository(repoPath string, newName string) (str
 	}
 
 	return newFull, nil
+}
+
+func (g *LocalGitAdapter) RenameUserStorage(oldUsername, newUsername string) error {
+	oldPath := filepath.Join(g.storageRoot, oldUsername)
+	newPath := filepath.Join(g.storageRoot, newUsername)
+	if _, err := os.Stat(oldPath); err == nil {
+		if err := os.Rename(oldPath, newPath); err != nil {
+			return fmt.Errorf("failed to rename user storage directory: %w", err)
+		}
+	}
+	return nil
 }
 
 func (g *LocalGitAdapter) BootstrapRepository(repoPath string, branch string,
@@ -314,7 +325,7 @@ func (g *LocalGitAdapter) AdvertiseRefs(repoPath string, service string) ([]byte
 }
 
 func (g *LocalGitAdapter) UploadPack(repoPath string,
-	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
+	requestPayload output.ByteReader, responseWriter output.ByteWriter) error {
 
 	fullPath := g.resolveRepoPath(repoPath)
 	cmd := exec.Command("git", "upload-pack", "--stateless-rpc", fullPath)
@@ -335,7 +346,7 @@ func (g *LocalGitAdapter) UploadPack(repoPath string,
 
 // Process incoming git pushes
 func (g *LocalGitAdapter) ReceivePack(repoPath string,
-	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
+	requestPayload output.ByteReader, responseWriter output.ByteWriter) error {
 
 	fullPath := g.resolveRepoPath(repoPath)
 

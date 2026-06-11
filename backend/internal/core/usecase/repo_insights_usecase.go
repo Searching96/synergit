@@ -7,13 +7,13 @@ import (
 	"log"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-var _ port.RepoInsightsUseCase = (*RepoInsightsService)(nil)
+var _ output.RepoInsightsUseCase = (*RepoInsightsService)(nil)
 
 const (
 	defaultInsightsWorkerCount = 4
@@ -21,14 +21,14 @@ const (
 )
 
 type RepoInsightsService struct {
-	insightsStore  port.RepoInsightsRepository
-	repoStore      port.RepoRepository
-	collabStore    port.CollaboratorRepository
-	issueStore     port.IssueRepository
-	pullStore      port.PullRequestRepository
-	userStore      port.UserRepository
-	gitManager     port.GitManager
-	metricComputer port.RepoInsightsMetricComputer
+	insightsStore  output.RepoInsightsRepository
+	repoStore      output.RepoRepository
+	collabStore    output.CollaboratorRepository
+	issueStore     output.IssueRepository
+	pullStore      output.PullRequestRepository
+	userStore      output.UserRepository
+	gitManager     output.GitManager
+	metricComputer output.RepoInsightsMetricComputer
 
 	jobs chan insightsJob
 }
@@ -64,14 +64,14 @@ type metricResult struct {
 }
 
 func NewRepoInsightsService(
-	insightsStore port.RepoInsightsRepository,
-	repoStore port.RepoRepository,
-	collabStore port.CollaboratorRepository,
-	issueStore port.IssueRepository,
-	pullStore port.PullRequestRepository,
-	userStore port.UserRepository,
-	gitManager port.GitManager,
-	metricComputer port.RepoInsightsMetricComputer,
+	insightsStore output.RepoInsightsRepository,
+	repoStore output.RepoRepository,
+	collabStore output.CollaboratorRepository,
+	issueStore output.IssueRepository,
+	pullStore output.PullRequestRepository,
+	userStore output.UserRepository,
+	gitManager output.GitManager,
+	metricComputer output.RepoInsightsMetricComputer,
 ) *RepoInsightsService {
 	s := &RepoInsightsService{
 		insightsStore:  insightsStore,

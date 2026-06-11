@@ -78,12 +78,7 @@ func (s *PullRequestAssigneeStore) Unassign(prID uuid.UUID, userID uuid.UUID) er
 	return err
 }
 
-type PRAssignee struct {
-	UserID     uuid.UUID `json:"user_id"`
-	AssignedAt time.Time `json:"assigned_at"`
-}
-
-func (s *PullRequestAssigneeStore) List(prID uuid.UUID) ([]PRAssignee, error) {
+func (s *PullRequestAssigneeStore) List(prID uuid.UUID) ([]domain.PRAssignee, error) {
 	rows, err := s.db.Query(
 		`SELECT user_id, assigned_at FROM pull_request_assignees WHERE pull_request_id = $1 ORDER BY assigned_at`,
 		prID,
@@ -93,9 +88,9 @@ func (s *PullRequestAssigneeStore) List(prID uuid.UUID) ([]PRAssignee, error) {
 	}
 	defer rows.Close()
 
-	var assignees []PRAssignee
+	var assignees []domain.PRAssignee
 	for rows.Next() {
-		var a PRAssignee
+		var a domain.PRAssignee
 		if err := rows.Scan(&a.UserID, &a.AssignedAt); err != nil {
 			return nil, err
 		}

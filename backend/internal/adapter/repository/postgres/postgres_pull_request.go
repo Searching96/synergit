@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.PullRequestRepository = (*PostgresPullRequestStore)(nil)
+var _ output.PullRequestRepository = (*PostgresPullRequestStore)(nil)
 
 type PostgresPullRequestStore struct {
 	db *sql.DB

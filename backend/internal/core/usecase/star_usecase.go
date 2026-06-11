@@ -2,18 +2,18 @@ package usecase
 
 import (
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.StarUseCase = (*StarService)(nil)
+var _ output.StarUseCase = (*StarService)(nil)
 
 type StarService struct {
-	starStore port.StarRepository
+	starStore output.StarRepository
 }
 
-func NewStarService(starStore port.StarRepository) *StarService {
+func NewStarService(starStore output.StarRepository) *StarService {
 	return &StarService{starStore: starStore}
 }
 

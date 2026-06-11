@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.UserRepository = (*PostgresUserStore)(nil)
+var _ output.UserRepository = (*PostgresUserStore)(nil)
 
 type PostgresUserStore struct {
 	db *sql.DB
@@ -94,5 +94,13 @@ func (p *PostgresUserStore) GetUserByID(id uuid.UUID) (*domain.User, error) {
 
 func (p *PostgresUserStore) UpdateUsername(id uuid.UUID, newUsername string) error {
 	_, err := p.db.Exec(`UPDATE users SET username = $1 WHERE id = $2`, newUsername, id)
+	return err
+}
+
+func (p *PostgresUserStore) UpdateRepoPathsForUser(oldUsername, newUsername string) error {
+	_, err := p.db.Exec(
+		`UPDATE repositories SET path = $1 || substring(path from length($2) + 1) WHERE path LIKE $2 || '%'`,
+		newUsername, oldUsername,
+	)
 	return err
 }

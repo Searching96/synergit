@@ -5,14 +5,14 @@ import (
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 	// This blank import registers the Postgres driver with the database/sql package
 	_ "github.com/lib/pq"
 )
 
-var _ port.RepoRepository = (*PostgresRepoStore)(nil)
+var _ output.RepoRepository = (*PostgresRepoStore)(nil)
 
 type PostgresRepoStore struct {
 	db *sql.DB

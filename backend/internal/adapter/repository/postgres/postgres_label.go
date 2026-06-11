@@ -3,12 +3,12 @@ package postgres
 import (
 	"database/sql"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.LabelRepository = (*PostgresLabelStore)(nil)
+var _ output.LabelRepository = (*PostgresLabelStore)(nil)
 
 type PostgresLabelStore struct {
 	db *sql.DB

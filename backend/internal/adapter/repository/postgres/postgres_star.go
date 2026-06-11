@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.StarRepository = (*PostgresStarStore)(nil)
+var _ output.StarRepository = (*PostgresStarStore)(nil)
 
 type PostgresStarStore struct {
 	db *sql.DB

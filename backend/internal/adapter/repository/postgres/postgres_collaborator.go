@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 
 	"github.com/google/uuid"
 )
 
-var _ port.CollaboratorRepository = (*PostgresCollaboratorStore)(nil)
+var _ output.CollaboratorRepository = (*PostgresCollaboratorStore)(nil)
 
 type PostgresCollaboratorStore struct {
 	db *sql.DB

@@ -314,3 +314,4 @@ The microservices migration is a long-term, secondary objective.
 | 2026-06-11 | Antigravity | Updated Development section to prioritize completing the core monolith and VPS deployment over microservices migration |
 | 2026-06-11 | Antigravity | Created BACKEND.md to document strict Robert C. Martin Clean Architecture guidelines, violations, and fix plans |
 | 2026-06-11 | Antigravity | Created FRONTEND.md to document frontend analysis, React best practices, and refactoring plans |
+| 2026-06-11 | Antigravity | Created backend/ISSUES.md to explicitly list Clean Architecture violations and track refactoring progress |

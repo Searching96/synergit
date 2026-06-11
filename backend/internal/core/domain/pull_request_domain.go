@@ -31,6 +31,11 @@ type PullRequest struct {
 	UpdatedAt        time.Time         `json:"updated_at"`
 }
 
+type PRAssignee struct {
+	UserID     uuid.UUID `json:"user_id"`
+	AssignedAt time.Time `json:"assigned_at"`
+}
+
 type PullRequestEvent struct {
 	ID            uuid.UUID `json:"id"`
 	PullRequestID uuid.UUID `json:"pull_request_id"`

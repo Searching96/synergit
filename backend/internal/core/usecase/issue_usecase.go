@@ -4,21 +4,21 @@ import (
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-var _ port.IssueUseCase = (*IssueService)(nil)
+var _ output.IssueUseCase = (*IssueService)(nil)
 
 type IssueService struct {
-	issueStore  port.IssueRepository
-	collabStore port.CollaboratorRepository
+	issueStore  output.IssueRepository
+	collabStore output.CollaboratorRepository
 }
 
-func NewIssueService(issueStore port.IssueRepository,
-	collabStore port.CollaboratorRepository) *IssueService {
+func NewIssueService(issueStore output.IssueRepository,
+	collabStore output.CollaboratorRepository) *IssueService {
 
 	return &IssueService{
 		issueStore:  issueStore,

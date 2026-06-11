@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"synergit/internal/adapter/git_analysis"
+	"synergit/internal/adapter/gateway/git_analysis"
 	"synergit/internal/core/domain"
 )
 

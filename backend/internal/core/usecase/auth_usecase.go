@@ -3,18 +3,18 @@ package usecase
 import (
 	"errors"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	"time"
 )
 
 type AuthService struct {
-	userStore    port.UserRepository
-	hasher       port.PasswordHasher
-	tokenManager port.TokenManager
+	userStore    output.UserRepository
+	hasher       output.PasswordHasher
+	tokenManager output.TokenManager
 }
 
-func NewAuthService(userStore port.UserRepository, hasher port.PasswordHasher,
-	tokenManager port.TokenManager) *AuthService {
+func NewAuthService(userStore output.UserRepository, hasher output.PasswordHasher,
+	tokenManager output.TokenManager) *AuthService {
 
 	return &AuthService{
 		userStore:    userStore,

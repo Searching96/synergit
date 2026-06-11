@@ -1,77 +1,58 @@
-# Synergit Frontend Architecture & Best Practices
+# Frontend Development & Refactoring Guidelines
 
-This document outlines the current state of the Synergit frontend (React + Vite + Tailwind), the recommended best practices, and the actionable plan to refactor the codebase into a maintainable, scalable architecture.
+Tài liệu này định nghĩa các best practices, conventions, và kế hoạch tái cấu trúc (refactor) cho codebase frontend của Synergit. 
 
-## 1. Current State Analysis
+## 1. Phân tích hiện trạng (The "Mess")
+Dựa trên source code hiện tại, frontend đang gặp phải một số vấn đề lớn về mặt tổ chức, cụ thể:
+- **God Object `App.tsx`:** File `App.tsx` quá lớn (> 1000 lines), ôm đồm quá nhiều trách nhiệm (responsibilities) từ việc quản lý global state (auth, repos, branches, tabs), custom routing (phân tích URL thủ công), cho đến layout rendering.
+- **Prop Drilling:** Do không có Global State Management (`contexts` hay thư viện quản lý state), các state và hàm setState phải truyền tay (prop drill) qua rất nhiều component con, làm cho code khó bảo trì và dễ sinh lỗi.
+- **Thiếu Routing Library:** Việc parse path thủ công (ví dụ `parseAppPath`) rất mong manh và không tận dụng được các tính năng tối ưu của các routing libraries tiêu chuẩn.
+- **Business Logic & UI Mixed:** Việc gọi API, xử lý data, và quản lý side effects nằm chung với logic render UI trong các component, vi phạm nguyên tắc Single Responsibility.
 
-The current frontend codebase is functionally correct but suffers from severe organizational and architectural debt. The primary issues are:
+## 2. Best Practices & Conventions
+Để duy trì và phát triển tính năng mới một cách dễ dàng, frontend cần tuân thủ các quy tắc sau:
 
-### 💥 The "God Component" (`App.tsx`)
-`App.tsx` is nearly 40KB and over 1,000 lines long. It acts as a God Object that simultaneously manages:
-- **Custom Routing:** Manually parsing `window.location` and maintaining complex route states (`viewMode`, `activeTab`, `routeContentKind`, etc.).
-- **Global State:** Holding the entire application state (`repos`, `branches`, `selectedRepoId`, authentication state) using dozens of `useState` hooks.
-- **Data Fetching:** Using raw `useEffect` hooks to fetch data from the API, leading to manual tracking of `loading` and `error` states.
+### 2.1. Cấu trúc thư mục (Directory Structure)
+Tách biệt rõ ràng các tầng logic thay vì dồn hết vào `components`:
+- `src/pages/`: Chứa các component ở mức cao nhất (route level), đại diện cho các màn hình (ví dụ: `ProfilePage.tsx`, `RepositoryWorkspacePage.tsx`).
+- `src/features/`: Gom nhóm các components, hooks, và utils theo tính năng (ví dụ: `features/auth`, `features/pull-requests`). *Feature-based architecture* giúp code scale tốt hơn so với gom tất cả components vào chung 1 nơi.
+- `src/contexts/` (hoặc thư viện state): Chứa global state.
+- `src/hooks/`: Custom hooks để tái sử dụng logic (đặc biệt là logic fetch data).
+- `src/components/shared/`: Các reusable UI components (Button, Modal, Input).
 
-### 💥 Poor Directory Structure
-Everything is dumped into the `src/components/` directory. Route-level pages (e.g., `AccountSettingsPage`), domain-specific complex layouts (`RepoWorkspaceContent`), and generic UI elements are mixed together without a clear hierarchy.
+### 2.2. Routing
+- Bắt buộc sử dụng một thư viện routing chuẩn (khuyến nghị **React Router DOM v6**).
+- Khai báo routes tĩnh hoặc động trong một file cấu hình riêng (`routes.tsx`), sử dụng Layout routes để wrap các phần giao diện dùng chung (như Sidebar, TopHeader).
 
-### 💥 Lack of Modern React Tooling
-- **No Router:** The app lacks a declarative routing library.
-- **No Server State Management:** Relying on `useEffect` for API calls instead of a caching layer.
-- **No Client State Management:** Relying on heavy prop-drilling from `App.tsx` to deeply nested components.
+### 2.3. State Management
+- **Server State (API Data):** Nên dùng các custom hooks để quản lý việc gọi API (ví dụ: `useAuth`, `useRepository`), lý tưởng nhất là sử dụng **TanStack Query (React Query)** để quản lý caching, loading, và error states tự động.
+- **Client State (Global UI State):** Dùng React Context (như `AuthContext`, `RepoContext`) hoặc thư viện nhẹ như **Zustand** để lưu trạng thái user đăng nhập hoặc repo đang chọn, tránh prop drilling.
+- **Local State:** Chỉ dùng `useState` cho những state chỉ liên quan đến bản thân component đó (ví dụ: text input, toggle modal).
 
----
+### 2.4. Component Conventions
+- Tách biệt "Smart" components (quản lý state/data fetch) và "Dumb" components (chỉ nhận props và render UI).
+- Đưa các hàm tiện ích phức tạp (utility functions) ra ngoài component file để dễ viết unit test.
 
-## 2. Target Architecture & Conventions
+## 3. Kế hoạch sửa chữa (Refactoring Plan)
 
-To ensure the frontend is scalable and maintainable, we will adopt the following conventions and libraries:
+Quá trình refactor `App.tsx` và cấu trúc hiện tại sẽ được chia thành các Phase rõ ràng để đảm bảo không làm gãy các tính năng hiện có:
 
-### 2.1. Standardized Directory Structure
-We will move away from a flat `components/` folder to a more feature-driven architecture:
+### Phase 1: Áp dụng Standard Routing
+- Cài đặt `react-router-dom`.
+- Chuyển đổi các logic phân tích URL thủ công (`parseAppPath`) thành các `<Route>` định nghĩa rõ ràng.
+- Tách `App.tsx` thành các Route element nhỏ gọn.
+- Áp dụng cơ chế Nested Routes cho Repository Workspace (để tách tab files, commits, pulls, issues...).
 
-- `src/pages/`: Contains route-level components. These components do not contain complex logic; they simply map a URL route to a Feature.
-- `src/features/`: Contains domain-specific logic. Grouped by feature (e.g., `features/auth`, `features/repository`, `features/profile`). Each feature folder can have its own `components/`, `hooks/`, and `api/`.
-- `src/components/`: Reserved **strictly** for generic, reusable UI components (e.g., `Button`, `Modal`, `Dropdown`, `Input`).
-- `src/hooks/`: Global custom hooks that are shared across multiple features.
-- `src/store/`: Global client state management.
-- `src/lib/` or `src/utils/`: Utility functions and third-party library configurations (e.g., Axios instance).
+### Phase 2: Áp dụng Global State (Context)
+- Tạo `AuthContext` để cung cấp `isAuthenticated` và thông tin User hiện tại xuống toàn bộ app.
+- Tạo `RepositoryContext` để chia sẻ `selectedRepoId`, `branches`, `currentBranch`, giúp loại bỏ hàng tá props truyền qua các component của Repository Workspace.
 
-### 2.2. Recommended Stack Additions
-- **Routing:** Use `react-router-dom` v6+ (or `@tanstack/react-router`) for declarative, nested routing.
-- **Server State / Data Fetching:** Use `@tanstack/react-query` (React Query) to handle all API calls. This will eliminate `useEffect` fetching, automatically cache data, and handle loading/error states out of the box.
-- **Client State:** Use `Zustand` for lightweight global state (e.g., currently authenticated user, UI theme) to eliminate prop-drilling.
+### Phase 3: Tách Business Logic vào Custom Hooks (Data Fetching)
+- Gom các lời gọi API từ `services/api.ts` vào các custom hooks (ví dụ: `useFetchRepos()`, `useRepoDetails()`).
+- Di chuyển các state liên quan đến loading/error vào trong hook, giữ cho component render giao diện một cách sạch sẽ.
 
----
+### Phase 4: Tổ chức lại thư mục
+- Di chuyển các "Page" thực sự từ thư mục `components/` sang `pages/` (ví dụ `CreateRepositoryPage.tsx`).
+- Nhóm các component liên quan chặt chẽ thành các feature modules trong `features/`.
 
-## 3. Refactoring Action Plan
-
-The refactoring will be executed in phases to ensure the application remains functional at each step.
-
-### Phase 1: Structural Reorganization (Low Risk)
-1. Create the `src/pages/`, `src/features/`, and `src/components/ui/` directories.
-2. Move generic layout components (TopHeader, SidebarMenu) to `src/components/layout/`.
-3. Move top-level page components (e.g., `CreateRepositoryPage`, `AccountSettingsPage`) to `src/pages/`.
-4. Group repository-specific components under `src/features/repository/` and profile components under `src/features/profile/`.
-
-### Phase 2: Implement Declarative Routing (Medium Risk)
-1. Install `react-router-dom`.
-2. Replace the custom `applyRoute` and `window.location` parsing logic in `App.tsx` with a standard `<BrowserRouter>` and `<Routes>` setup.
-3. Define explicit route paths:
-   - `/` (Home/Auth)
-   - `/:username` (Profile Page)
-   - `/:username/:repoName/*` (Repository Workspace)
-   - `/settings/account` (Settings)
-4. Replace manual `navigateToPath` calls with the `useNavigate` hook or `<Link>` components.
-
-### Phase 3: Introduce React Query for Server State (High Impact)
-1. Install `@tanstack/react-query`.
-2. Wrap the app in `<QueryClientProvider>`.
-3. Migrate API calls (e.g., `reposApi.getRepos`, `reposApi.getBranches`) from `useEffect` inside `App.tsx` to custom hooks (e.g., `useRepositories()`, `useBranches()`).
-4. Remove the sprawling `useState` arrays for data from `App.tsx`. Components that need data will simply call the React Query hooks directly.
-
-### Phase 4: Dismantle the God Component (`App.tsx`)
-1. Extract global client state (like `isAuthenticated` or `searchQuery`) into a `Zustand` store if Context is not sufficient.
-2. Reduce `App.tsx` down to just the root Providers (`QueryClientProvider`, `RouterProvider`, `ThemeProvider`) and the main Layout shell.
-
----
-*Note: This frontend refactor should be executed independently of backend changes, ensuring API contracts are strictly maintained during the transition.*
+Mục tiêu cấp thiết hiện tại là phải làm sạch được tổ chức mã nguồn frontend để dọn đường cho việc hoàn thiện core monolithic theo như trong `DOCUMENT.md`.

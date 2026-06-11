@@ -4,7 +4,7 @@ import (
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
-	"synergit/internal/core/port"
+	"synergit/internal/core/boundary/output"
 	usecaseutils "synergit/internal/core/usecase/utils"
 	"time"
 
@@ -13,21 +13,21 @@ import (
 
 // RepoService implements the business logic for repositories
 type RepoService struct {
-	gitManager  port.GitManager // Dependency injected via interface
-	repoStore   port.RepoRepository
-	collabStore port.CollaboratorRepository
-	userStore   port.UserRepository
+	gitManager  output.GitManager // Dependency injected via interface
+	repoStore   output.RepoRepository
+	collabStore output.CollaboratorRepository
+	userStore   output.UserRepository
 
-	repoInsightsScheduler port.RepoInsightsScheduler
+	repoInsightsScheduler output.RepoInsightsScheduler
 }
 
 // NewRepoService creates a new usecase instance
 func NewRepoService(
-	gm port.GitManager,
-	rs port.RepoRepository,
-	cs port.CollaboratorRepository,
-	us port.UserRepository,
-	ris port.RepoInsightsScheduler,
+	gm output.GitManager,
+	rs output.RepoRepository,
+	cs output.CollaboratorRepository,
+	us output.UserRepository,
+	ris output.RepoInsightsScheduler,
 ) *RepoService {
 	return &RepoService{
 		gitManager:            gm,
@@ -157,8 +157,8 @@ func (s *RepoService) GetIntoRefsByOwnerAndName(ownerUsername string, repoName s
 }
 
 // Deprecated: use UploadPackByOwnerAndName for username/repo clone flow.
-func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload port.ByteReader,
-	responseWriter port.ByteWriter) error {
+func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload output.ByteReader,
+	responseWriter output.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
@@ -169,7 +169,7 @@ func (s *RepoService) UploadPack(repoID uuid.UUID, requestPayload port.ByteReade
 }
 
 func (s *RepoService) UploadPackByOwnerAndName(ownerUsername string, repoName string,
-	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
+	requestPayload output.ByteReader, responseWriter output.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
@@ -180,8 +180,8 @@ func (s *RepoService) UploadPackByOwnerAndName(ownerUsername string, repoName st
 }
 
 // Deprecated: repo_id receive-pack path is legacy and not publicly exposed.
-func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload port.ByteReader,
-	responseWriter port.ByteWriter) error {
+func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload output.ByteReader,
+	responseWriter output.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
@@ -198,7 +198,7 @@ func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload port.ByteRead
 }
 
 func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string,
-	requestPayload port.ByteReader, responseWriter port.ByteWriter) error {
+	requestPayload output.ByteReader, responseWriter output.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
@@ -353,7 +353,7 @@ func (s *RepoService) DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) 
 	return s.gitManager.DeleteRepository(repo.Path)
 }
 
-func inferDescriptionFromReadme(gitManager port.GitManager, repoPath string) string {
+func inferDescriptionFromReadme(gitManager output.GitManager, repoPath string) string {
 	content, err := gitManager.GetBlob(repoPath, "README.md", "")
 	if err != nil {
 		content, err = gitManager.GetBlob(repoPath, "readme.md", "")

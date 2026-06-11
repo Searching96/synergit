@@ -10,12 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"synergit/internal/adapter/git_analysis"
-	httpHandler "synergit/internal/adapter/handler/http"
-	"synergit/internal/adapter/handler/http/middleware"
+	"synergit/internal/adapter/gateway/git_analysis"
+	httpHandler "synergit/internal/adapter/controller"
+	"synergit/internal/adapter/controller/middleware"
 	"synergit/internal/adapter/repository"
 	"synergit/internal/adapter/repository/postgres"
-	"synergit/internal/adapter/security"
+	"synergit/internal/adapter/gateway/security"
 	"synergit/internal/core/usecase"
 
 	"github.com/gin-contrib/cors"
@@ -84,8 +84,10 @@ func main() {
 	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
 	labelUseCase := usecase.NewLabelService(dbLabelAdapter, dbIssueAdapter, dbCollabAdapter)
 	starUseCase := usecase.NewStarService(dbStarAdapter)
+	prLabelStore := postgres.NewPullRequestLabelStore(db)
+	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
-		gitAdapter, dbRepoAdapter, dbUserAdapter)
+		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoUseCase, publicBaseURL)
@@ -95,10 +97,9 @@ func main() {
 	labelHandler := httpHandler.NewLabelHandler(labelUseCase)
 	starHandler := httpHandler.NewStarHandler(starUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
-	prLabelStore := postgres.NewPullRequestLabelStore(db)
-	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
-	prLabelHandler := httpHandler.NewPRLabelHandler(prLabelStore, prAssigneeStore)
-	userSettingsHandler := httpHandler.NewUserSettingsHandler(dbUserAdapter, tokenManager, gitRoot, db)
+	prLabelHandler := httpHandler.NewPRLabelHandler(prUseCase)
+	userService := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
+	userSettingsHandler := httpHandler.NewUserSettingsHandler(userService)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
@@ -187,8 +188,8 @@ func main() {
 			repos.POST("/:repo_id/pulls/:pull_id/labels", prLabelHandler.HandleAddLabel)
 			repos.DELETE("/:repo_id/pulls/:pull_id/labels/:label_id", prLabelHandler.HandleRemoveLabel)
 			repos.GET("/:repo_id/pulls/:pull_id/assignees", prLabelHandler.HandleListAssignees)
-			repos.POST("/:repo_id/pulls/:pull_id/assignees", prLabelHandler.HandleAssign)
-			repos.DELETE("/:repo_id/pulls/:pull_id/assignees/:user_id", prLabelHandler.HandleUnassign)
+			repos.POST("/:repo_id/pulls/:pull_id/assignees", prLabelHandler.HandleAssignUser)
+			repos.DELETE("/:repo_id/pulls/:pull_id/assignees/:user_id", prLabelHandler.HandleUnassignUser)
 
 			// Issue routes
 			repos.POST("/:repo_id/issues", issueHandler.HandleCreateIssue)
