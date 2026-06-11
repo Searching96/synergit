@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Branch, CreateRepositoryPayload, Repository } from "./types/index";
-import { ApiError, checkBackendAvailability, reposApi } from "./services/api";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "./contexts/AuthContext";
+import { useRepository } from "./contexts/RepositoryContext";
+import type { CreateRepositoryPayload, Repository } from "./types/index";
+import { checkBackendAvailability } from "./services/api";
 import Auth from "./components/auth/Auth";
-import GithubProfilePages from "./components/profile/GithubProfilePages";
-import CreateRepositoryPage from "./components/create-repository/CreateRepositoryPage";
-import TopHeader from "./components/layout/TopHeader";
-import SidebarMenu from "./components/layout/SidebarMenu";
-import RouteButton from "./components/layout/RouteButton";
-import TopNavigationTabs from "./components/layout/TopNavigationTabs";
-import GlobalPlaceholderPage from "./components/layout/GlobalPlaceholderPage";
-import AccountSettingsPage from "./components/settings/AccountSettingsPage";
-import SearchResultsPage from "./components/layout/SearchResultsPage";
-import RepoWorkspaceContent from "./components/repository/workspace/RepoWorkspaceContent";
-import { REPO_TABS, type RepoTabKey } from "./components/repository/workspace/utils/repoTabs";
-import { isRepositoryOwnedByUser } from "./components/profile/pages/utils/profileUtils";
-import { readCachedCount, writeCachedCount, repoCountCacheKey, repoTabCountsCacheKey, readRepoTabCounts, writeRepoTabCounts } from "./utils/countCache";
+import GithubProfilePages from "./pages/ProfilePage";
+import CreateRepositoryPage from "./pages/CreateRepositoryPage";
+import TopHeader from "./layouts/TopHeader";
+import SidebarMenu from "./layouts/SidebarMenu";
+import RouteButton from "./components/shared/RouteButton";
+import TopNavigationTabs from "./layouts/TopNavigationTabs";
+import GlobalPlaceholderPage from "./pages/GlobalPlaceholderPage";
+import AccountSettingsPage from "./pages/AccountSettingsPage";
+import SearchResultsPage from "./pages/SearchResultsPage";
+import RepoWorkspaceContent from "./pages/RepoWorkspacePage";
+import { REPO_TABS, type RepoTabKey } from "./utils/repoTabs";
+import { repoTabCountsCacheKey, readRepoTabCounts, writeRepoTabCounts } from "./utils/countCache";
 import {
   GLOBAL_PAGE_TITLES,
   buildProfilePath,
@@ -39,8 +41,8 @@ import {
   type GlobalPageKey,
   type ParsedRoute,
   type RepoContentKind,
-} from "./components/repository/workspace/utils/repoRouting";
-import type { ProfileTabKey } from "./components/profile/pages/utils/profileTypes";
+} from "./utils/repoRouting";
+import type { ProfileTabKey } from "./utils/profileTypes";
 import { formatVisibilityLabel } from "./utils/visibility";
 
 function SiteUnavailablePage() {
@@ -63,42 +65,32 @@ function SiteUnavailablePage() {
   );
 }
 
-function getUsernameFromToken(): string {
-  const token = localStorage.getItem('token');
-  if (!token) return 'owner';
 
-  try {
-    const payloadPart = token.split('.')[1];
-    if (!payloadPart) return 'owner';
+function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    const normalizedBase64 = payloadPart
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-    const payloadJson = atob(normalizedBase64);
-    const payload = JSON.parse(payloadJson) as { username?: unknown };
+  const { isAuthenticated, currentUsername, login, logout } = useAuth();
+  const {
+    repos,
+    profileRepoCount,
+    profileFetchFailed,
+    profileRepoCountPending,
+    profileRepositoriesPending,
+    selectedRepoId,
+    selectedRepo,
+    branches,
+    currentBranch,
+    setSelectedRepoId,
+    setCurrentBranch,
+    refreshBranches,
+    handleRepoUpdated,
+    handleRepoDeleted,
+    handleCreateRepository: contextHandleCreateRepository,
+    clearState
+  } = useRepository();
 
-    if (typeof payload.username === 'string' && payload.username.trim()) {
-      return payload.username;
-    }
-  } catch {
-    return 'owner';
-  }
-
-  return 'owner';
-}
-
-function App () {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
-
-  const [repos, setRepos] = useState<Repository[]>([]);
-  const [profileRepoCount, setProfileRepoCount] = useState<number>(
-    () => readCachedCount(repoCountCacheKey(getUsernameFromToken())) ?? 0,
-  );
-  const [profileFetchFailed, setProfileFetchFailed] = useState<boolean>(false);
-  const [profileRepoCountPending, setProfileRepoCountPending] = useState<boolean>(isAuthenticated);
-  const [profileRepositoriesPending, setProfileRepositoriesPending] = useState<boolean>(false);
   const [backendStatus, setBackendStatus] = useState<"checking" | "available" | "unavailable">("checking");
-  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
   const [repoRouteResolved, setRepoRouteResolved] = useState<boolean>(false);
@@ -112,8 +104,6 @@ function App () {
   const [routeContentPath, setRouteContentPath] = useState<string>('');
   const [routeBranch, setRouteBranch] = useState<string>('');
 
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [currentBranch, setCurrentBranch] = useState<string>('');
   const profileFetchPending = profileRepoCountPending || profileRepositoriesPending;
 
   useEffect(() => {
@@ -170,11 +160,6 @@ function App () {
     );
   }, [repos, selectedRepoId]);
 
-  const getCurrentUsername = () => {
-    return getUsernameFromToken();
-  };
-
-  const currentUsername = getCurrentUsername();
   const defaultBranchName = branches.find((item) => item.is_default)?.name || branches[0]?.name || 'master';
 
   const getRepoOwner = useCallback((repo: Repository) => {
@@ -299,221 +284,17 @@ function App () {
   }, [currentBranch, currentUsername, defaultBranchName, findRepoFromParsedRoute, getRepoOwner]);
 
   const navigateToPath = useCallback((pathname: string, options?: { replace?: boolean }) => {
-    const url = new URL(pathname, window.location.origin);
-    const parsed = parseAppPath(url.pathname);
-    const nextFullPath = `${parsed.normalizedPath}${url.search}`;
-    const currentFullPath = `${window.location.pathname}${window.location.search}`;
-
-    if (currentFullPath !== nextFullPath) {
-      if (options?.replace) {
-        window.history.replaceState({}, '', nextFullPath);
-      } else {
-        window.history.pushState({}, '', nextFullPath);
-      }
-    } else if (options?.replace) {
-      window.history.replaceState({}, '', nextFullPath);
-    }
-
-    return applyRoute(parsed.normalizedPath, url.search, { replace: true });
-  }, [applyRoute]);
+    navigate(pathname, { replace: options?.replace });
+  }, [navigate]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
     navigateToPath('/search');
   }, [navigateToPath]);
 
-  const refreshBranches = () => {
-    if (!selectedRepoId || !isAuthenticated) return;
 
-    reposApi.getBranches(selectedRepoId)
-      .then((data) => {
-        const branchList = data || [];
-        setBranches(branchList);
 
-        const defaultBranch = branchList.find((b) => b.is_default)?.name || branchList[0]?.name || '';
-        const routeRevision = (routeBranch || '').trim();
-        const routePinnedToRevision =
-          !!routeRevision &&
-          (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'commits') &&
-          !branchList.some((b) => b.name === routeRevision);
 
-        setCurrentBranch((prev) => {
-          if (routePinnedToRevision) {
-            return routeRevision;
-          }
-
-          if (routeRevision && branchList.some((b) => b.name === routeRevision)) {
-            return routeRevision;
-          }
-
-          if (prev && branchList.some((b) => b.name === prev)) {
-            return prev;
-          }
-
-          return defaultBranch;
-        });
-
-      })
-      .catch(console.error);
-  };
-
-  const hydratePrimaryLanguagesFromInsights = useCallback(async (repositories: Repository[]) => {
-    const missingLanguageRepos = repositories.filter((repo) => {
-      const resolved = (repo.primary_language || repo.language || "").trim();
-      return resolved.length === 0;
-    });
-
-    if (missingLanguageRepos.length === 0) {
-      return;
-    }
-
-    const results = await Promise.allSettled(
-      missingLanguageRepos.map(async (repo) => {
-        const snapshot = await reposApi.getInsights(repo.id);
-        const primaryLanguage = (
-          snapshot.primary_language ||
-          snapshot.language_breakdown?.[0]?.language ||
-          ""
-        ).trim();
-
-        if (!primaryLanguage) {
-          return null;
-        }
-
-        return {
-          repoId: repo.id,
-          primaryLanguage,
-        };
-      }),
-    );
-
-    const primaryLanguageByRepoId = new Map<string, string>();
-    for (const result of results) {
-      if (result.status !== 'fulfilled' || !result.value) {
-        continue;
-      }
-
-      primaryLanguageByRepoId.set(result.value.repoId, result.value.primaryLanguage);
-    }
-
-    if (primaryLanguageByRepoId.size === 0) {
-      return;
-    }
-
-    setRepos((prev) => prev.map((repo) => {
-      const primaryLanguage = primaryLanguageByRepoId.get(repo.id);
-      if (!primaryLanguage) {
-        return repo;
-      }
-
-      const existingPrimary = (repo.primary_language || "").trim();
-      if (existingPrimary === primaryLanguage) {
-        return repo;
-      }
-
-      return {
-        ...repo,
-        primary_language: primaryLanguage,
-        language: (repo.language || primaryLanguage).trim(),
-      };
-    }));
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    let cancelled = false;
-    setProfileRepoCountPending(true);
-    reposApi.getRepoCount()
-      .then(({ count }) => {
-        if (cancelled) {
-          return;
-        }
-
-        setProfileFetchFailed(false);
-        setProfileRepoCountPending(false);
-        setProfileRepoCount(count);
-        writeCachedCount(repoCountCacheKey(getUsernameFromToken()), count);
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(err);
-        if (err instanceof ApiError && err.status === 401) {
-          handleLogout();
-          return;
-        }
-        setProfileFetchFailed(true);
-        setProfileRepoCountPending(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated]);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    const routeNeedsRepositories =
-      viewMode === 'repo' ||
-      (viewMode === 'profile' && profileTab === 'overview') ||
-      (viewMode === 'profile' && profileTab === 'repositories') ||
-      (viewMode === 'global' && activeGlobalPage === 'search');
-
-    if (!routeNeedsRepositories) {
-      setProfileRepositoriesPending(false);
-      return;
-    }
-
-    let cancelled = false;
-    setProfileRepositoriesPending(true);
-    reposApi.getRepos()
-      .then((data) => {
-        if (cancelled) {
-          return;
-        }
-
-        const repositories = data || [];
-        setProfileFetchFailed(false);
-        setProfileRepositoriesPending(false);
-        setRepos(repositories);
-        const ownedCount = repositories.filter((repo) => isRepositoryOwnedByUser(repo, currentUsername)).length;
-        setProfileRepoCount(ownedCount);
-        writeCachedCount(repoCountCacheKey(currentUsername), ownedCount);
-        void hydratePrimaryLanguagesFromInsights(repositories);
-      })
-      .catch((err) => {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(err);
-        if (err instanceof ApiError && err.status === 401) {
-          handleLogout();
-          return;
-        }
-        setProfileFetchFailed(true);
-        setProfileRepositoriesPending(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    activeGlobalPage,
-    currentUsername,
-    hydratePrimaryLanguagesFromInsights,
-    isAuthenticated,
-    profileTab,
-    viewMode,
-  ]);
 
   useEffect(() => {
     if (selectedRepoId && isAuthenticated) {
@@ -521,7 +302,6 @@ function App () {
     }
   }, [selectedRepoId, isAuthenticated]);
 
-  const selectedRepo = repos.find((repo) => repo.id === selectedRepoId) || null;
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
   const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
   const isFullBrowserMode =
@@ -531,21 +311,14 @@ function App () {
       (activeTab === 'pulls' && routeContentKind === 'pull-conflicts'));
 
   useEffect(() => {
-    applyRoute(window.location.pathname, window.location.search, { replace: true });
-
-    const onPopState = () => {
-      applyRoute(window.location.pathname, window.location.search, { replace: true });
-    };
-
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [applyRoute]);
+    applyRoute(location.pathname, location.search, { replace: true });
+  }, [location, applyRoute]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    applyRoute(window.location.pathname, window.location.search, { replace: true });
+    applyRoute(location.pathname, location.search, { replace: true });
     if (repos.length > 0) setRepoRouteResolved(true);
-  }, [applyRoute, isAuthenticated, repos]);
+  }, [applyRoute, isAuthenticated, repos, location]);
 
   const navigateToProfileTab = useCallback((tab: ProfileTabKey, options?: { replace?: boolean }) => {
     navigateToPath(buildProfilePath(currentUsername, tab), options);
@@ -677,20 +450,18 @@ function App () {
     navigateToRepoCommits(selectedRepo, branchName, window.location.search);
   };
 
-  const handleRepoUpdated = useCallback((updatedRepo: Repository) => {
-    setRepos((prev) => prev.map((repo) => (repo.id === updatedRepo.id ? { ...repo, ...updatedRepo } : repo)));
+  const handleRepoUpdatedWrapper = useCallback((updatedRepo: Repository) => {
+    handleRepoUpdated(updatedRepo);
     if (selectedRepo && selectedRepo.id === updatedRepo.id && selectedRepo.name !== updatedRepo.name) {
       const newPath = buildRepoTabPath(getRepoOwner(updatedRepo), updatedRepo.name, activeTab);
       window.history.replaceState({}, '', newPath);
     }
-  }, [selectedRepo, activeTab, getRepoOwner]);
+  }, [selectedRepo, activeTab, getRepoOwner, handleRepoUpdated]);
 
-  const handleRepoDeleted = useCallback((repoId: string) => {
-    setRepos((prev) => prev.filter((repo) => repo.id !== repoId));
-    setProfileRepoCount((count) => Math.max(0, count - 1));
-    setSelectedRepoId(null);
+  const handleRepoDeletedWrapper = useCallback((repoId: string) => {
+    handleRepoDeleted(repoId);
     navigateToProfileTab('repositories');
-  }, [navigateToProfileTab]);
+  }, [handleRepoDeleted, navigateToProfileTab]);
 
   const explorerInitialLocation = useMemo(() => {
     if (routeContentKind === 'blob') {
@@ -736,11 +507,8 @@ function App () {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-    setRepos([]);
-    setProfileRepoCount(0);
-    setSelectedRepoId(null);
+    logout();
+    clearState();
     setViewMode('profile');
     navigateToPath(`/${encodeURIComponent(currentUsername)}`, { replace: true });
     setCreateRepoError(null);
@@ -768,19 +536,7 @@ function App () {
       setCreateRepoSubmitting(true);
       setCreateRepoError(null);
 
-      const createdRepoResponse = await reposApi.createRepo(payload);
-      const createdRepo: Repository = {
-        ...createdRepoResponse,
-        description: createdRepoResponse.description ?? payload.description,
-        visibility: createdRepoResponse.visibility ?? payload.visibility ?? 'PUBLIC',
-      };
-
-      setRepos((prev) => {
-        const withoutCreated = prev.filter((repo) => repo.id !== createdRepo.id);
-        return [createdRepo, ...withoutCreated];
-      });
-      setProfileRepoCount((count) => count + 1);
-      setSelectedRepoId(createdRepo.id);
+      const createdRepo = await contextHandleCreateRepository(payload);
       navigateToRepoTab(createdRepo, 'files');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create repository';
@@ -797,8 +553,8 @@ function App () {
   }
 
   if (!isAuthenticated) {
-    return <Auth onLoginSuccess={() => {
-      setIsAuthenticated(true);
+    return <Auth onLoginSuccess={(token) => {
+      login(token);
     }} />;
   }
 
@@ -921,7 +677,7 @@ function App () {
           routeContentPath={routeContentPath}
           routeBranch={routeBranch}
           defaultBranchName={defaultBranchName}
-          currentBranch={currentBranch}
+          currentBranch={currentBranch || ''}
           branches={branches}
           explorerInitialLocation={explorerInitialLocation}
           locationSearch={window.location.search}
@@ -1036,8 +792,8 @@ function App () {
 
             navigateToRepoTab(selectedRepo, 'issues');
           }}
-          onRepoUpdated={handleRepoUpdated}
-          onRepoDeleted={handleRepoDeleted}
+          onRepoUpdated={handleRepoUpdatedWrapper}
+          onRepoDeleted={handleRepoDeletedWrapper}
           onGoToProfile={() => navigateToProfileTab('overview')}
         />
         </div>

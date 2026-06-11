@@ -8,10 +8,10 @@ import {
 import type {
   CreateRepositoryPayload,
   RepositoryVisibility,
-} from "../../types";
-import { formatVisibilityLabel } from "../../utils/visibility";
-import RouteButton from "../layout/RouteButton";
-import TopHeader from "../layout/TopHeader";
+} from "../types";
+import { formatVisibilityLabel } from "../utils/visibility";
+import RouteButton from "../components/shared/RouteButton";
+import TopHeader from "../layouts/TopHeader";
 
 interface CreateRepositoryPageProps {
   ownerName: string;

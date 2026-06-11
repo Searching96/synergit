@@ -3,7 +3,7 @@ import { RepoIcon } from "@primer/octicons-react";
 import { Loader2 } from "lucide-react";
 import { reposApi } from "../../../services/api/repos";
 import type { ProfileActivitySnapshot } from "../../../types";
-import type { ShowcaseRepo } from "./utils/profileTypes";
+import type { ShowcaseRepo } from "../../../utils/profileTypes";
 import ContributionMatrix from "./ContributionMatrix";
 import ActivityChart from "./ActivityChart";
 

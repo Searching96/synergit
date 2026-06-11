@@ -3,7 +3,7 @@ import { authApi } from "../../services/api";
 import { BookOpen } from "lucide-react";
 
 interface AuthProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (token: string) => void;
 }
 
 export default function Auth({ onLoginSuccess }: AuthProps) {
@@ -22,8 +22,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
     try {
       if (isLogin) {
         const res = await authApi.login({ username, password });
-        localStorage.setItem('token', res.token);
-        onLoginSuccess();
+        onLoginSuccess(res.token);
       } else {
         await authApi.register({ username, email, password });
         setIsLogin(true);

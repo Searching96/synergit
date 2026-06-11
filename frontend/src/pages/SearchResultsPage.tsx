@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { MarkGithubIcon, SearchIcon, StarIcon } from "@primer/octicons-react";
-import type { Repository } from "../../types";
-import { starsApi } from "../../services/api";
-import StarButton from "../shared/StarButton";
+import type { Repository } from "../types";
+import { starsApi } from "../services/api";
+import StarButton from '../components/shared/StarButton';
 
 interface SearchResultsPageProps {
   repos: Repository[];

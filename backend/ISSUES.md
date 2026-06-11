@@ -30,11 +30,11 @@ Some controllers bypass the Use Case layer completely, injecting gateways or dri
 - **Fix:** Create `PRLabelUseCase` and `PRAssigneeUseCase` (or add methods to `PullRequestUseCase`). The controller must call the Use Case, which in turn calls the Output Boundary.
 
 ## Issue Tracking Status
-- [ ] Refactor Directory Structure (`controller`, `gateway`, `boundary`)
-- [ ] Create `boundary/output/` interfaces and move existing `port` interfaces there.
-- [ ] Create `boundary/input/` interfaces for all Use Cases.
-- [ ] Update Use Cases to implement Input Boundaries.
-- [ ] Update Controllers to depend on Input Boundaries.
-- [ ] Fix `UserSettingsHandler` bypass.
-- [ ] Fix `PRLabelHandler` bypass.
-- [ ] Update `cmd/server/main.go` wiring.
+- `[x]` Refactor Directory Structure (`controller`, `gateway`, `boundary`)
+- `[x]` Create `boundary/output/` interfaces and move existing `port` interfaces there.
+- `[x]` Create `boundary/input/` interfaces for all Use Cases.
+- `[x]` Update Use Cases to implement Input Boundaries.
+- `[x]` Update Controllers to depend on Input Boundaries.
+- `[x]` Fix `UserSettingsHandler` bypass.
+- `[x]` Fix `PRLabelHandler` bypass.
+- `[x]` Update `cmd/server/main.go` wiring.

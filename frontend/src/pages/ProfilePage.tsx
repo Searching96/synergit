@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import type { Repository } from "../../types";
+import type { Repository } from "../types";
 import {
   Bot,
   CircleDot,
@@ -19,26 +19,26 @@ import {
   X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
-import RouteButton from "../layout/RouteButton";
-import TopNavigationTabs from "../layout/TopNavigationTabs";
-import ProfileOverviewPage from "./pages/ProfileOverviewPage";
-import ProfileInfo from "./ProfileInfo";
-import ProfileRepositoriesPage from "./pages/ProfileRepositoriesPage";
-import ProfileProjectsPage from "./pages/ProfileProjectsPage";
-import ProfilePackagesPage from "./pages/ProfilePackagesPage";
-import ProfileStarsPage from "./pages/ProfileStarsPage";
-import { PINNED_ORDER } from "./pages/utils/profileData";
-import type { StarredRepo } from "./pages/utils/profileTypes";
-import { starsApi } from "../../services/api";
-import { readCachedCount, writeCachedCount, starredCountCacheKey } from "../../utils/countCache";
-import type { ProfileTabKey, ShowcaseRepo } from "./pages/utils/profileTypes";
+import RouteButton from "../components/shared/RouteButton";
+import TopNavigationTabs from "../layouts/TopNavigationTabs";
+import ProfileOverviewPage from "../components/profile/pages/ProfileOverviewPage";
+import ProfileInfo from "../components/profile/ProfileInfo";
+import ProfileRepositoriesPage from "../components/profile/pages/ProfileRepositoriesPage";
+import ProfileProjectsPage from "../components/profile/pages/ProfileProjectsPage";
+import ProfilePackagesPage from "../components/profile/pages/ProfilePackagesPage";
+import ProfileStarsPage from "../components/profile/pages/ProfileStarsPage";
+import { PINNED_ORDER } from "../utils/profileData";
+import type { StarredRepo } from "../utils/profileTypes";
+import { starsApi } from "../services/api";
+import { readCachedCount, writeCachedCount, starredCountCacheKey } from "../utils/countCache";
+import type { ProfileTabKey, ShowcaseRepo } from "../utils/profileTypes";
 import {
   buildDefaultRepositories,
   contributionColor,
   isRepositoryOwnedByUser,
   languageColor,
-} from "./pages/utils/profileUtils";
-import TopHeader from "../layout/TopHeader";
+} from "../utils/profileUtils";
+import TopHeader from "../layouts/TopHeader";
 
 interface GithubProfilePagesProps {
   repositories: Repository[];

@@ -4,7 +4,7 @@ import { RepoForkedIcon, RepoIcon, StarIcon } from "@primer/octicons-react";
 import StarButton from "../../shared/StarButton";
 import { reposApi } from "../../../services/api/repos";
 import type { Commit } from "../../../types";
-import type { ShowcaseRepo } from "./utils/profileTypes";
+import type { ShowcaseRepo } from "../../../utils/profileTypes";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const COMMIT_TREND_BUCKETS = 53;

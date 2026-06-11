@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fetcher } from "../../services/api/client";
+import { fetcher } from "../services/api/client";
 import {
   Bell,
   BookOpen,
