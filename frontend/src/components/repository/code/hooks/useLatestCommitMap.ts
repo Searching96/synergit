@@ -25,6 +25,7 @@ export function useLatestCommitMap(
   }, [paths]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCommitMap({});
   }, [repoId, branch]);
 

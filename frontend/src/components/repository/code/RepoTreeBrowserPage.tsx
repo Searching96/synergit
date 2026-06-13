@@ -19,6 +19,7 @@ import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import TwinButton from "./TwinButton";
+import { useSetPageReady } from "../../../contexts/PageReadyContext";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -127,7 +128,7 @@ export default function RepoTreeBrowserPage({
   const [currentDirPath, setCurrentDirPath] = useState<string>("");
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
-  const [, setFileLoading] = useState<boolean>(false);
+  const [fileLoading, setFileLoading] = useState<boolean>(false);
   const [loadingPathSet, setLoadingPathSet] = useState<Set<string>>(new Set());
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
@@ -138,6 +139,8 @@ export default function RepoTreeBrowserPage({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+
+  useSetPageReady(!fileLoading && loadingPathSet.size === 0);
 
   const activeBranch = (branch || "master").trim() || "master";
 

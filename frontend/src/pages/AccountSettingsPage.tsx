@@ -21,6 +21,7 @@ import {
   User,
   Users,
 } from "lucide-react";
+import { useSetPageReady } from '../contexts/PageReadyContext';
 
 interface AccountSettingsPageProps {
   username: string;
@@ -91,7 +92,8 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
 ];
 
 export default function AccountSettingsPage({ username, onGoToProfile }: AccountSettingsPageProps) {
-  const [newUsername, setNewUsername] = useState("");
+  useSetPageReady(true);
+  const [newUsername, setNewUsername] = useState(username);
   const [showUsernameInput, setShowUsernameInput] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameSuccess, setUsernameSuccess] = useState(false);

@@ -4,11 +4,13 @@ import { useAuth } from "./contexts/AuthContext";
 import { useRepository } from "./contexts/RepositoryContext";
 import type { CreateRepositoryPayload, Repository } from "./types/index";
 import { checkBackendAvailability } from "./services/api";
+import { PageReadyProvider } from "./contexts/PageReadyContext";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./pages/ProfilePage";
 import CreateRepositoryPage from "./pages/CreateRepositoryPage";
 import TopHeader from "./layouts/TopHeader";
 import SidebarMenu from "./layouts/SidebarMenu";
+import Footer from "./components/shared/Footer";
 import RouteButton from "./components/shared/RouteButton";
 import TopNavigationTabs from "./layouts/TopNavigationTabs";
 import GlobalPlaceholderPage from "./pages/GlobalPlaceholderPage";
@@ -281,7 +283,7 @@ function App() {
     replaceHistoryIfNeeded(parsed.normalizedPath);
 
     return parsed;
-  }, [currentBranch, currentUsername, defaultBranchName, findRepoFromParsedRoute, getRepoOwner]);
+  }, [currentBranch, currentUsername, defaultBranchName, findRepoFromParsedRoute, getRepoOwner, setCurrentBranch, setSelectedRepoId]);
 
   const navigateToPath = useCallback((pathname: string, options?: { replace?: boolean }) => {
     navigate(pathname, { replace: options?.replace });
@@ -300,7 +302,7 @@ function App() {
     if (selectedRepoId && isAuthenticated) {
       refreshBranches();
     }
-  }, [selectedRepoId, isAuthenticated]);
+  }, [selectedRepoId, isAuthenticated, refreshBranches]);
 
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
   const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
@@ -548,284 +550,284 @@ function App() {
 
   const currentGlobalTitle = activeGlobalPage ? GLOBAL_PAGE_TITLES[activeGlobalPage] : 'Page';
 
-  if (backendStatus === "unavailable") {
-    return <SiteUnavailablePage />;
-  }
+  const renderContent = () => {
+    if (backendStatus === "unavailable") {
+      return <SiteUnavailablePage />;
+    }
 
-  if (!isAuthenticated) {
-    return <Auth onLoginSuccess={(token) => {
-      login(token);
-    }} />;
-  }
+    if (!isAuthenticated) {
+      return <Auth onLoginSuccess={(token) => {
+        login(token);
+      }} />;
+    }
 
-  if (viewMode === 'profile') {
-    return (
-      <>
-        <GithubProfilePages
-          repositories={repos}
-          repositoryCount={profileRepoCount}
-          username={currentUsername}
-          activeTab={profileTab}
-          onTabChange={(tab) => navigateToProfileTab(tab)}
-          onNavigateToPath={navigateToPath}
-          onOpenWorkspace={handleOpenWorkspaceFromProfile}
-          onCreateRepository={handleOpenCreateRepository}
-          onLogout={handleLogout}
-          onSearch={handleSearch}
-          hasFetchError={profileFetchFailed}
-          hasFetchPending={profileFetchPending}
-          onMenuClick={() => setIsSidebarMenuOpen(true)}
-        />
-        <SidebarMenu
-          username={currentUsername}
-          isOpen={isSidebarMenuOpen}
-          onClose={() => setIsSidebarMenuOpen(false)}
-          onNavigate={navigateToPath}
-        />
-      </>
-    );
-  }
-
-  if (viewMode === 'create-repo') {
-    return (
-      <>
-        <CreateRepositoryPage
-          ownerName={currentUsername}
-          submitting={createRepoSubmitting}
-          error={createRepoError}
-          onCancel={handleCancelCreateRepository}
-          onCreateRepository={handleCreateRepository}
-          onMenuClick={() => setIsSidebarMenuOpen(true)}
-        />
-        <SidebarMenu
-          username={currentUsername}
-          isOpen={isSidebarMenuOpen}
-          onClose={() => setIsSidebarMenuOpen(false)}
-          onNavigate={navigateToPath}
-        />
-      </>
-    );
-  }
-
-  if (viewMode === 'global') {
-    if (activeGlobalPage === 'search') {
+    if (viewMode === 'profile') {
       return (
-        <SearchResultsPage
-          repos={repos}
-          query={searchQuery}
-          currentUsername={currentUsername}
-          onSearch={handleSearch}
-          onOpenRepo={(repo) => navigateToRepoTab(repo, 'files')}
-          onHome={() => navigateToProfileTab('overview')}
+        <>
+          <GithubProfilePages
+            repositories={repos}
+            repositoryCount={profileRepoCount}
+            username={currentUsername}
+            activeTab={profileTab}
+            onTabChange={(tab) => navigateToProfileTab(tab)}
+            onNavigateToPath={navigateToPath}
+            onOpenWorkspace={handleOpenWorkspaceFromProfile}
+            onCreateRepository={handleOpenCreateRepository}
+            onLogout={handleLogout}
+            onSearch={handleSearch}
+            hasFetchError={profileFetchFailed}
+            hasFetchPending={profileFetchPending}
+            onMenuClick={() => setIsSidebarMenuOpen(true)}
+          />
+        </>
+      );
+    }
+
+    if (viewMode === 'create-repo') {
+      return (
+        <>
+          <CreateRepositoryPage
+            ownerName={currentUsername}
+            submitting={createRepoSubmitting}
+            error={createRepoError}
+            onCancel={handleCancelCreateRepository}
+            onCreateRepository={handleCreateRepository}
+            onMenuClick={() => setIsSidebarMenuOpen(true)}
+          />
+        </>
+      );
+    }
+
+    if (viewMode === 'global') {
+      if (activeGlobalPage === 'search') {
+        return (
+          <SearchResultsPage
+            repos={repos}
+            query={searchQuery}
+            currentUsername={currentUsername}
+            onSearch={handleSearch}
+            onOpenRepo={(repo) => navigateToRepoTab(repo, 'files')}
+            onHome={() => navigateToProfileTab('overview')}
+          />
+        );
+      }
+      if (activeGlobalPage === 'settings') {
+        return <AccountSettingsPage username={currentUsername} onGoToProfile={() => navigateToProfileTab('overview')} />;
+      }
+      return (
+        <GlobalPlaceholderPage
+          title={currentGlobalTitle}
+          onBackToProfile={() => navigateToProfileTab('overview')}
+          onCreateRepository={handleOpenCreateRepository}
         />
       );
     }
-    if (activeGlobalPage === 'settings') {
-      return <AccountSettingsPage username={currentUsername} onGoToProfile={() => navigateToProfileTab('overview')} />;
-    }
+
     return (
-      <GlobalPlaceholderPage
-        title={currentGlobalTitle}
-        onBackToProfile={() => navigateToProfileTab('overview')}
-        onCreateRepository={handleOpenCreateRepository}
-      />
+      <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
+        <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
+          <TopHeader
+            leftContent={selectedRepo ? (
+              <div className="min-w-0 flex items-center gap-1 text-sm">
+                <RouteButton
+                  onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
+                  className="max-w-[180px] truncate"
+                >
+                  {selectedRepoOwner}
+                </RouteButton>
+                <span className="text-[var(--text-muted)]">/</span>
+                <RouteButton
+                  selected
+                  onClick={() => navigateToRepoTab(selectedRepo, 'files')}
+                  className="truncate"
+                >
+                  {selectedRepo.name}
+                </RouteButton>
+              </div>
+            ) : null}
+            onMenuClick={() => setIsSidebarMenuOpen(true)}
+            onIssuesClick={() => navigateToPath('/issues')}
+            onPullsClick={() => navigateToPath('/pulls')}
+            onCreateClick={handleOpenCreateRepository}
+            onProfileClick={() => navigateToProfileTab('overview')}
+            profileInitial={currentUsername}
+            profileName={currentUsername}
+            onSignOut={handleLogout}
+            onSettings={() => navigateToPath('/settings/admin')}
+            onSearch={handleSearch}
+          />
+
+          <TopNavigationTabs
+            tabs={repoTabsWithCounts}
+            activeKey={activeTab}
+            onSelect={(tab) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoTab(selectedRepo, tab);
+            }}
+          />
+        </header>
+
+        <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${
+          isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto [scrollbar-gutter:stable]"
+        }`}>
+          <div className="flex flex-col h-full">
+          <div className="flex-1 h-full min-h-0">
+          <RepoWorkspaceContent
+            selectedRepo={selectedRepo}
+            currentUsername={currentUsername}
+            selectedRepoVisibility={selectedRepoVisibility}
+            isResolvingRepo={!selectedRepo && !profileFetchFailed && !repoRouteResolved}
+            isFullBrowserMode={isFullBrowserMode}
+            activeTab={activeTab}
+            routeContentKind={routeContentKind}
+            routeContentPath={routeContentPath}
+            routeBranch={routeBranch}
+            defaultBranchName={defaultBranchName}
+            currentBranch={currentBranch || ''}
+            branches={branches}
+            explorerInitialLocation={explorerInitialLocation}
+            locationSearch={window.location.search}
+            onSelectBranch={handleSelectBranch}
+            onSelectCommitBranch={handleSelectCommitBranch}
+            onNavigateRepoLocation={handleNavigateRepoLocation}
+            onBackToFiles={() => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoTab(selectedRepo, 'files');
+            }}
+            onNavigateRepoContent={(contentKind, contentPath, branchName) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoContent(selectedRepo, contentKind, contentPath, branchName);
+            }}
+            onOpenRepoCommits={(branchName, search = '') => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoCommits(selectedRepo, branchName, search);
+            }}
+            onOpenCommitDiff={(commitHash) => {
+              if (!selectedRepo) return;
+              const owner = getRepoOwner(selectedRepo);
+              navigateToPath(buildRepoCommitViewPath(owner, selectedRepo.name, commitHash));
+            }}
+            onOpenBranches={() => {
+              if (!selectedRepo) return;
+              const owner = getRepoOwner(selectedRepo);
+              navigateToPath(buildRepoBranchesPath(owner, selectedRepo.name));
+            }}
+            onOpenCreateFile={(branchName, directoryPath) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
+            }}
+            onOpenEditFile={(branchName, filePath) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoEditFile(selectedRepo, branchName, filePath);
+            }}
+            onOpenUploadFiles={(branchName, directoryPath) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
+            }}
+            onOpenRepoCompare={(baseRef, headRef) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoCompare(selectedRepo, baseRef, headRef);
+            }}
+            onOpenPullRequest={(pullNumber) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoPullView(selectedRepo, pullNumber);
+            }}
+            onOpenPullRequestConflicts={(pullNumber) => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoPullConflicts(selectedRepo, pullNumber);
+            }}
+            onBackToPullRequests={() => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoTab(selectedRepo, 'pulls');
+            }}
+            onOpenCreateIssue={() => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoIssuesNew(selectedRepo);
+            }}
+            onCloseCreateIssue={() => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoTab(selectedRepo, 'issues');
+            }}
+            onOpenIssue={(issueNumber) => {
+              if (!selectedRepo) {
+                return;
+
+              }
+
+              navigateToRepoIssueView(selectedRepo, issueNumber);
+            }}
+            onBackToIssues={() => {
+              if (!selectedRepo) {
+                return;
+              }
+
+              navigateToRepoTab(selectedRepo, 'issues');
+            }}
+            onRepoUpdated={handleRepoUpdatedWrapper}
+            onRepoDeleted={handleRepoDeletedWrapper}
+            onGoToProfile={() => navigateToProfileTab('overview')}
+          />
+          </div>
+
+        </div>
+        </main>
+      </div>
     );
-  }
+  };
+
+
+  const showFooter = !(viewMode === 'repo' && activeTab === 'files');
 
   return (
-    <div className="h-screen bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
-      <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
-        <TopHeader
-          leftContent={selectedRepo ? (
-            <div className="min-w-0 flex items-center gap-1 text-sm">
-              <RouteButton
-                onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
-                className="max-w-[180px] truncate"
-              >
-                {selectedRepoOwner}
-              </RouteButton>
-              <span className="text-[var(--text-muted)]">/</span>
-              <RouteButton
-                selected
-                onClick={() => navigateToRepoTab(selectedRepo, 'files')}
-                className="truncate"
-              >
-                {selectedRepo.name}
-              </RouteButton>
-            </div>
-          ) : null}
-          onMenuClick={() => setIsSidebarMenuOpen(true)}
-          onIssuesClick={() => navigateToPath('/issues')}
-          onPullsClick={() => navigateToPath('/pulls')}
-          onCreateClick={handleOpenCreateRepository}
-          onProfileClick={() => navigateToProfileTab('overview')}
-          profileInitial={currentUsername}
-          profileName={currentUsername}
-          onSignOut={handleLogout}
-          onSettings={() => navigateToPath('/settings/admin')}
-          onSearch={handleSearch}
-        />
-
-        <TopNavigationTabs
-          tabs={repoTabsWithCounts}
-          activeKey={activeTab}
-          onSelect={(tab) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoTab(selectedRepo, tab);
-          }}
-        />
-      </header>
-
-      <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${
-        isFullBrowserMode ? "overflow-hidden" : "overflow-y-auto [scrollbar-gutter:stable]"
-      }`}>
-        <div className="flex flex-col h-full">
-        <div className="flex-1 h-full min-h-0">
-        <RepoWorkspaceContent
-          selectedRepo={selectedRepo}
-          currentUsername={currentUsername}
-          selectedRepoVisibility={selectedRepoVisibility}
-          isResolvingRepo={!selectedRepo && !profileFetchFailed && !repoRouteResolved}
-          isFullBrowserMode={isFullBrowserMode}
-          activeTab={activeTab}
-          routeContentKind={routeContentKind}
-          routeContentPath={routeContentPath}
-          routeBranch={routeBranch}
-          defaultBranchName={defaultBranchName}
-          currentBranch={currentBranch || ''}
-          branches={branches}
-          explorerInitialLocation={explorerInitialLocation}
-          locationSearch={window.location.search}
-          onSelectBranch={handleSelectBranch}
-          onSelectCommitBranch={handleSelectCommitBranch}
-          onNavigateRepoLocation={handleNavigateRepoLocation}
-          onBackToFiles={() => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoTab(selectedRepo, 'files');
-          }}
-          onNavigateRepoContent={(contentKind, contentPath, branchName) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoContent(selectedRepo, contentKind, contentPath, branchName);
-          }}
-          onOpenRepoCommits={(branchName, search = '') => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoCommits(selectedRepo, branchName, search);
-          }}
-          onOpenCommitDiff={(commitHash) => {
-            if (!selectedRepo) return;
-            const owner = getRepoOwner(selectedRepo);
-            navigateToPath(buildRepoCommitViewPath(owner, selectedRepo.name, commitHash));
-          }}
-          onOpenBranches={() => {
-            if (!selectedRepo) return;
-            const owner = getRepoOwner(selectedRepo);
-            navigateToPath(buildRepoBranchesPath(owner, selectedRepo.name));
-          }}
-          onOpenCreateFile={(branchName, directoryPath) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
-          }}
-          onOpenEditFile={(branchName, filePath) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoEditFile(selectedRepo, branchName, filePath);
-          }}
-          onOpenUploadFiles={(branchName, directoryPath) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
-          }}
-          onOpenRepoCompare={(baseRef, headRef) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoCompare(selectedRepo, baseRef, headRef);
-          }}
-          onOpenPullRequest={(pullNumber) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoPullView(selectedRepo, pullNumber);
-          }}
-          onOpenPullRequestConflicts={(pullNumber) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoPullConflicts(selectedRepo, pullNumber);
-          }}
-          onBackToPullRequests={() => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoTab(selectedRepo, 'pulls');
-          }}
-          onOpenCreateIssue={() => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoIssuesNew(selectedRepo);
-          }}
-          onCloseCreateIssue={() => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoTab(selectedRepo, 'issues');
-          }}
-          onOpenIssue={(issueNumber) => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoIssueView(selectedRepo, issueNumber);
-          }}
-          onBackToIssues={() => {
-            if (!selectedRepo) {
-              return;
-            }
-
-            navigateToRepoTab(selectedRepo, 'issues');
-          }}
-          onRepoUpdated={handleRepoUpdatedWrapper}
-          onRepoDeleted={handleRepoDeletedWrapper}
-          onGoToProfile={() => navigateToProfileTab('overview')}
-        />
-        </div>
-
-      </div>
-      </main>
-
+    <PageReadyProvider>
+      {renderContent()}
+      {showFooter && <Footer />}
       <SidebarMenu
         username={currentUsername}
         isOpen={isSidebarMenuOpen}
         onClose={() => setIsSidebarMenuOpen(false)}
         onNavigate={navigateToPath}
       />
-    </div>
+    </PageReadyProvider>
   );
 }
 

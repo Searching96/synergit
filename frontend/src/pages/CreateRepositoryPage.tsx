@@ -5,6 +5,7 @@ import {
   Lock,
   Monitor,
 } from "lucide-react";
+import { useSetPageReady } from "../contexts/PageReadyContext";
 import type {
   CreateRepositoryPayload,
   RepositoryVisibility,
@@ -65,6 +66,7 @@ export default function CreateRepositoryPage({
   onCreateRepository,
   onMenuClick,
 }: CreateRepositoryPageProps) {
+  useSetPageReady(true);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<RepositoryVisibility>("PUBLIC");

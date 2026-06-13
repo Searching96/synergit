@@ -1,22 +1,11 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useSetPageReady } from "../contexts/PageReadyContext";
 import type { Repository } from "../types";
 import {
-  Bot,
-  CircleDot,
-  Compass,
-  Gift,
-  Github,
-  Home,
-  GitPullRequest,
   LayoutGrid,
-  Link2,
-  LogOut,
-  MessageCircle,
-  Monitor,
   Package,
   Star,
   Table2,
-  X,
 } from "lucide-react";
 import { RepoIcon } from "@primer/octicons-react";
 import RouteButton from "../components/shared/RouteButton";
@@ -88,6 +77,8 @@ export default function GithubProfilePages({
   hasFetchPending = false,
   onMenuClick,
 }: GithubProfilePagesProps) {
+  useSetPageReady(!hasFetchPending && !hasFetchError);
+
   const ownedRepositories = useMemo(
     () => repositories.filter((repo) => isRepositoryOwnedByUser(repo, username)),
     [repositories, username],

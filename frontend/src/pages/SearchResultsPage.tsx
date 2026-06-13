@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { MarkGithubIcon, SearchIcon, StarIcon } from "@primer/octicons-react";
+import { useSetPageReady } from "../contexts/PageReadyContext";
 import type { Repository } from "../types";
 import { starsApi } from "../services/api";
 import StarButton from '../components/shared/StarButton';
@@ -21,6 +22,7 @@ function formatUpdated(ts?: string): string {
 }
 
 export default function SearchResultsPage({ repos, query, currentUsername, onSearch, onOpenRepo, onHome }: SearchResultsPageProps) {
+  useSetPageReady(true);
   const [text, setText] = useState(query);
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
 

@@ -28,6 +28,7 @@ export default function CommitDiffPage({ repoId, commitHash, onBrowseFiles }: Co
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 

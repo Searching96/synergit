@@ -220,6 +220,7 @@ export default function ContributionMatrix({
   const weekCount = weeks.length;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHoveredTooltip(null);
   }, [contributionDays, selectedYear, isRollingLast365]);
 

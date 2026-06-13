@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Repository } from '../types/index';
 import { reposApi, ApiError } from '../services/api';
-import { repoCountCacheKey, writeCachedCount } from '../utils/countCache';
+import { repoCountCacheKey, writeCachedCount, readCachedCount } from '../utils/countCache';
 import { isRepositoryOwnedByUser } from '../utils/profileUtils';
 
 export function useRepositories(isAuthenticated: boolean, currentUsername: string, logout: () => void) {
   const [repos, setRepos] = useState<Repository[]>([]);
-  const [profileRepoCount, setProfileRepoCount] = useState<number>(0);
+  const [profileRepoCount, setProfileRepoCount] = useState<number>(() => readCachedCount(repoCountCacheKey(currentUsername)) ?? 0);
   const [profileRepoCountPending, setProfileRepoCountPending] = useState<boolean>(true);
   const [profileRepositoriesPending, setProfileRepositoriesPending] = useState<boolean>(true);
   const [profileFetchFailed, setProfileFetchFailed] = useState<boolean>(false);
@@ -62,6 +62,7 @@ export function useRepositories(isAuthenticated: boolean, currentUsername: strin
     if (!isAuthenticated) return;
 
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfileRepoCountPending(true);
     reposApi.getRepoCount()
       .then(({ count }) => {
@@ -89,6 +90,7 @@ export function useRepositories(isAuthenticated: boolean, currentUsername: strin
     if (!isAuthenticated) return;
 
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfileRepositoriesPending(true);
     reposApi.getRepos()
       .then((data) => {

@@ -58,6 +58,7 @@ export default function TooltipButton({
         // Mount at the document root to bypass parent stacking contexts and overflow clipping
         <FloatingPortal>
           <div
+            // eslint-disable-next-line react-hooks/refs
             ref={refs.setFloating}
             style={floatingStyles}
             className="z-50 pointer-events-none whitespace-nowrap rounded-md bg-black px-2 py-1 text-xs text-white shadow-lg"

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Repository, Branch, CreateRepositoryPayload } from '../types/index';
 import { reposApi } from '../services/api';

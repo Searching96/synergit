@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useState } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -34,20 +35,18 @@ export function getUsernameFromToken(token: string | null): string {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('token'));
-  const [currentUsername, setCurrentUsername] = useState<string>('owner');
-
-  useEffect(() => {
-    setCurrentUsername(getUsernameFromToken(localStorage.getItem('token')));
-  }, [isAuthenticated]);
+  const [currentUsername, setCurrentUsername] = useState<string>(() => getUsernameFromToken(localStorage.getItem('token')));
 
   const login = (token: string) => {
     localStorage.setItem('token', token);
+    setCurrentUsername(getUsernameFromToken(token));
     setIsAuthenticated(true);
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
+    setCurrentUsername('owner');
   };
 
   return (

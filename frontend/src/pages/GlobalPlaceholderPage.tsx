@@ -1,3 +1,5 @@
+import { useSetPageReady } from "../contexts/PageReadyContext";
+
 interface GlobalPlaceholderPageProps {
   title: string;
   onBackToProfile: () => void;
@@ -9,6 +11,8 @@ export default function GlobalPlaceholderPage({
   onBackToProfile,
   onCreateRepository,
 }: GlobalPlaceholderPageProps) {
+  useSetPageReady(true);
+
   return (
     <div className="min-h-screen bg-[var(--surface-subtle)] text-[var(--text-primary)]">
       <div className="max-w-[1100px] mx-auto px-6 py-10">
