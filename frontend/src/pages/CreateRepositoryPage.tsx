@@ -11,6 +11,8 @@ import type {
 } from "../types";
 import { formatVisibilityLabel } from "../utils/visibility";
 import RouteButton from "../components/shared/RouteButton";
+import { RichSwitchButton } from "../components/shared/RichSwitchButton";
+import { Avatar } from "../components/shared/Avatar";
 import TopHeader from "../layouts/TopHeader";
 
 interface CreateRepositoryPageProps {
@@ -19,6 +21,7 @@ interface CreateRepositoryPageProps {
   error: string | null;
   onCancel: () => void;
   onCreateRepository: (payload: CreateRepositoryPayload) => Promise<void>;
+  onMenuClick?: () => void;
 }
 
 const GITIGNORE_OPTIONS = [
@@ -60,6 +63,7 @@ export default function CreateRepositoryPage({
   error,
   onCancel,
   onCreateRepository,
+  onMenuClick,
 }: CreateRepositoryPageProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -125,8 +129,8 @@ export default function CreateRepositoryPage({
               New repository
             </RouteButton>
           }
-          onMenuClick={onCancel}
-          menuAriaLabel="Back"
+          onMenuClick={onMenuClick}
+          menuAriaLabel="Open navigation menu"
           onProfileClick={onCancel}
           profileInitial={ownerName}
         />
@@ -169,7 +173,10 @@ export default function CreateRepositoryPage({
                     type="button"
                     className="h-9 w-full rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 text-sm text-left inline-flex items-center justify-between"
                   >
-                    <span>{ownerName}</span>
+                    <span className="inline-flex items-center gap-2 font-medium text-[var(--text-primary)]">
+                      <Avatar username={ownerName} size={20} />
+                      {ownerName}
+                    </span>
                     <ChevronDown size={14} className="text-[var(--text-secondary)]" />
                   </button>
                 </div>
@@ -277,16 +284,9 @@ export default function CreateRepositoryPage({
                     <p className="text-sm font-semibold">Add README</p>
                     <p className="text-sm text-[var(--text-secondary)]">READMEs can be used as longer descriptions.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAddReadme((prev) => !prev)}
-                    className="h-9 rounded-md border border-[var(--border-input)] bg-[var(--surface-subtle)] px-3 inline-flex items-center justify-between text-sm text-[var(--text-secondary)]"
-                  >
-                    <span>{addReadme ? "On" : "Off"}</span>
-                    <span className={`ml-3 relative inline-flex h-5 w-9 items-center rounded-full ${addReadme ? "bg-[var(--accent-primary)]" : "bg-[var(--border-input)]"}`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-[var(--surface-canvas)] transition ${addReadme ? "translate-x-4" : "translate-x-0.5"}`} />
-                    </span>
-                  </button>
+                  <div className="flex items-center justify-end">
+                    <RichSwitchButton checked={addReadme} onChange={setAddReadme} />
+                  </div>
                 </div>
 
                 <div className="p-4 border-b border-[var(--border-muted)] grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px] gap-3 items-center">

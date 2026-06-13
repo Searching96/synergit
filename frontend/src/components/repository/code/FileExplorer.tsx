@@ -27,9 +27,11 @@ import {
 } from "@primer/octicons-react";
 import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
+import { Avatar } from "../../shared/Avatar";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
 import StarButton from "../../shared/StarButton";
+import { TwinButtonGroup } from "../../shared/TwinButtonGroup";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 
@@ -900,18 +902,20 @@ export default function FileExplorer({
                     Set up in Desktop
                   </button>
                   <p>or</p>
-                  <button
-                    type="button"
-                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs font-semibold text-[var(--text-primary)]"
-                  >
-                    HTTPS
-                  </button>
-                  <button
-                    type="button"
-                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-secondary)]"
-                  >
-                    SSH
-                  </button>
+                  <TwinButtonGroup>
+                    <button
+                      type="button"
+                      className="h-8 px-3 border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                    >
+                      HTTPS
+                    </button>
+                    <button
+                      type="button"
+                      className="h-8 px-3 border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
+                    >
+                      SSH
+                    </button>
+                  </TwinButtonGroup>
                   <div className="min-w-[260px] flex-1 flex items-center gap-2">
                     <input
                       readOnly
@@ -1173,9 +1177,7 @@ export default function FileExplorer({
               <div className="px-4 py-3 rounded-t-md border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
                 {/* LEFT SIDE: Avatar and Message */}
                 <div className="min-w-0 flex items-center gap-2">
-                  <div className="h-7 w-7 shrink-0 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center">
-                    {((latestCommit?.author || repoOwner || "U").trim().charAt(0) || "U").toUpperCase()}
-                  </div>
+                  <Avatar username={latestCommit?.author || repoOwner || "U"} size={28} />
 
                   {commitsLoading ? (
                     <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />

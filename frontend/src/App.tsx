@@ -560,32 +560,50 @@ function App() {
 
   if (viewMode === 'profile') {
     return (
-      <GithubProfilePages
-        repositories={repos}
-        repositoryCount={profileRepoCount}
-        username={currentUsername}
-        activeTab={profileTab}
-        onTabChange={(tab) => navigateToProfileTab(tab)}
-        onNavigateToPath={navigateToPath}
-        onOpenWorkspace={handleOpenWorkspaceFromProfile}
-        onCreateRepository={handleOpenCreateRepository}
-        onLogout={handleLogout}
-        onSearch={handleSearch}
-        hasFetchError={profileFetchFailed}
-        hasFetchPending={profileFetchPending}
-      />
+      <>
+        <GithubProfilePages
+          repositories={repos}
+          repositoryCount={profileRepoCount}
+          username={currentUsername}
+          activeTab={profileTab}
+          onTabChange={(tab) => navigateToProfileTab(tab)}
+          onNavigateToPath={navigateToPath}
+          onOpenWorkspace={handleOpenWorkspaceFromProfile}
+          onCreateRepository={handleOpenCreateRepository}
+          onLogout={handleLogout}
+          onSearch={handleSearch}
+          hasFetchError={profileFetchFailed}
+          hasFetchPending={profileFetchPending}
+          onMenuClick={() => setIsSidebarMenuOpen(true)}
+        />
+        <SidebarMenu
+          username={currentUsername}
+          isOpen={isSidebarMenuOpen}
+          onClose={() => setIsSidebarMenuOpen(false)}
+          onNavigate={navigateToPath}
+        />
+      </>
     );
   }
 
   if (viewMode === 'create-repo') {
     return (
-      <CreateRepositoryPage
-        ownerName={currentUsername}
-        submitting={createRepoSubmitting}
-        error={createRepoError}
-        onCancel={handleCancelCreateRepository}
-        onCreateRepository={handleCreateRepository}
-      />
+      <>
+        <CreateRepositoryPage
+          ownerName={currentUsername}
+          submitting={createRepoSubmitting}
+          error={createRepoError}
+          onCancel={handleCancelCreateRepository}
+          onCreateRepository={handleCreateRepository}
+          onMenuClick={() => setIsSidebarMenuOpen(true)}
+        />
+        <SidebarMenu
+          username={currentUsername}
+          isOpen={isSidebarMenuOpen}
+          onClose={() => setIsSidebarMenuOpen(false)}
+          onNavigate={navigateToPath}
+        />
+      </>
     );
   }
 

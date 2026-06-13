@@ -53,6 +53,7 @@ interface GithubProfilePagesProps {
   onSearch?: (query: string) => void;
   hasFetchError?: boolean;
   hasFetchPending?: boolean;
+  onMenuClick?: () => void;
 }
 
 const PROFILE_TABS: Array<{
@@ -85,9 +86,8 @@ export default function GithubProfilePages({
   onSearch,
   hasFetchError = false,
   hasFetchPending = false,
+  onMenuClick,
 }: GithubProfilePagesProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   const ownedRepositories = useMemo(
     () => repositories.filter((repo) => isRepositoryOwnedByUser(repo, username)),
     [repositories, username],
@@ -171,38 +171,6 @@ export default function GithubProfilePages({
   const profileBasePath = `/${encodeURIComponent(username)}`;
   const avatarInitial = (username.trim().charAt(0) || "U").toUpperCase();
 
-  const primarySidebarItems: Array<{
-    key: string;
-    label: string;
-    icon: ComponentType<{ size?: number; className?: string }>;
-    path: string;
-  }> = [
-    { key: "home", label: "Home", icon: Home, path: profileBasePath },
-    { key: "issues", label: "Issues", icon: CircleDot, path: "/issues" },
-    { key: "pulls", label: "Pull requests", icon: GitPullRequest, path: "/pulls" },
-    { key: "repositories", label: "Repositories", icon: RepoIconGlyph, path: `${profileBasePath}?tab=repositories` },
-    { key: "projects", label: "Projects", icon: LayoutGrid, path: "/projects" },
-    { key: "discussions", label: "Discussions", icon: MessageCircle, path: "/discussions" },
-    { key: "codespaces", label: "Codespaces", icon: Monitor, path: "/codespaces" },
-    { key: "copilot", label: "Copilot", icon: Bot, path: "/copilot" },
-  ];
-
-  const secondarySidebarItems: Array<{
-    key: string;
-    label: string;
-    icon: ComponentType<{ size?: number; className?: string }>;
-    path: string;
-  }> = [
-    { key: "explore", label: "Explore", icon: Compass, path: "/explore" },
-    { key: "marketplace", label: "Marketplace", icon: Gift, path: "/marketplace" },
-    { key: "mcp-registry", label: "MCP registry", icon: Link2, path: "/mcp-registry" },
-  ];
-
-  const handleSidebarNavigate = (path: string) => {
-    setIsMenuOpen(false);
-    onNavigateToPath(path);
-  };
-
   const pinnedRepositories = useMemo(() => {
     const ordered: ShowcaseRepo[] = [];
 
@@ -278,7 +246,7 @@ export default function GithubProfilePages({
               {username}
             </RouteButton>
           }
-          onMenuClick={() => setIsMenuOpen(true)}
+          onMenuClick={onMenuClick}
           menuAriaLabel="Open navigation menu"
           onIssuesClick={() => onNavigateToPath("/issues")}
           onPullsClick={() => onNavigateToPath("/pulls")}
@@ -308,80 +276,6 @@ export default function GithubProfilePages({
           {content}
         </section>
       </main>
-
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-50">
-          <button
-            type="button"
-            aria-label="Close navigation menu"
-            onClick={() => setIsMenuOpen(false)}
-            className="absolute inset-0 bg-[var(--overlay-backdrop)]"
-          />
-
-          <aside className="absolute left-0 top-0 h-full w-[320px] bg-[var(--surface-canvas)] border-r border-[var(--border-default)] shadow-xl flex flex-col">
-            <div className="px-4 py-4 flex items-center justify-between">
-              <Github size={30} className="text-[var(--text-primary)]" />
-              <button
-                type="button"
-                onClick={() => setIsMenuOpen(false)}
-                className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-                aria-label="Close"
-              >
-                <X size={16} className="text-[var(--text-secondary)]" />
-              </button>
-            </div>
-
-            <div className="px-3 py-2 text-sm text-[var(--text-primary)] space-y-1">
-              {primarySidebarItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
-                  >
-                    <Icon size={17} className="text-[var(--text-secondary)]" />
-                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mx-4 my-2 border-t border-[var(--border-muted)]" />
-
-            <div className="px-3 py-1 text-sm text-[var(--text-primary)] space-y-1">
-              {secondarySidebarItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleSidebarNavigate(item.path)}
-                    className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3"
-                  >
-                    <Icon size={17} className="text-[var(--text-secondary)]" />
-                    <span className="text-base text-[var(--text-primary)]">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mx-4 my-2 border-t border-[var(--border-muted)]" />
-
-            <div className="px-3 py-1">
-              <button
-                type="button"
-                onClick={onLogout}
-                className="w-full h-9 text-left px-2 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-3 text-base text-[var(--text-primary)]"
-              >
-                <LogOut size={17} className="text-[var(--text-secondary)]" />
-                Logout
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
     </div>
   );
 }

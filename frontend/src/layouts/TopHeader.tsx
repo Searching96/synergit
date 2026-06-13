@@ -9,6 +9,7 @@ import {
   ThreeBarsIcon,
 } from "@primer/octicons-react";
 import { Accessibility, ArrowLeftRight, Book, Bot, Building2, Code, FlaskConical, Globe, Heart, LogOut, Paintbrush, Settings, Smile, Star, Upload, User } from "lucide-react";
+import { Avatar } from "../components/shared/Avatar";
 
 interface TopHeaderProps {
   leftContent: ReactNode;
@@ -145,25 +146,19 @@ export default function TopHeader({
         </button>
 
         <div className="relative">
-          <button
-            type="button"
+          <Avatar 
             onClick={() => setMenuOpen((o) => !o)}
-            className="h-8 w-8 rounded-full bg-black border border-[var(--border-default)] inline-flex items-center justify-center text-xs font-semibold"
-            aria-label="Open user navigation menu"
-            aria-haspopup="true"
-            aria-expanded={menuOpen}
-          >
-            <span className="text-white">{(profileInitial.trim().charAt(0) || "U").toUpperCase()}</span>
-          </button>
+            ariaExpanded={menuOpen}
+            username={profileName || profileInitial}
+            size={32}
+          />
           {menuOpen ? (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
               <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-2 text-sm text-[var(--text-primary)]">
                 <div className="px-3 py-1.5 flex items-center justify-between w-full gap-2">
                   <span className="flex items-center gap-2 min-w-0">
-                    <span className="h-7 w-7 rounded-full bg-black text-white inline-flex items-center justify-center text-xs font-semibold shrink-0">
-                      {(profileInitial.trim().charAt(0) || "U").toUpperCase()}
-                    </span>
+                    <Avatar username={profileName || profileInitial} size={28} />
                     <span className="font-semibold truncate">{profileName || profileInitial}</span>
                   </span>
                   <ArrowLeftRight size={15} className="text-[var(--text-secondary)] shrink-0" />

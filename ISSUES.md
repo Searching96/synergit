@@ -7,3 +7,7 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 |----|--------|-----------|-------|--------|
 | [#001](./issues/001-backend-clean-architecture-refactor.md) | Closed | Backend | Backend Clean Architecture Refactor | `refactor`, `clean-architecture` |
 | [#002](./issues/002-frontend-modularization-refactor.md) | Closed | Frontend | Frontend Modularization Refactor | `refactor`, `react` |
+| [#003](./issues/003-twin-button-component.md) | Closed | Frontend | Create Twin Button Reusable Component | `feature`, `ui` |
+| [#004](./issues/004-rich-switch-button-component.md) | Closed | Frontend | Create Rich Switch Button Component | `feature`, `ui` |
+| [#005](./issues/005-shared-avatar-component.md) | Closed | Frontend | Create Shared Avatar Component | `feature`, `ui`, `refactoring` |
+| [#006](./issues/006-global-sidebar-menu.md) | Closed | Frontend | Global Sidebar Menu Fix | `bug`, `ui`, `refactoring` |
