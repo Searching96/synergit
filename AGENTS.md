@@ -308,6 +308,18 @@ The microservices migration is a long-term, secondary objective.
 
 ---
 
+## Issue Tracking Workflow
+
+All tasks, bugs, and technical debt are tracked using a local Markdown-based Issue Tracking System.
+
+- **Dashboard:** The central dashboard is at [`ISSUES.md`](./ISSUES.md) in the project root.
+- **Issue Files:** Individual issues live in the `issues/` directory (e.g., `issues/001-backend-clean-architecture-refactor.md`).
+- **Creating Issues:** Copy `issues/template.md`, assign the next available ID, and update the YAML frontmatter. Also add a hyperlink to the `ISSUES.md` dashboard table.
+- **Updating Issues:** When working on an issue, update its YAML `status` (e.g., `in-progress` -> `closed`), check off Acceptance Criteria, and document implementation notes at the bottom of the issue file.
+- **Closing Issues:** Once complete, set `status: "closed"` in the YAML frontmatter, set `closed_at`, and update the status in the `ISSUES.md` dashboard.
+
+---
+
 ## Changelog
 
 | Date | Author | Change |
@@ -319,3 +331,4 @@ The microservices migration is a long-term, secondary objective.
 | 2026-06-11 | Antigravity | Created BACKEND.md to document strict Robert C. Martin Clean Architecture guidelines, violations, and fix plans |
 | 2026-06-11 | Antigravity | Created FRONTEND.md to document frontend analysis, React best practices, and refactoring plans |
 | 2026-06-11 | Antigravity | Created backend/ISSUES.md to explicitly list Clean Architecture violations and track refactoring progress |
+| 2026-06-13 | Antigravity | Renamed DOCUMENT.md to AGENTS.md, implemented global markdown-based Issue Tracking System, and updated Makefile |
