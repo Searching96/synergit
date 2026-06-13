@@ -1,10 +1,14 @@
-# DOCUMENT
+# AGENTS
+
+> **🤖 AI AGENT INSTRUCTIONS:**
+> - When working on the backend, you MUST read [`backend/AGENTS.md`](./backend/AGENTS.md) before writing code.
+> - When working on the frontend, you MUST read [`frontend/AGENTS.md`](./frontend/AGENTS.md) before writing code.
 
 > This is the single source of truth for the Synergit project.
 > It is updated at the end of every AI-assisted prompt where a file is created, edited, or deleted.
 > All coding agents working on this codebase must read this document before starting work and
 > update the relevant sections plus the Changelog after completing work.
-> To trigger a full re-sync from the codebase, say: "re-sync DOCUMENT.md".
+> To trigger a full re-sync from the codebase, say: "re-sync AGENTS.md".
 
 ---
 
