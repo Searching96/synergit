@@ -255,7 +255,6 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 		return errors.New("merger user not found")
 	}
 
-	mergerName := merger.Username
 	prNumber, err := s.resolvePRNumber(pr.RepoID, pr.ID)
 	if err != nil {
 		return err
@@ -271,7 +270,7 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 
 	// 4. Perform the actual Git merge on the server filesystem
 	err = s.gitManager.MergeBranches(repo.Path, pr.SourceBranch,
-		pr.TargetBranch, mergerName, commitMessage)
+		pr.TargetBranch, merger.Username, merger.Email, commitMessage)
 	if err != nil {
 		return errors.New("failed to merge branches")
 	}
@@ -318,8 +317,8 @@ func (s *PullRequestService) RevertPullRequest(prID uuid.UUID,
 		return nil, errors.New("repository not found")
 	}
 
-	requester, err := s.userStore.GetUserByID(requesterID)
-	if err != nil || requester == nil {
+	reverter, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || reverter == nil {
 		return nil, errors.New("requester user not found")
 	}
 
@@ -345,7 +344,7 @@ func (s *PullRequestService) RevertPullRequest(prID uuid.UUID,
 	revertBranch := fmt.Sprintf("revert-pr-%d-%s", prNumber, strings.Split(uuid.NewString(), "-")[0])
 	commitMessage := fmt.Sprintf("Revert \"%s\"", pr.Title)
 	if err := s.gitManager.CreateRevertBranch(repo.Path, pr.TargetBranch, revertBranch,
-		mergeCommitHash, requester.Username, commitMessage); err != nil {
+		mergeCommitHash, reverter.Username, reverter.Email, commitMessage); err != nil {
 		return nil, err
 	}
 
@@ -517,12 +516,8 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 	}
 
 	// 4. Get user details for the Git commit
-	resolverName := ""
-	user, err := s.userStore.GetUserByID(requesterID)
-	if err == nil && user != nil {
-		resolverName = user.Username
-	}
-	if resolverName == "" {
+	resolver, err := s.userStore.GetUserByID(requesterID)
+	if err != nil || resolver == nil {
 		return errors.New("resolver user not found")
 	}
 
@@ -537,7 +532,7 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 
 	// 5. Execute the Git operation
 	err = s.gitManager.ResolveConflictsAndCommit(repo.Path, pr.SourceBranch,
-		pr.TargetBranch, resolverName, commitMessage, resolutions)
+		pr.TargetBranch, resolver.Username, resolver.Email, commitMessage, resolutions)
 	if err != nil {
 		return fmt.Errorf("failed to resolve conflicts: %w", err)
 	}

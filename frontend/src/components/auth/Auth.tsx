@@ -29,7 +29,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
         setError('Registration successful! Please log in.');
       }
     } catch (err: unknown) {
-      setError(err.message || 'An error occurred. Please try again.');
+      setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
     } finally {
       setLoading(false);
     }

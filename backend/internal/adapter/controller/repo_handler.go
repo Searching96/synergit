@@ -581,7 +581,7 @@ func (h *RepoHandler) HandleCommitFileChange(c *gin.Context) {
 	}
 
 	err := h.repoUseCase.CommitFileChange(repoID, requesterID, req.Branch,
-		req.Path, req.Content, req.CommitMessage)
+		req.Path, req.OldPath, req.Content, req.CommitMessage)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return

@@ -3,7 +3,6 @@ import {
   Code,
   ChevronDown,
   ChevronRight,
-  Copy,
   Ellipsis,
   FileText,
   Link,
@@ -28,6 +27,7 @@ import {
 import ReactMarkdown from "react-markdown";
 import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { Avatar } from "../../shared/Avatar";
+import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
 import StarButton from "../../shared/StarButton";
@@ -830,7 +830,7 @@ export default function FileExplorer({
                                 {item.name}
                               </span>
                               <button type="button" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]" aria-label="Copy branch name">
-                                <Copy size={14} />
+                                <OcticonCopy size={14} />
                               </button>
                             </div>
                             <span className="text-[var(--text-secondary)]">just now</span>
@@ -931,7 +931,7 @@ export default function FileExplorer({
                       className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
                       aria-label="Copy quick setup URL"
                     >
-                      <Copy size={14} className="text-[var(--text-secondary)]" />
+                      <OcticonCopy size={14} className="text-[var(--text-secondary)]" />
                     </button>
                   </div>
                 </div>
@@ -1150,7 +1150,7 @@ export default function FileExplorer({
                             className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
                             aria-label="Copy clone URL"
                           >
-                            <Copy size={15} className="text-[var(--text-secondary)]" />
+                            <OcticonCopy size={15} className="text-[var(--text-secondary)]" />
                           </button>
                         </div>
 

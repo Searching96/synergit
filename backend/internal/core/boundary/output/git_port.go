@@ -10,7 +10,7 @@ type GitManager interface {
 	DeleteRepository(repoPath string) error
 	RenameRepository(repoPath string, newName string) (string, error)
 	RenameUserStorage(oldUsername, newUsername string) error
-	BootstrapRepository(repoPath string, branch string, authorName string,
+	BootstrapRepository(repoPath string, branch string, authorName string, authorEmail string,
 		files map[string]string, commitMessage string) error
 
 	// Methods for smart http
@@ -43,16 +43,16 @@ type GitManager interface {
 	RenameBranch(repoPath string, oldBranch string,
 		newBranch string) (*domain.Branch, error)
 	DeleteBranch(repoPath string, branchName string) error
-	CommitFileChange(repoPath string, branch string, filePath string,
-		content string, authorName string, commitMessage string) error
+	CommitFileChange(repoPath string, branch string, filePath string, oldFilePath string,
+		content string, authorName string, authorEmail string, commitMessage string) error
 	CommitFilesChange(repoPath string, branch string, files map[string]string,
-		authorName string, commitMessage string) error
+		authorName string, authorEmail string, commitMessage string) error
 	CompareRefs(repoPath string, baseRef string,
 		headRef string) (*domain.PullRequestCompareResult, error)
 	MergeBranches(repoPath string, sourceBranch string, targetBranch string,
-		mergerName string, commitMessage string) error
+		mergerName string, mergerEmail string, commitMessage string) error
 	CreateRevertBranch(repoPath string, targetBranch string, revertBranch string,
-		mergeCommitHash string, authorName string, commitMessage string) error
+		mergeCommitHash string, authorName string, authorEmail string, commitMessage string) error
 
 	// Returns a list of file paths that have merge conflicts
 	GetConflictingFiles(repoName string, sourceBranch string,
@@ -64,6 +64,6 @@ type GitManager interface {
 
 	// Takes the resolved contents, commits them to the source branch, and pushes
 	ResolveConflictsAndCommit(repoName string, sourceBranch string,
-		targetBranch string, resolverName string, commitMessage string,
+		targetBranch string, resolverName string, resolverEmail string, commitMessage string,
 		resolutions []domain.ConflictResolution) error
 }

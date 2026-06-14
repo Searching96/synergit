@@ -27,7 +27,7 @@ type RepoInsightsMetricComputer interface {
 	ComputeLanguageBreakdown(ctx context.Context,
 		repoPath string, preferredBranch string) (string, []domain.LanguageStat, error)
 	ComputeProfileCommitActivity(ctx context.Context,
-		repos []*domain.Repo, authorName string, year int, now time.Time) (*domain.ProfileCommitActivity, error)
+		repos []*domain.Repo, authorEmail string, year int, now time.Time) (*domain.ProfileCommitActivity, error)
 	ComputeProfileContributionSummary(ctx context.Context,
 		commitDays []domain.ProfileContributionDay,
 		issues []domain.Issue,

@@ -284,6 +284,7 @@ export interface AddLabelPayload {
 export interface CommitFileChangePayload {
 	branch: string;
 	path: string;
+	old_path?: string;
 	content: string;
 	commit_message: string;
 }

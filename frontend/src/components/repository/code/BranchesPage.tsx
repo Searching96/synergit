@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, Ellipsis, Search, Trash2 } from "lucide-react";
+import { Ellipsis, Search, Trash2 } from "lucide-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api/repos";
 import type { Branch } from "../../../types";
 import CreateBranchPopup from "./CreateBranchPopup";
@@ -61,7 +62,7 @@ function BranchRow({ branch, isDefault, onDelete }: BranchRowProps) {
           className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           aria-label="Copy branch name"
         >
-          <Copy size={14} />
+          <OcticonCopy size={14} />
         </button>
       </div>
       {updatedLabel ? (

@@ -33,6 +33,7 @@ type RenameRepoRequest struct {
 type CommitFileRequest struct {
 	Branch        string `json:"branch"`
 	Path          string `json:"path"`
+	OldPath       string `json:"old_path,omitempty"`
 	Content       string `json:"content"`
 	CommitMessage string `json:"commit_message"`
 }

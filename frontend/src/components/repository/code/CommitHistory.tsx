@@ -4,11 +4,11 @@ import {
 	Calendar,
 	ChevronDown,
 	Code,
-	Copy,
 	GitCommitHorizontal,
 	Search,
 	Users,
 } from "lucide-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
 import { reposApi } from "../../../services/api";
@@ -648,7 +648,7 @@ export default function CommitHistory({
 													className="h-7 w-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
 													aria-label="Copy full commit hash"
 												>
-													<Copy size={12} className="text-[var(--text-secondary)]" />
+													<OcticonCopy size={12} className="text-[var(--text-secondary)]" />
 												</button>
 												<button
 													type="button"

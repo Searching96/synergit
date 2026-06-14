@@ -114,7 +114,7 @@ func (s *RepoInsightsService) GetProfileActivity(
 	commitActivity, err := s.metricComputer.ComputeProfileCommitActivity(
 		ctx,
 		accessibleRepos,
-		requester.Username,
+		requester.Email,
 		year,
 		now,
 	)

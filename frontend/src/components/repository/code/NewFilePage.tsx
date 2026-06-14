@@ -398,6 +398,7 @@ export default function NewFilePage({
       await reposApi.commitFileChange(repoId, {
         branch: activeBranch,
         path: targetFilePath,
+        old_path: isEditMode && initialFilePath ? normalizeRelativePath(initialFilePath) : undefined,
         content: fileContent,
         commit_message: fullMessage,
       });

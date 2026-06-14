@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleAlert,
   Code,
-  Copy,
   FileDiff,
   GitCommitHorizontal,
   Heading,
@@ -24,6 +23,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
 import type { Branch, CompareFileDiff, PullRequestCompareResult } from "../../../types";
@@ -1009,7 +1009,7 @@ export default function PullRequestComparePage({
                                 type="button"
                                 className="h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-2 text-xs font-mono text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                               >
-                                <Copy size={14} className="text-[var(--text-secondary)]" />
+                                <OcticonCopy size={14} className="text-[var(--text-secondary)]" />
                                 {commit.hash.slice(0, 7)}
                               </button>
                             </div>
@@ -1074,7 +1074,7 @@ export default function PullRequestComparePage({
                               ))}
                             </span>
                             <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{file.path}</span>
-                            <Copy size={14} className="text-[var(--text-secondary)] shrink-0" />
+                            <OcticonCopy size={14} className="text-[var(--text-secondary)] shrink-0" />
                             {file.previous_path ? (
                               <span className="text-xs text-[var(--text-secondary)] truncate">(from {file.previous_path})</span>
                             ) : null}

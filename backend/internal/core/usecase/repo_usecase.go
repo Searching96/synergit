@@ -68,7 +68,7 @@ func (s *RepoService) CreateRepositoryWithOptions(name string, ownerID uuid.UUID
 
 	initialFiles := usecaseutils.BuildRepositoryBootstrapFiles(name, owner.Username, normalizedOptions)
 	if len(initialFiles) > 0 {
-		if err := s.gitManager.BootstrapRepository(fullPath, "master", owner.Username,
+		if err := s.gitManager.BootstrapRepository(fullPath, "master", owner.Username, owner.Email,
 			initialFiles, "Initial commit"); err != nil {
 
 			return nil, err
@@ -476,13 +476,12 @@ func (s *RepoService) DeleteRepoBranch(repoID uuid.UUID, branchName string) erro
 }
 
 type repoCommitContext struct {
-	RepoPath   string
-	AuthorName string
+	RepoPath    string
+	AuthorName  string
+	AuthorEmail string
 }
 
-func (s *RepoService) resolveRepoCommitContext(repoID uuid.UUID,
-	requesterID uuid.UUID) (*repoCommitContext, error) {
-
+func (s *RepoService) resolveRepoCommitContext(repoID uuid.UUID, requesterID uuid.UUID) (*repoCommitContext, error) {
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
 		return nil, err
@@ -494,13 +493,14 @@ func (s *RepoService) resolveRepoCommitContext(repoID uuid.UUID,
 	}
 
 	return &repoCommitContext{
-		RepoPath:   repoPath,
-		AuthorName: user.Username,
+		RepoPath:    repoPath,
+		AuthorName:  user.Username,
+		AuthorEmail: user.Email,
 	}, nil
 }
 
 func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
-	branch string, filePath string, content string, commitMessage string) error {
+	branch string, filePath string, oldFilePath string, content string, commitMessage string) error {
 	if err := domain.ValidateCommitFileChangeInput(branch, filePath,
 		commitMessage); err != nil {
 
@@ -512,8 +512,8 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return err
 	}
 
-	if err := s.gitManager.CommitFileChange(ctx.RepoPath, branch, filePath, content,
-		ctx.AuthorName, commitMessage); err != nil {
+	if err := s.gitManager.CommitFileChange(ctx.RepoPath, branch, filePath, oldFilePath, content,
+		ctx.AuthorName, ctx.AuthorEmail, commitMessage); err != nil {
 		return err
 	}
 
@@ -536,7 +536,7 @@ func (s *RepoService) CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
 	}
 
 	if err := s.gitManager.CommitFilesChange(ctx.RepoPath, branch, files,
-		ctx.AuthorName, commitMessage); err != nil {
+		ctx.AuthorName, ctx.AuthorEmail, commitMessage); err != nil {
 		return err
 	}
 

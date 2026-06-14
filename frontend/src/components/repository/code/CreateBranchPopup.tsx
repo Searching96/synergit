@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Copy, X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import { GitBranchIcon } from "@primer/octicons-react";
 import { reposApi } from "../../../services/api/repos";
 import type { Branch } from "../../../types";
@@ -115,7 +116,7 @@ export default function CreateBranchPopup({
                 className="h-9 w-9 rounded-r-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center disabled:opacity-50"
                 aria-label="Copy branch name"
               >
-                <Copy size={14} className="text-[var(--text-secondary)]" />
+                <OcticonCopy size={14} className="text-[var(--text-secondary)]" />
               </button>
             </div>
           </div>

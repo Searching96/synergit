@@ -2,17 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   Cloud,
-  Copy,
   Download,
   FolderOpen,
   History,
   Maximize2,
+  MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Users,
 } from "lucide-react";
 import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
@@ -132,6 +133,8 @@ export default function RepoTreeBrowserPage({
   const [loadingPathSet, setLoadingPathSet] = useState<Set<string>>(new Set());
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isAddFileMenuOpen, setIsAddFileMenuOpen] = useState<boolean>(false);
+  const [isFileMenuOpen, setIsFileMenuOpen] = useState<boolean>(false);
+  const fileMenuRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState<number>(360);
@@ -139,6 +142,16 @@ export default function RepoTreeBrowserPage({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fileMenuRef.current && !fileMenuRef.current.contains(event.target as Node)) {
+        setIsFileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useSetPageReady(!fileLoading && loadingPathSet.size === 0);
 
@@ -500,35 +513,109 @@ export default function RepoTreeBrowserPage({
 
         <section className="min-w-0 bg-[var(--surface-canvas)]">
           <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
-            <RepoBreadcrumbNavigator
-              rootLabel={repoName}
-              segments={activePathSegments}
-              onRootClick={() => {
-                void openTreeRoot();
-              }}
-              onSegmentClick={(pathUntilSegment) => {
-                void openDirectory(pathUntilSegment);
-              }}
-              isLastSegmentClickable={!selectedFilePath}
-              className="min-w-0 overflow-x-auto whitespace-nowrap"
-              rootClassName="font-semibold text-[var(--text-link)] hover:underline"
-              segmentClassName="text-[var(--text-link)] hover:underline"
-              lastSegmentClassName="text-[var(--text-primary)]"
-            />
+            <div className="flex items-center min-w-0 gap-2">
+              <RepoBreadcrumbNavigator
+                rootLabel={repoName}
+                segments={activePathSegments}
+                onRootClick={() => {
+                  void openTreeRoot();
+                }}
+                onSegmentClick={(pathUntilSegment) => {
+                  void openDirectory(pathUntilSegment);
+                }}
+                isLastSegmentClickable={!selectedFilePath}
+                className="min-w-0 overflow-x-auto whitespace-nowrap"
+                rootClassName="font-semibold text-[var(--text-link)] hover:underline"
+                segmentClassName="text-[var(--text-link)] hover:underline"
+                lastSegmentClassName="text-[var(--text-primary)]"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const value = [repoName, ...activePathSegments].join("/");
+                  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                    void navigator.clipboard.writeText(value).catch(() => undefined);
+                  }
+                }}
+                className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] shrink-0"
+                aria-label={selectedFilePath ? "Copy file path" : "Copy directory path"}
+                title={selectedFilePath ? "Copy file path" : "Copy directory path"}
+              >
+                <OcticonCopy size={14} />
+              </button>
+            </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                const value = [repoName, ...activePathSegments].join("/");
-                if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-                  void navigator.clipboard.writeText(value).catch(() => undefined);
-                }
-              }}
-              className="h-8 w-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] shrink-0"
-              aria-label={selectedFilePath ? "Copy file path" : "Copy directory path"}
-            >
-              <Copy size={14} />
-            </button>
+            <div className="relative shrink-0" ref={fileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
+                className="h-8 w-8 rounded-md bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
+                aria-label="More options"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+
+              {isFileMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-56 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-1 z-50">
+                  {selectedFilePath ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const value = [repoName, ...activePathSegments].join("/");
+                          if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                            void navigator.clipboard.writeText(value).catch(() => undefined);
+                          }
+                          setIsFileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        Copy path
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsFileMenuOpen(false)}
+                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        Copy permalink
+                      </button>
+                      <div className="h-px bg-[var(--border-default)] my-1" />
+                      <button
+                        type="button"
+                        onClick={() => setIsFileMenuOpen(false)}
+                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        Delete file
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const value = [repoName, ...activePathSegments].join("/");
+                          if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                            void navigator.clipboard.writeText(value).catch(() => undefined);
+                          }
+                          setIsFileMenuOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        Copy path
+                      </button>
+                      <div className="h-px bg-[var(--border-default)] my-1" />
+                      <button
+                        type="button"
+                        onClick={() => setIsFileMenuOpen(false)}
+                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        Delete directory
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {loadError ? (
@@ -560,7 +647,7 @@ export default function RepoTreeBrowserPage({
                     <button
                       type="button"
                       onClick={() => onOpenCommitHistory?.(activeBranch)}
-                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
+                      className="h-8 px-3 rounded-md bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
                       History
@@ -603,7 +690,7 @@ export default function RepoTreeBrowserPage({
                         aria-label="Copy raw file"
                         title="Copy raw file"
                       >
-                        <Copy size={13} />
+                        <OcticonCopy size={13} />
                       </button>
                       <button
                         type="button"

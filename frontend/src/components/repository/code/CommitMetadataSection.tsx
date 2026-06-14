@@ -1,5 +1,6 @@
-import { Copy, FileIcon } from "lucide-react";
+import { FileIcon } from "lucide-react";
 import { GitBranchIcon } from "@primer/octicons-react";
+import { OcticonCopy } from "../../icons/Octicons";
 import type { Commit } from "../../../types";
 
 interface CommitMetadataSectionProps {
@@ -65,7 +66,7 @@ export default function CommitMetadataSection({
             className="h-5 w-5 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
             aria-label="Copy full SHA"
           >
-            <Copy size={10} className="text-[var(--text-secondary)]" />
+            <OcticonCopy size={10} className="text-[var(--text-secondary)]" />
           </button>
         </div>
       </div>

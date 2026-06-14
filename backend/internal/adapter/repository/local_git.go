@@ -225,7 +225,7 @@ func (g *LocalGitAdapter) RenameUserStorage(oldUsername, newUsername string) err
 }
 
 func (g *LocalGitAdapter) BootstrapRepository(repoPath string, branch string,
-	authorName string, files map[string]string, commitMessage string) error {
+	authorName string, authorEmail string, files map[string]string, commitMessage string) error {
 
 	if len(files) == 0 {
 		return nil
@@ -851,7 +851,7 @@ func (g *LocalGitAdapter) DeleteBranch(repoPath string, branchName string) error
 }
 
 func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
-	filePath string, content string, authorName string, commitMessage string) error {
+	filePath string, oldFilePath string, content string, authorName string, authorEmail string, commitMessage string) error {
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 
@@ -895,6 +895,13 @@ func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 		return fmt.Errorf("failed to create file directory: %w", err)
 	}
 
+	if oldFilePath != "" && oldFilePath != filePath {
+		cleanOldPath := filepath.Clean(filepath.FromSlash(oldFilePath))
+		if cleanOldPath != "." && !filepath.IsAbs(cleanOldPath) {
+			_ = runGit("rm", cleanOldPath)
+		}
+	}
+
 	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
@@ -903,11 +910,10 @@ func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 		return fmt.Errorf("failed to stage file: %w", err)
 	}
 
-	email := fmt.Sprintf("%s@synergit.local", authorName)
 	if err := runGit("config", "user.name", authorName); err != nil {
 		return err
 	}
-	if err := runGit("config", "user.email", email); err != nil {
+	if err := runGit("config", "user.email", authorEmail); err != nil {
 		return err
 	}
 
@@ -926,7 +932,7 @@ func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 }
 
 func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
-	files map[string]string, authorName string, commitMessage string) error {
+	files map[string]string, authorName string, authorEmail string, commitMessage string) error {
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 
@@ -986,11 +992,10 @@ func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
 		}
 	}
 
-	email := fmt.Sprintf("%s@synergit.local", authorName)
 	if err := runGit("config", "user.name", authorName); err != nil {
 		return err
 	}
-	if err := runGit("config", "user.email", email); err != nil {
+	if err := runGit("config", "user.email", authorEmail); err != nil {
 		return err
 	}
 
@@ -1310,10 +1315,8 @@ func (g *LocalGitAdapter) CompareRefs(repoPath string, baseRef string,
 	return result, nil
 }
 
-func (g *LocalGitAdapter) MergeBranches(
-	repoPath string, sourceBranch string, targetBranch string,
-	mergerName string, commitMessage string,
-) error {
+func (g *LocalGitAdapter) MergeBranches(repoPath string, sourceBranch string, targetBranch string,
+	mergerName string, mergerEmail string, commitMessage string) error {
 	bareRepoPath := g.resolveRepoPath(repoPath)
 
 	// 1. Create a temporary directory for the working tree
@@ -1344,9 +1347,7 @@ func (g *LocalGitAdapter) MergeBranches(
 		return fmt.Errorf("failed to clone repo for merging: %w", err)
 	}
 
-	// 3. Configure Git user for the merge conflict
-	// Git requires an email, so we generate a placeholder using the mergerName
-	mergerEmail := fmt.Sprintf("%s@synergit.local", mergerName)
+	// 3. Configure Git user
 	if err := runGitCmd("config", "user.name", mergerName); err != nil {
 		return err
 	}
@@ -1380,8 +1381,8 @@ func (g *LocalGitAdapter) MergeBranches(
 	return nil
 }
 
-func (g *LocalGitAdapter) CreateRevertBranch(repoPath string, targetBranch string,
-	revertBranch string, mergeCommitHash string, authorName string, commitMessage string) error {
+func (g *LocalGitAdapter) CreateRevertBranch(repoPath string, targetBranch string, revertBranch string,
+	mergeCommitHash string, authorName string, authorEmail string, commitMessage string) error {
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 	tempDir, err := os.MkdirTemp("", "synergit-revert-*")
@@ -1409,11 +1410,10 @@ func (g *LocalGitAdapter) CreateRevertBranch(repoPath string, targetBranch strin
 		return fmt.Errorf("failed to create revert branch: %w", err)
 	}
 
-	reverterEmail := fmt.Sprintf("%s@synergit.local", authorName)
 	if err := runGit("config", "user.name", authorName); err != nil {
 		return err
 	}
-	if err := runGit("config", "user.email", reverterEmail); err != nil {
+	if err := runGit("config", "user.email", authorEmail); err != nil {
 		return err
 	}
 
@@ -1542,11 +1542,11 @@ func (g *LocalGitAdapter) GetConflictContent(repoName string, sourceBranch strin
 	return string(content), nil
 }
 
-func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranch string,
-	targetBranch string, resolverName string, commitMessage string,
+func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoPath string, sourceBranch string,
+	targetBranch string, resolverName string, resolverEmail string, commitMessage string,
 	resolutions []domain.ConflictResolution) error {
 
-	bareRepoPath := g.resolveRepoPath(repoName)
+	bareRepoPath := g.resolveRepoPath(repoPath)
 	tempDir, err := os.MkdirTemp("", "synergit-conflict-resolve-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -1576,7 +1576,6 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoName string, sourceBranc
 	}
 
 	// 3. Configure Git user
-	resolverEmail := fmt.Sprintf("%s@synergit.local", resolverName)
 	runGit("config", "user.name", resolverName)
 	runGit("config", "user.email", resolverEmail)
 

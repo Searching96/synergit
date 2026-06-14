@@ -7,7 +7,6 @@ import {
   Clock,
   Code,
   CreditCard,
-  Eye,
   Globe,
   Key,
   LayoutGrid,
@@ -23,6 +22,7 @@ import {
   X,
   AlertTriangle,
 } from "lucide-react";
+import { OcticonLog } from "../components/icons/Octicons";
 import { useSetPageReady } from '../contexts/PageReadyContext';
 
 interface AccountSettingsPageProps {
@@ -87,8 +87,8 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
   {
     title: "Archives",
     items: [
-      { icon: Eye, label: "Security log" },
-      { icon: Eye, label: "Sponsorship log" },
+      { icon: OcticonLog as any, label: "Security log" },
+      { icon: OcticonLog as any, label: "Sponsorship log" },
     ],
   },
 ];
@@ -166,11 +166,10 @@ export default function AccountSettingsPage({ username, onGoToProfile }: Account
                     <li key={item.label}>
                       <button
                         type="button"
-                        className={`w-full h-8 px-2 rounded-md inline-flex items-center gap-2 text-left ${
-                          item.active
+                        className={`w-full h-8 px-2 rounded-md inline-flex items-center gap-2 text-left ${item.active
                             ? "bg-[var(--surface-subtle)] font-semibold text-[var(--text-primary)] border-l-2 border-[var(--text-link)]"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                        }`}
+                          }`}
                       >
                         <Icon size={15} className="shrink-0" />
                         <span className="flex-1">{item.label}</span>

@@ -16,14 +16,14 @@ import (
 const profileActivityLookbackDays = 365
 
 func (c *RepoInsightsMetricComputer) ComputeProfileCommitActivity(ctx context.Context,
-	repos []*domain.Repo, authorName string, year int, now time.Time) (*domain.ProfileCommitActivity, error) {
+	repos []*domain.Repo, authorEmail string, year int, now time.Time) (*domain.ProfileCommitActivity, error) {
 
 	nowUTC := now.UTC()
 	if nowUTC.IsZero() {
 		nowUTC = time.Now().UTC()
 	}
 
-	author := strings.TrimSpace(authorName)
+	authorEmailTrimmed := strings.TrimSpace(authorEmail)
 	since := nowUTC.AddDate(0, 0, -(profileActivityLookbackDays - 1))
 
 	byDate := make(map[string]int)
@@ -51,7 +51,7 @@ func (c *RepoInsightsMetricComputer) ComputeProfileCommitActivity(ctx context.Co
 			ctx,
 			repoPath,
 			profileRepositoryDisplayName(repo),
-			author,
+			authorEmailTrimmed,
 			since,
 			nowUTC,
 			byDate,
@@ -148,7 +148,7 @@ func collectProfileRepositoryStats(
 	ctx context.Context,
 	repoPath string,
 	repositoryName string,
-	author string,
+	authorEmail string,
 	since time.Time,
 	now time.Time,
 	byDate map[string]int,
@@ -179,7 +179,7 @@ func collectProfileRepositoryStats(
 		default:
 		}
 
-		if commit == nil || !profileAuthorMatches(author, commit.Author.Name, commit.Author.Email) {
+		if commit == nil || !strings.EqualFold(authorEmail, strings.TrimSpace(commit.Author.Email)) {
 			return nil
 		}
 
@@ -233,30 +233,7 @@ func profileRepositoryDisplayName(repo *domain.Repo) string {
 	return "unknown"
 }
 
-func profileAuthorMatches(authorTarget string, commitAuthor string, commitEmail string) bool {
-	trimmedTarget := strings.TrimSpace(authorTarget)
-	trimmedAuthor := strings.TrimSpace(commitAuthor)
-	trimmedEmail := strings.TrimSpace(commitEmail)
 
-	if trimmedTarget == "" {
-		return false
-	}
-
-	if strings.EqualFold(trimmedTarget, trimmedAuthor) {
-		return true
-	}
-
-	if trimmedEmail == "" {
-		return false
-	}
-
-	emailParts := strings.SplitN(trimmedEmail, "@", 2)
-	if len(emailParts) > 0 && strings.EqualFold(trimmedTarget, strings.TrimSpace(emailParts[0])) {
-		return true
-	}
-
-	return false
-}
 
 func errorsIsContextCancellation(ctx context.Context, err error) bool {
 	if err == nil {
