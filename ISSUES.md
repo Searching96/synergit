@@ -13,3 +13,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#006](./issues/006-global-sidebar-menu.md) | Closed | Frontend | Global Sidebar Menu Fix | `bug`, `ui`, `refactoring` |
 | [#007](./issues/007-global-footer-delayed-render.md) | Closed | Frontend | Global Footer with Delayed Render | `feature`, `ui`, `ux` |
 | [#008](./issues/008-hide-footer-on-source-code-pages.md) | Closed | Frontend | Hide Footer on Source Code Pages | `bug`, `ui`, `ux` |
+| [#009](./issues/009-username-change-repo-access-bug.md) | Closed | Backend | Username Change Breaks Repository Access | `bug`, `database`, `git` |

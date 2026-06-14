@@ -98,9 +98,14 @@ func (p *PostgresUserStore) UpdateUsername(id uuid.UUID, newUsername string) err
 }
 
 func (p *PostgresUserStore) UpdateRepoPathsForUser(oldUsername, newUsername string) error {
-	_, err := p.db.Exec(
-		`UPDATE repositories SET path = $1 || substring(path from length($2) + 1) WHERE path LIKE $2 || '%'`,
-		newUsername, oldUsername,
-	)
+	_, err := p.db.Exec(`
+		UPDATE repositories 
+		SET path = regexp_replace(
+			path, 
+			'([/\\])' || $2 || '([/\\][^/\\]+)$', 
+			'\1' || $1 || '\2'
+		) 
+		WHERE path ~ ('[/\\]' || $2 || '[/\\][^/\\]+$')
+	`, newUsername, oldUsername)
 	return err
 }

@@ -96,15 +96,16 @@ function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
   const [repoRouteResolved, setRepoRouteResolved] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<RepoTabKey>('files');
-  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(() => parseAppPath(window.location.pathname).viewMode);
+  const [initialRoute] = useState(() => parseAppPath(window.location.pathname));
+  const [activeTab, setActiveTab] = useState<RepoTabKey>(initialRoute.tab);
+  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(initialRoute.viewMode);
   const [createRepoSubmitting, setCreateRepoSubmitting] = useState<boolean>(false);
   const [createRepoError, setCreateRepoError] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTabKey>('overview');
-  const [activeGlobalPage, setActiveGlobalPage] = useState<GlobalPageKey | null>(null);
-  const [routeContentKind, setRouteContentKind] = useState<RepoContentKind>('root');
-  const [routeContentPath, setRouteContentPath] = useState<string>('');
-  const [routeBranch, setRouteBranch] = useState<string>('');
+  const [activeGlobalPage, setActiveGlobalPage] = useState<GlobalPageKey | null>(initialRoute.globalPage);
+  const [routeContentKind, setRouteContentKind] = useState<RepoContentKind>(initialRoute.contentKind);
+  const [routeContentPath, setRouteContentPath] = useState<string>(initialRoute.contentPath);
+  const [routeBranch, setRouteBranch] = useState<string>(initialRoute.branch);
 
   const profileFetchPending = profileRepoCountPending || profileRepositoriesPending;
 

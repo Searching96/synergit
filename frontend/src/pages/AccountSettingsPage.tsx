@@ -20,6 +20,8 @@ import {
   Smartphone,
   User,
   Users,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { useSetPageReady } from '../contexts/PageReadyContext';
 
@@ -94,7 +96,8 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
 export default function AccountSettingsPage({ username, onGoToProfile }: AccountSettingsPageProps) {
   useSetPageReady(true);
   const [newUsername, setNewUsername] = useState(username);
-  const [showUsernameInput, setShowUsernameInput] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showInputModal, setShowInputModal] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [usernameSuccess, setUsernameSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -117,7 +120,7 @@ export default function AccountSettingsPage({ username, onGoToProfile }: Account
         localStorage.setItem("token", result.token);
       }
       setUsernameSuccess(true);
-      setShowUsernameInput(false);
+      setShowInputModal(false);
       window.location.reload();
     } catch (err) {
       setUsernameError(err instanceof Error ? err.message : "Failed to change username");
@@ -203,41 +206,11 @@ export default function AccountSettingsPage({ username, onGoToProfile }: Account
             </p>
             <button
               type="button"
-              onClick={() => setShowUsernameInput(true)}
+              onClick={() => setShowWarningModal(true)}
               className="mt-3 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
             >
               Change username
             </button>
-            {showUsernameInput ? (
-              <div className="mt-3 space-y-2">
-                <input
-                  type="text"
-                  value={newUsername}
-                  onChange={(e) => { setNewUsername(e.target.value); setUsernameError(null); }}
-                  placeholder="New username"
-                  className="h-9 w-64 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)]"
-                />
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleChangeUsername()}
-                    disabled={submitting}
-                    className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-                  >
-                    {submitting ? "Updating..." : "Update username"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowUsernameInput(false); setUsernameError(null); }}
-                    className="h-8 px-3 rounded-md border border-[var(--border-default)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                {usernameError ? <p className="text-xs text-red-600">{usernameError}</p> : null}
-                {usernameSuccess ? <p className="text-xs text-green-600">Username updated!</p> : null}
-              </div>
-            ) : null}
             <p className="mt-4 text-xs text-[var(--text-secondary)] flex items-center gap-1">
               <span className="inline-flex items-center justify-center h-4 w-4 rounded-full border border-[var(--border-default)] text-[10px]">i</span>
               Looking to manage account security settings? You can find them in the <span className="text-[var(--text-link)] underline">Password and authentication</span> page.
@@ -319,6 +292,83 @@ export default function AccountSettingsPage({ username, onGoToProfile }: Account
           </section>
         </main>
       </div>
+
+      {/* Modals */}
+      {showWarningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[450px] bg-white rounded-xl shadow-lg border border-[var(--border-default)] overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+              <h3 className="font-semibold text-sm">Really change your username?</h3>
+              <button type="button" onClick={() => setShowWarningModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4 text-sm">
+              <div className="flex gap-2 p-3 bg-red-50 text-red-700 border border-red-200 rounded-md items-start">
+                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                <p>Unexpected bad things will happen if you don't read this!</p>
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-[var(--text-secondary)]">
+                <li><strong>We will not</strong> set up redirects for your old profile page.</li>
+                <li><strong>We will not</strong> set up redirects for Pages sites.</li>
+                <li><strong>We will</strong> create redirects for your repositories (web and git access).</li>
+                <li>Renaming may take a few minutes to complete.</li>
+              </ul>
+              <button
+                type="button"
+                onClick={() => { setShowWarningModal(false); setShowInputModal(true); }}
+                className="w-full h-9 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-default)] text-red-600 font-semibold hover:bg-gray-100"
+              >
+                I understand, let's change my username
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInputModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[400px] bg-white rounded-xl shadow-lg border border-[var(--border-default)] overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-[var(--surface-subtle)] border-b border-[var(--border-default)]">
+              <h3 className="font-semibold text-sm">Change username</h3>
+              <button type="button" onClick={() => { setShowInputModal(false); setUsernameError(null); }} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-[var(--text-primary)] mb-1">Enter a new username *</label>
+                <input
+                  type="text"
+                  value={newUsername}
+                  onChange={(e) => { setNewUsername(e.target.value); setUsernameError(null); }}
+                  autoFocus
+                  className="w-full h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent text-sm"
+                />
+              </div>
+              {usernameError ? <p className="text-xs text-red-600">{usernameError}</p> : null}
+              {usernameSuccess ? <p className="text-xs text-green-600">Username updated!</p> : null}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowInputModal(false); setUsernameError(null); }}
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm font-semibold text-[var(--text-primary)] hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleChangeUsername()}
+                  disabled={submitting}
+                  className="h-8 px-3 rounded-md bg-[#1f883d] text-white text-sm font-semibold hover:bg-[#1a7f37] disabled:opacity-50"
+                >
+                  {submitting ? "Updating..." : "Change my username"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

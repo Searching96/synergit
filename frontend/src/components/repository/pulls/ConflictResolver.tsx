@@ -97,7 +97,7 @@ export default function ConflictResolver({ repoId, pullNumber, onResolved, onBac
 
 				if (data.length > 0) setActiveFile(data[0].path);
 			} catch (err: unknown) {
-				setError(err.message || 'Failed to load conflicts');
+				setError(err instanceof Error ? err.message : 'Failed to load conflicts');
 			} finally {
 				setLoading(false);
 			}
@@ -260,7 +260,7 @@ export default function ConflictResolver({ repoId, pullNumber, onResolved, onBac
 			await pullsApi.resolveConflicts(repoId, pull.id, payload);
 			onResolved();
 		} catch (err: unknown) {
-			setError(err.message || 'Failed to resolve conflicts');
+			setError(err instanceof Error ? err.message : 'Failed to resolve conflicts');
 		} finally {
 			setSubmitting(false);
 		}
