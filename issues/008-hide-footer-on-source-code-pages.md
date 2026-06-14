@@ -1,6 +1,7 @@
 ---
 id: 008
 title: "Hide Footer on Source Code Pages"
+priority: "low"
 status: "closed"
 created_at: "2026-06-13T19:48:00Z"
 closed_at: "2026-06-13T19:48:00Z"

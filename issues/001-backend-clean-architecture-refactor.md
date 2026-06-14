@@ -1,6 +1,7 @@
 ---
 id: "001"
 title: "Backend Clean Architecture Refactor"
+priority: "high"
 status: "closed"
 component: "backend"
 labels: ["refactor", "tech-debt", "clean-architecture"]

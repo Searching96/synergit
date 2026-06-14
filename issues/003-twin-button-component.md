@@ -1,6 +1,7 @@
 ---
 id: "003"
 title: "Create Twin Button Reusable Component"
+priority: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "react", "ui"]

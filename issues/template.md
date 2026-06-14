@@ -1,6 +1,7 @@
 ---
 id: "000"
 title: "Issue Title"
+priority: "medium" # low | medium | high
 status: "open" # open | in-progress | closed
 component: "fullstack" # backend | frontend | infrastructure | fullstack
 labels: ["bug", "feature", "refactor", "tech-debt"]

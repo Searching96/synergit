@@ -1,6 +1,7 @@
 ---
 id: "009"
 title: "Username Change Breaks Repository Access"
+priority: "high"
 status: "closed"
 created_at: "2026-06-14"
 closed_at: "2026-06-14"

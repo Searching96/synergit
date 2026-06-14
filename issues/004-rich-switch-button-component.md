@@ -1,6 +1,7 @@
 ---
 id: "004"
 title: "Create Rich Switch Button Component"
+priority: "low"
 status: "in-progress"
 component: "frontend"
 labels: ["feature", "ui"]

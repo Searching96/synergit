@@ -1,6 +1,7 @@
 ---
 id: "002"
 title: "Frontend Modularization Refactor"
+priority: "high"
 status: "closed"
 component: "frontend"
 labels: ["refactor", "tech-debt", "react"]

@@ -2,7 +2,7 @@
 id: 005
 title: "Create Shared Avatar Component"
 status: "closed"
-priority: "medium"
+priority: "low"
 labels: ["feature", "ui", "refactoring"]
 assignee: "antigravity"
 created_at: 2026-06-13
