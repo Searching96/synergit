@@ -36,7 +36,8 @@ import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import { useSetPageReady } from "../../../contexts/PageReadyContext";
 import { CommitModal } from "./CommitModal";
-import { CommitHashLink } from "../../shared/CommitHashLink";
+import { CommitChangeLink } from "../../shared/CommitChangeLink";
+import { shortenHash } from "../../../utils/stringUtils";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -1219,7 +1220,7 @@ export default function FileExplorer({
                 <div className="flex items-center gap-2 shrink-0">
                   {latestCommit && (
                     <div className="hidden sm:flex items-center gap-0.5 text-sm text-[var(--text-muted)]">
-                      <span><CommitHashLink hash={latestCommit.hash} /></span>
+                      <span><CommitChangeLink hash={latestCommit.hash} text={shortenHash(latestCommit.hash)} className="font-medium hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors" /></span>
                       <span className="text-[var(--text-muted)]">·</span>
                       <span>{formatRelativeCommitTime(latestCommit.date)}</span>
                     </div>

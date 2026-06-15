@@ -12,7 +12,8 @@ import { OcticonCopy } from "../../icons/Octicons";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
 import { reposApi } from "../../../services/api";
-import { CommitHashLink } from "../../shared/CommitHashLink";
+import { CommitChangeLink } from "../../shared/CommitChangeLink";
+import { shortenHash } from "../../../utils/stringUtils";
 
 interface CommitHistoryProps {
 	repoId: string;
@@ -646,9 +647,10 @@ export default function CommitHistory({
 											</div>
 
 											<div className="flex items-center gap-1 shrink-0">
-												<CommitHashLink 
+												<CommitChangeLink 
 													hash={commit.hash} 
-													title="View commit details"
+													text={shortenHash(commit.hash)}
+													tooltipText="View commit details"
 													className="font-mono text-xs text-[#25292E] h-7 px-2 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center transition-colors"
 												/>
 												<button

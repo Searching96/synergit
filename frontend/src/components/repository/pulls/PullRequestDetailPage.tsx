@@ -18,7 +18,8 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { CommitHashLink } from "../../shared/CommitHashLink";
+import { CommitChangeLink } from "../../shared/CommitChangeLink";
+import { shortenHash } from "../../../utils/stringUtils";
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
@@ -456,8 +457,9 @@ export default function PullRequestDetailPage({
                         <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
                           Verified
                         </span>
-                        <CommitHashLink 
+                        <CommitChangeLink 
                           hash={commit.hash} 
+                          text={shortenHash(commit.hash)}
                           className="font-mono text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-link)]"
                         />
                       </span>
@@ -494,7 +496,7 @@ export default function PullRequestDetailPage({
                         <span className="min-w-0">
                           <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
                           merged commit{" "}
-                          <CommitHashLink hash={mergeCommitHash} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
+                          <CommitChangeLink hash={mergeCommitHash} text={shortenHash(mergeCommitHash)} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
                           into{" "}
                           <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
                           <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>

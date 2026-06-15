@@ -2,34 +2,33 @@ import { Link } from "react-router-dom";
 import { buildRepoCommitViewPath } from "../../utils/repoRouting";
 import { useRepository } from "../../contexts/RepositoryContext";
 
-interface CommitHashLinkProps {
+interface CommitChangeLinkProps {
   hash: string;
-  short?: boolean;
+  text: string;
+  tooltipText?: string;
   className?: string;
-  title?: string;
 }
 
-export function CommitHashLink({ 
+export function CommitChangeLink({ 
   hash, 
-  short = true, 
+  text,
+  tooltipText,
   className = "hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors",
-  title
-}: CommitHashLinkProps) {
+}: CommitChangeLinkProps) {
   const { selectedRepo } = useRepository();
   
   const owner = selectedRepo?.owner || "";
   const name = selectedRepo?.name || "";
 
   if (!owner || !name || !hash) {
-    return <span className={className}>{short && hash ? hash.substring(0, 7) : hash}</span>;
+    return <span className={className}>{text}</span>;
   }
 
-  const displayHash = short ? hash.substring(0, 7) : hash;
   const path = buildRepoCommitViewPath(owner, name, hash);
   
   return (
-    <Link to={path} className={className} title={title || hash}>
-      {displayHash}
+    <Link to={path} className={className} title={tooltipText}>
+      {text}
     </Link>
   );
 }

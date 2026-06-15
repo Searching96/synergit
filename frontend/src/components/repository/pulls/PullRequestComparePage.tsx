@@ -23,7 +23,8 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { CommitHashLink } from "../../shared/CommitHashLink";
+import { CommitChangeLink } from "../../shared/CommitChangeLink";
+import { shortenHash } from "../../../utils/stringUtils";
 import { OcticonCopy } from "../../icons/Octicons";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
@@ -1015,8 +1016,9 @@ export default function PullRequestComparePage({
                                 >
                                   <OcticonCopy size={14} />
                                 </button>
-                                <CommitHashLink 
+                                <CommitChangeLink 
                                   hash={commit.hash} 
+                                  text={shortenHash(commit.hash)}
                                   className="h-7 px-2 rounded-r-md border-y border-r border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-mono text-[var(--text-link)] hover:bg-[var(--surface-hover)] flex items-center justify-center transition-colors"
                                 />
                               </div>
