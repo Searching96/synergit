@@ -33,6 +33,7 @@ type GitManager interface {
 
 	// Method for getting commits, optionally filtered by path.
 	GetCommits(repoPath string, branch string, path string) ([]domain.Commit, error)
+	GetCommitStats(repoPath string, branch string, pathFilter string) (domain.CommitStats, error)
 	GetCommitsBatch(repoPath string, branch string, paths []string) (map[string]*domain.Commit, error)
 	GetCommitDetail(repoPath string, commitHash string) (*domain.Commit, error)
 	GetCommitDiff(repoPath string, commitHash string) ([]domain.DiffFile, error)

@@ -25,7 +25,7 @@ import {
   StarIcon,
 } from "@primer/octicons-react";
 import ReactMarkdown from "react-markdown";
-import type { Branch, Commit, LanguageBreakdownStat, RepoFile } from "../../../types";
+import type { Branch, CommitStats, LanguageBreakdownStat, RepoFile } from "../../../types";
 import { Avatar } from "../../shared/Avatar";
 import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api";
@@ -286,7 +286,7 @@ export default function FileExplorer({
   const [languageBreakdown, setLanguageBreakdown] = useState<LanguageBreakdownStat[]>([]);
   const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
   const [commitError, setCommitError] = useState<string | null>(null);
-  const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
+  const [commitStats, setCommitStats] = useState<CommitStats | null>(null);
   const [commitsLoading, setCommitsLoading] = useState<boolean>(true);
   const [isBranchMenuOpen, setIsBranchMenuOpen] = useState<boolean>(false);
   const [isCodeMenuOpen, setIsCodeMenuOpen] = useState<boolean>(false);
@@ -423,10 +423,6 @@ export default function FileExplorer({
     setIsEditingReadme(false);
     setReadmeDraft("");
     setReadmeEditError(null);
-    setLanguageBreakdown([]);
-    setLanguageBreakdownLoading(false);
-    setRecentCommits([]);
-    setCommitsLoading(true);
     setIsAddFileMenuOpen(false);
     setIsBranchMenuOpen(false);
     setIsCodeMenuOpen(false);
@@ -467,6 +463,7 @@ export default function FileExplorer({
 
   useEffect(() => {
     let active = true;
+    setLanguageBreakdown([]);
     setLanguageBreakdownLoading(true);
 
     reposApi
@@ -496,17 +493,18 @@ export default function FileExplorer({
 
   useEffect(() => {
     let active = true;
+    setCommitStats(null);
     setCommitsLoading(true);
 
     reposApi
-      .getCommits(repoId, branch)
+      .getCommitStats(repoId, branch)
       .then((data) => {
         if (!active) return;
-        setRecentCommits(data || []);
+        setCommitStats(data || null);
       })
       .catch(() => {
         if (!active) return;
-        setRecentCommits([]);
+        setCommitStats(null);
       })
       .finally(() => {
         if (!active) return;
@@ -533,8 +531,8 @@ export default function FileExplorer({
     () => languageBreakdown.slice(0, 6),
     [languageBreakdown],
   );
-  const latestCommit = recentCommits[0] || null;
-  const commitCountLabel = `${recentCommits.length.toLocaleString()} Commit${recentCommits.length === 1 ? "" : "s"}`;
+  const latestCommit = commitStats?.latest_commit || null;
+  const commitCountLabel = commitStats ? `${commitStats.total_commits.toLocaleString()} Commit${commitStats.total_commits === 1 ? "" : "s"}` : "";
   const starCount = typeof repoStars === "number" ? repoStars : 0;
   const watchingCount = typeof repoWatchers === "number" ? repoWatchers : 0;
   const forkCount = typeof repoForks === "number" ? repoForks : 0;

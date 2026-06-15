@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { FileDirectoryFillIcon, FileIcon } from "@primer/octicons-react";
 import { OcticonCopy } from "../../icons/Octicons";
-import type { Branch, Commit, RepoFile } from "../../../types";
+import type { Branch, CommitStats, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
@@ -138,7 +138,7 @@ export default function RepoTreeBrowserPage({
   const [isFileMenuOpen, setIsFileMenuOpen] = useState<boolean>(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [recentCommits, setRecentCommits] = useState<Commit[]>([]);
+  const [commitStats, setCommitStats] = useState<CommitStats | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState<number>(360);
   const [lastSidebarWidth, setLastSidebarWidth] = useState<number>(360);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -163,7 +163,7 @@ export default function RepoTreeBrowserPage({
 
   const activeBranch = (branch || "master").trim() || "master";
 
-  const latestCommit = recentCommits[0] || null;
+  const latestCommit = commitStats?.latest_commit || null;
   const latestCommitMessage = latestCommit?.message?.trim() || "Update files";
   const latestCommitWhen = latestCommit ? formatRelativeTime(latestCommit.date) : "just now";
 
@@ -447,12 +447,12 @@ export default function RepoTreeBrowserPage({
 
   useEffect(() => {
     reposApi
-      .getCommits(repoId, activeBranch)
+      .getCommitStats(repoId, activeBranch)
       .then((data) => {
-        setRecentCommits(data || []);
+        setCommitStats(data || null);
       })
       .catch(() => {
-        setRecentCommits([]);
+        setCommitStats(null);
       });
   }, [activeBranch, repoId]);
 
@@ -733,7 +733,7 @@ export default function RepoTreeBrowserPage({
                       className="h-8 px-3 rounded-md bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
-                      History
+                      History{commitStats && commitStats.total_commits > 0 ? <span className="hidden sm:inline font-semibold">· {commitStats.total_commits.toLocaleString()}</span> : null}
                     </button>
                   </div>
                 </div>
@@ -850,7 +850,7 @@ export default function RepoTreeBrowserPage({
                       className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
-                      History
+                      History{commitStats && commitStats.total_commits > 0 ? <span className="hidden sm:inline font-semibold">· {commitStats.total_commits.toLocaleString()}</span> : null}
                     </button>
                   </div>
                 </div>

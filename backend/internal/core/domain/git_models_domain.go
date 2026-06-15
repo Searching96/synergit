@@ -26,6 +26,11 @@ type Commit struct {
 	Date    time.Time `json:"date"`
 }
 
+type CommitStats struct {
+	TotalCommits int     `json:"total_commits"`
+	LatestCommit *Commit `json:"latest_commit"`
+}
+
 type DiffFile struct {
 	Path      string `json:"path"`
 	Additions int    `json:"additions"`

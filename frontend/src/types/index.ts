@@ -41,6 +41,11 @@ export interface Commit {
 	date: string; // ISO string from the backend
 }
 
+export interface CommitStats {
+	total_commits: number;
+	latest_commit: Commit | null;
+}
+
 export interface Branch {
 	name: string;
 	commit_hash: string;

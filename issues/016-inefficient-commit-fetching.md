@@ -2,12 +2,12 @@
 id: "016"
 title: "Inefficient Commit Fetching for Header"
 priority: "medium"
-status: "open"
+status: "closed"
 component: "fullstack"
 labels: ["performance", "api", "tech-debt"]
-assignee: ""
+assignee: "Antigravity"
 created_at: 2026-06-15
-closed_at: null
+closed_at: 2026-06-15
 related_issues: []
 ---
 
@@ -28,10 +28,5 @@ Fetching the entire list of commits (which could be tens of thousands of records
 - [ ] Update the frontend `RepoTreeBrowserPage.tsx` to utilize this new optimized API instead of pulling the whole commit list.
 
 ## Implementation Notes
-
-**Refactoring Note on Single Responsibility:**
-We initially considered adding pagination directly into this issue. However, fixing the File Browser Header and fixing the `CommitHistory.tsx` page are two separate frontend concerns. 
-
-To strictly adhere to the Single Responsibility Principle:
-1. This issue (**#016**) is dedicated purely to providing an ultra-lightweight API (e.g., a Stats API) for the File Browser Header.
-2. We have extracted the mandatory pagination for `CommitHistory.tsx` into **Issue #017**.
+- Added `GetCommitStats` API which uses `go-git` iterator internally with efficient `countDirectoryCommits` and `countCommits` functions to prevent loading the full history into memory.
+- Updated both `RepoTreeBrowserPage.tsx` and `FileExplorer.tsx` on the frontend to pull lightweight stats for the File Browser Header.

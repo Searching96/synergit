@@ -1,11 +1,9 @@
 .env
 .vscode
 
-kiro-cli.exe
-tectonic.exe
-
 node_modules/
 latex/
 synergit-report/
 
 *.pdf
+*.exe

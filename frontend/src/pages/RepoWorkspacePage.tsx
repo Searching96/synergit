@@ -252,7 +252,7 @@ export default function RepoWorkspaceContent({
                 repoForks={selectedRepo.forks}
                 repoWatchers={0}
                 cloneUrl={selectedRepo.clone_url}
-                branch={currentBranch}
+                branch={currentBranch || routeBranch || defaultBranchName}
                 branches={branches}
                 initialLocation={explorerInitialLocation}
                 onNavigateLocation={onNavigateRepoLocation}

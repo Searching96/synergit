@@ -456,6 +456,23 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	c.JSON(http.StatusOK, commits)
 }
 
+func (h *RepoHandler) HandleGetCommitStats(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	branch := c.Query("branch")
+	path := c.Query("path")
+
+	stats, err := h.repoUseCase.GetCommitStats(repoID, branch, path)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
 func (h *RepoHandler) HandleGetCommitsBatch(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

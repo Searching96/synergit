@@ -408,6 +408,15 @@ func (s *RepoService) GetRepoCommits(repoID uuid.UUID, branch string, path strin
 	return s.gitManager.GetCommits(repoPath, branch, path)
 }
 
+func (s *RepoService) GetCommitStats(repoID uuid.UUID, branch string, path string) (domain.CommitStats, error) {
+	repoPath, err := s.resolveRepoPath(repoID)
+	if err != nil {
+		return domain.CommitStats{}, err
+	}
+
+	return s.gitManager.GetCommitStats(repoPath, branch, path)
+}
+
 func (s *RepoService) GetRepoCommitsBatch(repoID uuid.UUID, branch string, paths []string) (map[string]*domain.Commit, error) {
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {

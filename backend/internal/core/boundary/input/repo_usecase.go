@@ -30,6 +30,7 @@ type RepoUseCase interface {
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
 	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)
+	GetCommitStats(repoID uuid.UUID, branch string, path string) (domain.CommitStats, error)
 	GetRepoCommitsBatch(repoID uuid.UUID, branch string, paths []string) (map[string]*domain.Commit, error)
 	GetCommitDetail(repoID uuid.UUID, commitHash string) (*domain.Commit, error)
 	GetCommitDiff(repoID uuid.UUID, commitHash string) ([]domain.DiffFile, error)

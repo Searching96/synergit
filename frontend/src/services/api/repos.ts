@@ -13,6 +13,7 @@ import type {
   RenameBranchPayload,
   RepoFile,
   Repository,
+  CommitStats,
 } from '../../types';
 
 export const reposApi = {
@@ -104,6 +105,17 @@ export const reposApi = {
     }
 
     return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
+  },
+
+  getCommitStats: (repoId: string, branch: string = '', path: string = '') => {
+    const params = new URLSearchParams();
+    params.set('branch', branch);
+
+    if (path.trim()) {
+      params.set('path', path);
+    }
+
+    return fetcher<CommitStats>(`/repos/${repoId}/commits/stats?${params.toString()}`);
   },
 
   getCommitsBatch: (repoId: string, branch: string, paths: string[]) => {
