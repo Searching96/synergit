@@ -1,7 +1,7 @@
 ---
 id: "018"
 title: "Implement CommitChangeLink Component"
-priority: "medium"
+priority: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "ui", "refactor"]

@@ -13,6 +13,7 @@ import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
 import { reposApi } from "../../../services/api";
 import { CommitChangeLink } from "../../shared/CommitChangeLink";
+import { Tooltip } from "../../shared/Tooltip";
 import { shortenHash } from "../../../utils/stringUtils";
 
 interface CommitHistoryProps {
@@ -653,24 +654,27 @@ export default function CommitHistory({
 													tooltipText="View commit details"
 													className="font-mono text-xs text-[#25292E] h-7 px-2 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center transition-colors"
 												/>
-												<button
-													type="button"
-													onClick={() => void navigator.clipboard.writeText(commit.hash)}
-													className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
-													aria-label="Copy full commit hash"
-												>
-													<OcticonCopy size={12} className="text-[var(--text-secondary)]" />
-												</button>
-												<button
-													type="button"
-													onClick={() => onBrowseAtCommit?.(commit.hash)}
-													disabled={!onBrowseAtCommit}
-													className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
-													aria-label="Browse history at this point"
-													title="Browse history at this point"
-												>
-													<Code size={12} className="text-[var(--text-secondary)]" />
-												</button>
+												<Tooltip content={`Copy full SHA for ${shortenHash(commit.hash)}`}>
+													<button
+														type="button"
+														onClick={() => void navigator.clipboard.writeText(commit.hash)}
+														className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
+														aria-label="Copy full commit hash"
+													>
+														<OcticonCopy size={12} className="text-[var(--text-secondary)]" />
+													</button>
+												</Tooltip>
+												<Tooltip content="Browse repository at this point">
+													<button
+														type="button"
+														onClick={() => onBrowseAtCommit?.(commit.hash)}
+														disabled={!onBrowseAtCommit}
+														className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center disabled:opacity-50"
+														aria-label="Browse history at this point"
+													>
+														<Code size={12} className="text-[var(--text-secondary)]" />
+													</button>
+												</Tooltip>
 											</div>
 										</div>
 									</article>

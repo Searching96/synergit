@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Tooltip } from "./Tooltip";
 import { buildRepoCommitViewPath } from "../../utils/repoRouting";
 import { useRepository } from "../../contexts/RepositoryContext";
 
@@ -27,8 +28,10 @@ export function CommitChangeLink({
   const path = buildRepoCommitViewPath(owner, name, hash);
   
   return (
-    <Link to={path} className={className} title={tooltipText}>
-      {text}
-    </Link>
+    <Tooltip content={tooltipText}>
+      <Link to={path} className={className}>
+        {text}
+      </Link>
+    </Tooltip>
   );
 }

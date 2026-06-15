@@ -1,6 +1,8 @@
 import { FileIcon } from "lucide-react";
 import { GitBranchIcon } from "@primer/octicons-react";
 import { OcticonCopy } from "../../icons/Octicons";
+import { Tooltip } from "../../shared/Tooltip";
+import { shortenHash } from "../../../utils/stringUtils";
 import type { Commit } from "../../../types";
 
 interface CommitMetadataSectionProps {
@@ -59,15 +61,19 @@ export default function CommitMetadataSection({
         <div className="flex items-center gap-2 text-[var(--text-secondary)]">
           <GitBranchIcon size={14} />
           <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[var(--text-link)]">master</span>
-          <span className="text-xs">commit {shortHash}</span>
-          <button
-            type="button"
-            onClick={() => void navigator.clipboard.writeText(commitHash)}
-            className="h-5 w-5 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
-            aria-label="Copy full SHA"
-          >
-            <OcticonCopy size={10} className="text-[var(--text-secondary)]" />
-          </button>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-xs text-[var(--text-primary)]">{shortenHash(commitHash)}</span>
+          <Tooltip content={`Copy full SHA for ${shortenHash(commitHash)}`}>
+            <button
+              type="button"
+              onClick={() => void navigator.clipboard.writeText(commitHash)}
+              className="h-5 w-5 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
+              aria-label="Copy full SHA"
+            >
+              <OcticonCopy size={10} className="text-[var(--text-secondary)]" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

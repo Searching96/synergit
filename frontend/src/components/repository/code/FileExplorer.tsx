@@ -31,7 +31,7 @@ import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
 import StarButton from "../../shared/StarButton";
-import { TwinButtonGroup } from "../../shared/TwinButtonGroup";
+import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import { useSetPageReady } from "../../../contexts/PageReadyContext";
@@ -927,20 +927,14 @@ export default function FileExplorer({
                     Set up in Desktop
                   </button>
                   <p>or</p>
-                  <TwinButtonGroup>
-                    <button
-                      type="button"
-                      className="h-8 px-3 border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                    >
-                      HTTPS
-                    </button>
-                    <button
-                      type="button"
-                      className="h-8 px-3 border border-[var(--border-default)] bg-[var(--surface-canvas)] text-xs text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                    >
-                      SSH
-                    </button>
-                  </TwinButtonGroup>
+                  <TwinButton
+                    leftAriaLabel="HTTPS"
+                    rightAriaLabel="SSH"
+                    leftIcon={<span className="text-xs font-semibold text-[var(--text-primary)]">HTTPS</span>}
+                    rightIcon={<span className="text-xs text-[var(--text-secondary)]">SSH</span>}
+                    leftButtonClassName="px-3"
+                    rightButtonClassName="px-3"
+                  />
                   <div className="min-w-[260px] flex-1 flex items-center gap-2">
                     <input
                       readOnly

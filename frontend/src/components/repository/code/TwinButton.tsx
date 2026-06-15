@@ -28,8 +28,8 @@ export default function TwinButton({
   rightButtonClassName,
 }: TwinButtonProps) {
   const wrapperClassName = `flex items-center${className ? ` ${className}` : ""}`;
-  const leftClassName = `h-9 w-9 rounded-l-md border border-r-0 border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]${leftButtonClassName ? ` ${leftButtonClassName}` : ""}`;
-  const rightClassName = `h-9 w-9 rounded-r-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)]${rightButtonClassName ? ` ${rightButtonClassName}` : ""}`;
+  const leftClassName = `h-8 rounded-l-md border border-r-0 border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)] ${leftButtonClassName || "w-8"}`;
+  const rightClassName = `h-8 rounded-r-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center hover:bg-[var(--surface-subtle)] ${rightButtonClassName || "w-8"}`;
 
   return (
     <div className={wrapperClassName}>

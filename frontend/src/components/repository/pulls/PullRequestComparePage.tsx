@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { CommitChangeLink } from "../../shared/CommitChangeLink";
 import { shortenHash } from "../../../utils/stringUtils";
+import { Tooltip } from "../../shared/Tooltip";
 import { OcticonCopy } from "../../icons/Octicons";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
@@ -1008,14 +1009,15 @@ export default function PullRequestComparePage({
                                 Verified
                               </span>
                               <div className="flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => void navigator.clipboard.writeText(commit.hash)}
-                                  className="h-7 px-2 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-primary)] flex items-center justify-center transition-colors"
-                                  title="Copy the full SHA"
-                                >
-                                  <OcticonCopy size={14} />
-                                </button>
+                                <Tooltip content={`Copy full SHA for ${shortenHash(commit.hash)}`}>
+                                  <button
+                                    type="button"
+                                    onClick={() => void navigator.clipboard.writeText(commit.hash)}
+                                    className="h-7 px-2 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-primary)] flex items-center justify-center transition-colors"
+                                  >
+                                    <OcticonCopy size={14} />
+                                  </button>
+                                </Tooltip>
                                 <CommitChangeLink 
                                   hash={commit.hash} 
                                   text={shortenHash(commit.hash)}
