@@ -545,6 +545,27 @@ func (s *RepoService) CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
 	return nil
 }
 
+func (s *RepoService) DeletePath(repoID uuid.UUID, requesterID uuid.UUID,
+	branch string, path string, commitMessage string) error {
+	if branch == "" || path == "" || commitMessage == "" {
+		return errors.New("branch, path, and commitMessage are required")
+	}
+
+	ctx, err := s.resolveRepoCommitContext(repoID, requesterID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.gitManager.DeletePath(ctx.RepoPath, branch, path,
+		ctx.AuthorName, ctx.AuthorEmail, commitMessage); err != nil {
+		return err
+	}
+
+	s.enqueueInsights(repoID, "delete_path")
+
+	return nil
+}
+
 func (s *RepoService) enqueueInsights(repoID uuid.UUID, trigger string) {
 	if s.repoInsightsScheduler == nil {
 		return

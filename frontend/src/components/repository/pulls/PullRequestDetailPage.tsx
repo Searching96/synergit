@@ -18,6 +18,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import { CommitHashLink } from "../../shared/CommitHashLink";
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
@@ -32,7 +33,7 @@ interface PullRequestDetailPageProps {
   onBack: () => void;
   onOpenConflicts: () => void;
   onOpenPullRequest: (pullNumber: number) => void;
-  onOpenCommitDiff?: (commitHash: string) => void;
+
 }
 
 function relativeTime(timestamp: string): string {
@@ -157,7 +158,7 @@ export default function PullRequestDetailPage({
   onBack,
   onOpenConflicts,
   onOpenPullRequest,
-  onOpenCommitDiff,
+
 }: PullRequestDetailPageProps) {
   const [pull, setPull] = useState<PullRequest | null>(null);
   const [compareData, setCompareData] = useState<PullRequestCompareResult | null>(null);
@@ -343,7 +344,7 @@ export default function PullRequestDetailPage({
                 <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
                 from{" "}
                 <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>{" "}
-                <span title={fullTime(mergedTime)} className="hover:underline">{relativeTime(mergedTime)}</span>
+                <span title={fullTime(mergedTime)} className="underline hover:text-[var(--text-link)]">{relativeTime(mergedTime)}</span>
               </span>
             ) : (
               <span>
@@ -405,7 +406,7 @@ export default function PullRequestDetailPage({
               <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-info-muted,#54aeff)] bg-[var(--surface-info-subtle)] text-sm">
                 <span>
                   <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span>{" "}
-                  <span className="text-[var(--text-secondary)]">commented <span title={fullTime(pull.created_at)} className="hover:underline">{relativeTime(pull.created_at)}</span></span>
+                  <span className="text-[var(--text-secondary)]">commented <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span></span>
                 </span>
                 <span className="inline-flex items-center gap-2">
                   <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">Owner</span>
@@ -427,7 +428,7 @@ export default function PullRequestDetailPage({
                 </span>
                 <p className="text-sm text-[var(--text-secondary)]">
                   <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
-                  <span title={fullTime(pull.created_at)} className="hover:underline">{relativeTime(pull.created_at)}</span>
+                  <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span>
                 </p>
               </li>
 
@@ -455,13 +456,10 @@ export default function PullRequestDetailPage({
                         <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
                           Verified
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => onOpenCommitDiff?.(commit.hash)}
-                          className="font-mono text-xs text-[var(--text-link)] hover:underline"
-                        >
-                          {commit.hash.slice(0, 7)}
-                        </button>
+                        <CommitHashLink 
+                          hash={commit.hash} 
+                          className="font-mono text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-link)]"
+                        />
                       </span>
                     </div>
                   </li>
@@ -496,10 +494,10 @@ export default function PullRequestDetailPage({
                         <span className="min-w-0">
                           <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
                           merged commit{" "}
-                          <span className="font-mono text-[var(--text-primary)]">{mergeCommitHash.slice(0, 7)}</span>{" "}
+                          <CommitHashLink hash={mergeCommitHash} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
                           into{" "}
                           <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-                          <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
+                          <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
                         </span>
                         <button
                           type="button"
@@ -514,7 +512,7 @@ export default function PullRequestDetailPage({
                     ) : (
                       <span className="pl-8 text-[var(--text-secondary)]">
                         <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
-                        <span title={fullTime(event.created_at)} className="hover:underline">{relativeTime(event.created_at)}</span>
+                        <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
                       </span>
                     )}
                   </li>

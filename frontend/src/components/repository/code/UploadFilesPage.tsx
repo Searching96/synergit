@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { AlertCircle, UploadCloud, X } from "lucide-react";
+import { UploadCloud, X } from "lucide-react";
 import { reposApi } from "../../../services/api";
+import { CommitModal } from "./CommitModal";
 
 type UploadCandidate = {
   id: string;
@@ -15,7 +16,7 @@ interface UploadFilesPageProps {
   branch: string;
   initialDirectoryPath?: string;
   onCancel: () => void;
-  onCommitted: (targetDirectoryPath: string) => void;
+  onCommitted: (targetDirectoryPath: string, newBranchName?: string) => void;
 }
 
 function normalizeRelativePath(input: string): string {
@@ -81,8 +82,7 @@ export default function UploadFilesPage({
   onCommitted,
 }: UploadFilesPageProps) {
   const [files, setFiles] = useState<UploadCandidate[]>([]);
-  const [commitMessage, setCommitMessage] = useState<string>("Add files via upload");
-  const [description, setDescription] = useState<string>("");
+  const [showCommitDialog, setShowCommitDialog] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -98,7 +98,6 @@ export default function UploadFilesPage({
     [files],
   );
 
-  const canCommit = !submitting && files.length > 0 && commitMessage.trim().length > 0;
 
   const toUploadCandidates = async (incoming: FileList | File[]): Promise<UploadCandidate[]> => {
     const entries = Array.from(incoming);
@@ -162,21 +161,22 @@ export default function UploadFilesPage({
     setFiles((prev) => prev.filter((file) => file.id !== id));
   };
 
-  const handleCommit = async () => {
-    if (!canCommit) {
-      return;
-    }
-
+  const handleCommit = async (fullMessage: string, isNewBranch: boolean, newBranchName: string) => {
     setSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const baseMessage = commitMessage.trim();
-      const extra = description.trim();
+      const targetBranch = isNewBranch ? newBranchName : branch;
 
-      const fullMessage = extra ? `${baseMessage}\n\n${extra}` : baseMessage;
+      if (isNewBranch) {
+        await reposApi.createBranch(repoId, {
+          name: newBranchName,
+          from_branch: branch,
+        });
+      }
+
       await reposApi.commitFilesChange(repoId, {
-        branch,
+        branch: targetBranch,
         files: files.map((file) => ({
           path: joinPath(baseDirectoryPath, file.relativePath),
           content: file.content,
@@ -184,7 +184,8 @@ export default function UploadFilesPage({
         commit_message: fullMessage,
       });
 
-      onCommitted(baseDirectoryPath);
+      setShowCommitDialog(false);
+      onCommitted(baseDirectoryPath, isNewBranch ? newBranchName : undefined);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to upload files");
     } finally {
@@ -215,11 +216,10 @@ export default function UploadFilesPage({
           }}
           onDragLeave={() => setIsDragActive(false)}
           onDrop={handleDrop}
-          className={`w-full rounded-md border-2 border-dashed p-10 text-center ${
-            isDragActive
+          className={`w-full rounded-md border-2 border-dashed p-10 text-center ${isDragActive
               ? "border-[var(--accent-primary)] bg-[var(--surface-info-subtle)]"
               : "border-[var(--border-default)] bg-[var(--surface-canvas)]"
-          }`}
+            }`}
         >
           <div className="mx-auto h-12 w-12 rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] inline-flex items-center justify-center mb-3">
             <UploadCloud size={20} className="text-[var(--text-secondary)]" />
@@ -264,38 +264,11 @@ export default function UploadFilesPage({
         ) : null}
       </section>
 
-      <section className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Commit changes</h3>
-        <input
-          value={commitMessage}
-          onChange={(event) => setCommitMessage(event.target.value)}
-          placeholder="Commit message"
-          className="w-full h-10 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
-        />
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="Add an optional extended description..."
-          className="w-full min-h-[84px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-3 text-sm text-[var(--text-primary)]"
-        />
-        <p className="text-xs text-[var(--text-secondary)]">Committing directly to the {branch} branch.</p>
-
-        {errorMessage ? (
-          <p className="text-sm text-[var(--text-danger)] inline-flex items-center gap-1.5">
-            <AlertCircle size={14} />
-            {errorMessage}
-          </p>
-        ) : null}
-
+      <section className="flex items-center justify-between rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-4">
+        <span className="text-sm text-[var(--text-secondary)]">
+          {files.length} file{files.length === 1 ? "" : "s"} • {formatFileSize(totalSize)}
+        </span>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleCommit}
-            disabled={!canCommit}
-            className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
-          >
-            {submitting ? "Committing..." : "Commit changes"}
-          </button>
           <button
             type="button"
             onClick={onCancel}
@@ -304,11 +277,29 @@ export default function UploadFilesPage({
           >
             Cancel
           </button>
-          <span className="ml-auto text-xs text-[var(--text-secondary)]">
-            {files.length} file{files.length === 1 ? "" : "s"} · {formatFileSize(totalSize)}
-          </span>
+          <button
+            type="button"
+            onClick={() => setShowCommitDialog(true)}
+            disabled={files.length === 0 || submitting}
+            className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
+          >
+            Commit changes...
+          </button>
         </div>
       </section>
+
+      <CommitModal
+        isOpen={showCommitDialog}
+        onClose={() => {
+          setShowCommitDialog(false);
+          setErrorMessage(null);
+        }}
+        onCommit={handleCommit}
+        defaultCommitMessage="Add files via upload"
+        submitting={submitting}
+        currentBranch={branch}
+        error={errorMessage}
+      />
     </div>
   );
 }

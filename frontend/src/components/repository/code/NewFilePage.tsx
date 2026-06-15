@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Plus,
   Search,
-  X,
 } from "lucide-react";
 import type { Branch, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
@@ -12,6 +11,7 @@ import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
 import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
+import { CommitModal } from "./CommitModal";
 
 interface NewFilePageProps {
   mode?: "create" | "edit";
@@ -23,7 +23,7 @@ interface NewFilePageProps {
   initialFilePath?: string;
   onSelectBranch: (branchName: string) => void;
   onCancel: () => void;
-  onCommitted: (createdFilePath: string) => void;
+  onCommitted: (createdFilePath: string, newBranchName?: string) => void;
 }
 
 function normalizeRelativePath(input: string): string {
@@ -124,10 +124,10 @@ export default function NewFilePage({
   const [fileDirectoryPath, setFileDirectoryPath] = useState<string>("");
   const [hasLeadingSeparator, setHasLeadingSeparator] = useState<boolean>(false);
   const [fileContent, setFileContent] = useState<string>("");
+  const [originalFileContent, setOriginalFileContent] = useState<string>("");
+  const [originalFileName, setOriginalFileName] = useState<string>("");
   const [, setInitialContentLoading] = useState<boolean>(false);
-  const [commitMessage, setCommitMessage] = useState<string>("Create new file");
-  const [description, setDescription] = useState<string>("");
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const activeBranch = (branch || "master").trim() || "master";
@@ -221,7 +221,6 @@ export default function NewFilePage({
       setFileDirectoryPath("");
       setFileName(normalizedFilePath.split("/").filter(Boolean).pop() || "");
       setHasLeadingSeparator(false);
-      setCommitMessage("Update file");
       ensureExpandedAncestors(getParentPath(normalizedFilePath));
       return;
     }
@@ -244,6 +243,7 @@ export default function NewFilePage({
     const normalizedFilePath = normalizeRelativePath(initialFilePath || "");
     if (!normalizedFilePath) {
       setFileContent("");
+      setOriginalFileContent("");
       return;
     }
 
@@ -252,11 +252,16 @@ export default function NewFilePage({
     reposApi
       .getBlob(repoId, normalizedFilePath, activeBranch)
       .then((data) => {
-        setFileContent(typeof data === "string" ? data : data.content || "");
+        const content = typeof data === "string" ? data : data.content || "";
+        setFileContent(content);
+        setOriginalFileContent(content);
+        const parts = normalizedFilePath.split("/");
+        setOriginalFileName(parts[parts.length - 1] || "");
       })
       .catch((err: unknown) => {
         setErrorMessage(err instanceof Error ? err.message : "Failed to load file for editing");
         setFileContent("");
+        setOriginalFileContent("");
       })
       .finally(() => {
         setInitialContentLoading(false);
@@ -325,7 +330,8 @@ export default function NewFilePage({
     return null;
   }, [fileDirectoryPath, fileName, hasLeadingSeparator]);
 
-  const canCommit = !submitting && !validationError && targetFilePath.length > 0;
+  const hasContentChanged = !isEditMode || fileContent !== originalFileContent || fileName !== originalFileName;
+  const canCommit = !submitting && !validationError && targetFilePath.length > 0 && hasContentChanged;
 
   const handleToggleSidebar = () => {
     if (isSidebarCollapsed) {
@@ -383,20 +389,22 @@ export default function NewFilePage({
     setFileName(leafPart);
   }, [fileDirectoryPath]);
 
-  const handleCommit = async () => {
-    if (!canCommit) {
-      return;
-    }
-
+  const handleCommit = async (fullMessage: string, isNewBranch: boolean, newBranchName: string) => {
     setSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const message = commitMessage.trim() || (isEditMode ? "Update file" : "Create new file");
-      const fullMessage = description.trim() ? `${message}\n\n${description.trim()}` : message;
+      const targetBranch = isNewBranch ? newBranchName : activeBranch;
+
+      if (isNewBranch) {
+        await reposApi.createBranch(repoId, {
+          name: newBranchName,
+          from_branch: activeBranch,
+        });
+      }
 
       await reposApi.commitFileChange(repoId, {
-        branch: activeBranch,
+        branch: targetBranch,
         path: targetFilePath,
         old_path: isEditMode && initialFilePath ? normalizeRelativePath(initialFilePath) : undefined,
         content: fileContent,
@@ -404,7 +412,7 @@ export default function NewFilePage({
       });
 
       setShowCommitDialog(false);
-      onCommitted(targetFilePath);
+      onCommitted(targetFilePath, isNewBranch ? newBranchName : undefined);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : isEditMode ? "Failed to update file" : "Failed to create file");
     } finally {
@@ -531,16 +539,9 @@ export default function NewFilePage({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!canCommit) {
-                      setErrorMessage(validationError || "Please provide a valid file path.");
-                      return;
-                    }
-                    setErrorMessage(null);
-                    setShowCommitDialog(true);
-                  }}
-                  disabled={submitting}
-                  className="h-8 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
+                  onClick={() => setShowCommitDialog(true)}
+                  disabled={!canCommit || submitting}
+                  className="rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] px-4 py-1.5 text-sm font-medium text-[var(--text-on-accent)] hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
                 >
                   {isEditMode ? "Commit changes..." : "Commit changes..."}
                 </button>
@@ -554,22 +555,20 @@ export default function NewFilePage({
                     <button
                       type="button"
                       onClick={() => setEditorMode("edit")}
-                      className={`h-7 px-3 rounded-md text-sm ${
-                        editorMode === "edit"
+                      className={`h-7 px-3 rounded-md text-sm ${editorMode === "edit"
                           ? "border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] font-medium"
                           : "text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                      }`}
+                        }`}
                     >
                       Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditorMode("preview")}
-                      className={`h-7 px-3 rounded-md text-sm ${
-                        editorMode === "preview"
+                      className={`h-7 px-3 rounded-md text-sm ${editorMode === "preview"
                           ? "border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-primary)] font-medium"
                           : "text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                      }`}
+                        }`}
                     >
                       Preview
                     </button>
@@ -629,83 +628,18 @@ export default function NewFilePage({
         </div>
       </div>
 
-      {showCommitDialog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label="Close commit dialog"
-            onClick={() => {
-              if (!submitting) {
-                setShowCommitDialog(false);
-              }
-            }}
-            className="absolute inset-0 bg-black/35"
-          />
-
-          <div className="relative z-10 w-full max-w-[560px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between gap-2">
-              <h3 className="text-base font-semibold text-[var(--text-primary)]">Commit changes</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!submitting) {
-                    setShowCommitDialog(false);
-                  }
-                }}
-                className="h-8 w-8 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="p-4 space-y-3">
-              <p className="text-sm text-[var(--text-secondary)]">
-                Committing directly to <span className="font-medium text-[var(--text-primary)]">{activeBranch}</span>.
-              </p>
-
-              <input
-                value={commitMessage}
-                onChange={(event) => setCommitMessage(event.target.value)}
-                placeholder="Commit message"
-                className="w-full h-10 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm text-[var(--text-primary)]"
-              />
-
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Add an optional extended description..."
-                className="w-full min-h-[96px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-3 text-sm text-[var(--text-primary)]"
-              />
-
-              <p className="text-xs text-[var(--text-secondary)]">
-                This will {isEditMode ? "update" : "create"} {targetFilePath || (isEditMode ? "this file" : "the new file")}.
-              </p>
-
-              {errorMessage ? <p className="text-sm text-[var(--text-danger)]">{errorMessage}</p> : null}
-            </div>
-
-            <div className="px-4 py-3 border-t border-[var(--border-default)] flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCommitDialog(false)}
-                disabled={submitting}
-                className="h-9 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleCommit()}
-                disabled={!canCommit}
-                className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
-              >
-                {submitting ? "Committing..." : "Commit changes"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <CommitModal
+        isOpen={showCommitDialog}
+        onClose={() => {
+          setShowCommitDialog(false);
+          setErrorMessage(null);
+        }}
+        onCommit={handleCommit}
+        defaultCommitMessage={isEditMode ? `Update ${fileName || 'file'}` : `Add ${fileName || 'file'}`}
+        submitting={submitting}
+        currentBranch={activeBranch}
+        error={errorMessage}
+      />
     </>
   );
 }

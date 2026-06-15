@@ -40,4 +40,5 @@ type RepoUseCase interface {
 		branch string, filePath string, oldFilePath string, content string, commitMessage string) error
 	CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
 		branch string, files map[string]string, commitMessage string) error
+	DeletePath(repoID uuid.UUID, requesterID uuid.UUID, branch string, path string, commitMessage string) error
 }

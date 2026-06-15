@@ -18,6 +18,8 @@ import type { Branch, Commit, RepoFile } from "../../../types";
 import { reposApi } from "../../../services/api";
 import RepoBrowserSidebar from "./RepoBrowserSidebar";
 import RepoBreadcrumbNavigator from "./RepoBreadcrumbNavigator";
+import { CommitModal } from "./CommitModal";
+import { CommitHashLink } from "../../shared/CommitHashLink";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import TwinButton from "./TwinButton";
 import { useSetPageReady } from "../../../contexts/PageReadyContext";
@@ -39,6 +41,7 @@ interface RepoTreeBrowserPageProps {
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
   onOpenEditFile?: (branchName: string, filePath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
+  onOpenRepoCompare?: (baseRef?: string, headRef?: string) => void;
 }
 
 function normalizePath(input: string): string {
@@ -70,9 +73,7 @@ function sortEntries(entries: RepoFile[]): RepoFile[] {
   });
 }
 
-function shortHash(hash: string): string {
-  return hash.trim().slice(0, 7);
-}
+
 
 function formatRelativeTime(dateValue: string): string {
   const timestamp = new Date(dateValue).getTime();
@@ -123,6 +124,7 @@ export default function RepoTreeBrowserPage({
   onSelectBranch,
   onOpenCommitHistory,
   onOpenEditFile,
+  onOpenRepoCompare,
 }: RepoTreeBrowserPageProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
@@ -142,6 +144,10 @@ export default function RepoTreeBrowserPage({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const layoutRef = useRef<HTMLDivElement | null>(null);
+
+  const [pendingDeletePath, setPendingDeletePath] = useState<string | null>(null);
+  const [showCommitModal, setShowCommitModal] = useState<boolean>(false);
+  const [isSubmittingDelete, setIsSubmittingDelete] = useState<boolean>(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -220,6 +226,56 @@ export default function RepoTreeBrowserPage({
     setIsSidebarCollapsed(true);
     setIsBranchMenuOpen(false);
     setIsAddFileMenuOpen(false);
+  };
+
+  const handleDeleteCommit = async (message: string, isNewBranch: boolean, newBranchName: string) => {
+    if (!pendingDeletePath) return;
+    setIsSubmittingDelete(true);
+    try {
+      const targetBranch = isNewBranch ? newBranchName : branch;
+
+      if (isNewBranch) {
+        await reposApi.createBranch(repoId, {
+          name: newBranchName,
+          from_branch: branch,
+        });
+      }
+
+      await reposApi.deletePath(repoId, {
+        branch: targetBranch,
+        path: pendingDeletePath,
+        commit_message: message,
+      });
+
+      setShowCommitModal(false);
+      setPendingDeletePath(null);
+
+      if (isNewBranch) {
+        if (onOpenRepoCompare) {
+          onOpenRepoCompare(branch, newBranchName);
+        } else {
+          onSelectBranch(newBranchName);
+        }
+      } else {
+        // Refresh current view by reloading parent directory
+        const segments = pendingDeletePath.split("/");
+        segments.pop();
+        const parentPath = segments.join("/");
+
+        await loadDir(parentPath);
+        if (currentDirPath === pendingDeletePath) {
+          // We deleted the directory we were currently in, navigate to parent
+          openDirectory(parentPath);
+        } else if (selectedFilePath === pendingDeletePath) {
+          // We deleted the file we were currently viewing, navigate to parent
+          openDirectory(parentPath);
+        }
+      }
+    } catch (err) {
+      alert(`Failed to delete: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setIsSubmittingDelete(false);
+    }
   };
 
   const ensureExpandedAncestors = useCallback((path: string) => {
@@ -511,9 +567,9 @@ export default function RepoTreeBrowserPage({
           />
         </div>
 
-        <section className="min-w-0 bg-[var(--surface-canvas)]">
+        <section className="flex-1 min-w-0 bg-[var(--surface-canvas)]">
           <div className="px-4 py-3 text-sm text-[var(--text-secondary)] flex items-center justify-between gap-3">
-            <div className="flex items-center min-w-0 gap-2">
+            <div className="flex items-center flex-1 min-w-0 gap-2">
               <RepoBreadcrumbNavigator
                 rootLabel={repoName}
                 segments={activePathSegments}
@@ -545,77 +601,104 @@ export default function RepoTreeBrowserPage({
               </button>
             </div>
 
-            <div className="relative shrink-0" ref={fileMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
-                className="h-8 w-8 rounded-md bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                aria-label="More options"
-              >
-                <MoreHorizontal size={16} />
-              </button>
+            {pendingDeletePath === activePathSegments.join("/") ? (
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingDeletePath(null)}
+                  disabled={isSubmittingDelete}
+                  className="h-8 box-border inline-flex items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
+                >
+                  Cancel changes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCommitModal(true)}
+                  disabled={isSubmittingDelete}
+                  className="h-8 box-border inline-flex items-center rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] px-3 text-sm font-medium text-[var(--text-on-accent)] hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                >
+                  Commit changes...
+                </button>
+              </div>
+            ) : (
+              <div className="relative shrink-0" ref={fileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
+                  className="h-8 w-8 box-border rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] inline-flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal size={16} />
+                </button>
 
-              {isFileMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-56 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-1 z-50">
-                  {selectedFilePath ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const value = [repoName, ...activePathSegments].join("/");
-                          if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-                            void navigator.clipboard.writeText(value).catch(() => undefined);
-                          }
-                          setIsFileMenuOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                      >
-                        Copy path
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsFileMenuOpen(false)}
-                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                      >
-                        Copy permalink
-                      </button>
-                      <div className="h-px bg-[var(--border-default)] my-1" />
-                      <button
-                        type="button"
-                        onClick={() => setIsFileMenuOpen(false)}
-                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
-                      >
-                        Delete file
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const value = [repoName, ...activePathSegments].join("/");
-                          if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-                            void navigator.clipboard.writeText(value).catch(() => undefined);
-                          }
-                          setIsFileMenuOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                      >
-                        Copy path
-                      </button>
-                      <div className="h-px bg-[var(--border-default)] my-1" />
-                      <button
-                        type="button"
-                        onClick={() => setIsFileMenuOpen(false)}
-                        className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
-                      >
-                        Delete directory
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+                {isFileMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-56 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg py-1 z-50">
+                    {selectedFilePath ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const value = [repoName, ...activePathSegments].join("/");
+                            if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                              void navigator.clipboard.writeText(value).catch(() => undefined);
+                            }
+                            setIsFileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                        >
+                          Copy path
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsFileMenuOpen(false)}
+                          className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                        >
+                          Copy permalink
+                        </button>
+                        <div className="h-px bg-[var(--border-default)] my-1" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingDeletePath(activePathSegments.join("/"));
+                            setIsFileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
+                        >
+                          Delete file
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const value = [repoName, ...activePathSegments].join("/");
+                            if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                              void navigator.clipboard.writeText(value).catch(() => undefined);
+                            }
+                            setIsFileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                        >
+                          Copy path
+                        </button>
+                        <div className="h-px bg-[var(--border-default)] my-1" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingDeletePath(activePathSegments.join("/"));
+                            setIsFileMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-1.5 text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)]"
+                        >
+                          Delete directory
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {loadError ? (
@@ -641,7 +724,7 @@ export default function RepoTreeBrowserPage({
                   <div className="shrink-0 inline-flex items-center gap-2">
                     {latestCommit ? (
                       <span className="hidden md:inline text-xs text-[var(--text-secondary)]">
-                        {shortHash(latestCommit.hash)} · {latestCommitWhen}
+                        <CommitHashLink hash={latestCommit.hash} className="hover:text-[var(--text-link)] hover:underline font-mono" /> &middot; {latestCommitWhen}
                       </span>
                     ) : null}
                     <button
@@ -726,18 +809,18 @@ export default function RepoTreeBrowserPage({
                 </div>
 
                 <div>
-                    <table className="w-full border-collapse text-sm font-mono">
-                      <tbody>
-                        {fileLines.map((line, index) => (
-                          <tr key={`${index + 1}-${line.slice(0, 12)}`}>
-                            <td className="w-[64px] px-3 py-1 text-right select-none text-[var(--text-muted)] bg-[var(--surface-subtle)] align-top border-r border-[var(--border-muted)]">{index + 1}</td>
-                            <td className="px-4 py-1 text-[var(--text-primary)] align-top">
-                              <pre className="m-0 whitespace-pre-wrap break-words">{line || " "}</pre>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <table className="w-full border-collapse text-sm font-mono">
+                    <tbody>
+                      {fileLines.map((line, index) => (
+                        <tr key={`${index + 1}-${line.slice(0, 12)}`}>
+                          <td className="w-[64px] px-3 py-1 text-right select-none text-[var(--text-muted)] bg-[var(--surface-subtle)] align-top border-r border-[var(--border-muted)]">{index + 1}</td>
+                          <td className="px-4 py-1 text-[var(--text-primary)] align-top">
+                            <pre className="m-0 whitespace-pre-wrap break-words">{line || " "}</pre>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -758,7 +841,7 @@ export default function RepoTreeBrowserPage({
                   <div className="shrink-0 inline-flex items-center gap-2">
                     {latestCommit ? (
                       <span className="hidden md:inline text-xs text-[var(--text-secondary)]">
-                        {shortHash(latestCommit.hash)} · {latestCommitWhen}
+                        <CommitHashLink hash={latestCommit.hash} className="hover:text-[var(--text-link)] hover:underline font-mono" /> &middot; {latestCommitWhen}
                       </span>
                     ) : null}
                     <button
@@ -841,6 +924,15 @@ export default function RepoTreeBrowserPage({
           )}
         </section>
       </div>
+
+      <CommitModal
+        isOpen={showCommitModal}
+        onClose={() => setShowCommitModal(false)}
+        onCommit={handleDeleteCommit}
+        defaultCommitMessage={`Delete ${pendingDeletePath?.split('/').pop() || pendingDeletePath}`}
+        submitting={isSubmittingDelete}
+        currentBranch={branch}
+      />
     </div>
   );
 }

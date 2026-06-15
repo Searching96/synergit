@@ -299,3 +299,9 @@ export interface CommitFilesChangePayload {
 	files: CommitFileEntryPayload[];
 	commit_message: string;
 }
+
+export interface DeletePathPayload {
+	branch: string;
+	path: string;
+	commit_message: string;
+}

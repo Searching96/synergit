@@ -38,6 +38,12 @@ type CommitFileRequest struct {
 	CommitMessage string `json:"commit_message"`
 }
 
+type DeletePathRequest struct {
+	Branch        string `json:"branch"`
+	Path          string `json:"path"`
+	CommitMessage string `json:"commit_message"`
+}
+
 type CommitFileEntryRequest struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`

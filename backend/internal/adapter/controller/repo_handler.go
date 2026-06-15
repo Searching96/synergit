@@ -620,3 +620,29 @@ func (h *RepoHandler) HandleCommitFilesChange(c *gin.Context) {
 
 	c.JSON(http.StatusOK, dto.MessageResponse{Message: "files committed successfully"})
 }
+
+func (h *RepoHandler) HandleDeletePath(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.DeletePathRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	err := h.repoUseCase.DeletePath(repoID, requesterID, req.Branch, req.Path, req.CommitMessage)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "Path deleted successfully"})
+}

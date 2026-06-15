@@ -35,6 +35,8 @@ import { TwinButtonGroup } from "../../shared/TwinButtonGroup";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
 import { useSetPageReady } from "../../../contexts/PageReadyContext";
+import { CommitModal } from "./CommitModal";
+import { CommitHashLink } from "../../shared/CommitHashLink";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -60,6 +62,7 @@ interface FileExplorerProps {
   onOpenBranches?: () => void;
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
+  onOpenRepoCompare?: (baseRef?: string, headRef?: string) => void;
 }
 
 function sortEntries(entries: RepoFile[]): RepoFile[] {
@@ -74,10 +77,6 @@ function getParentPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   parts.pop();
   return parts.join("/");
-}
-
-function shortCommitHash(hash: string): string {
-  return hash.trim().slice(0, 7);
 }
 
 function GitBranchOcticon({ size = 16, className = "" }: { size?: number; className?: string }) {
@@ -251,6 +250,7 @@ export default function FileExplorer({
   onOpenBranches,
   onOpenCreateFile,
   onOpenUploadFiles,
+  onOpenRepoCompare,
 }: FileExplorerProps) {
   const treeCacheKey = `repo-tree:${repoId}:${branch}`;
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>(() => {
@@ -277,12 +277,11 @@ export default function FileExplorer({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [draftContent, setDraftContent] = useState<string>("");
-  const [commitMessage, setCommitMessage] = useState<string>("");
   const [isCommitting, setIsCommitting] = useState<boolean>(false);
   const [isEditingReadme, setIsEditingReadme] = useState<boolean>(false);
   const [readmeDraft, setReadmeDraft] = useState<string>("");
-  const [readmeCommitMessage, setReadmeCommitMessage] = useState<string>("Update README");
   const [isCommittingReadme, setIsCommittingReadme] = useState<boolean>(false);
+  const [commitTarget, setCommitTarget] = useState<"file" | "readme" | null>(null);
   const [readmeEditError, setReadmeEditError] = useState<string | null>(null);
   const [languageBreakdown, setLanguageBreakdown] = useState<LanguageBreakdownStat[]>([]);
   const [languageBreakdownLoading, setLanguageBreakdownLoading] = useState<boolean>(false);
@@ -420,11 +419,9 @@ export default function FileExplorer({
     setLoadError(null);
     setIsEditing(false);
     setDraftContent("");
-    setCommitMessage("");
     setCommitError(null);
     setIsEditingReadme(false);
     setReadmeDraft("");
-    setReadmeCommitMessage("Update README");
     setReadmeEditError(null);
     setLanguageBreakdown([]);
     setLanguageBreakdownLoading(false);
@@ -614,23 +611,36 @@ export default function FileExplorer({
     }
   };
 
-  const handleCommitChanges = async () => {
-    if (!selectedFilePath || !commitMessage.trim()) return;
+  const handleCommitChanges = async (message: string, isNewBranch: boolean, newBranchName: string) => {
+    if (!selectedFilePath) return;
 
     try {
       setIsCommitting(true);
       setCommitError(null);
 
+      const targetBranch = isNewBranch ? newBranchName : branch;
+
+      if (isNewBranch) {
+        await reposApi.createBranch(repoId, {
+          name: newBranchName,
+          from_branch: branch,
+        });
+      }
+
       await reposApi.commitFileChange(repoId, {
-        branch,
+        branch: targetBranch,
         path: selectedFilePath,
         content: draftContent,
-        commit_message: commitMessage.trim(),
+        commit_message: message,
       });
 
       setFileContent(draftContent);
       setIsEditing(false);
-      setCommitMessage("");
+      setCommitTarget(null);
+
+      if (isNewBranch && onOpenRepoCompare) {
+        onOpenRepoCompare(branch, newBranchName);
+      }
     } catch (err: unknown) {
       setCommitError(err instanceof Error ? err.message : "Failed to commit changes");
     } finally {
@@ -638,23 +648,36 @@ export default function FileExplorer({
     }
   };
 
-  const handleCommitReadmeChanges = async () => {
-    if (!readmeEntry || !readmeCommitMessage.trim()) return;
+  const handleCommitReadmeChanges = async (message: string, isNewBranch: boolean, newBranchName: string) => {
+    if (!readmeEntry) return;
 
     try {
       setIsCommittingReadme(true);
       setReadmeEditError(null);
 
+      const targetBranch = isNewBranch ? newBranchName : branch;
+
+      if (isNewBranch) {
+        await reposApi.createBranch(repoId, {
+          name: newBranchName,
+          from_branch: branch,
+        });
+      }
+
       await reposApi.commitFileChange(repoId, {
-        branch,
+        branch: targetBranch,
         path: readmeEntry.path,
         content: readmeDraft,
-        commit_message: readmeCommitMessage.trim(),
+        commit_message: message,
       });
 
       setReadmeContent(readmeDraft);
       setIsEditingReadme(false);
-      setReadmeCommitMessage("Update README");
+      setCommitTarget(null);
+
+      if (isNewBranch && onOpenRepoCompare) {
+        onOpenRepoCompare(branch, newBranchName);
+      }
     } catch (err: unknown) {
       setReadmeEditError(err instanceof Error ? err.message : "Failed to commit README changes");
     } finally {
@@ -1198,7 +1221,7 @@ export default function FileExplorer({
                 <div className="flex items-center gap-2 shrink-0">
                   {latestCommit && (
                     <div className="hidden sm:flex items-center gap-0.5 text-sm text-[var(--text-muted)]">
-                      <span>{shortCommitHash(latestCommit.hash)}</span>
+                      <span><CommitHashLink hash={latestCommit.hash} /></span>
                       <span className="text-[var(--text-muted)]">·</span>
                       <span>{formatRelativeCommitTime(latestCommit.date)}</span>
                     </div>
@@ -1270,7 +1293,6 @@ export default function FileExplorer({
                       }
 
                       setReadmeDraft(readmeContent || "");
-                      setReadmeCommitMessage("Update README");
                       setReadmeEditError(null);
                       setIsEditingReadme(true);
                     }}
@@ -1308,17 +1330,7 @@ export default function FileExplorer({
                       spellCheck={false}
                     />
 
-                    <input
-                      type="text"
-                      value={readmeCommitMessage}
-                      onChange={(e) => setReadmeCommitMessage(e.target.value)}
-                      placeholder="Commit message"
-                      className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
-                    />
-
-                    {readmeEditError ? <div className="text-sm text-[var(--text-danger)]">{readmeEditError}</div> : null}
-
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 mt-4">
                       <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
                       <div className="flex items-center gap-2">
                         <button
@@ -1333,11 +1345,11 @@ export default function FileExplorer({
                         </button>
                         <button
                           type="button"
-                          disabled={isCommittingReadme || !readmeCommitMessage.trim()}
-                          onClick={handleCommitReadmeChanges}
+                          disabled={isCommittingReadme || readmeDraft === (readmeContent ?? "") || !readmeDraft.trim()}
+                          onClick={() => setCommitTarget("readme")}
                           className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
                         >
-                          {isCommittingReadme ? "Committing..." : "Commit README"}
+                          Commit changes...
                         </button>
                       </div>
                     </div>
@@ -1490,8 +1502,9 @@ export default function FileExplorer({
               Files
             </div>
 
-            <div className="px-3 py-2 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] flex items-center gap-2">
-              <span className="px-2 py-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)]">{displayedBranchLabel}</span>
+            <div className="px-3 py-2 border-b border-[var(--border-default)] text-sm text-[var(--text-secondary)] font-semibold flex items-center gap-2">
+              <GitBranchOcticon size={16} className="text-[var(--text-muted)]" />
+              <span>{displayedBranchLabel}</span>
             </div>
 
             <div className="flex-1 overflow-auto py-2">
@@ -1585,25 +1598,14 @@ export default function FileExplorer({
                       spellCheck={false}
                     />
 
-                    <input
-                      type="text"
-                      value={commitMessage}
-                      onChange={(e) => setCommitMessage(e.target.value)}
-                      placeholder="Commit message"
-                      className="w-full border border-[var(--border-default)] rounded-md px-3 py-2 text-sm"
-                    />
-
-                    {commitError && <div className="text-sm text-[var(--text-danger)]">{commitError}</div>}
-                    <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
-
-                    <div className="flex justify-end">
+                    <div className="flex justify-end mt-4">
                       <button
                         type="button"
-                        disabled={isCommitting || !commitMessage.trim()}
-                        onClick={handleCommitChanges}
+                        disabled={isCommitting || draftContent === (fileContent ?? "") || !draftContent.trim()}
+                        onClick={() => setCommitTarget("file")}
                         className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
                       >
-                        {isCommitting ? "Committing..." : "Commit Changes"}
+                        Commit changes...
                       </button>
                     </div>
                   </div>
@@ -1673,6 +1675,20 @@ export default function FileExplorer({
           </section>
         </div>
       )}
+
+      <CommitModal
+        isOpen={commitTarget !== null}
+        onClose={() => {
+          setCommitTarget(null);
+          setCommitError(null);
+          setReadmeEditError(null);
+        }}
+        onCommit={commitTarget === "file" ? handleCommitChanges : handleCommitReadmeChanges}
+        defaultCommitMessage={commitTarget === "readme" ? "Update README.md" : `Update ${selectedFilePath?.split('/').pop() || 'file'}`}
+        submitting={commitTarget === "file" ? isCommitting : isCommittingReadme}
+        currentBranch={branch}
+        error={commitTarget === "file" ? commitError : readmeEditError}
+      />
     </div>
   );
 }

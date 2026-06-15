@@ -47,6 +47,7 @@ type GitManager interface {
 		content string, authorName string, authorEmail string, commitMessage string) error
 	CommitFilesChange(repoPath string, branch string, files map[string]string,
 		authorName string, authorEmail string, commitMessage string) error
+	DeletePath(repoPath string, branch string, path string, authorName string, authorEmail string, commitMessage string) error
 	CompareRefs(repoPath string, baseRef string,
 		headRef string) (*domain.PullRequestCompareResult, error)
 	MergeBranches(repoPath string, sourceBranch string, targetBranch string,

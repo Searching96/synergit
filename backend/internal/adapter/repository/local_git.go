@@ -855,77 +855,111 @@ func (g *LocalGitAdapter) CommitFileChange(repoPath string, branch string,
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 
-	tempDir, err := os.MkdirTemp("", "synergit-edit-commit-*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	runGit := func(args ...string) error {
-		cmd := exec.Command("git", args...)
-		cmd.Dir = tempDir
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
-		}
-		return nil
-	}
-
-	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
-		return fmt.Errorf("failed to clone repository: %w", err)
-	}
-
-	if err := runGit("checkout", "-B", branch, "origin/"+branch); err != nil {
-		return fmt.Errorf("failed to checkout branch: %w", err)
-	}
-
 	cleanPath := filepath.Clean(filepath.FromSlash(filePath))
 	if cleanPath == "." || filepath.IsAbs(cleanPath) {
 		return errors.New("invalid file path")
 	}
 
-	fullPath := filepath.Join(tempDir, cleanPath)
-	relPath, err := filepath.Rel(tempDir, fullPath)
-	if err != nil || strings.HasPrefix(relPath, "..") {
-		return errors.New("invalid file path")
+	tempIndexFile, err := os.CreateTemp("", "synergit-index-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp index file: %w", err)
+	}
+	tempIndexPath := tempIndexFile.Name()
+	tempIndexFile.Close()
+	defer os.Remove(tempIndexPath)
+
+	runGit := func(args ...string) (string, error) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = bareRepoPath
+		cmd.Env = append(os.Environ(),
+			"GIT_DIR="+bareRepoPath,
+			"GIT_INDEX_FILE="+tempIndexPath,
+			"GIT_AUTHOR_NAME="+authorName,
+			"GIT_AUTHOR_EMAIL="+authorEmail,
+			"GIT_COMMITTER_NAME="+authorName,
+			"GIT_COMMITTER_EMAIL="+authorEmail,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return "", fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+		return strings.TrimSpace(stdout.String()), nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-		return fmt.Errorf("failed to create file directory: %w", err)
+	var treeToRead string
+	if _, err := runGit("rev-parse", "--verify", branch); err == nil {
+		treeToRead = branch
+	} else if _, err := runGit("rev-parse", "--verify", "HEAD"); err == nil {
+		treeToRead = "HEAD"
 	}
 
+	if treeToRead != "" {
+		if _, err := runGit("read-tree", treeToRead); err != nil {
+			return err
+		}
+	}
+
+	mode := "100644"
 	if oldFilePath != "" && oldFilePath != filePath {
 		cleanOldPath := filepath.Clean(filepath.FromSlash(oldFilePath))
 		if cleanOldPath != "." && !filepath.IsAbs(cleanOldPath) {
-			_ = runGit("rm", cleanOldPath)
+			lsOut, err := runGit("ls-files", "-s", cleanOldPath)
+			if err == nil && lsOut != "" {
+				parts := strings.Fields(lsOut)
+				if len(parts) >= 1 {
+					mode = parts[0]
+				}
+			}
+			_, _ = runGit("rm", "--cached", cleanOldPath)
+		}
+	} else if oldFilePath != "" && oldFilePath == filePath {
+		lsOut, err := runGit("ls-files", "-s", cleanPath)
+		if err == nil && lsOut != "" {
+			parts := strings.Fields(lsOut)
+			if len(parts) >= 1 {
+				mode = parts[0]
+			}
 		}
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+	cmdBlob := exec.Command("git", "hash-object", "-w", "--stdin")
+	cmdBlob.Dir = bareRepoPath
+	cmdBlob.Env = append(os.Environ(), "GIT_DIR="+bareRepoPath)
+	cmdBlob.Stdin = strings.NewReader(content)
+	var stdoutBlob, stderrBlob bytes.Buffer
+	cmdBlob.Stdout = &stdoutBlob
+	cmdBlob.Stderr = &stderrBlob
+	if err := cmdBlob.Run(); err != nil {
+		return fmt.Errorf("git hash-object failed: %s", strings.TrimSpace(stderrBlob.String()))
 	}
+	blobSha := strings.TrimSpace(stdoutBlob.String())
 
-	if err := runGit("add", cleanPath); err != nil {
-		return fmt.Errorf("failed to stage file: %w", err)
-	}
-
-	if err := runGit("config", "user.name", authorName); err != nil {
+	if _, err := runGit("update-index", "--add", "--cacheinfo", mode+","+blobSha+","+cleanPath); err != nil {
 		return err
 	}
-	if err := runGit("config", "user.email", authorEmail); err != nil {
+
+	treeSha, err := runGit("write-tree")
+	if err != nil {
 		return err
 	}
 
-	if err := runGit("commit", "-m", commitMessage); err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "nothing to commit") {
-			return errors.New("no changes to commit")
+	commitArgs := []string{"commit-tree", treeSha, "-m", commitMessage}
+	if treeToRead != "" {
+		parentCommit, err := runGit("rev-parse", "--verify", treeToRead)
+		if err == nil {
+			commitArgs = append(commitArgs, "-p", parentCommit)
 		}
-		return fmt.Errorf("failed to commit changes: %w", err)
 	}
 
-	if err := runGit("push", "origin", branch); err != nil {
-		return fmt.Errorf("failed to push branch: %w", err)
+	commitSha, err := runGit(commitArgs...)
+	if err != nil {
+		return err
+	}
+
+	if _, err := runGit("update-ref", "refs/heads/"+branch, commitSha); err != nil {
+		return err
 	}
 
 	return nil
@@ -936,29 +970,45 @@ func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
 
 	bareRepoPath := g.resolveRepoPath(repoPath)
 
-	tempDir, err := os.MkdirTemp("", "synergit-edit-commit-many-*")
+	tempIndexFile, err := os.CreateTemp("", "synergit-index-many-*")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %w", err)
+		return fmt.Errorf("failed to create temp index file: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	tempIndexPath := tempIndexFile.Name()
+	tempIndexFile.Close()
+	defer os.Remove(tempIndexPath)
 
-	runGit := func(args ...string) error {
+	runGit := func(args ...string) (string, error) {
 		cmd := exec.Command("git", args...)
-		cmd.Dir = tempDir
-		var stderr bytes.Buffer
+		cmd.Dir = bareRepoPath
+		cmd.Env = append(os.Environ(),
+			"GIT_DIR="+bareRepoPath,
+			"GIT_INDEX_FILE="+tempIndexPath,
+			"GIT_AUTHOR_NAME="+authorName,
+			"GIT_AUTHOR_EMAIL="+authorEmail,
+			"GIT_COMMITTER_NAME="+authorName,
+			"GIT_COMMITTER_EMAIL="+authorEmail,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+			return "", fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
 		}
-		return nil
+		return strings.TrimSpace(stdout.String()), nil
 	}
 
-	if err := runGit("clone", bareRepoPath, tempDir); err != nil {
-		return fmt.Errorf("failed to clone repository: %w", err)
+	var treeToRead string
+	if _, err := runGit("rev-parse", "--verify", branch); err == nil {
+		treeToRead = branch
+	} else if _, err := runGit("rev-parse", "--verify", "HEAD"); err == nil {
+		treeToRead = "HEAD"
 	}
 
-	if err := runGit("checkout", "-B", branch, "origin/"+branch); err != nil {
-		return fmt.Errorf("failed to checkout branch: %w", err)
+	if treeToRead != "" {
+		if _, err := runGit("read-tree", treeToRead); err != nil {
+			return err
+		}
 	}
 
 	filePaths := make([]string, 0, len(files))
@@ -973,41 +1023,127 @@ func (g *LocalGitAdapter) CommitFilesChange(repoPath string, branch string,
 			return errors.New("invalid file path")
 		}
 
-		fullPath := filepath.Join(tempDir, cleanPath)
-		relPath, err := filepath.Rel(tempDir, fullPath)
-		if err != nil || strings.HasPrefix(relPath, "..") {
-			return errors.New("invalid file path")
+		mode := "100644"
+		lsOut, err := runGit("ls-files", "-s", cleanPath)
+		if err == nil && lsOut != "" {
+			parts := strings.Fields(lsOut)
+			if len(parts) >= 1 {
+				mode = parts[0]
+			}
 		}
 
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			return fmt.Errorf("failed to create file directory: %w", err)
+		cmdBlob := exec.Command("git", "hash-object", "-w", "--stdin")
+		cmdBlob.Dir = bareRepoPath
+		cmdBlob.Env = append(os.Environ(), "GIT_DIR="+bareRepoPath)
+		cmdBlob.Stdin = strings.NewReader(files[filePath])
+		var stdoutBlob, stderrBlob bytes.Buffer
+		cmdBlob.Stdout = &stdoutBlob
+		cmdBlob.Stderr = &stderrBlob
+		if err := cmdBlob.Run(); err != nil {
+			return fmt.Errorf("git hash-object failed: %s", strings.TrimSpace(stderrBlob.String()))
 		}
+		blobSha := strings.TrimSpace(stdoutBlob.String())
 
-		if err := os.WriteFile(fullPath, []byte(files[filePath]), 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-
-		if err := runGit("add", cleanPath); err != nil {
-			return fmt.Errorf("failed to stage file: %w", err)
+		if _, err := runGit("update-index", "--add", "--cacheinfo", mode+","+blobSha+","+cleanPath); err != nil {
+			return err
 		}
 	}
 
-	if err := runGit("config", "user.name", authorName); err != nil {
+	treeSha, err := runGit("write-tree")
+	if err != nil {
 		return err
 	}
-	if err := runGit("config", "user.email", authorEmail); err != nil {
+
+	commitArgs := []string{"commit-tree", treeSha, "-m", commitMessage}
+	if treeToRead != "" {
+		parentCommit, err := runGit("rev-parse", "--verify", treeToRead)
+		if err == nil {
+			commitArgs = append(commitArgs, "-p", parentCommit)
+		}
+	}
+
+	commitSha, err := runGit(commitArgs...)
+	if err != nil {
 		return err
 	}
 
-	if err := runGit("commit", "-m", commitMessage); err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "nothing to commit") {
-			return errors.New("no changes to commit")
-		}
-		return fmt.Errorf("failed to commit changes: %w", err)
+	if _, err := runGit("update-ref", "refs/heads/"+branch, commitSha); err != nil {
+		return err
 	}
 
-	if err := runGit("push", "origin", branch); err != nil {
-		return fmt.Errorf("failed to push branch: %w", err)
+	return nil
+}
+
+func (g *LocalGitAdapter) DeletePath(repoPath string, branch string,
+	path string, authorName string, authorEmail string, commitMessage string) error {
+
+	bareRepoPath := g.resolveRepoPath(repoPath)
+
+	cleanPath := filepath.Clean(filepath.FromSlash(path))
+	if cleanPath == "." || filepath.IsAbs(cleanPath) {
+		return errors.New("invalid file path")
+	}
+
+	tempIndexFile, err := os.CreateTemp("", "synergit-index-delete-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp index file: %w", err)
+	}
+	tempIndexPath := tempIndexFile.Name()
+	tempIndexFile.Close()
+	defer os.Remove(tempIndexPath)
+
+	runGit := func(args ...string) (string, error) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = bareRepoPath
+		cmd.Env = append(os.Environ(),
+			"GIT_DIR="+bareRepoPath,
+			"GIT_INDEX_FILE="+tempIndexPath,
+			"GIT_AUTHOR_NAME="+authorName,
+			"GIT_AUTHOR_EMAIL="+authorEmail,
+			"GIT_COMMITTER_NAME="+authorName,
+			"GIT_COMMITTER_EMAIL="+authorEmail,
+		)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return "", fmt.Errorf("git %s failed: %s", args[0], strings.TrimSpace(stderr.String()))
+		}
+		return strings.TrimSpace(stdout.String()), nil
+	}
+
+	var treeToRead string
+	if _, err := runGit("rev-parse", "--verify", branch); err == nil {
+		treeToRead = branch
+	} else {
+		return fmt.Errorf("branch %s does not exist", branch)
+	}
+
+	if _, err := runGit("read-tree", treeToRead); err != nil {
+		return err
+	}
+
+	if _, err := runGit("rm", "--cached", "-r", "--ignore-unmatch", cleanPath); err != nil {
+		return err
+	}
+
+	treeSha, err := runGit("write-tree")
+	if err != nil {
+		return err
+	}
+
+	parentCommit, err := runGit("rev-parse", "--verify", treeToRead)
+	if err != nil {
+		return err
+	}
+
+	commitSha, err := runGit("commit-tree", treeSha, "-p", parentCommit, "-m", commitMessage)
+	if err != nil {
+		return err
+	}
+
+	if _, err := runGit("update-ref", "refs/heads/"+branch, commitSha); err != nil {
+		return err
 	}
 
 	return nil

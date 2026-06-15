@@ -184,7 +184,13 @@ export default function RepoWorkspaceContent({
                 initialDirectoryPath={routeContentPath}
                 onSelectBranch={onSelectBranch}
                 onCancel={() => onNavigateRepoContent("tree", routeContentPath, currentBranch || routeBranch || defaultBranchName)}
-                onCommitted={(createdFilePath: string) => onNavigateRepoContent("blob", createdFilePath, currentBranch || routeBranch || defaultBranchName)}
+                onCommitted={(createdFilePath: string, newBranchName?: string) => {
+                  if (newBranchName) {
+                    onOpenRepoCompare(currentBranch || defaultBranchName, newBranchName);
+                  } else {
+                    onNavigateRepoContent("blob", createdFilePath, currentBranch || routeBranch || defaultBranchName);
+                  }
+                }}
               />
             )}
             {activeTab === "files" && routeContentKind === "edit" && (
@@ -197,7 +203,13 @@ export default function RepoWorkspaceContent({
                 initialFilePath={routeContentPath}
                 onSelectBranch={onSelectBranch}
                 onCancel={() => onNavigateRepoContent("blob", routeContentPath, currentBranch || routeBranch || defaultBranchName)}
-                onCommitted={(updatedFilePath: string) => onNavigateRepoContent("blob", updatedFilePath, currentBranch || routeBranch || defaultBranchName)}
+                onCommitted={(updatedFilePath: string, newBranchName?: string) => {
+                  if (newBranchName) {
+                    onOpenRepoCompare(currentBranch || defaultBranchName, newBranchName);
+                  } else {
+                    onNavigateRepoContent("blob", updatedFilePath, currentBranch || routeBranch || defaultBranchName);
+                  }
+                }}
               />
             )}
             {activeTab === "files" && routeContentKind === "upload" && (
@@ -207,7 +219,13 @@ export default function RepoWorkspaceContent({
                 branch={currentBranch || routeBranch || defaultBranchName}
                 initialDirectoryPath={routeContentPath}
                 onCancel={() => onNavigateRepoContent("tree", routeContentPath, currentBranch || routeBranch || defaultBranchName)}
-                onCommitted={(targetDirectoryPath: string) => onNavigateRepoContent("tree", targetDirectoryPath, currentBranch || routeBranch || defaultBranchName)}
+                onCommitted={(targetDirectoryPath: string, newBranchName?: string) => {
+                  if (newBranchName) {
+                    onOpenRepoCompare(currentBranch || defaultBranchName, newBranchName);
+                  } else {
+                    onNavigateRepoContent("tree", targetDirectoryPath, currentBranch || routeBranch || defaultBranchName);
+                  }
+                }}
               />
             )}
             {activeTab === "files" && (routeContentKind === "tree" || routeContentKind === "blob") && (
@@ -223,6 +241,7 @@ export default function RepoWorkspaceContent({
                 onOpenCreateFile={onOpenCreateFile}
                 onOpenEditFile={onOpenEditFile}
                 onOpenUploadFiles={onOpenUploadFiles}
+                onOpenRepoCompare={onOpenRepoCompare}
               />
             )}
             {activeTab === "files" && routeContentKind === "root" && (
@@ -245,6 +264,7 @@ export default function RepoWorkspaceContent({
                 onOpenBranches={onOpenBranches}
                 onOpenCreateFile={onOpenCreateFile}
                 onOpenUploadFiles={onOpenUploadFiles}
+                onOpenRepoCompare={onOpenRepoCompare}
               />
             )}
             {activeTab === "issues" && routeContentKind === "issue-view" && (

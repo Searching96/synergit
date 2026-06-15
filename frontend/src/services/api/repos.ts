@@ -9,6 +9,7 @@ import type {
   CommitFileChangePayload,
   CommitFilesChangePayload,
   CreateBranchPayload,
+  DeletePathPayload,
   RenameBranchPayload,
   RepoFile,
   Repository,
@@ -74,6 +75,13 @@ export const reposApi = {
   commitFilesChange: (repoId: string, payload: CommitFilesChangePayload) =>
     fetcher<{ message: string }>(`/repos/${repoId}/commit-files`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+  
+  deletePath: (repoId: string, payload: DeletePathPayload) =>
+    fetcher<{ message: string }>(`/repos/${repoId}/contents`, {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }),

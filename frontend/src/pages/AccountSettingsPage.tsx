@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { fetcher } from "../services/api/client";
 import {
   Bell,
@@ -31,7 +31,7 @@ interface AccountSettingsPageProps {
 }
 
 interface NavItem {
-  icon: typeof User;
+  icon: React.ElementType;
   label: string;
   active?: boolean;
   expandable?: boolean;
@@ -87,8 +87,8 @@ const NAV_SECTIONS: Array<{ title?: string; items: NavItem[] }> = [
   {
     title: "Archives",
     items: [
-      { icon: OcticonLog as any, label: "Security log" },
-      { icon: OcticonLog as any, label: "Sponsorship log" },
+      { icon: OcticonLog, label: "Security log" },
+      { icon: OcticonLog, label: "Sponsorship log" },
     ],
   },
 ];

@@ -12,6 +12,7 @@ import { OcticonCopy } from "../../icons/Octicons";
 import { DayPicker, type DateRange } from "react-day-picker";
 import "react-day-picker/style.css";
 import { reposApi } from "../../../services/api";
+import { CommitHashLink } from "../../shared/CommitHashLink";
 
 interface CommitHistoryProps {
 	repoId: string;
@@ -21,7 +22,7 @@ interface CommitHistoryProps {
 	onSelectBranch: (branchName: string) => void;
 	onBack?: () => void;
 	onBrowseAtCommit?: (commitHash: string) => void;
-	onViewCommitDiff?: (commitHash: string) => void;
+
 }
 
 function toDateKey(dateInput: string): string {
@@ -190,7 +191,7 @@ export default function CommitHistory({
 	branches,
 	onSelectBranch,
 	onBrowseAtCommit,
-	onViewCommitDiff,
+
 }: CommitHistoryProps) {
 	const [commits, setCommits] = useState<Commit[]>([]);
 	const [loading, setLoading] = useState<boolean>(true);
@@ -635,13 +636,10 @@ export default function CommitHistory({
 											</div>
 
 											<div className="flex items-center gap-1 shrink-0">
-												<button
-													type="button"
-													onClick={() => onViewCommitDiff?.(commit.hash)}
+												<CommitHashLink 
+													hash={commit.hash} 
 													className="font-mono text-xs text-[var(--text-link)] h-7 px-2 rounded hover:bg-[var(--surface-hover)] inline-flex items-center"
-												>
-													{shortHash(commit.hash)}
-												</button>
+												/>
 												<button
 													type="button"
 													onClick={() => void navigator.clipboard.writeText(commit.hash)}

@@ -23,6 +23,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
+import { CommitHashLink } from "../../shared/CommitHashLink";
 import { OcticonCopy } from "../../icons/Octicons";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
@@ -1005,13 +1006,20 @@ export default function PullRequestComparePage({
                               <span className="hidden sm:inline-flex rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-3 py-1 text-xs text-[var(--fgColor-open,#1a7f37)]">
                                 Verified
                               </span>
-                              <button
-                                type="button"
-                                className="h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-2 text-xs font-mono text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                              >
-                                <OcticonCopy size={14} className="text-[var(--text-secondary)]" />
-                                {commit.hash.slice(0, 7)}
-                              </button>
+                              <div className="flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => void navigator.clipboard.writeText(commit.hash)}
+                                  className="h-7 px-2 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-primary)] flex items-center justify-center transition-colors"
+                                  title="Copy the full SHA"
+                                >
+                                  <OcticonCopy size={14} />
+                                </button>
+                                <CommitHashLink 
+                                  hash={commit.hash} 
+                                  className="h-7 px-2 rounded-r-md border-y border-r border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs font-mono text-[var(--text-link)] hover:bg-[var(--surface-hover)] flex items-center justify-center transition-colors"
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}

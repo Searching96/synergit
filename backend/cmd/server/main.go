@@ -164,6 +164,7 @@ func main() {
 			repos.GET("/:repo_id/commits/:commitHash/diff", repoHandler.HandleGetCommitDiff)
 			repos.POST("/:repo_id/commit-file", repoHandler.HandleCommitFileChange)
 			repos.POST("/:repo_id/commit-files", repoHandler.HandleCommitFilesChange)
+			repos.DELETE("/:repo_id/contents", repoHandler.HandleDeletePath)
 			repos.GET("/:repo_id/insights", repoInsightsHandler.HandleGetLatestInsights)
 			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 

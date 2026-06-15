@@ -15,6 +15,6 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#008](./issues/008-hide-footer-on-source-code-pages.md) | Closed | Low | Frontend | Hide Footer on Source Code Pages | `bug`, `ui`, `ux` |
 | [#009](./issues/009-username-change-repo-access-bug.md) | Closed | High | Backend | Username Change Breaks Repository Access | `bug`, `database`, `git` |
 | [#010](./issues/010-rename-file-bug.md) | Closed | High | Fullstack | Rename File Bug | `bug`, `git`, `file-system` |
-| [#011](./issues/011-delete-file-directory.md) | Open | Low | Fullstack | Implement Delete File / Directory Action | `feature`, `git`, `api` |
-| [#012](./issues/012-optimize-file-rename.md) | Open | High | Backend | Optimize File Rename Operation | `performance`, `git`, `refactor` |
+| [#011](./issues/011-delete-file-directory.md) | Closed | Low | Fullstack | Implement Delete File / Directory Action | `feature`, `git`, `api` |
+| [#012](./issues/012-optimize-file-rename.md) | Closed | High | Backend | Optimize File Rename Operation | `performance`, `git`, `refactor` |
 | [#013](./issues/013-optimize-file-load.md) | Closed | High | Fullstack | Optimize File Tree Load (Lazy Loading) | `performance`, `ui`, `api` |
