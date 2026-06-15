@@ -49,7 +49,6 @@ interface RepoWorkspaceContentProps {
   onBackToFiles: () => void;
   onNavigateRepoContent: (contentKind: "root" | "tree" | "blob", contentPath: string, branchName: string) => void;
   onOpenRepoCommits: (branchName: string, search?: string) => void;
-  onOpenCommitDiff: (commitHash: string) => void;
   onOpenBranches: () => void;
   onOpenCreateFile: (branchName: string, directoryPath: string) => void;
   onOpenEditFile: (branchName: string, filePath: string) => void;
@@ -86,7 +85,6 @@ export default function RepoWorkspaceContent({
   onBackToFiles,
   onNavigateRepoContent,
   onOpenRepoCommits,
-  onOpenCommitDiff,
   onOpenBranches,
   onOpenCreateFile,
   onOpenEditFile,
@@ -156,7 +154,6 @@ export default function RepoWorkspaceContent({
                 onSelectBranch={onSelectCommitBranch}
                 onBack={onBackToFiles}
                 onBrowseAtCommit={(commitHash) => onNavigateRepoContent("tree", "", commitHash)}
-                onViewCommitDiff={onOpenCommitDiff}
               />
             )}
             {activeTab === "files" && routeContentKind === "commit-view" && (
@@ -317,7 +314,6 @@ export default function RepoWorkspaceContent({
                 onBack={onBackToPullRequests}
                 onOpenConflicts={() => onOpenPullRequestConflicts(routeContentPath)}
                 onOpenPullRequest={onOpenPullRequest}
-                onOpenCommitDiff={onOpenCommitDiff}
               />
             )}
             {activeTab === "pulls" && routeContentKind !== "compare" && routeContentKind !== "pull-view" && routeContentKind !== "pull-conflicts" && (

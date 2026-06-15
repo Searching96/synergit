@@ -15,7 +15,7 @@ export function CommitHashLink({
 }: CommitHashLinkProps) {
   const { selectedRepo } = useRepository();
   
-  const owner = selectedRepo?.owner?.username || "";
+  const owner = selectedRepo?.owner || "";
   const name = selectedRepo?.name || "";
 
   if (!owner || !name || !hash) {

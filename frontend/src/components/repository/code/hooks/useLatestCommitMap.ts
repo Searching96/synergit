@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Commit } from "../../../../types";
 import { reposApi } from "../../../../services/api";
 
@@ -8,8 +8,12 @@ export function useLatestCommitMap(
   repoId: string,
   branch: string,
   paths: string[],
-): LatestCommitMap {
+): { commitMap: LatestCommitMap; isLoading: boolean } {
   const [commitMap, setCommitMap] = useState<LatestCommitMap>({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const fetchedPathsRef = useRef<Set<string>>(new Set());
+
+  const pathsString = JSON.stringify(paths);
 
   const normalizedPaths = useMemo(() => {
     const deduped = new Set<string>();
@@ -22,50 +26,56 @@ export function useLatestCommitMap(
     }
 
     return Array.from(deduped);
-  }, [paths]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathsString]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCommitMap({});
+    fetchedPathsRef.current.clear();
   }, [repoId, branch]);
 
   useEffect(() => {
-    const missingPaths = normalizedPaths.filter((path) => !(path in commitMap));
+    const missingPaths = normalizedPaths.filter((path) => !fetchedPathsRef.current.has(path));
     if (!repoId || missingPaths.length === 0) {
+      setIsLoading(false);
       return;
     }
 
     let active = true;
+    setIsLoading(true);
 
-    void Promise.all(
-      missingPaths.map(async (path) => {
-        try {
-          const commits = await reposApi.getCommits(repoId, branch, path);
-          return [path, commits[0] || null] as const;
-        } catch {
-          return [path, null] as const;
+    missingPaths.forEach(p => fetchedPathsRef.current.add(p));
+
+    reposApi.getCommitsBatch(repoId, branch, missingPaths)
+      .then((batchResult) => {
+        if (!active) {
+          return;
         }
-      }),
-    ).then((entries) => {
-      if (!active) {
-        return;
-      }
 
-      setCommitMap((prev) => {
-        const next = { ...prev };
-        for (const [path, commit] of entries) {
-          if (!(path in next)) {
-            next[path] = commit;
+        setCommitMap((prev) => {
+          const next = { ...prev };
+          for (const [path, commit] of Object.entries(batchResult)) {
+            if (!(path in next)) {
+              next[path] = commit;
+            }
           }
+          return next;
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to fetch commits batch:", err);
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
         }
-        return next;
       });
-    });
 
     return () => {
       active = false;
     };
-  }, [branch, commitMap, normalizedPaths, repoId]);
+  }, [branch, normalizedPaths, repoId]);
 
-  return commitMap;
+  return { commitMap, isLoading };
 }

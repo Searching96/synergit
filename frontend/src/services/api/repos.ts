@@ -106,6 +106,13 @@ export const reposApi = {
     return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
   },
 
+  getCommitsBatch: (repoId: string, branch: string, paths: string[]) => {
+    return fetcher<Record<string, Commit | null>>(`/repos/${repoId}/commits-batch`, {
+      method: 'POST',
+      body: JSON.stringify({ branch, paths }),
+    });
+  },
+
   getCommitDetail: (repoId: string, commitHash: string) =>
     fetcher<Commit>(`/repos/${repoId}/commits/${encodeURIComponent(commitHash)}`),
 

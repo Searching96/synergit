@@ -306,7 +306,7 @@ export default function FileExplorer({
     () => [...rootEntries, ...currentEntries],
     [currentEntries, rootEntries],
   );
-  const latestCommitByPath = useLatestCommitMap(
+  const { commitMap: latestCommitByPath, isLoading: isBatchLoading } = useLatestCommitMap(
     repoId,
     branch,
     displayedEntries.map((item) => item.path),
@@ -1264,10 +1264,10 @@ export default function FileExplorer({
                           <span className="truncate text-[var(--text-link)]">{item.name}</span>
                         </span>
                         <span className="truncate text-left text-[var(--text-secondary)]">
-                          {commitsLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
+                          {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
                         </span>
                         <span className="text-right text-[var(--text-secondary)]">
-                          {commitsLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
+                          {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
                         </span>
                       </button>
                     </li>

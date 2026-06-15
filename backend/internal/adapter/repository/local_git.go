@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
 	"time"
@@ -491,22 +492,82 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter 
 		return nil, err
 	}
 
-	normalizedPath := normalizeCommitPath(pathFilter)
-	if normalizedPath == "" {
-		return listCommits(r, &git.LogOptions{From: ref.Hash(), Order: git.LogOrderCommitterTime})
+	return getCommitsWithRef(r, ref.Hash(), pathFilter)
+}
+
+func (g *LocalGitAdapter) GetCommitsBatch(repoPath string, branch string, paths []string) (map[string]*domain.Commit, error) {
+	fullPath := g.resolveRepoPath(repoPath)
+
+	r, err := git.PlainOpen(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open repo: %w", err)
 	}
 
-	isDirectory, err := isDirectoryPathAtRef(r, ref.Hash(), normalizedPath)
+	ref, err := getBranchRef(r, branch)
+	if err != nil {
+		if err == plumbing.ErrReferenceNotFound {
+			return map[string]*domain.Commit{}, nil
+		}
+		return nil, err
+	}
+
+	result := make(map[string]*domain.Commit)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	// Limit concurrency to 10 to avoid overwhelming the system
+	sem := make(chan struct{}, 10)
+
+	refHash := ref.Hash()
+
+	for _, p := range paths {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(pathFilter string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			// Open an independent instance for each goroutine to avoid go-git thread-safe contention
+			localRepo, err := git.PlainOpen(fullPath)
+			if err != nil {
+				return
+			}
+
+			commits, err := getCommitsWithRef(localRepo, refHash, pathFilter)
+			
+			mu.Lock()
+			defer mu.Unlock()
+			
+			if err == nil && len(commits) > 0 {
+				commitCopy := commits[0]
+				result[pathFilter] = &commitCopy
+			} else {
+				result[pathFilter] = nil
+			}
+		}(p)
+	}
+
+	wg.Wait()
+	return result, nil
+}
+
+func getCommitsWithRef(r *git.Repository, refHash plumbing.Hash, pathFilter string) ([]domain.Commit, error) {
+	normalizedPath := normalizeCommitPath(pathFilter)
+	if normalizedPath == "" {
+		return listCommits(r, &git.LogOptions{From: refHash, Order: git.LogOrderCommitterTime})
+	}
+
+	isDirectory, err := isDirectoryPathAtRef(r, refHash, normalizedPath)
 	if err != nil {
 		return nil, err
 	}
 
 	if isDirectory {
-		return listDirectoryCommits(r, ref.Hash(), normalizedPath)
+		return listDirectoryCommits(r, refHash, normalizedPath)
 	}
 
 	return listCommits(r, &git.LogOptions{
-		From:     ref.Hash(),
+		From:     refHash,
 		FileName: &normalizedPath,
 		Order:    git.LogOrderCommitterTime,
 	})

@@ -459,7 +459,7 @@ export default function RepoTreeBrowserPage({
   const currentEntries = useMemo(() => {
     return sortEntries(entriesByPath[normalizePath(currentDirPath)] || []);
   }, [currentDirPath, entriesByPath]);
-  const latestCommitByPath = useLatestCommitMap(
+  const { commitMap: latestCommitByPath, isLoading: isBatchLoading } = useLatestCommitMap(
     repoId,
     activeBranch,
     currentEntries.map((entry) => entry.path),
@@ -490,7 +490,7 @@ export default function RepoTreeBrowserPage({
   }, [fileContent]);
 
   return (
-    <div className="min-h-[620px] border border-[var(--border-default)] bg-[var(--surface-canvas)]">
+    <div className="min-h-[620px] border-x border-t border-[var(--border-default)] bg-[var(--surface-canvas)]">
       <div
         ref={layoutRef}
         className={`grid min-h-[620px] ${isResizingSidebar ? "select-none" : ""}`}
@@ -907,9 +907,11 @@ export default function RepoTreeBrowserPage({
                             <span className="truncate text-[var(--text-link)]">{entry.name}</span>
                           </span>
                           <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
-                            {details.message}
+                            {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
                           </span>
-                          <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
+                          <span className="text-right text-[var(--text-secondary)]">
+                            {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
+                          </span>
                         </button>
                       </li>
                     );

@@ -456,6 +456,31 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	c.JSON(http.StatusOK, commits)
 }
 
+func (h *RepoHandler) HandleGetCommitsBatch(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Branch string   `json:"branch"`
+		Paths  []string `json:"paths"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	commitsMap, err := h.repoUseCase.GetRepoCommitsBatch(repoID, req.Branch, req.Paths)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, commitsMap)
+}
+
 func (h *RepoHandler) HandleGetCommitDetail(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

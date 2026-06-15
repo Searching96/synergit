@@ -715,11 +715,6 @@ function App() {
 
               navigateToRepoCommits(selectedRepo, branchName, search);
             }}
-            onOpenCommitDiff={(commitHash) => {
-              if (!selectedRepo) return;
-              const owner = getRepoOwner(selectedRepo);
-              navigateToPath(buildRepoCommitViewPath(owner, selectedRepo.name, commitHash));
-            }}
             onOpenBranches={() => {
               if (!selectedRepo) return;
               const owner = getRepoOwner(selectedRepo);
