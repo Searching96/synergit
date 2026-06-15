@@ -11,7 +11,7 @@ interface CommitHashLinkProps {
 export function CommitHashLink({ 
   hash, 
   short = true, 
-  className = "text-[var(--text-link)] hover:underline font-mono" 
+  className = "hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors" 
 }: CommitHashLinkProps) {
   const { selectedRepo } = useRepository();
   

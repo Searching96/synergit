@@ -760,7 +760,7 @@ export default function FileExplorer({
   };
 
   return (
-    <div className="h-full min-h-0">
+    <div className="">
       {loadError && (
         <div className="mb-3 p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
           {loadError}
@@ -990,7 +990,7 @@ export default function FileExplorer({
             <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
               {((repoOwner || "U").charAt(0)).toUpperCase()}
             </span>
-            <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-link)] hover:underline truncate">{repoName}</a>
+            <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-primary)] hover:underline truncate">{repoName}</a>
             {repoVisibility ? (
               <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
                 {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
