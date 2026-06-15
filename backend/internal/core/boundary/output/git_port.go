@@ -31,8 +31,8 @@ type GitManager interface {
 	// Method for getting file content
 	GetBlob(repoPath string, path string, branch string) (string, error)
 
-	// Method for getting commits, optionally filtered by path.
-	GetCommits(repoPath string, branch string, path string) ([]domain.Commit, error)
+	// Method for getting commits, optionally filtered by path, with pagination.
+	GetCommits(repoPath string, branch string, path string, limit int, offset int) (domain.CommitPage, error)
 	GetCommitStats(repoPath string, branch string, pathFilter string) (domain.CommitStats, error)
 	GetCommitsBatch(repoPath string, branch string, paths []string) (map[string]*domain.Commit, error)
 	GetCommitDetail(repoPath string, commitHash string) (*domain.Commit, error)

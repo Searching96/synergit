@@ -29,7 +29,7 @@ type RepoUseCase interface {
 	DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) error
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)
-	GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error)
+	GetRepoCommits(repoID uuid.UUID, branch string, path string, limit int, offset int) (domain.CommitPage, error)
 	GetCommitStats(repoID uuid.UUID, branch string, path string) (domain.CommitStats, error)
 	GetRepoCommitsBatch(repoID uuid.UUID, branch string, paths []string) (map[string]*domain.Commit, error)
 	GetCommitDetail(repoID uuid.UUID, commitHash string) (*domain.Commit, error)

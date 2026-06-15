@@ -169,8 +169,8 @@ export default function ProfileRepositoriesPage({
           }
 
           try {
-            const commits = await reposApi.getCommits(repo.id);
-            return [repo.name, buildLastYearCommitSparkline(commits)] as const;
+            const commitsPage = await reposApi.getCommits(repo.id);
+            return [repo.name, buildLastYearCommitSparkline(commitsPage.commits)] as const;
           } catch {
             return [repo.name, EMPTY_COMMIT_TREND] as const;
           }

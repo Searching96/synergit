@@ -26,6 +26,11 @@ type Commit struct {
 	Date    time.Time `json:"date"`
 }
 
+type CommitPage struct {
+	Commits      []Commit `json:"commits"`
+	TotalCommits int      `json:"total_commits"`
+}
+
 type CommitStats struct {
 	TotalCommits int     `json:"total_commits"`
 	LatestCommit *Commit `json:"latest_commit"`

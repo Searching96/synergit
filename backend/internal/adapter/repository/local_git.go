@@ -470,15 +470,14 @@ func (g *LocalGitAdapter) GetBlob(repoPath string, requestPath string,
 	return content, nil
 }
 
-func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter string) ([]domain.Commit,
-	error) {
+func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter string, limit int, offset int) (domain.CommitPage, error) {
 
 	fullPath := g.resolveRepoPath(repoPath)
 
 	// 1. Open the repository
 	r, err := git.PlainOpen(fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open repo: %w", err)
+		return domain.CommitPage{}, fmt.Errorf("failed to open repo: %w", err)
 	}
 
 	// 2. Get HEAD
@@ -486,13 +485,13 @@ func (g *LocalGitAdapter) GetCommits(repoPath string, branch string, pathFilter 
 	if err != nil {
 		if err == plumbing.ErrReferenceNotFound {
 			// Branch is empty, no commits yet
-			return []domain.Commit{}, nil
+			return domain.CommitPage{Commits: []domain.Commit{}, TotalCommits: 0}, nil
 		}
 		// Other errors except empty repo error
-		return nil, err
+		return domain.CommitPage{}, err
 	}
 
-	return getCommitsWithRef(r, ref.Hash(), pathFilter)
+	return getCommitsWithRef(r, ref.Hash(), pathFilter, limit, offset)
 }
 
 func (g *LocalGitAdapter) GetCommitStats(repoPath string, branch string, pathFilter string) (domain.CommitStats, error) {
@@ -552,13 +551,13 @@ func (g *LocalGitAdapter) GetCommitsBatch(repoPath string, branch string, paths 
 				return
 			}
 
-			commits, err := getCommitsWithRef(localRepo, refHash, pathFilter)
+			commitsPage, err := getCommitsWithRef(localRepo, refHash, pathFilter, 1, 0)
 			
 			mu.Lock()
 			defer mu.Unlock()
 			
-			if err == nil && len(commits) > 0 {
-				commitCopy := commits[0]
+			if err == nil && len(commitsPage.Commits) > 0 {
+				commitCopy := commitsPage.Commits[0]
 				result[pathFilter] = &commitCopy
 			} else {
 				result[pathFilter] = nil
@@ -651,26 +650,26 @@ func countDirectoryCommits(r *git.Repository, refHash plumbing.Hash,
 	return stats, nil
 }
 
-func getCommitsWithRef(r *git.Repository, refHash plumbing.Hash, pathFilter string) ([]domain.Commit, error) {
+func getCommitsWithRef(r *git.Repository, refHash plumbing.Hash, pathFilter string, limit int, offset int) (domain.CommitPage, error) {
 	normalizedPath := normalizeCommitPath(pathFilter)
 	if normalizedPath == "" {
-		return listCommits(r, &git.LogOptions{From: refHash, Order: git.LogOrderCommitterTime})
+		return listCommits(r, &git.LogOptions{From: refHash, Order: git.LogOrderCommitterTime}, limit, offset)
 	}
 
 	isDirectory, err := isDirectoryPathAtRef(r, refHash, normalizedPath)
 	if err != nil {
-		return nil, err
+		return domain.CommitPage{}, err
 	}
 
 	if isDirectory {
-		return listDirectoryCommits(r, refHash, normalizedPath)
+		return listDirectoryCommits(r, refHash, normalizedPath, limit, offset)
 	}
 
 	return listCommits(r, &git.LogOptions{
 		From:     refHash,
 		FileName: &normalizedPath,
 		Order:    git.LogOrderCommitterTime,
-	})
+	}, limit, offset)
 }
 
 func normalizeCommitPath(pathFilter string) string {
@@ -688,23 +687,31 @@ func normalizeCommitPath(pathFilter string) string {
 	return normalizedPath
 }
 
-func listCommits(r *git.Repository, logOptions *git.LogOptions) ([]domain.Commit, error) {
+func listCommits(r *git.Repository, logOptions *git.LogOptions, limit int, offset int) (domain.CommitPage, error) {
 	commitIter, err := r.Log(logOptions)
 	if err != nil {
-		return nil, err
+		return domain.CommitPage{}, err
 	}
 	defer commitIter.Close()
 
 	var commits []domain.Commit
+	total := 0
+
 	err = commitIter.ForEach(func(c *object.Commit) error {
-		commits = append(commits, mapToDomainCommit(c))
+		if total >= offset && len(commits) < limit {
+			commits = append(commits, mapToDomainCommit(c))
+		}
+		total++
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to iterate commits: %w", err)
+		return domain.CommitPage{}, fmt.Errorf("failed to iterate commits: %w", err)
 	}
 
-	return commits, nil
+	return domain.CommitPage{
+		Commits:      commits,
+		TotalCommits: total,
+	}, nil
 }
 
 func mapToDomainCommit(c *object.Commit) domain.Commit {
@@ -745,16 +752,17 @@ func isDirectoryPathAtRef(r *git.Repository, refHash plumbing.Hash, normalizedPa
 
 // Folder rows should display the latest commit that touched any descendant file.
 func listDirectoryCommits(r *git.Repository, refHash plumbing.Hash,
-	normalizedDirPath string) ([]domain.Commit, error) {
+	normalizedDirPath string, limit int, offset int) (domain.CommitPage, error) {
 
 	commitIter, err := r.Log(&git.LogOptions{From: refHash, Order: git.LogOrderCommitterTime})
 	if err != nil {
-		return nil, err
+		return domain.CommitPage{}, err
 	}
 	defer commitIter.Close()
 
 	prefix := normalizedDirPath + "/"
 	var commits []domain.Commit
+	total := 0
 
 	err = commitIter.ForEach(func(c *object.Commit) error {
 		touchesDirectory, statsErr := commitTouchesDirectory(c, normalizedDirPath, prefix)
@@ -765,14 +773,20 @@ func listDirectoryCommits(r *git.Repository, refHash plumbing.Hash,
 			return nil
 		}
 
-		commits = append(commits, mapToDomainCommit(c))
+		if total >= offset && len(commits) < limit {
+			commits = append(commits, mapToDomainCommit(c))
+		}
+		total++
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to iterate commits for directory %q: %w", normalizedDirPath, err)
+		return domain.CommitPage{}, fmt.Errorf("failed to iterate commits for directory %q: %w", normalizedDirPath, err)
 	}
 
-	return commits, nil
+	return domain.CommitPage{
+		Commits:      commits,
+		TotalCommits: total,
+	}, nil
 }
 
 func commitTouchesDirectory(commit *object.Commit, exactDir string,

@@ -6,12 +6,14 @@ interface CommitHashLinkProps {
   hash: string;
   short?: boolean;
   className?: string;
+  title?: string;
 }
 
 export function CommitHashLink({ 
   hash, 
   short = true, 
-  className = "hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors" 
+  className = "hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors",
+  title
 }: CommitHashLinkProps) {
   const { selectedRepo } = useRepository();
   
@@ -26,7 +28,7 @@ export function CommitHashLink({
   const path = buildRepoCommitViewPath(owner, name, hash);
   
   return (
-    <Link to={path} className={className} title={hash}>
+    <Link to={path} className={className} title={title || hash}>
       {displayHash}
     </Link>
   );

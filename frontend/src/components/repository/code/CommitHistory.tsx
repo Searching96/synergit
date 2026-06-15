@@ -194,6 +194,9 @@ export default function CommitHistory({
 
 }: CommitHistoryProps) {
 	const [commits, setCommits] = useState<Commit[]>([]);
+	const [totalCommits, setTotalCommits] = useState<number>(0);
+	const [page, setPage] = useState<number>(1);
+	const limit = 30;
 	const [loading, setLoading] = useState<boolean>(true);
 	const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
 	const [authorQuery, setAuthorQuery] = useState<string>("");
@@ -210,18 +213,25 @@ export default function CommitHistory({
 		setLoading(true);
 
 		reposApi
-			.getCommits(repoId, branch)
+			.getCommits(repoId, branch, "", limit, (page - 1) * limit)
 			.then((data) => {
-				setCommits(data || []);
+				if (data) {
+					setCommits(data.commits || []);
+					setTotalCommits(data.total_commits || 0);
+				} else {
+					setCommits([]);
+					setTotalCommits(0);
+				}
 			})
 			.catch((err) => {
 				console.error(err);
 				setCommits([]);
+				setTotalCommits(0);
 			})
 			.finally(() => {
 				setLoading(false);
 			});
-	}, [repoId, branch]);
+	}, [repoId, branch, page]);
 
 	useEffect(() => {
 		const handlePointerDown = (event: MouseEvent) => {
@@ -638,12 +648,13 @@ export default function CommitHistory({
 											<div className="flex items-center gap-1 shrink-0">
 												<CommitHashLink 
 													hash={commit.hash} 
-													className="font-mono text-xs text-[var(--text-link)] h-7 px-2 rounded hover:bg-[var(--surface-hover)] inline-flex items-center"
+													title="View commit details"
+													className="font-mono text-xs text-[#25292E] h-7 px-2 rounded hover:bg-[var(--surface-subtle)] inline-flex items-center transition-colors"
 												/>
 												<button
 													type="button"
 													onClick={() => void navigator.clipboard.writeText(commit.hash)}
-													className="h-7 w-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
+													className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
 													aria-label="Copy full commit hash"
 												>
 													<OcticonCopy size={12} className="text-[var(--text-secondary)]" />
@@ -652,7 +663,7 @@ export default function CommitHistory({
 													type="button"
 													onClick={() => onBrowseAtCommit?.(commit.hash)}
 													disabled={!onBrowseAtCommit}
-													className="h-7 w-7 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
+													className="h-7 w-7 rounded-md bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] inline-flex items-center justify-center"
 													aria-label="Browse history at this point"
 													title="Browse history at this point"
 												>
@@ -665,6 +676,35 @@ export default function CommitHistory({
 							</div>
 						</section>
 					))}
+				</div>
+			)}
+
+			{!loading && totalCommits > limit && (
+				<div className="mt-8 flex items-center justify-center gap-4">
+					<button
+						type="button"
+						onClick={() => setPage((p) => Math.max(1, p - 1))}
+						disabled={page === 1}
+						className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+							page === 1
+								? "text-[var(--text-secondary)] cursor-not-allowed"
+								: "text-[var(--text-link)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
+						}`}
+					>
+						<ChevronDown size={16} className="rotate-90" /> Previous
+					</button>
+					<button
+						type="button"
+						onClick={() => setPage((p) => p + 1)}
+						disabled={page * limit >= totalCommits}
+						className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium transition-colors ${
+							page * limit >= totalCommits
+								? "text-[var(--text-secondary)] cursor-not-allowed"
+								: "text-[var(--text-link)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
+						}`}
+					>
+						Next <ChevronDown size={16} className="-rotate-90" />
+					</button>
 				</div>
 			)}
 		</div>

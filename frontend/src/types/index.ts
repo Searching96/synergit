@@ -41,6 +41,11 @@ export interface Commit {
 	date: string; // ISO string from the backend
 }
 
+export interface CommitPage {
+	commits: Commit[];
+	total_commits: number;
+}
+
 export interface CommitStats {
 	total_commits: number;
 	latest_commit: Commit | null;

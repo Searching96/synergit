@@ -2,6 +2,7 @@ import { fetcher } from './client';
 import type {
   Branch,
   Commit,
+  CommitPage,
   PullRequestCompareResult,
   CreateRepositoryPayload,
   ProfileActivitySnapshot,
@@ -96,15 +97,17 @@ export const reposApi = {
   getBlob: (repoId: string, path: string, branch: string = '') => 
     fetcher<{ content: string } | string>(`/repos/${repoId}/blob?path=${encodeURIComponent(path)}&branch=${encodeURIComponent(branch)}`),
     
-  getCommits: (repoId: string, branch: string = '', path: string = '') => {
+  getCommits: (repoId: string, branch: string = '', path: string = '', limit: number = 30, offset: number = 0) => {
     const params = new URLSearchParams();
     params.set('branch', branch);
+    params.set('limit', limit.toString());
+    params.set('offset', offset.toString());
 
     if (path.trim()) {
       params.set('path', path);
     }
 
-    return fetcher<Commit[]>(`/repos/${repoId}/commits?${params.toString()}`);
+    return fetcher<CommitPage>(`/repos/${repoId}/commits?${params.toString()}`);
   },
 
   getCommitStats: (repoId: string, branch: string = '', path: string = '') => {

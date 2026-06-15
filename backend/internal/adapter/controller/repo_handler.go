@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"synergit/internal/adapter/controller/dto"
 	"synergit/internal/core/boundary/input"
@@ -447,13 +448,27 @@ func (h *RepoHandler) HandleGetCommits(c *gin.Context) {
 	branch := c.Query("branch")
 	path := c.Query("path")
 
-	commits, err := h.repoUseCase.GetRepoCommits(repoID, branch, path)
+	limitStr := c.DefaultQuery("limit", "50")
+	offsetStr := c.DefaultQuery("offset", "0")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
+
+	commitPage, err := h.repoUseCase.GetRepoCommits(repoID, branch, path, limit, offset)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, commits)
+	c.JSON(http.StatusOK, commitPage)
 }
 
 func (h *RepoHandler) HandleGetCommitStats(c *gin.Context) {

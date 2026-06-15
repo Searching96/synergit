@@ -423,12 +423,12 @@ func (s *RepoInsightsService) buildAnalysisInput(repoPath string, now time.Time)
 	}
 
 	for _, branch := range branches {
-		commits, err := s.gitManager.GetCommits(repoPath, branch.Name, "")
+		commitsPage, err := s.gitManager.GetCommits(repoPath, branch.Name, "", 1000000, 0)
 		if err != nil {
 			return nil, err
 		}
 
-		filtered := filterCommitsSince(commits, since)
+		filtered := filterCommitsSince(commitsPage.Commits, since)
 		input.CommitsByBranch[branch.Name] = filtered
 
 		for _, commit := range filtered {

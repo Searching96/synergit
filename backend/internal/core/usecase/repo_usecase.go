@@ -399,13 +399,13 @@ func (s *RepoService) GetRepoBlob(repoID uuid.UUID, path string, branch string) 
 	return s.gitManager.GetBlob(repoPath, path, branch)
 }
 
-func (s *RepoService) GetRepoCommits(repoID uuid.UUID, branch string, path string) ([]domain.Commit, error) {
+func (s *RepoService) GetRepoCommits(repoID uuid.UUID, branch string, path string, limit int, offset int) (domain.CommitPage, error) {
 	repoPath, err := s.resolveRepoPath(repoID)
 	if err != nil {
-		return nil, err
+		return domain.CommitPage{}, err
 	}
 
-	return s.gitManager.GetCommits(repoPath, branch, path)
+	return s.gitManager.GetCommits(repoPath, branch, path, limit, offset)
 }
 
 func (s *RepoService) GetCommitStats(repoID uuid.UUID, branch string, path string) (domain.CommitStats, error) {
