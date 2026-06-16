@@ -63,9 +63,12 @@ func main() {
 	dbUserAdapter := postgres.NewPostgresUserStore(db)
 	dbCollabAdapter := postgres.NewPostgresCollaboratorStore(db)
 	dbPRAdapter := postgres.NewPostgresPullRequestStore(db)
+	prLabelStore := postgres.NewPullRequestLabelStore(db)
+	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
 	dbIssueAdapter := postgres.NewPostgresIssueStore(db)
 	dbLabelAdapter := postgres.NewPostgresLabelStore(db)
 	dbStarAdapter := postgres.NewPostgresStarStore(db)
+	dbWatcherAdapter := postgres.NewPostgresWatcherStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
@@ -84,10 +87,10 @@ func main() {
 	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
 	labelUseCase := usecase.NewLabelService(dbLabelAdapter, dbIssueAdapter, dbCollabAdapter)
 	starUseCase := usecase.NewStarService(dbStarAdapter)
-	prLabelStore := postgres.NewPullRequestLabelStore(db)
-	prAssigneeStore := postgres.NewPullRequestAssigneeStore(db)
+	watcherUseCase := usecase.NewWatcherService(dbWatcherAdapter)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore)
+	userUseCase := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoUseCase, publicBaseURL)
@@ -96,10 +99,10 @@ func main() {
 	issueHandler := httpHandler.NewIssueHandler(issueUseCase)
 	labelHandler := httpHandler.NewLabelHandler(labelUseCase)
 	starHandler := httpHandler.NewStarHandler(starUseCase)
+	watcherHandler := httpHandler.NewWatcherHandler(watcherUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
 	prLabelHandler := httpHandler.NewPRLabelHandler(prUseCase)
-	userService := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
-	userSettingsHandler := httpHandler.NewUserSettingsHandler(userService)
+	userSettingsHandler := httpHandler.NewUserSettingsHandler(userUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 
 	// 5. Set up the gin router
@@ -223,6 +226,11 @@ func main() {
 			repos.GET("/:repo_id/star", starHandler.HandleGetStarStatus)
 			repos.POST("/:repo_id/star", starHandler.HandleStarRepo)
 			repos.DELETE("/:repo_id/star", starHandler.HandleUnstarRepo)
+
+			// Watcher routes
+			repos.GET("/:repo_id/watch", watcherHandler.HandleGetWatchStatus)
+			repos.POST("/:repo_id/watch", watcherHandler.HandleWatchRepo)
+			repos.DELETE("/:repo_id/watch", watcherHandler.HandleUnwatchRepo)
 
 			// Resolve conflicts routes
 			repos.GET("/:repo_id/pulls/:pull_id/conflicts", prHandler.HandleGetMergeConflicts)

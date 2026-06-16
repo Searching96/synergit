@@ -56,9 +56,14 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 
 func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
-		FROM repositories
-		ORDER BY created_at`
+		SELECT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
+		FROM repositories r
+		ORDER BY r.created_at`
 
 	rows, err := p.db.Query(query)
 	if err != nil {
@@ -96,7 +101,10 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
 		       COALESCE(owner_user.username, ''),
 		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
-		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
 		FROM repositories r
 		LEFT JOIN repository_collaborators rc
 			ON rc.repository_id = r.id AND rc.user_id = $1
@@ -119,7 +127,7 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 		var topicsJSON []byte
 		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
 			&description, &website, &topicsJSON, &visibility, &primaryLanguage, &parentID, &owner,
-			&repo.OpenIssuesCount, &repo.OpenPullsCount); err != nil {
+			&repo.OpenIssuesCount, &repo.OpenPullsCount, &repo.StarsCount, &repo.ForksCount, &repo.WatchersCount); err != nil {
 			return nil, err
 		}
 		repo.Description = strings.TrimSpace(description.String)
@@ -160,9 +168,14 @@ func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
 
 func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
-		FROM repositories
-		WHERE id = $1`
+		SELECT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
+		FROM repositories r
+		WHERE r.id = $1`
 
 	repo, err := scanRepo(p.db.QueryRow(query, id))
 	if err != nil {
@@ -177,9 +190,14 @@ func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
-		FROM repositories
-		WHERE REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
+		SELECT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
+		FROM repositories r
+		WHERE REPLACE(r.path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
 		ORDER BY created_at DESC
 		LIMIT 1`
 
@@ -196,10 +214,15 @@ func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName st
 
 func (p *PostgresRepoStore) FindPublicByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
-		FROM repositories
-		WHERE visibility = 'PUBLIC'
-			AND REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
+		SELECT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
+		FROM repositories r
+		WHERE r.visibility = 'PUBLIC'
+			AND REPLACE(r.path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
 		ORDER BY created_at DESC
 		LIMIT 1`
 
@@ -289,6 +312,11 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 		&visibility,
 		&primaryLanguage,
 		&parentID,
+		&repo.OpenIssuesCount,
+		&repo.OpenPullsCount,
+		&repo.StarsCount,
+		&repo.ForksCount,
+		&repo.WatchersCount,
 	)
 	if err != nil {
 		return nil, err

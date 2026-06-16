@@ -254,7 +254,7 @@ export default function RepoWorkspaceContent({
                 repoVisibility={selectedRepo.visibility}
                 repoStars={selectedRepo.stars}
                 repoForks={selectedRepo.forks}
-                repoWatchers={0}
+                repoWatchers={selectedRepo.watchers}
                 cloneUrl={selectedRepo.clone_url}
                 branch={currentBranch || routeBranch || defaultBranchName}
                 branches={branches}

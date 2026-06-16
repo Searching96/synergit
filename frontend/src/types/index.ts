@@ -13,6 +13,7 @@ export interface Repository {
 	primary_language?: string;
 	stars?: number;
 	forks?: number;
+	watchers?: number;
 	updated_at?: string;
 	open_issues_count?: number;
 	open_pulls_count?: number;

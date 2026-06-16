@@ -20,6 +20,9 @@ type Repo struct {
 	Owner           string         `json:"owner,omitempty"`
 	OpenIssuesCount int            `json:"open_issues_count"`
 	OpenPullsCount  int            `json:"open_pulls_count"`
+	StarsCount      int            `json:"stars_count"`
+	ForksCount      int            `json:"forks_count"`
+	WatchersCount   int            `json:"watchers_count"`
 	ParentID        *string        `json:"parent_id,omitempty"`
 }
 

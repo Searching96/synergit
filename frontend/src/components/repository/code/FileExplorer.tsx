@@ -33,6 +33,7 @@ import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api";
 import BranchTagMenu from "./BranchTagMenu";
 import StarButton from "../../shared/StarButton";
+import WatchButton from "../../shared/WatchButton";
 import TwinButton from "./TwinButton";
 import { applyStandardEditorShortcuts } from "./utils/editorShortcuts";
 import { useLatestCommitMap } from "./hooks/useLatestCommitMap";
@@ -973,12 +974,7 @@ export default function FileExplorer({
                 ) : null}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
-                >
-                  <EyeIcon size={14} /> Watch
-                </button>
+                <WatchButton repoId={repoId} autoFetch showCount />
                 <button
                   type="button"
                   className={`h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs inline-flex items-center gap-1 ${isOwner
@@ -992,6 +988,7 @@ export default function FileExplorer({
                   title={isOwner ? "You cannot fork your own repository" : "Fork this repository"}
                 >
                   <RepoForkedIcon size={14} /> Fork
+                  <span className="ml-1 rounded-full bg-[var(--surface-badge)] px-1.5">{repoForks || 0}</span>
                 </button>
                 <StarButton repoId={repoId} autoFetch showCount />
               </div>
@@ -1448,26 +1445,23 @@ export default function FileExplorer({
                   )}
                 </div>
 
-                <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-                  {readmeEntry ? <p>Readme</p> : null}
-                  <p className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                <div className="flex flex-col gap-1 text-sm text-[var(--text-secondary)]">
+                  <p className="inline-flex items-center gap-2">
                     <PulseIcon size={14} className="text-[var(--text-muted)]" />
                     Activity
                   </p>
-                  <div className="flex flex-col gap-1 text-[var(--text-secondary)]">
-                    <p className="inline-flex items-center gap-2">
-                      <StarIcon size={14} className="text-[var(--text-muted)]" />
-                      {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
-                    </p>
-                    <p className="inline-flex items-center gap-2">
-                      <EyeIcon size={14} className="text-[var(--text-muted)]" />
-                      {watchingCount.toLocaleString()} watching
-                    </p>
-                    <p className="inline-flex items-center gap-2">
-                      <RepoForkedIcon size={14} className="text-[var(--text-muted)]" />
-                      {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
-                    </p>
-                  </div>
+                  <p className="inline-flex items-center gap-2">
+                    <StarIcon size={14} className="text-[var(--text-muted)]" />
+                    {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
+                  </p>
+                  <p className="inline-flex items-center gap-2">
+                    <EyeIcon size={14} className="text-[var(--text-muted)]" />
+                    {watchingCount.toLocaleString()} watching
+                  </p>
+                  <p className="inline-flex items-center gap-2">
+                    <RepoForkedIcon size={14} className="text-[var(--text-muted)]" />
+                    {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
+                  </p>
                 </div>
 
                 <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">

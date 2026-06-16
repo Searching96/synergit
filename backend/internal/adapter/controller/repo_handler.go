@@ -140,6 +140,9 @@ func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string)
 		CloneURL:        buildCloneURL(baseURL, owner, repo.Name),
 		OpenIssuesCount: repo.OpenIssuesCount,
 		OpenPullsCount:  repo.OpenPullsCount,
+		StarsCount:      repo.StarsCount,
+		ForksCount:      repo.ForksCount,
+		WatchersCount:   repo.WatchersCount,
 		ParentID:        parentID,
 	}
 }

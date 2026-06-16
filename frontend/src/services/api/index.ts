@@ -4,3 +4,4 @@ export { reposApi } from './repos';
 export { issuesApi } from './issues';
 export { labelsApi, collaboratorsApi } from './labels';
 export { starsApi } from './stars';
+export { watchersApi } from './watchers';

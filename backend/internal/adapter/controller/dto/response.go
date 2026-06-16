@@ -37,5 +37,14 @@ type RepoResponse struct {
 	CloneURL        string    `json:"clone_url"`
 	OpenIssuesCount int       `json:"open_issues_count"`
 	OpenPullsCount  int       `json:"open_pulls_count"`
+	StarsCount      int       `json:"stars"`
+	ForksCount      int       `json:"forks"`
+	WatchersCount   int       `json:"watchers"`
 	ParentID        *string   `json:"parent_id,omitempty"`
+}
+
+
+type WatchStatusResponse struct {
+	Watched bool `json:"watched"`
+	Count   int  `json:"count"`
 }
