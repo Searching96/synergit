@@ -26,3 +26,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#019](./issues/019-reusable-tooltip.md) | Closed | Low | Frontend | Create Reusable Tooltip Component | `feature`, `ui` | |
 | [#020](./issues/020-repo-about-feature.md) | Closed | Medium | Frontend | Implement Repo About Feature | `feature`, `ui` | |
 | [#021](./issues/021-fork-repository.md) | Closed | Medium | Fullstack | Implement Repository Fork Feature | `feature`, `ui`, `api`, `git` | |
+| [#022](./issues/022-git-smart-http-authentication.md) | Closed | High | Backend | Git Smart HTTP Basic Authentication | `security`, `git`, `api` | |

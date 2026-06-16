@@ -115,10 +115,14 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Public Git Smart HTTP routes for clone/fetch operations
-	router.GET("/:username/:repo_git/info/refs", repoHandler.HandleInfoRefsPublic)
-	router.POST("/:username/:repo_git/git-upload-pack", repoHandler.HandleUploadPackPublic)
-	router.POST("/:username/:repo_git/git-receive-pack", repoHandler.HandleReceivePackPublic)
+	// Secure Git Smart HTTP routes
+	gitRoutes := router.Group("/:username/:repo_git")
+	gitRoutes.Use(middleware.GitAuthMiddleware(dbUserAdapter, dbRepoAdapter, dbCollabAdapter, passwordHasher))
+	{
+		gitRoutes.GET("/info/refs", repoHandler.HandleInfoRefsPublic)
+		gitRoutes.POST("/git-upload-pack", repoHandler.HandleUploadPackPublic)
+		gitRoutes.POST("/git-receive-pack", repoHandler.HandleReceivePackPublic)
+	}
 
 	// Group routes for clean versioning
 	v1 := router.Group("/api/v1")
