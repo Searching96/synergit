@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import type { Repository, Branch, CreateRepositoryPayload } from '../types/index';
 import { reposApi } from '../services/api';
+import type { ForkRepositoryPayload } from '../services/api/repos';
 import { useAuth } from './AuthContext';
 import { useRepositories } from '../hooks/useRepositories';
 import { useRepoBranches } from '../hooks/useRepoBranches';
@@ -24,6 +25,7 @@ interface RepositoryContextType {
   handleRepoUpdated: (updatedRepo: Repository) => void;
   handleRepoDeleted: (repoId: string) => void;
   handleCreateRepository: (payload: CreateRepositoryPayload) => Promise<Repository>;
+  handleForkRepository: (repoId: string, payload: ForkRepositoryPayload) => Promise<Repository>;
   clearState: () => void;
 }
 
@@ -84,12 +86,27 @@ export function RepositoryProvider({ children }: { children: React.ReactNode }) 
     return createdRepo;
   };
 
+  const handleForkRepository = async (repoId: string, payload: ForkRepositoryPayload): Promise<Repository> => {
+    const forkedRepoResponse = await reposApi.forkRepository(repoId, payload);
+    const forkedRepo: Repository = {
+      ...forkedRepoResponse,
+    };
+
+    setRepos((prev) => {
+      const withoutCreated = prev.filter((repo) => repo.id !== forkedRepo.id);
+      return [forkedRepo, ...withoutCreated];
+    });
+    setProfileRepoCount((count) => count + 1);
+    setSelectedRepoId(forkedRepo.id);
+    return forkedRepo;
+  };
+
   return (
     <RepositoryContext.Provider value={{
       repos, profileRepoCount, profileRepoCountPending, profileRepositoriesPending, profileFetchFailed,
       selectedRepoId, selectedRepo, branches, currentBranch,
       setSelectedRepoId, setCurrentBranch, refreshBranches, hydratePrimaryLanguagesFromInsights,
-      handleRepoUpdated, handleRepoDeleted, handleCreateRepository, clearState
+      handleRepoUpdated, handleRepoDeleted, handleCreateRepository, handleForkRepository, clearState
     }}>
       {children}
     </RepositoryContext.Provider>

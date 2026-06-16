@@ -54,6 +54,7 @@ interface RepoWorkspaceContentProps {
   onOpenEditFile: (branchName: string, filePath: string) => void;
   onOpenUploadFiles: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare: (baseRef?: string, headRef?: string) => void;
+  onOpenFork: () => void;
   onOpenPullRequest: (pullNumber: number) => void;
   onOpenPullRequestConflicts: (pullNumber: number | string) => void;
   onBackToPullRequests: () => void;
@@ -90,6 +91,7 @@ export default function RepoWorkspaceContent({
   onOpenEditFile,
   onOpenUploadFiles,
   onOpenRepoCompare,
+  onOpenFork,
   onOpenPullRequest,
   onOpenPullRequestConflicts,
   onBackToPullRequests,
@@ -264,6 +266,8 @@ export default function RepoWorkspaceContent({
                 onOpenCreateFile={onOpenCreateFile}
                 onOpenUploadFiles={onOpenUploadFiles}
                 onOpenRepoCompare={onOpenRepoCompare}
+                currentUsername={currentUsername}
+                onOpenFork={onOpenFork}
               />
             )}
             {activeTab === "issues" && routeContentKind === "issue-view" && (

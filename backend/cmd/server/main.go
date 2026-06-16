@@ -149,6 +149,7 @@ func main() {
 			// Repo routes
 			repos.POST("", repoHandler.HandleCreateRepo)
 			repos.GET("", repoHandler.HandleGetRepos)
+			repos.GET("/:repo_id", repoHandler.HandleGetRepo)
 			repos.GET("/count", repoHandler.HandleGetOwnedRepoCount)
 			repos.PATCH("/:repo_id/visibility", repoHandler.HandleUpdateRepoVisibility)
 			repos.PATCH("/:repo_id/name", repoHandler.HandleRenameRepo)
@@ -158,6 +159,7 @@ func main() {
 			repos.PATCH("/:repo_id/branches", repoHandler.HandleRenameBranch)
 			repos.GET("/:repo_id/branches", repoHandler.HandleGetBranches)
 			repos.DELETE("/:repo_id/branches/:branchName", repoHandler.HandleDeleteBranch)
+			repos.POST("/:repo_id/forks", repoHandler.HandleForkRepo)
 			repos.GET("/:repo_id/tree", repoHandler.HandleGetTree)
 			repos.GET("/:repo_id/blob", repoHandler.HandleGetBlob)
 			repos.GET("/:repo_id/commits", repoHandler.HandleGetCommits)

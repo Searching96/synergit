@@ -10,6 +10,7 @@ import (
 type RepoUseCase interface {
 	CreateRepository(name string, ownerID uuid.UUID) (*domain.Repo, error)
 	CreateRepositoryWithOptions(name string, ownerID uuid.UUID, options domain.CreateRepositoryOptions) (*domain.Repo, error)
+	ForkRepository(ownerID uuid.UUID, upstreamRepoID uuid.UUID, forkName string, description string, defaultBranchOnly bool) (*domain.Repo, error)
 	GetIntoRefs(repoID uuid.UUID, service string) ([]byte, error)
 	GetIntoRefsByOwnerAndName(ownerUsername string, repoName string, service string) ([]byte, error)
 	UploadPack(repoID uuid.UUID, requestPayload output.ByteReader,
@@ -21,6 +22,7 @@ type RepoUseCase interface {
 	ReceivePackByOwnerAndName(ownerUsername string, repoName string,
 		requestPayload output.ByteReader, responseWriter output.ByteWriter) error
 	GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo, error)
+	GetRepositoryByID(repoID uuid.UUID) (*domain.Repo, error)
 	CountOwnedRepositories(requesterID uuid.UUID) (int, error)
 	UpdateRepositoryVisibility(repoID uuid.UUID, requesterID uuid.UUID,
 		visibility domain.RepoVisibility) (*domain.Repo, error)

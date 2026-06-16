@@ -69,6 +69,8 @@ interface FileExplorerProps {
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare?: (baseRef?: string, headRef?: string) => void;
+  currentUsername?: string;
+  onOpenFork?: () => void;
 }
 
 function sortEntries(entries: RepoFile[]): RepoFile[] {
@@ -223,6 +225,8 @@ export default function FileExplorer({
   onOpenCreateFile,
   onOpenUploadFiles,
   onOpenRepoCompare,
+  currentUsername,
+  onOpenFork,
 }: FileExplorerProps) {
   const treeCacheKey = `repo-tree:${repoId}:${branch}`;
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>(() => {
@@ -243,7 +247,7 @@ export default function FileExplorer({
   const [rootLoading, setRootLoading] = useState<boolean>(() => !entriesByPath[""]);
   const [dirLoading, setDirLoading] = useState<boolean>(false);
   const [readmeLoading, setReadmeLoading] = useState<boolean>(true);
-  
+
   useSetPageReady(!rootLoading && !dirLoading && !readmeLoading);
 
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -516,6 +520,7 @@ export default function FileExplorer({
   const starCount = typeof repoStars === "number" ? repoStars : 0;
   const watchingCount = typeof repoWatchers === "number" ? repoWatchers : 0;
   const forkCount = typeof repoForks === "number" ? repoForks : 0;
+  const isOwner = repoOwner === currentUsername;
 
   const expandPathAncestors = (path: string) => {
     setExpandedDirs((prev) => {
@@ -691,9 +696,8 @@ export default function FileExplorer({
       nodes.push(
         <li key={item.path}>
           <div
-            className={`w-full flex items-center gap-1 py-1 pr-2 text-sm ${
-              isActiveFile || isActiveDir ? "bg-[var(--surface-info-subtle)] text-[var(--text-link)]" : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-            }`}
+            className={`w-full flex items-center gap-1 py-1 pr-2 text-sm ${isActiveFile || isActiveDir ? "bg-[var(--surface-info-subtle)] text-[var(--text-link)]" : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+              }`}
             style={{ paddingLeft: `${8 + depth * 16}px` }}
           >
             {isDir ? (
@@ -776,11 +780,10 @@ export default function FileExplorer({
                 <button
                   key={tab}
                   type="button"
-                  className={`h-10 px-3 rounded-t-md ${
-                    index === 0
+                  className={`h-10 px-3 rounded-t-md ${index === 0
                       ? "bg-[var(--surface-subtle)] border border-[var(--border-default)] border-b-transparent text-[var(--text-primary)]"
                       : "hover:text-[var(--text-primary)]"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -956,559 +959,567 @@ export default function FileExplorer({
             </div>
           </div>
         ) : (
-        <>
-        <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
-              {((repoOwner || "U").charAt(0)).toUpperCase()}
-            </span>
-            <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-primary)] hover:underline truncate">{repoName}</a>
-            {repoVisibility ? (
-              <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
-            >
-              <EyeIcon size={14} /> Watch
-            </button>
-            <button
-              type="button"
-              className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
-            >
-              <RepoForkedIcon size={14} /> Fork
-            </button>
-            <StarButton repoId={repoId} autoFetch showCount />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-          <section className="space-y-4 min-w-0">
-            <div className="relative flex flex-wrap items-center gap-2">
-              {(isBranchMenuOpen || isCodeMenuOpen || isAddFileMenuOpen) && (
-                <button
-                  type="button"
-                  aria-label="Close dropdown"
-                  onClick={() => {
-                    setIsBranchMenuOpen(false);
-                    setIsCodeMenuOpen(false);
-                    setIsAddFileMenuOpen(false);
-                  }}
-                  className="fixed inset-0 z-10"
-                />
-              )}
-
-              <div className="relative z-20">
-                <BranchTagMenu
-                  branches={branches}
-                  currentBranch={branch}
-                  isOpen={isBranchMenuOpen}
-                  onOpenChange={(open) => {
-                    setIsBranchMenuOpen(open);
-                    if (open) {
-                      setIsCodeMenuOpen(false);
-                      setIsAddFileMenuOpen(false);
-                    }
-                  }}
-                  onSelectBranch={(nextBranch) => {
-                    onSelectBranch(nextBranch);
-                    setIsBranchMenuOpen(false);
-                  }}
-                  onCreateBranch={handleCreateBranch}
-                  onViewAllBranches={() => {
-                    setIsCodeMenuOpen(false);
-                    setIsAddFileMenuOpen(false);
-                    onOpenBranches?.();
-                  }}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsBranchMenuOpen(false);
-                  setIsCodeMenuOpen(false);
-                  setIsAddFileMenuOpen(false);
-                  onOpenBranches?.();
-                }}
-                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
-              >
-                <GitBranchOcticon size={14} />
-                {branches.length} Branches
-              </button>
-
-              <button
-                type="button"
-                className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
-              >
-                <Tag size={14} />
-                0 Tags
-              </button>
-
-              <div className="ml-auto flex items-center gap-2 min-w-[340px] max-w-full">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                  <input
-                    type="text"
-                    readOnly
-                    placeholder="Go to file"
-                    className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
-                  />
-                </div>
-
-                <div className="relative z-20">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddFileMenuOpen((prev) => !prev);
-                      setIsCodeMenuOpen(false);
-                      setIsBranchMenuOpen(false);
-                    }}
-                    className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-subtle)]"
-                  >
-                    Add file
-                    <ChevronDown size={14} className="text-[var(--text-secondary)]" />
-                  </button>
-
-                  {isAddFileMenuOpen && (
-                    <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onOpenCreateFile?.(activeBranchForAddFile, currentDirPath || "");
-                          setIsAddFileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                      >
-                        <Plus size={14} className="text-[var(--text-secondary)]" />
-                        Create new file
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onOpenUploadFiles?.(activeBranchForAddFile, currentDirPath || "");
-                          setIsAddFileMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
-                      >
-                        <Upload size={14} className="text-[var(--text-secondary)]" />
-                        Upload files
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative z-20">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsCodeMenuOpen((prev) => !prev);
-                      setIsBranchMenuOpen(false);
-                      setIsAddFileMenuOpen(false);
-                    }}
-                    className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
-                  >
-                    <Code size={14} />
-                    Code
-                    <ChevronDown size={14} />
-                  </button>
-
-                  {isCodeMenuOpen && (
-                    <div className="absolute right-0 top-[calc(100%+8px)] w-[460px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
-                      <div className="grid grid-cols-2 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)]">
-                        <button type="button" className="h-11 bg-[var(--surface-subtle)] text-[var(--text-primary)]">Local</button>
-                        <button type="button" className="h-11 hover:bg-[var(--surface-subtle)]">Codespaces</button>
-                      </div>
-
-                      <div className="p-4 space-y-4">
-                        <div className="text-sm font-semibold text-[var(--text-primary)]">Clone</div>
-
-                        <div className="flex items-center gap-4 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)] pb-2">
-                          <button type="button" className="text-[var(--text-primary)] border-b-2 border-[var(--border-tab-active)] pb-1">HTTPS</button>
-                          <button type="button">SSH</button>
-                          <button type="button">GitHub CLI</button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <input
-                            readOnly
-                            value={cloneUrl}
-                            className="flex-1 h-9 rounded-md border border-[var(--border-default)] px-3 text-sm text-[var(--text-primary)]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void navigator.clipboard.writeText(cloneUrl)}
-                            className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-                            aria-label="Copy clone URL"
-                          >
-                            <OcticonCopy size={15} className="text-[var(--text-secondary)]" />
-                          </button>
-                        </div>
-
-                        <p className="text-sm text-[var(--text-secondary)]">Clone using the web URL.</p>
-
-                        <div className="space-y-1 text-sm text-[var(--text-primary)]">
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
-                            <Upload size={14} className="text-[var(--text-secondary)]" />
-                            Open with GitHub Desktop
-                          </button>
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
-                            <Link size={14} className="text-[var(--text-secondary)]" />
-                            Open with Visual Studio
-                          </button>
-                          <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)]">
-                            Download ZIP
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-[var(--border-default)] rounded-md overflow-hidden]">
-              <div className="px-4 py-3 rounded-t-md border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
-                {/* LEFT SIDE: Avatar and Message */}
-                <div className="min-w-0 flex items-center gap-2">
-                  <Avatar username={latestCommit?.author || repoOwner || "U"} size={28} />
-
-                  {commitsLoading ? (
-                    <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
-                  ) : latestCommit ? (
-                    <div className="min-w-0 flex items-center gap-1 text-sm">
-                      <span className="font-semibold text-[var(--text-primary)] truncate max-w-[180px]">{latestCommit.author}</span>
-                      <span className="text-[var(--text-secondary)] truncate">{latestCommit.message}</span>
-                    </div>
-                  ) : (
-                    <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
-                  )}
-                </div>
-
-                {/* RIGHT SIDE: Hash, Time, and Button */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {latestCommit && (
-                    <div className="hidden sm:flex items-center gap-0.5 text-sm text-[var(--text-muted)]">
-                      <span><CommitChangeLink hash={latestCommit.hash} text={shortenHash(latestCommit.hash)} className="font-medium hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors" /></span>
-                      <span className="text-[var(--text-muted)]">·</span>
-                      <span>{formatRelativeCommitTime(latestCommit.date)}</span>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => onOpenCommitHistory?.(branch || "master")}
-                    disabled={commitsLoading}
-                    className="h-8 px-3 rounded-md bg-[var(--surface-page)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-60 inline-flex items-center gap-2"
-                  >
-                    <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
-                    {commitsLoading ? "Loading..." : commitCountLabel}
-                  </button>
-                </div>
-              </div>
-
-              <ul>
-                {rootEntries.map((item, index) => {
-                  const details = getItemCommitDetails(item);
-
-                  // 1. Check if this is the very last item in the array
-                  const isLast = index === rootEntries.length - 1;
-
-                  return (
-                    <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
-                      <button
-                        type="button"
-                        onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                        // 2. Conditionally apply rounded-b-md if isLast is true
-                        className={`w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)] ${isLast ? "rounded-b-md" : ""
-                          }`}
-                      >
-                        <span className="min-w-0 flex items-center gap-2 text-left">
-                          {item.type === "DIR" ? (
-                            <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
-                          ) : (
-                            <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
-                          )}
-                          <span className="truncate text-[var(--text-link)]">{item.name}</span>
-                        </span>
-                        <span className="truncate text-left text-[var(--text-secondary)]">
-                          {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
-                        </span>
-                        <span className="text-right text-[var(--text-secondary)]">
-                          {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-
-            <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
-              <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
-                  <BookIcon size={16} className="text-[var(--text-secondary)]" />
-                  README
-                </h3>
-                {readmeEntry ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isEditingReadme) {
-                        setIsEditingReadme(false);
-                        setReadmeEditError(null);
-                        return;
-                      }
-
-                      setReadmeDraft(readmeContent || "");
-                      setReadmeEditError(null);
-                      setIsEditingReadme(true);
-                    }}
-                    className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
-                    aria-label="Edit README"
-                  >
-                    <Pencil size={15} />
-                  </button>
+          <>
+            <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+                  {((repoOwner || "U").charAt(0)).toUpperCase()}
+                </span>
+                <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-primary)] hover:underline truncate">{repoName}</a>
+                {repoVisibility ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+                    {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+                  </span>
                 ) : null}
               </div>
-
-              <div className="p-4">
-                {!readmeEntry ? (
-                  <div className="space-y-3 text-sm text-[var(--text-secondary)] text-center py-8">
-                    <div className="inline-flex h-10 w-10 rounded-md items-center justify-center text-[var(--text-secondary)]">
-                      <BookIcon size={20} />
-                    </div>
-                    <p className="text-3xl font-semibold text-[var(--text-primary)]">Add a README</p>
-                    <p className="text-[var(--text-secondary)]">Help people interested in this repository understand your project.</p>
-                    <button
-                      type="button"
-                      onClick={() => onOpenCreateFile?.(activeBranchForAddFile, "README.md")}
-                      className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-xs font-semibold hover:bg-[var(--accent-primary-hover)]"
-                    >
-                      Add a README
-                    </button>
-                  </div>
-                ) : isEditingReadme ? (
-                  <div className="space-y-3">
-                    <textarea
-                      className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
-                      value={readmeDraft}
-                      onChange={(e) => setReadmeDraft(e.target.value)}
-                      onKeyDown={handleReadmeTextareaKeyDown}
-                      spellCheck={false}
-                    />
-
-                    <div className="flex items-center justify-between gap-2 mt-4">
-                      <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsEditingReadme(false);
-                            setReadmeEditError(null);
-                          }}
-                          className="px-3 py-2 text-sm border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isCommittingReadme || readmeDraft === (readmeContent ?? "") || !readmeDraft.trim()}
-                          onClick={() => setCommitTarget("readme")}
-                          className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
-                        >
-                          Commit changes...
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : readmeLoading ? (
-                  <div className="p-6 space-y-3">
-                    <div className="h-4 w-48 rounded bg-[var(--surface-subtle)] animate-pulse" />
-                    <div className="h-3 w-full rounded bg-[var(--surface-subtle)] animate-pulse" />
-                    <div className="h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" />
-                  </div>
-                ) : normalizedReadmeContent ? (
-                  <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="mb-4 text-3xl font-semibold text-[var(--text-primary)]">{children}</h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="mb-3 mt-6 text-2xl font-semibold text-[var(--text-primary)]">{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="mb-2 mt-5 text-xl font-semibold text-[var(--text-primary)]">{children}</h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="mb-4 text-sm leading-7 text-[var(--text-primary)]">{children}</p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="mb-4 list-disc space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="mb-4 list-decimal space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ol>
-                        ),
-                        a: ({ children, href }) => (
-                          <a href={href} className="text-[var(--text-link)] underline" target="_blank" rel="noreferrer">
-                            {children}
-                          </a>
-                        ),
-                        code: ({ children }) => (
-                          <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-xs text-[var(--text-primary)]">{children}</code>
-                        ),
-                        pre: ({ children }) => (
-                          <pre className="mb-4 overflow-x-auto rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-xs text-[var(--text-primary)]">
-                            {children}
-                          </pre>
-                        ),
-                        blockquote: ({ children }) => (
-                          <blockquote className="mb-4 border-l-4 border-[var(--border-default)] pl-4 text-sm text-[var(--text-secondary)]">
-                            {children}
-                          </blockquote>
-                        ),
-                      }}
-                    >
-                      {normalizedReadmeContent}
-                    </ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    README.md is present, but the content could not be loaded.
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <aside className="xl:pl-2 space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-2xl font-semibold text-[var(--text-primary)]">About</h3>
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setIsAboutModalOpen(true)}
-                  className="h-8 w-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                  aria-label="Edit repository details"
+                  className="h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs text-[var(--text-primary)] inline-flex items-center gap-1 hover:bg-[var(--surface-button-muted)]"
                 >
-                  <GearIcon size={16} />
+                  <EyeIcon size={14} /> Watch
                 </button>
+                <button
+                  type="button"
+                  className={`h-7 px-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-xs inline-flex items-center gap-1 ${isOwner
+                      ? "text-[var(--text-muted)] cursor-not-allowed opacity-50"
+                      : "text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+                    }`}
+                  disabled={isOwner}
+                  onClick={() => {
+                    if (!isOwner && onOpenFork) onOpenFork();
+                  }}
+                  title={isOwner ? "You cannot fork your own repository" : "Fork this repository"}
+                >
+                  <RepoForkedIcon size={14} /> Fork
+                </button>
+                <StarButton repoId={repoId} autoFetch showCount />
               </div>
-              {isAboutEmpty ? (
-                <p className="text-sm text-[var(--text-secondary)] italic mb-4">
-                  No description, website, or topics provided.
-                </p>
-              ) : (
-                (repoDescription || "").trim() ? (
-                  <p className="text-sm text-[var(--text-secondary)] leading-6 mb-4">
-                    {repoDescription}
-                  </p>
-                ) : null
-              )}
-              {repoWebsite && (
-                <div className="mb-4">
-                  <a
-                    href={repoWebsite.startsWith("http") ? repoWebsite : `https://${repoWebsite}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-link)] hover:underline"
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+              <section className="space-y-4 min-w-0">
+                <div className="relative flex flex-wrap items-center gap-2">
+                  {(isBranchMenuOpen || isCodeMenuOpen || isAddFileMenuOpen) && (
+                    <button
+                      type="button"
+                      aria-label="Close dropdown"
+                      onClick={() => {
+                        setIsBranchMenuOpen(false);
+                        setIsCodeMenuOpen(false);
+                        setIsAddFileMenuOpen(false);
+                      }}
+                      className="fixed inset-0 z-10"
+                    />
+                  )}
+
+                  <div className="relative z-20">
+                    <BranchTagMenu
+                      branches={branches}
+                      currentBranch={branch}
+                      isOpen={isBranchMenuOpen}
+                      onOpenChange={(open) => {
+                        setIsBranchMenuOpen(open);
+                        if (open) {
+                          setIsCodeMenuOpen(false);
+                          setIsAddFileMenuOpen(false);
+                        }
+                      }}
+                      onSelectBranch={(nextBranch) => {
+                        onSelectBranch(nextBranch);
+                        setIsBranchMenuOpen(false);
+                      }}
+                      onCreateBranch={handleCreateBranch}
+                      onViewAllBranches={() => {
+                        setIsCodeMenuOpen(false);
+                        setIsAddFileMenuOpen(false);
+                        onOpenBranches?.();
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBranchMenuOpen(false);
+                      setIsCodeMenuOpen(false);
+                      setIsAddFileMenuOpen(false);
+                      onOpenBranches?.();
+                    }}
+                    className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
                   >
-                    <LinkIcon size={16} />
-                    {repoWebsite}
-                  </a>
-                </div>
-              )}
-              {repoTopics && repoTopics.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {repoTopics.map((topic) => (
-                    <span
-                      key={topic}
-                      className="inline-flex items-center justify-center rounded-full bg-[var(--surface-info-subtle)] text-[var(--text-link)] px-2.5 h-6 text-xs font-medium hover:bg-[#0969da] hover:text-white cursor-pointer transition-colors leading-none"
-                    >
-                      {topic}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <GitBranchOcticon size={14} />
+                    {branches.length} Branches
+                  </button>
 
-            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-              {readmeEntry ? <p>Readme</p> : null}
-              <p className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
-                <PulseIcon size={14} className="text-[var(--text-muted)]" />
-                Activity
-              </p>
-              <div className="flex flex-col gap-1 text-[var(--text-secondary)]">
-                <p className="inline-flex items-center gap-2">
-                  <StarIcon size={14} className="text-[var(--text-muted)]" />
-                  {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
-                </p>
-                <p className="inline-flex items-center gap-2">
-                  <EyeIcon size={14} className="text-[var(--text-muted)]" />
-                  {watchingCount.toLocaleString()} watching
-                </p>
-                <p className="inline-flex items-center gap-2">
-                  <RepoForkedIcon size={14} className="text-[var(--text-muted)]" />
-                  {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
-                </p>
-              </div>
-            </div>
+                  <button
+                    type="button"
+                    className="h-9 px-3 rounded-md bg-transparent text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-code)] inline-flex items-center gap-2"
+                  >
+                    <Tag size={14} />
+                    0 Tags
+                  </button>
 
-            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-              <p className="font-semibold text-[var(--text-primary)]">Releases</p>
-              <p>No releases published</p>
-            </div>
-
-            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
-              <p className="font-semibold text-[var(--text-primary)]">Packages</p>
-              <p>No packages published</p>
-            </div>
-
-            <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)] overflow-hidden">
-              <p className="font-semibold text-[var(--text-primary)]">Languages</p>
-
-              {languageBreakdownLoading ? (
-                <p>Loading language breakdown...</p>
-              ) : displayedLanguageBreakdown.length > 0 ? (
-                <>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full border border-[var(--border-muted)] bg-[var(--surface-subtle)] flex">
-                    {displayedLanguageBreakdown.map((item, index) => (
-                      <span
-                        key={`language-bar-${item.language}`}
-                        className="h-full"
-                        style={{
-                          width: `${Math.max(item.percentage, 0.8)}%`,
-                          backgroundColor: languageGraphColor(item.language, index),
-                        }}
+                  <div className="ml-auto flex items-center gap-2 min-w-[340px] max-w-full">
+                    <div className="relative flex-1 min-w-[180px]">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                      <input
+                        type="text"
+                        readOnly
+                        placeholder="Go to file"
+                        className="w-full h-9 pl-9 pr-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-secondary)]"
                       />
-                    ))}
+                    </div>
+
+                    <div className="relative z-20">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddFileMenuOpen((prev) => !prev);
+                          setIsCodeMenuOpen(false);
+                          setIsBranchMenuOpen(false);
+                        }}
+                        className="h-9 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-subtle)]"
+                      >
+                        Add file
+                        <ChevronDown size={14} className="text-[var(--text-secondary)]" />
+                      </button>
+
+                      {isAddFileMenuOpen && (
+                        <div className="absolute left-0 top-[calc(100%+6px)] w-[220px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenCreateFile?.(activeBranchForAddFile, currentDirPath || "");
+                              setIsAddFileMenuOpen(false);
+                            }}
+                            className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
+                          >
+                            <Plus size={14} className="text-[var(--text-secondary)]" />
+                            Create new file
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenUploadFiles?.(activeBranchForAddFile, currentDirPath || "");
+                              setIsAddFileMenuOpen(false);
+                            }}
+                            className="w-full px-3 py-2.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
+                          >
+                            <Upload size={14} className="text-[var(--text-secondary)]" />
+                            Upload files
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative z-20">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCodeMenuOpen((prev) => !prev);
+                          setIsBranchMenuOpen(false);
+                          setIsAddFileMenuOpen(false);
+                        }}
+                        className="h-9 px-4 rounded-md border border-[var(--accent-primary)] bg-[var(--accent-primary)] text-sm font-semibold text-[var(--text-on-accent)] inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
+                      >
+                        <Code size={14} />
+                        Code
+                        <ChevronDown size={14} />
+                      </button>
+
+                      {isCodeMenuOpen && (
+                        <div className="absolute right-0 top-[calc(100%+8px)] w-[460px] rounded-lg border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-2xl overflow-hidden">
+                          <div className="grid grid-cols-2 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)]">
+                            <button type="button" className="h-11 bg-[var(--surface-subtle)] text-[var(--text-primary)]">Local</button>
+                            <button type="button" className="h-11 hover:bg-[var(--surface-subtle)]">Codespaces</button>
+                          </div>
+
+                          <div className="p-4 space-y-4">
+                            <div className="text-sm font-semibold text-[var(--text-primary)]">Clone</div>
+
+                            <div className="flex items-center gap-4 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)] pb-2">
+                              <button type="button" className="text-[var(--text-primary)] border-b-2 border-[var(--border-tab-active)] pb-1">HTTPS</button>
+                              <button type="button">SSH</button>
+                              <button type="button">GitHub CLI</button>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <input
+                                readOnly
+                                value={cloneUrl}
+                                className="flex-1 h-9 rounded-md border border-[var(--border-default)] px-3 text-sm text-[var(--text-primary)]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void navigator.clipboard.writeText(cloneUrl)}
+                                className="h-9 w-9 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
+                                aria-label="Copy clone URL"
+                              >
+                                <OcticonCopy size={15} className="text-[var(--text-secondary)]" />
+                              </button>
+                            </div>
+
+                            <p className="text-sm text-[var(--text-secondary)]">Clone using the web URL.</p>
+
+                            <div className="space-y-1 text-sm text-[var(--text-primary)]">
+                              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
+                                <Upload size={14} className="text-[var(--text-secondary)]" />
+                                Open with GitHub Desktop
+                              </button>
+                              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2">
+                                <Link size={14} className="text-[var(--text-secondary)]" />
+                                Open with Visual Studio
+                              </button>
+                              <button type="button" className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-subtle)]">
+                                Download ZIP
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-[var(--border-default)] rounded-md overflow-hidden]">
+                  <div className="px-4 py-3 rounded-t-md border-b border-[var(--border-default)] flex items-center justify-between gap-2 bg-[var(--surface-page)]">
+                    {/* LEFT SIDE: Avatar and Message */}
+                    <div className="min-w-0 flex items-center gap-2">
+                      <Avatar username={latestCommit?.author || repoOwner || "U"} size={28} />
+
+                      {commitsLoading ? (
+                        <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                      ) : latestCommit ? (
+                        <div className="min-w-0 flex items-center gap-1 text-sm">
+                          <span className="font-semibold text-[var(--text-primary)] truncate max-w-[180px]">{latestCommit.author}</span>
+                          <span className="text-[var(--text-secondary)] truncate">{latestCommit.message}</span>
+                        </div>
+                      ) : (
+                        <div className="h-4 w-32 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                      )}
+                    </div>
+
+                    {/* RIGHT SIDE: Hash, Time, and Button */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {latestCommit && (
+                        <div className="hidden sm:flex items-center gap-0.5 text-sm text-[var(--text-muted)]">
+                          <span><CommitChangeLink hash={latestCommit.hash} text={shortenHash(latestCommit.hash)} className="font-medium hover:text-[var(--text-link)] hover:underline font-mono text-[var(--text-primary)] transition-colors" /></span>
+                          <span className="text-[var(--text-muted)]">·</span>
+                          <span>{formatRelativeCommitTime(latestCommit.date)}</span>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenCommitHistory?.(branch || "master")}
+                        disabled={commitsLoading}
+                        className="h-8 px-3 rounded-md bg-[var(--surface-page)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] disabled:opacity-60 inline-flex items-center gap-2"
+                      >
+                        <HistoryIcon size={14} className="text-[var(--text-secondary)]" />
+                        {commitsLoading ? "Loading..." : commitCountLabel}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
-                    {displayedLanguageBreakdown.map((item, index) => (
-                      <div key={`language-item-${item.language}`} className="inline-flex items-center gap-1.5">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: languageGraphColor(item.language, index) }}
-                        />
-                        <span className="text-[var(--text-primary)]">{item.language}</span>
-                        <span>{item.percentage.toFixed(1)}%</span>
-                      </div>
-                    ))}
+                  <ul>
+                    {rootEntries.map((item, index) => {
+                      const details = getItemCommitDetails(item);
+
+                      // 1. Check if this is the very last item in the array
+                      const isLast = index === rootEntries.length - 1;
+
+                      return (
+                        <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
+                          <button
+                            type="button"
+                            onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
+                            // 2. Conditionally apply rounded-b-md if isLast is true
+                            className={`w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)] ${isLast ? "rounded-b-md" : ""
+                              }`}
+                          >
+                            <span className="min-w-0 flex items-center gap-2 text-left">
+                              {item.type === "DIR" ? (
+                                <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
+                              ) : (
+                                <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
+                              )}
+                              <span className="truncate text-[var(--text-link)]">{item.name}</span>
+                            </span>
+                            <span className="truncate text-left text-[var(--text-secondary)]">
+                              {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
+                            </span>
+                            <span className="text-right text-[var(--text-secondary)]">
+                              {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div className="border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)]">
+                  <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                      <BookIcon size={16} className="text-[var(--text-secondary)]" />
+                      README
+                    </h3>
+                    {readmeEntry ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isEditingReadme) {
+                            setIsEditingReadme(false);
+                            setReadmeEditError(null);
+                            return;
+                          }
+
+                          setReadmeDraft(readmeContent || "");
+                          setReadmeEditError(null);
+                          setIsEditingReadme(true);
+                        }}
+                        className="h-8 w-8 rounded-md bg-transparent text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] flex items-center justify-center"
+                        aria-label="Edit README"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    ) : null}
                   </div>
-                </>
-              ) : (
-                <p>No language data available yet.</p>
-              )}
+
+                  <div className="p-4">
+                    {!readmeEntry ? (
+                      <div className="space-y-3 text-sm text-[var(--text-secondary)] text-center py-8">
+                        <div className="inline-flex h-10 w-10 rounded-md items-center justify-center text-[var(--text-secondary)]">
+                          <BookIcon size={20} />
+                        </div>
+                        <p className="text-3xl font-semibold text-[var(--text-primary)]">Add a README</p>
+                        <p className="text-[var(--text-secondary)]">Help people interested in this repository understand your project.</p>
+                        <button
+                          type="button"
+                          onClick={() => onOpenCreateFile?.(activeBranchForAddFile, "README.md")}
+                          className="h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-xs font-semibold hover:bg-[var(--accent-primary-hover)]"
+                        >
+                          Add a README
+                        </button>
+                      </div>
+                    ) : isEditingReadme ? (
+                      <div className="space-y-3">
+                        <textarea
+                          className="w-full min-h-[360px] border border-[var(--border-default)] rounded-md p-3 font-mono text-sm"
+                          value={readmeDraft}
+                          onChange={(e) => setReadmeDraft(e.target.value)}
+                          onKeyDown={handleReadmeTextareaKeyDown}
+                          spellCheck={false}
+                        />
+
+                        <div className="flex items-center justify-between gap-2 mt-4">
+                          <p className="text-xs text-[var(--text-secondary)]">Tab indents. Ctrl+X cuts current line. Ctrl+Enter inserts a line below.</p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingReadme(false);
+                                setReadmeEditError(null);
+                              }}
+                              className="px-3 py-2 text-sm border border-[var(--border-default)] rounded-md hover:bg-[var(--surface-subtle)]"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isCommittingReadme || readmeDraft === (readmeContent ?? "") || !readmeDraft.trim()}
+                              onClick={() => setCommitTarget("readme")}
+                              className="px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] bg-[var(--accent-primary)] rounded-md hover:bg-[var(--accent-primary-hover)] disabled:opacity-50"
+                            >
+                              Commit changes...
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : readmeLoading ? (
+                      <div className="p-6 space-y-3">
+                        <div className="h-4 w-48 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                        <div className="h-3 w-full rounded bg-[var(--surface-subtle)] animate-pulse" />
+                        <div className="h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" />
+                      </div>
+                    ) : normalizedReadmeContent ? (
+                      <div className="prose prose-sm max-w-none text-[var(--text-primary)]">
+                        <ReactMarkdown
+                          components={{
+                            h1: ({ children }) => (
+                              <h1 className="mb-4 text-3xl font-semibold text-[var(--text-primary)]">{children}</h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="mb-3 mt-6 text-2xl font-semibold text-[var(--text-primary)]">{children}</h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="mb-2 mt-5 text-xl font-semibold text-[var(--text-primary)]">{children}</h3>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-4 text-sm leading-7 text-[var(--text-primary)]">{children}</p>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="mb-4 list-disc space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="mb-4 list-decimal space-y-1 pl-6 text-sm text-[var(--text-primary)]">{children}</ol>
+                            ),
+                            a: ({ children, href }) => (
+                              <a href={href} className="text-[var(--text-link)] underline" target="_blank" rel="noreferrer">
+                                {children}
+                              </a>
+                            ),
+                            code: ({ children }) => (
+                              <code className="rounded bg-[var(--surface-subtle)] px-1 py-0.5 text-xs text-[var(--text-primary)]">{children}</code>
+                            ),
+                            pre: ({ children }) => (
+                              <pre className="mb-4 overflow-x-auto rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] p-3 text-xs text-[var(--text-primary)]">
+                                {children}
+                              </pre>
+                            ),
+                            blockquote: ({ children }) => (
+                              <blockquote className="mb-4 border-l-4 border-[var(--border-default)] pl-4 text-sm text-[var(--text-secondary)]">
+                                {children}
+                              </blockquote>
+                            ),
+                          }}
+                        >
+                          {normalizedReadmeContent}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        README.md is present, but the content could not be loaded.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <aside className="xl:pl-2 space-y-6">
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-2xl font-semibold text-[var(--text-primary)]">About</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsAboutModalOpen(true)}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                      aria-label="Edit repository details"
+                    >
+                      <GearIcon size={16} />
+                    </button>
+                  </div>
+                  {isAboutEmpty ? (
+                    <p className="text-sm text-[var(--text-secondary)] italic mb-4">
+                      No description, website, or topics provided.
+                    </p>
+                  ) : (
+                    (repoDescription || "").trim() ? (
+                      <p className="text-sm text-[var(--text-secondary)] leading-6 mb-4">
+                        {repoDescription}
+                      </p>
+                    ) : null
+                  )}
+                  {repoWebsite && (
+                    <div className="mb-4">
+                      <a
+                        href={repoWebsite.startsWith("http") ? repoWebsite : `https://${repoWebsite}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-link)] hover:underline"
+                      >
+                        <LinkIcon size={16} />
+                        {repoWebsite}
+                      </a>
+                    </div>
+                  )}
+                  {repoTopics && repoTopics.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {repoTopics.map((topic) => (
+                        <span
+                          key={topic}
+                          className="inline-flex items-center justify-center rounded-full bg-[var(--surface-info-subtle)] text-[var(--text-link)] px-2.5 h-6 text-xs font-medium hover:bg-[#0969da] hover:text-white cursor-pointer transition-colors leading-none"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+                  {readmeEntry ? <p>Readme</p> : null}
+                  <p className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-2">
+                    <PulseIcon size={14} className="text-[var(--text-muted)]" />
+                    Activity
+                  </p>
+                  <div className="flex flex-col gap-1 text-[var(--text-secondary)]">
+                    <p className="inline-flex items-center gap-2">
+                      <StarIcon size={14} className="text-[var(--text-muted)]" />
+                      {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
+                    </p>
+                    <p className="inline-flex items-center gap-2">
+                      <EyeIcon size={14} className="text-[var(--text-muted)]" />
+                      {watchingCount.toLocaleString()} watching
+                    </p>
+                    <p className="inline-flex items-center gap-2">
+                      <RepoForkedIcon size={14} className="text-[var(--text-muted)]" />
+                      {forkCount.toLocaleString()} {forkCount === 1 ? "fork" : "forks"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+                  <p className="font-semibold text-[var(--text-primary)]">Releases</p>
+                  <p>No releases published</p>
+                </div>
+
+                <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
+                  <p className="font-semibold text-[var(--text-primary)]">Packages</p>
+                  <p>No packages published</p>
+                </div>
+
+                <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)] overflow-hidden">
+                  <p className="font-semibold text-[var(--text-primary)]">Languages</p>
+
+                  {languageBreakdownLoading ? (
+                    <p>Loading language breakdown...</p>
+                  ) : displayedLanguageBreakdown.length > 0 ? (
+                    <>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full border border-[var(--border-muted)] bg-[var(--surface-subtle)] flex">
+                        {displayedLanguageBreakdown.map((item, index) => (
+                          <span
+                            key={`language-bar-${item.language}`}
+                            className="h-full"
+                            style={{
+                              width: `${Math.max(item.percentage, 0.8)}%`,
+                              backgroundColor: languageGraphColor(item.language, index),
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[var(--text-secondary)]">
+                        {displayedLanguageBreakdown.map((item, index) => (
+                          <div key={`language-item-${item.language}`} className="inline-flex items-center gap-1.5">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: languageGraphColor(item.language, index) }}
+                            />
+                            <span className="text-[var(--text-primary)]">{item.language}</span>
+                            <span>{item.percentage.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p>No language data available yet.</p>
+                  )}
+                </div>
+              </aside>
             </div>
-          </aside>
-        </div>
-        </>
+          </>
         )
       ) : (
         <div className="h-full min-h-[560px] border border-[var(--border-default)] rounded-md overflow-hidden bg-[var(--surface-canvas)] flex">
@@ -1528,11 +1539,10 @@ export default function FileExplorer({
                   <button
                     type="button"
                     onClick={() => openRoot()}
-                    className={`w-full text-left px-3 py-1.5 text-sm font-medium ${
-                      currentDirPath === "" && !selectedFilePath
+                    className={`w-full text-left px-3 py-1.5 text-sm font-medium ${currentDirPath === "" && !selectedFilePath
                         ? "bg-[var(--surface-info-subtle)] text-[var(--text-link)]"
                         : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-                    }`}
+                      }`}
                   >
                     / (root)
                   </button>
@@ -1641,7 +1651,7 @@ export default function FileExplorer({
                 </div>
 
                 {dirLoading && currentEntries.length === 0 ? null : (
-                <ul>
+                  <ul>
                     {currentDirPath !== "" && (
                       <li className="border-t border-[var(--border-muted)] first:border-t-0">
                         <button
@@ -1683,7 +1693,7 @@ export default function FileExplorer({
                         </li>
                       );
                     })}
-                </ul>
+                  </ul>
                 )}
               </div>
             )}

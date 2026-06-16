@@ -25,8 +25,8 @@ func NewPostgresRepoStore(db *sql.DB) *PostgresRepoStore {
 
 func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 	query := `
-	INSERT INTO repositories (name, path, created_at, description, visibility, primary_language)
-	VALUES ($1, $2, $3, $4, $5, $6)
+	INSERT INTO repositories (name, path, created_at, description, visibility, primary_language, parent_id)
+	VALUES ($1, $2, $3, $4, $5, $6, $7)
 	RETURNING id`
 
 	description := strings.TrimSpace(repo.Description)
@@ -44,6 +44,7 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 		description,
 		visibility,
 		primaryLanguage,
+		repo.ParentID,
 	).Scan(&repo.ID)
 
 	repo.Description = description
@@ -55,7 +56,7 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 
 func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
 		FROM repositories
 		ORDER BY created_at`
 
@@ -92,7 +93,7 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error) {
 	query := `
-		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language,
+		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
 		       COALESCE(owner_user.username, ''),
 		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
 		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls
@@ -114,10 +115,10 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 	repos := []*domain.Repo{}
 	for rows.Next() {
 		repo := &domain.Repo{}
-		var description, website, visibility, primaryLanguage, owner sql.NullString
+		var description, website, visibility, primaryLanguage, owner, parentID sql.NullString
 		var topicsJSON []byte
 		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
-			&description, &website, &topicsJSON, &visibility, &primaryLanguage, &owner,
+			&description, &website, &topicsJSON, &visibility, &primaryLanguage, &parentID, &owner,
 			&repo.OpenIssuesCount, &repo.OpenPullsCount); err != nil {
 			return nil, err
 		}
@@ -131,6 +132,10 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 			repo.Visibility = domain.RepoVisibilityPublic
 		}
 		repo.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
+		if parentID.Valid {
+			parentIDStr := parentID.String
+			repo.ParentID = &parentIDStr
+		}
 		repo.Owner = strings.TrimSpace(owner.String)
 		repos = append(repos, repo)
 	}
@@ -155,7 +160,7 @@ func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
 
 func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
 		FROM repositories
 		WHERE id = $1`
 
@@ -172,7 +177,7 @@ func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
 		FROM repositories
 		WHERE REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
 		ORDER BY created_at DESC
@@ -191,7 +196,7 @@ func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName st
 
 func (p *PostgresRepoStore) FindPublicByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language, parent_id
 		FROM repositories
 		WHERE visibility = 'PUBLIC'
 			AND REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
@@ -271,6 +276,7 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 	var topicsJSON []byte
 	var visibility sql.NullString
 	var primaryLanguage sql.NullString
+	var parentID sql.NullString
 
 	err := scanner.Scan(
 		&repo.ID,
@@ -282,6 +288,7 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 		&topicsJSON,
 		&visibility,
 		&primaryLanguage,
+		&parentID,
 	)
 	if err != nil {
 		return nil, err
@@ -304,6 +311,10 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 	}
 	if primaryLanguage.Valid {
 		repo.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
+	}
+	if parentID.Valid {
+		parentIDStr := parentID.String
+		repo.ParentID = &parentIDStr
 	}
 
 	return repo, nil

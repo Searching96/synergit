@@ -37,4 +37,5 @@ type RepoResponse struct {
 	CloneURL        string    `json:"clone_url"`
 	OpenIssuesCount int       `json:"open_issues_count"`
 	OpenPullsCount  int       `json:"open_pulls_count"`
+	ParentID        *string   `json:"parent_id,omitempty"`
 }

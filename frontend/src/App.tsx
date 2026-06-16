@@ -3,11 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { useRepository } from "./contexts/RepositoryContext";
 import type { CreateRepositoryPayload, Repository } from "./types/index";
-import { checkBackendAvailability } from "./services/api";
+import type { ForkRepositoryPayload } from "./services/api/repos";
+import { checkBackendAvailability, reposApi } from "./services/api";
+import { RepoForkedIcon } from "@primer/octicons-react";
 import { PageReadyProvider } from "./contexts/PageReadyContext";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./pages/ProfilePage";
 import CreateRepositoryPage from "./pages/CreateRepositoryPage";
+import CreateForkPage from "./pages/CreateForkPage";
 import TopHeader from "./layouts/TopHeader";
 import SidebarMenu from "./layouts/SidebarMenu";
 import Footer from "./components/shared/Footer";
@@ -89,6 +92,7 @@ function App() {
     handleRepoUpdated,
     handleRepoDeleted,
     handleCreateRepository: contextHandleCreateRepository,
+    handleForkRepository: contextHandleForkRepository,
     clearState
   } = useRepository();
 
@@ -101,11 +105,14 @@ function App() {
   const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(initialRoute.viewMode);
   const [createRepoSubmitting, setCreateRepoSubmitting] = useState<boolean>(false);
   const [createRepoError, setCreateRepoError] = useState<string | null>(null);
+  const [createForkSubmitting, setCreateForkSubmitting] = useState<boolean>(false);
+  const [createForkError, setCreateForkError] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTabKey>('overview');
   const [activeGlobalPage, setActiveGlobalPage] = useState<GlobalPageKey | null>(initialRoute.globalPage);
   const [routeContentKind, setRouteContentKind] = useState<RepoContentKind>(initialRoute.contentKind);
   const [routeContentPath, setRouteContentPath] = useState<string>(initialRoute.contentPath);
   const [routeBranch, setRouteBranch] = useState<string>(initialRoute.branch);
+  const [parentRepo, setParentRepo] = useState<Repository | null>(null);
 
   const profileFetchPending = profileRepoCountPending || profileRepositoriesPending;
 
@@ -306,7 +313,7 @@ function App() {
   }, [selectedRepoId, isAuthenticated, refreshBranches]);
 
   const selectedRepoVisibility = formatVisibilityLabel(selectedRepo?.visibility);
-  const selectedRepoOwner = (selectedRepo?.owner || currentUsername).trim();
+  const selectedRepoOwner = selectedRepo ? getRepoOwner(selectedRepo) : currentUsername;
   const isFullBrowserMode =
     !!selectedRepo &&
     ((activeTab === 'files' &&
@@ -436,7 +443,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork') {
       return;
     }
 
@@ -516,6 +523,8 @@ function App() {
     navigateToPath(`/${encodeURIComponent(currentUsername)}`, { replace: true });
     setCreateRepoError(null);
     setCreateRepoSubmitting(false);
+    setCreateForkError(null);
+    setCreateForkSubmitting(false);
   };
 
   const handleOpenCreateRepository = () => {
@@ -546,6 +555,33 @@ function App() {
       setCreateRepoError(message);
     } finally {
       setCreateRepoSubmitting(false);
+    }
+  };
+
+  const handleCancelCreateFork = () => {
+    setCreateForkError(null);
+
+    if (selectedRepo) {
+      navigateToRepoTab(selectedRepo, 'files');
+      return;
+    }
+
+    navigateToProfileTab('overview');
+  };
+
+  const handleCreateFork = async (payload: ForkRepositoryPayload) => {
+    if (!selectedRepo) return;
+    try {
+      setCreateForkSubmitting(true);
+      setCreateForkError(null);
+
+      const forkedRepo = await contextHandleForkRepository(selectedRepo.id, payload);
+      navigateToRepoTab(forkedRepo, 'files');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create fork';
+      setCreateForkError(message);
+    } finally {
+      setCreateForkSubmitting(false);
     }
   };
 
@@ -599,6 +635,21 @@ function App() {
       );
     }
 
+    if (activeTab === 'files' && routeContentKind === 'fork' && selectedRepo) {
+      return (
+        <>
+          <CreateForkPage
+            ownerName={currentUsername}
+            sourceRepo={selectedRepo}
+            submitting={createForkSubmitting}
+            error={createForkError}
+            onCancel={handleCancelCreateFork}
+            onCreateFork={handleCreateFork}
+          />
+        </>
+      );
+    }
+
     if (viewMode === 'global') {
       if (activeGlobalPage === 'search') {
         return (
@@ -629,21 +680,35 @@ function App() {
         <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
           <TopHeader
             leftContent={selectedRepo ? (
-              <div className="min-w-0 flex items-center gap-1 text-sm">
-                <RouteButton
-                  onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
-                  className="max-w-[180px] truncate"
-                >
-                  {selectedRepoOwner}
-                </RouteButton>
-                <span className="text-[var(--text-muted)]">/</span>
-                <RouteButton
-                  selected
-                  onClick={() => navigateToRepoTab(selectedRepo, 'files')}
-                  className="truncate"
-                >
-                  {selectedRepo.name}
-                </RouteButton>
+              <div className="flex flex-col min-w-0">
+                <div className="min-w-0 flex items-center gap-1 text-sm font-semibold">
+                  <RouteButton
+                    onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
+                    className="max-w-[180px] truncate"
+                  >
+                    {selectedRepoOwner}
+                  </RouteButton>
+                  <span className="text-[var(--text-muted)] font-normal">/</span>
+                  <RouteButton
+                    selected
+                    onClick={() => navigateToRepoTab(selectedRepo, 'files')}
+                    className="truncate"
+                  >
+                    {selectedRepo.name}
+                  </RouteButton>
+                </div>
+                {parentRepo && (
+                  <div className="text-xs text-[var(--text-muted)] flex items-center gap-1 -mt-0.5">
+                    <RepoForkedIcon size={12} />
+                    <span>forked from</span>
+                    <button 
+                      className="hover:text-[var(--text-accent)] hover:underline"
+                      onClick={() => navigateToPath(`/${getRepoOwner(parentRepo)}/${parentRepo.name}`)}
+                    >
+                      {getRepoOwner(parentRepo)}/{parentRepo.name}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
             onMenuClick={() => setIsSidebarMenuOpen(true)}
@@ -740,6 +805,10 @@ function App() {
               }
 
               navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
+            }}
+            onOpenFork={() => {
+              if (!selectedRepo) return;
+              navigateToPath(`${buildRepoBasePath(getRepoOwner(selectedRepo), selectedRepo.name)}/fork`);
             }}
             onOpenRepoCompare={(baseRef, headRef) => {
               if (!selectedRepo) {

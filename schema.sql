@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS repositories (
     topics JSONB NOT NULL DEFAULT '[]'::jsonb,
     visibility VARCHAR(16) NOT NULL DEFAULT 'PUBLIC'
         CHECK (visibility IN ('PUBLIC', 'PRIVATE')),
-    primary_language VARCHAR(64) NOT NULL DEFAULT ''
+    primary_language VARCHAR(64) NOT NULL DEFAULT '',
+    parent_id UUID REFERENCES repositories(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_repositories_created_at

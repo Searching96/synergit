@@ -12,6 +12,7 @@ type GitManager interface {
 	RenameUserStorage(oldUsername, newUsername string) error
 	BootstrapRepository(repoPath string, branch string, authorName string, authorEmail string,
 		files map[string]string, commitMessage string) error
+	CloneBareRepo(sourcePath string, targetPath string, branch string) (string, error)
 
 	// Methods for smart http
 	AdvertiseRefs(repoPath string, service string) ([]byte, error)

@@ -17,13 +17,28 @@ import type {
   CommitStats,
 } from '../../types';
 
+export interface ForkRepositoryPayload {
+  name: string;
+  description?: string;
+  default_branch_only?: boolean;
+}
+
 export const reposApi = {
   getRepos: () => fetcher<Repository[]>('/repos'),
+
+  getRepoById: (repoId: string) => fetcher<Repository>(`/repos/${repoId}`),
 
   getRepoCount: () => fetcher<{ count: number }>('/repos/count'),
 
   createRepo: (payload: CreateRepositoryPayload) =>
     fetcher<Repository>('/repos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
+  forkRepository: (repoId: string, payload: ForkRepositoryPayload) =>
+    fetcher<Repository>(`/repos/${repoId}/forks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

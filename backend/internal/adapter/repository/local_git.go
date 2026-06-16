@@ -145,6 +145,32 @@ func (g *LocalGitAdapter) InitBareRepo(repoSlug string) (string, error) {
 	return fullPath, nil
 }
 
+func (g *LocalGitAdapter) CloneBareRepo(sourcePath string, targetPath string, branch string) (string, error) {
+	fullSourcePath := g.resolveRepoPath(sourcePath)
+	fullTargetPath := g.resolveRepoPath(targetPath)
+
+	if _, err := os.Stat(fullTargetPath); !os.IsNotExist(err) {
+		return "", fmt.Errorf("repository %s already exists", targetPath)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(fullTargetPath), 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	args := []string{"clone", "--bare"}
+	if branch != "" {
+		args = append(args, "--branch", branch, "--single-branch")
+	}
+	args = append(args, fullSourcePath, fullTargetPath)
+
+	cmd := exec.Command("git", args...)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("git clone bare failed: %s: %w", string(output), err)
+	}
+
+	return fullTargetPath, nil
+}
+
 func (g *LocalGitAdapter) DeleteRepository(repoPath string) error {
 	fullPath := g.resolveRepoPath(repoPath)
 	absRepoPath, err := filepath.Abs(fullPath)

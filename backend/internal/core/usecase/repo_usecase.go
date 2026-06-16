@@ -107,6 +107,78 @@ func (s *RepoService) CreateRepositoryWithOptions(name string, ownerID uuid.UUID
 	return repo, nil
 }
 
+func (s *RepoService) ForkRepository(ownerID uuid.UUID, upstreamRepoID uuid.UUID, forkName string, description string, defaultBranchOnly bool) (*domain.Repo, error) {
+	if err := domain.ValidateRepoName(forkName); err != nil {
+		return nil, err
+	}
+
+	upstreamRepo, err := s.repoStore.FindByID(upstreamRepoID)
+	if err != nil {
+		return nil, err
+	}
+	if upstreamRepo == nil {
+		return nil, errors.New("upstream repository not found")
+	}
+
+	owner, err := s.userStore.GetUserByID(ownerID)
+	if err != nil || owner == nil {
+		return nil, errors.New("owner user not found")
+	}
+
+	if upstreamRepo.Owner == owner.Username {
+		return nil, errors.New("cannot fork your own repository")
+	}
+
+	existingRepo, err := s.repoStore.FindByOwnerAndName(owner.Username, forkName)
+	if err != nil {
+		return nil, err
+	}
+	if existingRepo != nil {
+		return nil, errors.New("a repository with this name already exists in your account")
+	}
+
+	repoSlug := owner.Username + "/" + forkName
+
+	var branchToClone string
+	if defaultBranchOnly {
+		branchToClone = "master" // Default to master since we don't have a default branch column yet
+	}
+
+	fullPath, err := s.gitManager.CloneBareRepo(upstreamRepo.Path, repoSlug, branchToClone)
+	if err != nil {
+		return nil, err
+	}
+
+	repo := &domain.Repo{
+		Name:        forkName,
+		Path:        fullPath,
+		CreatedAt:   time.Now(),
+		Description: description,
+		Visibility:  upstreamRepo.Visibility,
+		ParentID:    &upstreamRepo.ID,
+	}
+
+	err = s.repoStore.Save(repo)
+	if err != nil {
+		_ = s.gitManager.DeleteRepository(repoSlug)
+		return nil, err
+	}
+
+	repoUUID, err := uuid.Parse(repo.ID)
+	if err != nil {
+		return nil, errors.New("failed to parse created repository id")
+	}
+
+	err = s.collabStore.AddCollaborator(repoUUID, ownerID, domain.CollaboratorRoleOwner)
+	if err != nil {
+		return nil, err
+	}
+
+	s.enqueueInsights(repoUUID, "repo_forked")
+
+	return repo, nil
+}
+
 func (s *RepoService) resolveRepoPath(repoID uuid.UUID) (string, error) {
 	repo, err := s.repoStore.FindByID(repoID)
 	if err != nil {
@@ -243,6 +315,14 @@ func (s *RepoService) GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo,
 	}
 
 	return repos, nil
+}
+
+func (s *RepoService) GetRepositoryByID(repoID uuid.UUID) (*domain.Repo, error) {
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	return repo, nil
 }
 
 func (s *RepoService) CountOwnedRepositories(requesterID uuid.UUID) (int, error) {

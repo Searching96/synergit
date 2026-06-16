@@ -10,6 +10,12 @@ type CreateRepoRequest struct {
 	LicenseTemplate   string `json:"license_template"`
 }
 
+type ForkRepoRequest struct {
+	Name              string `json:"name"`
+	Description       string `json:"description"`
+	DefaultBranchOnly bool   `json:"default_branch_only"`
+}
+
 // UpdateRepoDetailsRequest defines payload for updating repo details.
 type UpdateRepoDetailsRequest struct {
 	Description string   `json:"description"`

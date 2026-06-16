@@ -40,7 +40,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -614,6 +614,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: `${base}/branches`,
+      };
+    }
+
+    if (third === "fork") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "files",
+        contentKind: "fork",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `${base}/fork`,
       };
     }
 

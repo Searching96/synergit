@@ -120,6 +120,12 @@ func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string)
 		visibility = domain.RepoVisibilityPublic
 	}
 
+	var parentID *string
+	if repo.ParentID != nil {
+		idStr := *repo.ParentID
+		parentID = &idStr
+	}
+
 	return dto.RepoResponse{
 		ID:              repo.ID,
 		Name:            repo.Name,
@@ -134,6 +140,7 @@ func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string)
 		CloneURL:        buildCloneURL(baseURL, owner, repo.Name),
 		OpenIssuesCount: repo.OpenIssuesCount,
 		OpenPullsCount:  repo.OpenPullsCount,
+		ParentID:        parentID,
 	}
 }
 
@@ -165,6 +172,32 @@ func (h *RepoHandler) HandleCreateRepo(c *gin.Context) {
 	}
 
 	// Gin handles writing the JSON response and headers
+	c.JSON(http.StatusCreated, toRepoResponse(c, repo, h.publicBaseURL))
+}
+
+func (h *RepoHandler) HandleForkRepo(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.ForkRepoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	repo, err := h.repoUseCase.ForkRepository(requesterID, repoID, req.Name, req.Description, req.DefaultBranchOnly)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
 	c.JSON(http.StatusCreated, toRepoResponse(c, repo, h.publicBaseURL))
 }
 
@@ -320,6 +353,26 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, responses)
+}
+
+func (h *RepoHandler) HandleGetRepo(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	repo, err := h.repoUseCase.GetRepositoryByID(repoID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	if repo == nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{Error: "Repository not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toRepoResponse(c, repo, h.publicBaseURL))
 }
 
 func (h *RepoHandler) HandleGetOwnedRepoCount(c *gin.Context) {

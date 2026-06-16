@@ -16,6 +16,7 @@ export interface Repository {
 	updated_at?: string;
 	open_issues_count?: number;
 	open_pulls_count?: number;
+	parent_id?: string;
 }
 
 export type RepositoryVisibility = 'PUBLIC' | 'PRIVATE';
