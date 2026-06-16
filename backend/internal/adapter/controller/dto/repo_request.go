@@ -10,6 +10,13 @@ type CreateRepoRequest struct {
 	LicenseTemplate   string `json:"license_template"`
 }
 
+// UpdateRepoDetailsRequest defines payload for updating repo details.
+type UpdateRepoDetailsRequest struct {
+	Description string   `json:"description"`
+	Website     string   `json:"website"`
+	Topics      []string `json:"topics"`
+}
+
 // CreateBranchRequest defines payload for creating a branch.
 type CreateBranchRequest struct {
 	Name       string `json:"name"`

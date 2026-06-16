@@ -26,6 +26,8 @@ type RepoUseCase interface {
 		visibility domain.RepoVisibility) (*domain.Repo, error)
 	RenameRepository(repoID uuid.UUID, requesterID uuid.UUID,
 		newName string) (*domain.Repo, error)
+	UpdateRepositoryDetails(repoID uuid.UUID, requesterID uuid.UUID,
+		description string, website string, topics []string) (*domain.Repo, error)
 	DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) error
 	GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error)
 	GetRepoBlob(repoID uuid.UUID, path string, branch string) (string, error)

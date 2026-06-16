@@ -126,6 +126,8 @@ func toRepoResponse(c *gin.Context, repo *domain.Repo, configuredBaseURL string)
 		Path:            repo.Path,
 		CreatedAt:       repo.CreatedAt,
 		Description:     strings.TrimSpace(repo.Description),
+		Website:         strings.TrimSpace(repo.Website),
+		Topics:          repo.Topics,
 		Visibility:      string(visibility),
 		PrimaryLanguage: strings.TrimSpace(repo.PrimaryLanguage),
 		Owner:           owner,
@@ -378,6 +380,31 @@ func (h *RepoHandler) HandleRenameRepo(c *gin.Context) {
 	}
 
 	repo, err := h.repoUseCase.RenameRepository(repoID, requesterID, req.Name)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toRepoResponse(c, repo, h.publicBaseURL))
+}
+
+func (h *RepoHandler) HandleUpdateRepoDetails(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateRepoDetailsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Invalid request payload: " + err.Error()})
+		return
+	}
+
+	repo, err := h.repoUseCase.UpdateRepositoryDetails(repoID, requesterID, req.Description, req.Website, req.Topics)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return

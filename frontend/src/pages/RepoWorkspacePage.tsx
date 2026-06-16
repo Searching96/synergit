@@ -246,6 +246,8 @@ export default function RepoWorkspaceContent({
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 repoDescription={selectedRepo.description}
+                repoWebsite={selectedRepo.website}
+                repoTopics={selectedRepo.topics}
                 repoOwner={selectedRepo.owner || currentUsername}
                 repoVisibility={selectedRepo.visibility}
                 repoStars={selectedRepo.stars}

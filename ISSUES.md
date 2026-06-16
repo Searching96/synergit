@@ -24,4 +24,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#017](./issues/017-commit-history-pagination.md) | Open | High | Fullstack | Implement Pagination for Commit History Page | `performance`, `ui`, `api` | [#016](./issues/016-inefficient-commit-fetching.md) |
 | [#018](./issues/018-commit-change-link.md) | Closed | Low | Frontend | Implement CommitChangeLink Component | `feature`, `ui`, `refactor` | |
 | [#019](./issues/019-reusable-tooltip.md) | Closed | Low | Frontend | Create Reusable Tooltip Component | `feature`, `ui` | |
-
+| [#020](./issues/020-repo-about-feature.md) | Closed | Medium | Frontend | Implement Repo About Feature | `feature`, `ui` | |

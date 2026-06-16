@@ -36,6 +36,13 @@ export const reposApi = {
       body: JSON.stringify({ visibility }),
     }),
 
+  updateDetails: (repoId: string, payload: { description?: string; website?: string; topics?: string[] }) =>
+    fetcher<Repository>(`/repos/${repoId}/details`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
   renameRepo: (repoId: string, name: string) =>
     fetcher<Repository>(`/repos/${repoId}/name`, {
       method: 'PATCH',

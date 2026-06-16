@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS repositories (
     path VARCHAR(1024) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     description TEXT NOT NULL DEFAULT '',
+    website VARCHAR(255) NOT NULL DEFAULT '',
+    topics JSONB NOT NULL DEFAULT '[]'::jsonb,
     visibility VARCHAR(16) NOT NULL DEFAULT 'PUBLIC'
         CHECK (visibility IN ('PUBLIC', 'PRIVATE')),
     primary_language VARCHAR(64) NOT NULL DEFAULT ''

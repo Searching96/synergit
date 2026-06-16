@@ -230,10 +230,6 @@ func (s *RepoService) GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo,
 			continue
 		}
 
-		if strings.TrimSpace(repo.Description) == "" {
-			repo.Description = inferDescriptionFromReadme(s.gitManager, repo.Path)
-		}
-
 		if strings.TrimSpace(repo.PrimaryLanguage) != "" {
 			continue
 		}
@@ -291,6 +287,33 @@ func (s *RepoService) UpdateRepositoryVisibility(repoID uuid.UUID, requesterID u
 	}
 
 	repo.Visibility = visibility
+	return repo, nil
+}
+
+func (s *RepoService) UpdateRepositoryDetails(repoID uuid.UUID, requesterID uuid.UUID,
+	description string, website string, topics []string) (*domain.Repo, error) {
+
+	// For editing repo details, we require owner permissions
+	// (or maintainer if that role existed, but currently we only have requireOwner check here)
+	if err := s.requireOwner(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	if err := s.repoStore.UpdateDetails(repoID, description, website, topics); err != nil {
+		return nil, err
+	}
+
+	repo.Description = description
+	repo.Website = website
+	repo.Topics = topics
 	return repo, nil
 }
 
@@ -353,33 +376,6 @@ func (s *RepoService) DeleteRepository(repoID uuid.UUID, requesterID uuid.UUID) 
 	return s.gitManager.DeleteRepository(repo.Path)
 }
 
-func inferDescriptionFromReadme(gitManager output.GitManager, repoPath string) string {
-	content, err := gitManager.GetBlob(repoPath, "README.md", "")
-	if err != nil {
-		content, err = gitManager.GetBlob(repoPath, "readme.md", "")
-		if err != nil {
-			return ""
-		}
-	}
-
-	for _, line := range strings.Split(content, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "[!") {
-			continue
-		}
-
-		if len(trimmed) > 180 {
-			return strings.TrimSpace(trimmed[:180]) + "..."
-		}
-
-		return trimmed
-	}
-
-	return ""
-}
 
 func (s *RepoService) GetRepoTree(repoID uuid.UUID, path string, branch string) ([]domain.RepoFile, error) {
 	repoPath, err := s.resolveRepoPath(repoID)

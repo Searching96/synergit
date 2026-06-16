@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
@@ -54,7 +55,7 @@ func (p *PostgresRepoStore) Save(repo *domain.Repo) error {
 
 func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
 		FROM repositories
 		ORDER BY created_at`
 
@@ -91,7 +92,7 @@ func (p *PostgresRepoStore) FindAll() ([]*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error) {
 	query := `
-		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.visibility, r.primary_language,
+		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language,
 		       COALESCE(owner_user.username, ''),
 		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
 		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls
@@ -113,13 +114,18 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 	repos := []*domain.Repo{}
 	for rows.Next() {
 		repo := &domain.Repo{}
-		var description, visibility, primaryLanguage, owner sql.NullString
+		var description, website, visibility, primaryLanguage, owner sql.NullString
+		var topicsJSON []byte
 		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
-			&description, &visibility, &primaryLanguage, &owner,
+			&description, &website, &topicsJSON, &visibility, &primaryLanguage, &owner,
 			&repo.OpenIssuesCount, &repo.OpenPullsCount); err != nil {
 			return nil, err
 		}
 		repo.Description = strings.TrimSpace(description.String)
+		repo.Website = strings.TrimSpace(website.String)
+		if len(topicsJSON) > 0 {
+			_ = json.Unmarshal(topicsJSON, &repo.Topics)
+		}
 		repo.Visibility = domain.RepoVisibility(strings.TrimSpace(visibility.String))
 		if repo.Visibility == "" {
 			repo.Visibility = domain.RepoVisibilityPublic
@@ -149,7 +155,7 @@ func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
 
 func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
 		FROM repositories
 		WHERE id = $1`
 
@@ -166,7 +172,7 @@ func (p *PostgresRepoStore) FindByID(id uuid.UUID) (*domain.Repo, error) {
 
 func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
 		FROM repositories
 		WHERE REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
 		ORDER BY created_at DESC
@@ -185,7 +191,7 @@ func (p *PostgresRepoStore) FindByOwnerAndName(ownerUsername string, repoName st
 
 func (p *PostgresRepoStore) FindPublicByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error) {
 	query := `
-		SELECT id, name, path, created_at, description, visibility, primary_language
+		SELECT id, name, path, created_at, description, website, topics, visibility, primary_language
 		FROM repositories
 		WHERE visibility = 'PUBLIC'
 			AND REPLACE(path, CHR(92), '/') LIKE '%' || $1 || '/' || $2 || '.git'
@@ -223,6 +229,21 @@ func (p *PostgresRepoStore) UpdateVisibility(id uuid.UUID, visibility domain.Rep
 	return err
 }
 
+func (p *PostgresRepoStore) UpdateDetails(id uuid.UUID, description string, website string, topics []string) error {
+	topicsJSON, _ := json.Marshal(topics)
+	if string(topicsJSON) == "null" {
+		topicsJSON = []byte("[]")
+	}
+	_, err := p.db.Exec(
+		`UPDATE repositories SET description = $2, website = $3, topics = $4 WHERE id = $1`,
+		id,
+		description,
+		website,
+		topicsJSON,
+	)
+	return err
+}
+
 func (p *PostgresRepoStore) RenameByID(id uuid.UUID, name string, path string) error {
 	_, err := p.db.Exec(
 		`UPDATE repositories SET name = $2, path = $3 WHERE id = $1`,
@@ -246,6 +267,8 @@ type rowScanner interface {
 func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 	repo := &domain.Repo{}
 	var description sql.NullString
+	var website sql.NullString
+	var topicsJSON []byte
 	var visibility sql.NullString
 	var primaryLanguage sql.NullString
 
@@ -255,6 +278,8 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 		&repo.Path,
 		&repo.CreatedAt,
 		&description,
+		&website,
+		&topicsJSON,
 		&visibility,
 		&primaryLanguage,
 	)
@@ -264,6 +289,12 @@ func scanRepo(scanner rowScanner) (*domain.Repo, error) {
 
 	if description.Valid {
 		repo.Description = strings.TrimSpace(description.String)
+	}
+	if website.Valid {
+		repo.Website = strings.TrimSpace(website.String)
+	}
+	if len(topicsJSON) > 0 {
+		_ = json.Unmarshal(topicsJSON, &repo.Topics)
 	}
 	if visibility.Valid {
 		repo.Visibility = domain.RepoVisibility(strings.TrimSpace(visibility.String))

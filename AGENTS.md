@@ -4,10 +4,10 @@
 > - When working on the backend, you MUST read [`backend/AGENTS.md`](./backend/AGENTS.md) before writing code.
 > - When working on the frontend, you MUST read [`frontend/AGENTS.md`](./frontend/AGENTS.md) before writing code.
 
-> This is the single source of truth for the Synergit project.
-> It is updated at the end of every AI-assisted prompt where a file is created, edited, or deleted.
-> All coding agents working on this codebase must read this document before starting work and
-> update the relevant sections plus the Changelog after completing work.
+> This is the single source of truth for overarching architectural and structural conventions of the Synergit project.
+> All coding agents working on this codebase must read this document before starting work.
+> DO NOT log issue-level features or routine file edits in the Changelog here. For task-level tracking and issue-level changes, agents MUST use and update the issue tracking system in `ISSUES.md` and the `issues/` directory.
+> Only update `AGENTS.md` and its Changelog for overarching systemic changes (e.g., new infrastructure, major architectural shifts, or global convention updates).
 > To trigger a full re-sync from the codebase, say: "re-sync AGENTS.md".
 
 ---
@@ -330,5 +330,5 @@ All tasks, bugs, and technical debt are tracked using a local Markdown-based Iss
 | 2026-06-11 | Antigravity | Updated Development section to prioritize completing the core monolith and VPS deployment over microservices migration |
 | 2026-06-11 | Antigravity | Created BACKEND.md to document strict Robert C. Martin Clean Architecture guidelines, violations, and fix plans |
 | 2026-06-11 | Antigravity | Created FRONTEND.md to document frontend analysis, React best practices, and refactoring plans |
-| 2026-06-11 | Antigravity | Created backend/ISSUES.md to explicitly list Clean Architecture violations and track refactoring progress |
+| 2026-06-11 | Antigravity | Created an ISSUES.md file in both the frontend and backend directories to explicitly track our refactoring progress |
 | 2026-06-13 | Antigravity | Renamed DOCUMENT.md to AGENTS.md, implemented global markdown-based Issue Tracking System, and updated Makefile |

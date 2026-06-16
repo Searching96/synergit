@@ -4,6 +4,8 @@ export interface Repository {
 	path: string;
 	created_at: string;
 	description?: string;
+	website?: string;
+	topics?: string[];
 	visibility?: RepositoryVisibility | string;
 	owner?: string;
 	clone_url?: string;

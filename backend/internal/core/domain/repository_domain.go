@@ -13,6 +13,8 @@ type Repo struct {
 	Path            string         `json:"path"`
 	CreatedAt       time.Time      `json:"created_at"`
 	Description     string         `json:"description,omitempty"`
+	Website         string         `json:"website,omitempty"`
+	Topics          []string       `json:"topics,omitempty"`
 	Visibility      RepoVisibility `json:"visibility"`
 	PrimaryLanguage string         `json:"primary_language,omitempty"`
 	Owner           string         `json:"owner,omitempty"`

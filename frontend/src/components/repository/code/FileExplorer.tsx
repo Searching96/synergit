@@ -19,7 +19,9 @@ import {
   EyeIcon,
   FileDirectoryFillIcon,
   FileIcon,
+  GearIcon,
   HistoryIcon,
+  LinkIcon,
   PulseIcon,
   RepoForkedIcon,
   StarIcon,
@@ -38,6 +40,7 @@ import { useSetPageReady } from "../../../contexts/PageReadyContext";
 import { CommitModal } from "./CommitModal";
 import { CommitChangeLink } from "../../shared/CommitChangeLink";
 import { shortenHash } from "../../../utils/stringUtils";
+import { RepoAboutModal } from "../RepoAboutModal";
 
 type ExplorerLocation = {
   type: "root" | "file" | "dir";
@@ -48,6 +51,8 @@ interface FileExplorerProps {
   repoId: string;
   repoName: string;
   repoDescription?: string;
+  repoWebsite?: string;
+  repoTopics?: string[];
   repoOwner?: string;
   repoVisibility?: string;
   repoStars?: number;
@@ -135,42 +140,6 @@ function formatRelativeCommitTime(dateValue: string): string {
   return `${elapsedYears} year${elapsedYears === 1 ? "" : "s"} ago`;
 }
 
-function extractAboutTextFromReadme(readme: string | null): string | null {
-  if (!readme) {
-    return null;
-  }
-
-  const lines = readme.split(/\r?\n/);
-  const chunks: string[] = [];
-  let collecting = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (!collecting) {
-      if (!trimmed || trimmed.startsWith("#")) {
-        continue;
-      }
-
-      collecting = true;
-      chunks.push(trimmed);
-      continue;
-    }
-
-    if (!trimmed || trimmed.startsWith("#")) {
-      break;
-    }
-
-    chunks.push(trimmed);
-  }
-
-  if (chunks.length === 0) {
-    return null;
-  }
-
-  return chunks.join(" ");
-}
-
 function normalizeReadmeMarkdown(readme: string | null, repoName: string): string | null {
   if (!readme) {
     return null;
@@ -237,6 +206,8 @@ export default function FileExplorer({
   repoId,
   repoName,
   repoDescription,
+  repoWebsite,
+  repoTopics,
   repoOwner,
   repoVisibility,
   repoStars,
@@ -282,6 +253,19 @@ export default function FileExplorer({
   const [isEditingReadme, setIsEditingReadme] = useState<boolean>(false);
   const [readmeDraft, setReadmeDraft] = useState<string>("");
   const [isCommittingReadme, setIsCommittingReadme] = useState<boolean>(false);
+
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+
+  const handleSaveAbout = async (payload: { description?: string; website?: string; topics?: string[] }) => {
+    try {
+      await reposApi.updateDetails(repoId, payload);
+      setIsAboutModalOpen(false);
+      window.location.reload();
+    } catch (err) {
+      console.error("Failed to update repo details", err);
+    }
+  };
+
   const [commitTarget, setCommitTarget] = useState<"file" | "readme" | null>(null);
   const [readmeEditError, setReadmeEditError] = useState<string | null>(null);
   const [languageBreakdown, setLanguageBreakdown] = useState<LanguageBreakdownStat[]>([]);
@@ -522,12 +506,7 @@ export default function FileExplorer({
     [readmeContent, repoName],
   );
 
-  const fallbackAboutText = "No description, website, or topics provided.";
-  const derivedReadmeAboutText = useMemo(
-    () => extractAboutTextFromReadme(normalizedReadmeContent),
-    [normalizedReadmeContent],
-  );
-  const aboutText = (repoDescription || "").trim() || derivedReadmeAboutText || fallbackAboutText;
+  const isAboutEmpty = !(repoDescription || "").trim() && !(repoWebsite || "").trim() && !(repoTopics && repoTopics.length > 0);
   const displayedLanguageBreakdown = useMemo(
     () => languageBreakdown.slice(0, 6),
     [languageBreakdown],
@@ -1409,10 +1388,53 @@ export default function FileExplorer({
 
           <aside className="xl:pl-2 space-y-6">
             <div>
-              <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4">About</h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-6">
-                {aboutText}
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-2xl font-semibold text-[var(--text-primary)]">About</h3>
+                <button
+                  type="button"
+                  onClick={() => setIsAboutModalOpen(true)}
+                  className="h-8 w-8 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                  aria-label="Edit repository details"
+                >
+                  <GearIcon size={16} />
+                </button>
+              </div>
+              {isAboutEmpty ? (
+                <p className="text-sm text-[var(--text-secondary)] italic mb-4">
+                  No description, website, or topics provided.
+                </p>
+              ) : (
+                (repoDescription || "").trim() ? (
+                  <p className="text-sm text-[var(--text-secondary)] leading-6 mb-4">
+                    {repoDescription}
+                  </p>
+                ) : null
+              )}
+              {repoWebsite && (
+                <div className="mb-4">
+                  <a
+                    href={repoWebsite.startsWith("http") ? repoWebsite : `https://${repoWebsite}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-link)] hover:underline"
+                  >
+                    <LinkIcon size={16} />
+                    {repoWebsite}
+                  </a>
+                </div>
+              )}
+              {repoTopics && repoTopics.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {repoTopics.map((topic) => (
+                    <span
+                      key={topic}
+                      className="inline-flex items-center justify-center rounded-full bg-[var(--surface-info-subtle)] text-[var(--text-link)] px-2.5 h-6 text-xs font-medium hover:bg-[#0969da] hover:text-white cursor-pointer transition-colors leading-none"
+                    >
+                      {topic}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="border-t border-[var(--border-muted)] pt-4 space-y-2 text-sm text-[var(--text-secondary)]">
@@ -1682,6 +1704,23 @@ export default function FileExplorer({
         currentBranch={branch}
         error={commitTarget === "file" ? commitError : readmeEditError}
       />
+
+      {isAboutModalOpen && (
+        <RepoAboutModal
+          repo={{
+            id: repoId,
+            name: repoName,
+            path: "",
+            created_at: "",
+            description: repoDescription,
+            website: repoWebsite,
+            topics: repoTopics,
+            visibility: repoVisibility,
+          }}
+          onClose={() => setIsAboutModalOpen(false)}
+          onSave={handleSaveAbout}
+        />
+      )}
     </div>
   );
 }
