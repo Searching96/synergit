@@ -133,10 +133,12 @@ export default function IssueDetailPage({
     [repoId],
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isSilent?: boolean) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!isSilent) {
+        setLoading(true);
+        setError(null);
+      }
       const [list, collabs] = await Promise.all([
         issuesApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
@@ -144,9 +146,14 @@ export default function IssueDetailPage({
       setCollaborators(collabs || []);
       const sorted = [...(list || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       const resolved = sorted[Number(issueNumber) - 1] || null;
-      setIssue(resolved);
+      if (!isSilent) {
+        setIssue(resolved);
+      }
       if (resolved) {
         await loadDetails(resolved);
+        if (isSilent) setIssue(resolved);
+      } else if (isSilent) {
+        setIssue(null);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load issue");
@@ -172,8 +179,8 @@ export default function IssueDetailPage({
       const payload = status === "CLOSED" ? { status, close_reason: reason } : { status };
       await issuesApi.updateStatus(repoId, issue.id, payload);
       const next = { ...issue, status, close_reason: status === "CLOSED" ? reason ?? "COMPLETED" : null } as Issue;
-      setIssue(next);
       await loadDetails(next);
+      setIssue(next);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update issue");
     } finally {

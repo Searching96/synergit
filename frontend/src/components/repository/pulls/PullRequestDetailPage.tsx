@@ -23,7 +23,7 @@ import { shortenHash } from "../../../utils/stringUtils";
 import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
-import { OcticonRepoPush, OcticonGitCommit } from "../../icons/Octicons";
+import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady } from "../../icons/Octicons";
 import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
 import MergeOperationPanel from "./MergeOperationPanel";
 
@@ -68,12 +68,12 @@ function fullTime(timestamp: string): string {
 
 function statusCopy(status: PullRequest["status"]) {
   if (status === "MERGED") {
-    return { label: "Merged", color: "#8250df", icon: <GitMergeReadyOcticon size={15} /> };
+    return { label: "Merged", color: "#8250df", icon: <OcticonGitMergeReady size={15} /> };
   }
   if (status === "CLOSED") {
-    return { label: "Closed", color: "#cf222e", icon: <GitPullRequestClosedOcticon size={15} /> };
+    return { label: "Closed", color: "#cf222e", icon: <OcticonGitPullRequestClosed size={15} /> };
   }
-  return { label: "Open", color: "#1a7f37", icon: <GitPullRequestOcticon size={15} /> };
+  return { label: "Open", color: "#1a7f37", icon: <OcticonGitPullRequest size={15} /> };
 }
 
 function formatCommitDate(timestamp: string): string {
@@ -95,62 +95,6 @@ function pullEventText(type: string): string {
   }
 }
 
-function GitPullRequestClosedOcticon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      data-component="Octicon"
-      height={size}
-      viewBox="0 0 16 16"
-      version="1.1"
-      width={size}
-      data-view-component="true"
-      className="octicon octicon-git-pull-request-closed color-fg-inherit fill-current"
-    >
-      <path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.748.748 0 0 1 1.265.332.75.75 0 0 1-.205.729l-.97.97.97.97a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-.97-.97-.97.97a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5 .75 .75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5 .75 .75 0 0 0 0-1.5Z" />
-    </svg>
-  );
-}
-
-function GitPullRequestOcticon({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      aria-hidden="true"
-      data-component="Octicon"
-      height={size}
-      viewBox="0 0 16 16"
-      version="1.1"
-      width={size}
-      data-view-component="true"
-      className="octicon octicon-git-pull-request color-fg-inherit fill-current"
-    >
-      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5 .75 .75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5 .75 .75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
-    </svg>
-  );
-}
-
-function GitMergeReadyOcticon({ size = 24 }: { size?: number }) {
-  return (
-    <svg
-      data-component="Octicon"
-      focusable="false"
-      aria-label="Ready to merge"
-      className="octicon octicon-git-merge fgColor-onEmphasis fill-current"
-      role="img"
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="currentColor"
-      display="inline-block"
-      overflow="visible"
-      style={{ verticalAlign: "text-bottom" }}
-    >
-      <path d="M15 13.25a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0Zm-12.5 6a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0Zm0-14.5a3.25 3.25 0 1 1 6.5 0 3.25 3.25 0 0 1-6.5 0ZM5.75 6.5a1.75 1.75 0 1 0-.001-3.501A1.75 1.75 0 0 0 5.75 6.5Zm0 14.5a1.75 1.75 0 1 0-.001-3.501A1.75 1.75 0 0 0 5.75 21Zm12.5-6a1.75 1.75 0 1 0-.001-3.501A1.75 1.75 0 0 0 18.25 15Z" />
-      <path d="M6.5 7.25c0 2.9 2.35 5.25 5.25 5.25h4.5V14h-4.5A6.75 6.75 0 0 1 5 7.25Z" />
-      <path d="M5.75 16.75A.75.75 0 0 1 5 16V8a.75.75 0 0 1 1.5 0v8a.75.75 0 0 1-.75.75Z" />
-    </svg>
-  );
-}
 
 export default function PullRequestDetailPage({
   repoId,
@@ -183,13 +127,15 @@ export default function PullRequestDetailPage({
     return map;
   }, [collaborators]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isSilent?: boolean) => {
     try {
-      setLoading(true);
-      setError(null);
-      setCompareData(null);
-      setConflictFiles([]);
-      setEvents([]);
+      if (!isSilent) {
+        setLoading(true);
+        setError(null);
+        setCompareData(null);
+        setConflictFiles([]);
+        setEvents([]);
+      }
       const [pulls, collabs] = await Promise.all([
         pullsApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
@@ -198,12 +144,15 @@ export default function PullRequestDetailPage({
 
       const sorted = [...(pulls || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       const resolved = sorted[Number(pullNumber) - 1] || null;
-      setPull(resolved);
+      if (!isSilent) {
+        setPull(resolved);
+      }
 
       if (!resolved) {
         setCompareData(null);
         setConflictFiles([]);
         setEvents([]);
+        if (isSilent) setPull(null);
         return;
       }
 
@@ -269,7 +218,7 @@ export default function PullRequestDetailPage({
         await pullsApi.reopen(repoId, pull.id);
       }
       setCommentBody("");
-      await load();
+      await load(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to ${action} pull request`);
     } finally {
@@ -291,7 +240,7 @@ export default function PullRequestDetailPage({
         onOpenPullRequest(createdIndex + 1);
         return;
       }
-      await load();
+      await load(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create revert pull request");
     } finally {
@@ -304,6 +253,9 @@ export default function PullRequestDetailPage({
   const mainEvents = mergedIndex !== -1 ? filteredEvents.slice(0, mergedIndex + 1) : filteredEvents;
   const postMergeEvents = mergedIndex !== -1 ? filteredEvents.slice(mergedIndex + 1) : [];
 
+  const lastMainEvent = mainEvents[mainEvents.length - 1];
+  const hasThickLine = lastMainEvent && (lastMainEvent.event_type === "closed" || lastMainEvent.event_type === "merged");
+
   const renderEvent = (event: PullRequestEvent) => {
     const isClosed = event.event_type === "closed";
     const isMerged = event.event_type === "merged";
@@ -312,7 +264,7 @@ export default function PullRequestDetailPage({
       : isMerged
         ? "bg-[var(--text-accent-purple)]"
         : "bg-[var(--fgColor-open,#1a7f37)]";
-    const Icon = isClosed ? GitPullRequestClosedOcticon : isMerged ? GitMergeReadyOcticon : GitPullRequestOcticon;
+    const Icon = isClosed ? OcticonGitPullRequestClosed : isMerged ? OcticonGitMergeReady : OcticonGitPullRequest;
 
     return (
       <li
@@ -480,6 +432,9 @@ export default function PullRequestDetailPage({
 
           <div className="relative mt-4">
             <span className="absolute left-[var(--rail)] -top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+            {!hasThickLine && (
+              <span className="absolute left-16 right-0 -bottom-2.5 h-[2px] bg-[var(--border-muted)]" aria-hidden />
+            )}
             <ul className="space-y-4">
               <li className="relative pl-[calc(var(--rail)_+_17px)]">
                 <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
@@ -606,8 +561,9 @@ export default function PullRequestDetailPage({
                   type="button"
                   disabled={updating}
                   onClick={() => void updatePull("close")}
-                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-danger)] hover:bg-[var(--surface-subtle)] disabled:opacity-50"
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] font-semibold hover:bg-[var(--surface-subtle)] disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
+                  <span className="text-[var(--text-danger)] flex"><OcticonGitPullRequestClosed size={16} /></span>
                   Close pull request
                 </button>
               ) : pull.status === "CLOSED" ? (
@@ -615,8 +571,9 @@ export default function PullRequestDetailPage({
                   type="button"
                   disabled={updating}
                   onClick={() => void updatePull("reopen")}
-                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--fgColor-open,#1a7f37)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 inline-flex items-center gap-1.5"
+                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] font-semibold hover:bg-[var(--surface-subtle)] disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
+                  <span className="text-[var(--fgColor-open,#1a7f37)] flex"><OcticonGitPullRequest size={16} /></span>
                   Reopen pull request
                 </button>
               ) : null}
