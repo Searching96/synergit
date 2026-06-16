@@ -299,6 +299,64 @@ export default function PullRequestDetailPage({
     }
   };
 
+  const filteredEvents = events.filter((event) => event.event_type !== "opened");
+  const mergedIndex = filteredEvents.findIndex((e) => e.event_type === "merged");
+  const mainEvents = mergedIndex !== -1 ? filteredEvents.slice(0, mergedIndex + 1) : filteredEvents;
+  const postMergeEvents = mergedIndex !== -1 ? filteredEvents.slice(mergedIndex + 1) : [];
+
+  const renderEvent = (event: PullRequestEvent) => {
+    const isClosed = event.event_type === "closed";
+    const isMerged = event.event_type === "merged";
+    const badgeClass = isClosed
+      ? "bg-[#cf222e]"
+      : isMerged
+        ? "bg-[var(--text-accent-purple)]"
+        : "bg-[var(--fgColor-open,#1a7f37)]";
+    const Icon = isClosed ? GitPullRequestClosedOcticon : isMerged ? GitMergeReadyOcticon : GitPullRequestOcticon;
+
+    return (
+      <li
+        key={event.id}
+        className={`relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-center text-sm ${
+          isClosed || isMerged ? "after:absolute after:-bottom-2.5 after:left-0 after:right-0 after:h-1 after:bg-[var(--border-muted)]" : ""
+        }`}
+      >
+        <span className={`absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center ${badgeClass}`}>
+          <Icon size={14} />
+        </span>
+        <span className="absolute left-[calc(var(--rail)_+_18px)] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+          {(event.actor || creatorName).charAt(0)}
+        </span>
+        {isMerged ? (
+          <div className="min-w-0 flex-1 pl-8 flex items-center justify-between gap-3 text-[var(--text-secondary)]">
+            <span className="min-w-0">
+              <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
+              merged commit{" "}
+              <CommitChangeLink hash={mergeCommitHash} text={shortenHash(mergeCommitHash)} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
+              into{" "}
+              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.target_branch}</span>{" "}
+              <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleRevert()}
+              disabled={updating}
+              title="Create a new pull request to revert these changes"
+              className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Revert
+            </button>
+          </div>
+        ) : (
+          <span className="pl-8 text-[var(--text-secondary)]">
+            <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
+            <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
+          </span>
+        )}
+      </li>
+    );
+  };
+
   if (loading && !pull) {
     return null;
   }
@@ -421,7 +479,7 @@ export default function PullRequestDetailPage({
           </div>
 
           <div className="relative mt-4">
-            <span className="absolute left-[var(--rail)] -top-4 -bottom-6 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+            <span className="absolute left-[var(--rail)] -top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
             <ul className="space-y-4">
               <li className="relative pl-[calc(var(--rail)_+_17px)]">
                 <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
@@ -468,72 +526,34 @@ export default function PullRequestDetailPage({
                 );
               })}
 
-              {events.filter((event) => event.event_type !== "opened").map((event) => {
-                const isClosed = event.event_type === "closed";
-                const isMerged = event.event_type === "merged";
-                const badgeClass = isClosed
-                  ? "bg-[#cf222e]"
-                  : isMerged
-                    ? "bg-[var(--text-accent-purple)]"
-                    : "bg-[var(--fgColor-open,#1a7f37)]";
-                const Icon = isClosed ? GitPullRequestClosedOcticon : isMerged ? GitMergeReadyOcticon : GitPullRequestOcticon;
-
-                return (
-                  <li
-                    key={event.id}
-                    className={`relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-center text-sm ${
-                      isClosed || isMerged ? "border-b-4 border-[var(--border-muted)]" : ""
-                    }`}
-                  >
-                    <span className={`absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center ${badgeClass}`}>
-                      <Icon size={14} />
-                    </span>
-                    <span className="absolute left-[calc(var(--rail)_+_18px)] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                      {(event.actor || creatorName).charAt(0)}
-                    </span>
-                    {isMerged ? (
-                      <div className="min-w-0 flex-1 pl-8 flex items-center justify-between gap-3 text-[var(--text-secondary)]">
-                        <span className="min-w-0">
-                          <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
-                          merged commit{" "}
-                          <CommitChangeLink hash={mergeCommitHash} text={shortenHash(mergeCommitHash)} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
-                          into{" "}
-                          <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-                          <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void handleRevert()}
-                          disabled={updating}
-                          title="Create a new pull request to revert these changes"
-                          className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Revert
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="pl-8 text-[var(--text-secondary)]">
-                        <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
-                        <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-
-              <MergeOperationPanel
-                repoId={repoId}
-                status={pull.status}
-                sourceBranch={pull.source_branch}
-                pullNumber={Number(pullNumber)}
-                currentUsername={currentUsername}
-                canMerge={canMerge}
-                updating={updating}
-                conflictFiles={conflictFiles}
-                onMerge={(msg, desc) => void updatePull("merge", msg, desc)}
-                onOpenConflicts={onOpenConflicts}
-              />
+              {mainEvents.map(renderEvent)}
             </ul>
+          </div>
+
+          {postMergeEvents.length > 0 && (
+            <div className="relative mt-8">
+              {postMergeEvents.length > 1 && (
+                <span className="absolute left-[var(--rail)] top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+              )}
+              <ul className="space-y-4">
+                {postMergeEvents.map(renderEvent)}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-8">
+            <MergeOperationPanel
+              repoId={repoId}
+              status={pull.status}
+              sourceBranch={pull.source_branch}
+              pullNumber={Number(pullNumber)}
+              currentUsername={currentUsername}
+              canMerge={canMerge}
+              updating={updating}
+              conflictFiles={conflictFiles}
+              onMerge={(msg, desc) => void updatePull("merge", msg, desc)}
+              onOpenConflicts={onOpenConflicts}
+            />
           </div>
 
           <div className="relative pl-16 mt-6 ml-[calc(var(--rail)_-_85px)]">

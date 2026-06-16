@@ -120,7 +120,7 @@ export default function MergeOperationPanel({
   };
 
   return (
-    <li className="relative pl-16">
+    <div className="relative pl-16">
       <span className={`absolute left-0 top-0 h-9.5 w-9.5 rounded-md text-white inline-flex items-center justify-center ${
         isMerged
           ? "bg-[var(--text-accent-purple)]"
@@ -311,6 +311,6 @@ export default function MergeOperationPanel({
           </div>
         </div>
       )}
-    </li>
+    </div>
   );
 }
