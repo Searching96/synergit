@@ -441,6 +441,8 @@ function RepoContributorsInsights({
                   key={contributor.author_name}
                   contributor={contributor}
                   rank={index + 1}
+                  periodStart={snapshot.period_start}
+                  periodEnd={snapshot.period_end}
                 />
               ))}
             </div>
@@ -519,7 +521,14 @@ function ContributorsChartCard({ snapshot }: { snapshot: RepoContributorsSnapsho
         </div>
         <PulseTopCommittersHeaderActions />
       </div>
-      <ContributionBars weeks={snapshot.weekly_totals} chartMax={chartMax} heightClassName="h-[170px]" showAxis />
+      <ContributionBars
+        weeks={snapshot.weekly_totals}
+        chartMax={chartMax}
+        heightClassName="h-[170px]"
+        periodStart={snapshot.period_start}
+        periodEnd={snapshot.period_end}
+        showAxis
+      />
       <ContributionMiniTimeline weeks={snapshot.weekly_totals} />
     </article>
   );
@@ -529,14 +538,19 @@ function ContributionBars({
   weeks,
   chartMax,
   heightClassName,
+  periodStart,
+  periodEnd,
   showAxis = false,
 }: {
   weeks: ContributionWeek[];
   chartMax: number;
   heightClassName: string;
+  periodStart: string;
+  periodEnd: string;
   showAxis?: boolean;
 }) {
   const tickValues = [chartMax, Math.round(chartMax / 2), 0];
+  const timeline = buildContributionTimeline(weeks, periodStart, periodEnd);
 
   return (
     <div className="mt-7 grid grid-cols-[minmax(0,1fr)_42px] gap-1">
@@ -548,16 +562,29 @@ function ContributionBars({
             style={{ top: `${top}%` }}
           />
         ))}
-        <div className="absolute inset-x-0 bottom-0 flex h-full items-end gap-px">
-          {weeks.map((week) => {
+        {timeline.labels.map((label) => (
+          <div
+            key={label.week_start}
+            className="absolute bottom-0 top-0 border-l border-dashed border-[#d8dee4]"
+            style={{ left: `${label.left}%` }}
+          />
+        ))}
+        <div className="absolute inset-0">
+          {timeline.bars.map((week) => {
             const height = week.commit_count > 0 ? Math.max((week.commit_count / chartMax) * 100, 2) : 0;
             return (
-              <div key={week.week_start} className="flex h-full min-w-3 flex-1 items-end">
-                <div
-                  className="w-full bg-[#0969da]"
-                  style={{ height: `${height}%` }}
-                  title={`${week.commit_count} commits during week of ${week.week_start}`}
-                />
+              <div
+                key={week.week_start}
+                className="group absolute bottom-0 flex h-full items-end"
+                style={{ left: `${week.left}%`, width: `${week.width}%` }}
+              >
+                {week.showHoverMarker && (
+                  <div
+                    className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#0969da]/35 group-hover:block group-focus-within:block"
+                    style={{ left: `${week.markerLeft}%` }}
+                  />
+                )}
+                <InsightBarTooltip week={week} heightPercent={height} tooltipDate={week.sundayDate} />
               </div>
             );
           })}
@@ -565,9 +592,15 @@ function ContributionBars({
         {showAxis && (
           <span className="absolute right-[-72px] top-1/2 -translate-y-1/2 rotate-90 origin-center text-xs text-[var(--text-secondary)]">Contributions</span>
         )}
-        <div className="absolute inset-x-0 top-full mt-4 flex justify-between text-xs text-[var(--text-secondary)]">
-          {weeks.filter((_, index) => index % Math.max(Math.ceil(weeks.length / 5), 1) === 0).map((week) => (
-            <span key={week.week_start}>{formatShortWeekLabel(week.week_start)}</span>
+        <div className="absolute inset-x-0 top-full mt-4 h-4 text-xs text-[var(--text-secondary)]">
+          {timeline.labels.map((week) => (
+            <span
+              key={week.week_start}
+              className="absolute -translate-x-1/2 whitespace-nowrap"
+              style={{ left: `${week.left}%` }}
+            >
+              {formatShortWeekLabel(week.week_start)}
+            </span>
           ))}
         </div>
       </div>
@@ -586,6 +619,85 @@ function ContributionBars({
       )}
     </div>
   );
+}
+
+function buildContributionTimeline(weeks: ContributionWeek[], periodStart: string, periodEnd: string) {
+  const start = startOfDay(new Date(periodStart));
+  const end = startOfDay(new Date(periodEnd));
+  const firstLabel = firstMondayOnOrAfter(start);
+  const labelLimit = new Date(end);
+  labelLimit.setDate(labelLimit.getDate() + 1);
+  const lastLabel = lastMondayOnOrBefore(labelLimit);
+  const chartStart = new Date(firstLabel);
+  chartStart.setDate(chartStart.getDate() - 7);
+  const chartEnd = new Date(lastLabel);
+  chartEnd.setDate(chartEnd.getDate() + 3);
+  const totalDays = Math.max(daysBetween(chartStart, chartEnd), 1);
+  const bars = weeks
+    .map((week) => {
+      const mondayDate = startOfDay(new Date(week.week_start));
+      const sundayDate = new Date(mondayDate);
+      sundayDate.setDate(sundayDate.getDate() - 1);
+      const barStart = new Date(sundayDate);
+      barStart.setDate(barStart.getDate() - 3);
+      const barEnd = new Date(sundayDate);
+      barEnd.setDate(barEnd.getDate() + 4);
+      const visibleStart = barStart < chartStart ? chartStart : barStart;
+      const visibleEnd = barEnd > chartEnd ? chartEnd : barEnd;
+      const visibleDays = Math.max(daysBetween(visibleStart, visibleEnd), week.commit_count > 0 ? 1 : 0);
+      const left = clampPercent((daysBetween(chartStart, visibleStart) / totalDays) * 100);
+      const width = clampPercent((visibleDays / totalDays) * 100);
+      const centerLeft = clampPercent((daysBetween(chartStart, sundayDate) / totalDays) * 100);
+      const markerLeft = width > 0 ? clampPercent(((centerLeft - left) / width) * 100) : 0;
+      const sundayVisible = sundayDate >= visibleStart && sundayDate <= visibleEnd;
+      const showHoverMarker = sundayVisible && visibleDays >= 4;
+      return {
+        ...week,
+        sundayDate: sundayDate.toISOString(),
+        centerLeft,
+        markerLeft,
+        showHoverMarker,
+        left,
+        width,
+      };
+    })
+    .filter((week) => week.width > 0);
+
+  const labels: Array<{ week_start: string; left: number }> = [];
+  for (const current = firstLabel; current <= lastLabel; current.setDate(current.getDate() + 7)) {
+    labels.push({
+      week_start: current.toISOString(),
+      left: clampPercent((daysBetween(chartStart, current) / totalDays) * 100),
+    });
+  }
+
+  return { bars, labels };
+}
+
+function startOfDay(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function daysBetween(start: Date, end: Date): number {
+  return Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function firstMondayOnOrAfter(value: Date): Date {
+  const result = new Date(value);
+  const offset = (8 - result.getDay()) % 7;
+  result.setDate(result.getDate() + offset);
+  return result;
+}
+
+function lastMondayOnOrBefore(value: Date): Date {
+  const result = new Date(value);
+  const offset = (result.getDay() + 6) % 7;
+  result.setDate(result.getDate() - offset);
+  return result;
+}
+
+function clampPercent(value: number): number {
+  return Math.min(Math.max(value, 0), 100);
 }
 
 function ContributionMiniTimeline({ weeks }: { weeks: ContributionWeek[] }) {
@@ -610,12 +722,50 @@ function ContributionMiniTimeline({ weeks }: { weeks: ContributionWeek[] }) {
   );
 }
 
+function InsightBarTooltip({
+  week,
+  heightPercent,
+  tooltipDate,
+}: {
+  week: ContributionWeek;
+  heightPercent: number;
+  tooltipDate?: string;
+}) {
+  return (
+    <div
+      className="group relative w-full bg-[#0969da]"
+      style={{ height: `${heightPercent}%` }}
+      tabIndex={0}
+    >
+      <div
+        className="h-full w-full"
+      />
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-xs font-normal text-[var(--text-primary)] shadow-md group-hover:block group-focus:block">
+        <div className="min-w-[124px]">
+          <p className="mb-2 whitespace-nowrap">Week of {formatTooltipWeekLabel(tooltipDate || week.week_start)}</p>
+          <div className="flex items-center justify-between gap-5">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 bg-[#0969da]" />
+              <span>Commits</span>
+            </span>
+            <span>{formatNumber(week.commit_count)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContributorCard({
   contributor,
   rank,
+  periodStart,
+  periodEnd,
 }: {
   contributor: { author_name: string; commit_count: number; weeks: ContributionWeek[] };
   rank: number;
+  periodStart: string;
+  periodEnd: string;
 }) {
   const maxCount = Math.max(...contributor.weeks.map((week) => week.commit_count), 1);
   const chartMax = maxCount <= 20 ? 20 : Math.ceil(maxCount / 10) * 10;
@@ -640,15 +790,29 @@ function ContributorCard({
           <GearIcon size={18} />
         </div>
       </div>
-      <ContributorMiniBars weeks={contributor.weeks} chartMax={chartMax} />
+      <ContributorMiniBars
+        weeks={contributor.weeks}
+        chartMax={chartMax}
+        periodStart={periodStart}
+        periodEnd={periodEnd}
+      />
     </article>
   );
 }
 
-function ContributorMiniBars({ weeks, chartMax }: { weeks: ContributionWeek[]; chartMax: number }) {
+function ContributorMiniBars({
+  weeks,
+  chartMax,
+  periodStart,
+  periodEnd,
+}: {
+  weeks: ContributionWeek[];
+  chartMax: number;
+  periodStart: string;
+  periodEnd: string;
+}) {
   const tickValues = [chartMax, Math.round(chartMax / 2), 0];
-  const labelInterval = Math.max(Math.ceil(weeks.length / 5), 1);
-  const labeledWeeks = weeks.filter((_, index) => index % labelInterval === 0);
+  const timeline = buildContributionTimeline(weeks, periodStart, periodEnd);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_38px] gap-0">
@@ -661,25 +825,42 @@ function ContributorMiniBars({ weeks, chartMax }: { weeks: ContributionWeek[]; c
               style={{ top: `${top}%` }}
             />
           ))}
-          <div className="absolute inset-x-0 bottom-0 flex h-full items-end gap-px">
-            {weeks.map((week) => {
+          {timeline.labels.map((label) => (
+            <div
+              key={label.week_start}
+              className="absolute bottom-0 top-0 border-l border-dashed border-[#d8dee4]"
+              style={{ left: `${label.left}%` }}
+            />
+          ))}
+          <div className="absolute inset-0">
+            {timeline.bars.map((week) => {
               const height = week.commit_count > 0 ? Math.max((week.commit_count / chartMax) * 100, 2) : 0;
               return (
-                <div key={week.week_start} className="flex h-full min-w-2 flex-1 items-end">
-                  <div
-                    className="w-full bg-[#0969da]"
-                    style={{ height: `${height}%` }}
-                    title={`${week.commit_count} commits during week of ${week.week_start}`}
-                  />
+                <div
+                  key={week.week_start}
+                  className="group absolute bottom-0 flex h-full items-end"
+                  style={{ left: `${week.left}%`, width: `${week.width}%` }}
+                >
+                  {week.showHoverMarker && (
+                    <div
+                      className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#0969da]/35 group-hover:block group-focus-within:block"
+                      style={{ left: `${week.markerLeft}%` }}
+                    />
+                  )}
+                  <InsightBarTooltip week={week} heightPercent={height} tooltipDate={week.sundayDate} />
                 </div>
               );
             })}
           </div>
           <span className="absolute right-[-70px] top-1/2 -translate-y-1/2 rotate-90 origin-center text-xs text-[var(--text-secondary)]">Contributions</span>
         </div>
-        <div className="mt-3 flex justify-between overflow-hidden text-xs text-[var(--text-secondary)]">
-          {labeledWeeks.map((week) => (
-            <span key={week.week_start} className="whitespace-nowrap">
+        <div className="relative mt-3 h-4 text-xs text-[var(--text-secondary)]">
+          {timeline.labels.map((week) => (
+            <span
+              key={week.week_start}
+              className="absolute -translate-x-1/2 whitespace-nowrap"
+              style={{ left: `${week.left}%` }}
+            >
               {formatShortWeekLabel(week.week_start)}
             </span>
           ))}
@@ -735,6 +916,10 @@ function buildWeeklyRangeLabel(weeks: ContributionWeek[], periodStart: string, p
 
 function formatShortWeekLabel(value: string): string {
   return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }).format(new Date(value));
+}
+
+function formatTooltipWeekLabel(value: string): string {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function formatShortMonthLabel(value: string): string {
