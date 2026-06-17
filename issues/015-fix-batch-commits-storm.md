@@ -2,6 +2,7 @@
 id: "015"
 title: "Fix Batch Commits Fetch Network Storm"
 priority: "high"
+difficulty: "high"
 status: "open"
 component: "fullstack"
 labels: ["performance", "ui", "api", "bug"]

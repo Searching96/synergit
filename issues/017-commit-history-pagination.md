@@ -2,6 +2,7 @@
 id: "017"
 title: "Implement Pagination for Commit History Page"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "fullstack"
 labels: ["performance", "ui", "api"]

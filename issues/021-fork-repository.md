@@ -2,6 +2,7 @@
 id: "021"
 title: "Implement Repository Fork Feature"
 priority: "medium"
+difficulty: "medium"
 status: "closed"
 component: "fullstack"
 labels: ["feature", "ui", "api", "git"]

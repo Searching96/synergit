@@ -1,7 +1,8 @@
 ---
 id: "024"
 title: "Forked Repository Route Redirects to Upstream Owner"
-priority: "medium"
+priority: "high"
+difficulty: "high"
 status: "closed"
 component: "fullstack"
 labels: ["bug", "fork", "routing"]

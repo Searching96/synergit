@@ -2,6 +2,7 @@
 id: "011"
 title: "Implement Delete File / Directory Action"
 priority: "low"
+difficulty: "low"
 status: "closed"
 component: "fullstack"
 labels: ["feature", "git", "api"]

@@ -2,6 +2,7 @@
 id: "013"
 title: "Optimize File Tree Load (Lazy Loading)"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "fullstack"
 labels: ["performance", "ui", "api"]

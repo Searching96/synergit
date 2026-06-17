@@ -3,6 +3,7 @@ id: 007
 title: "Global Footer with Delayed Render"
 status: "closed"
 priority: "low"
+difficulty: "low"
 labels: ["feature", "ui", "ux"]
 assignee: "antigravity"
 created_at: 2026-06-14

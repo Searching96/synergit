@@ -2,6 +2,7 @@
 id: "016"
 title: "Inefficient Commit Fetching for Header"
 priority: "medium"
+difficulty: "medium"
 status: "closed"
 component: "fullstack"
 labels: ["performance", "api", "tech-debt"]

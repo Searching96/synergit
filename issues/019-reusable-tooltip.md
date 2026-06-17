@@ -2,6 +2,7 @@
 id: "019"
 title: "Create Reusable Tooltip Component"
 priority: "low"
+difficulty: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "ui"]

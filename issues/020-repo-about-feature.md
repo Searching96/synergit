@@ -2,6 +2,7 @@
 id: "020"
 title: "Implement Repo About Feature"
 priority: "medium"
+difficulty: "medium"
 status: "closed"
 component: "frontend"
 labels: ["feature", "ui"]

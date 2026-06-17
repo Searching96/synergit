@@ -2,6 +2,7 @@
 id: "022"
 title: "Git Smart HTTP Basic Authentication"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "backend"
 labels: ["security", "git", "api"]

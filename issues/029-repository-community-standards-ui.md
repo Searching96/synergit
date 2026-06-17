@@ -2,6 +2,7 @@
 id: "029"
 title: "Repository Community Standards UI"
 priority: "medium"
+difficulty: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "insights", "community-standards", "ui"]

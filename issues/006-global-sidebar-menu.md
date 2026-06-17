@@ -2,7 +2,8 @@
 id: 006
 title: "Global Sidebar Menu Fix"
 status: "closed"
-priority: "high"
+priority: "medium"
+difficulty: "medium"
 labels: ["bug", "ui", "refactoring"]
 assignee: "antigravity"
 created_at: 2026-06-14

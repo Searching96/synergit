@@ -2,6 +2,7 @@
 id: "028"
 title: "Repository Insights Community UI"
 priority: "medium"
+difficulty: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "insights", "community", "ui"]

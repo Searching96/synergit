@@ -2,6 +2,7 @@
 id: "012"
 title: "Optimize File Rename Operation"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "backend"
 labels: ["performance", "git", "refactor"]

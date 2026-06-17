@@ -2,6 +2,7 @@
 id: "018"
 title: "Implement CommitChangeLink Component"
 priority: "low"
+difficulty: "low"
 status: "closed"
 component: "frontend"
 labels: ["feature", "ui", "refactor"]

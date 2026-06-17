@@ -2,6 +2,7 @@
 id: "023"
 title: "Repository Activity Page"
 priority: "medium"
+difficulty: "medium"
 status: "closed"
 component: "fullstack"
 labels: ["feature", "ui", "database", "git"]

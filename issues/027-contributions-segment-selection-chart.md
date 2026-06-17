@@ -2,6 +2,7 @@
 id: "027"
 title: "Contributions Segment Selection Chart"
 priority: "medium"
+difficulty: "high"
 status: "open"
 component: "fullstack"
 labels: ["feature", "insights", "contributors", "ui", "api", "git"]

@@ -2,6 +2,7 @@
 id: "014"
 title: "Batch Commits Fetch for File Tree & Fix Loading State"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "fullstack"
 labels: ["performance", "ui", "api"]

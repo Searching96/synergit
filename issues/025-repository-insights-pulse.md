@@ -2,6 +2,7 @@
 id: "025"
 title: "Repository Insights Pulse"
 priority: "medium"
+difficulty: "medium"
 status: "closed"
 component: "fullstack"
 labels: ["feature", "insights", "ui", "api", "git"]

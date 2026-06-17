@@ -2,6 +2,7 @@
 id: "010"
 title: "Rename File Bug"
 priority: "high"
+difficulty: "high"
 status: "closed"
 component: "fullstack"
 labels: ["bug", "git", "file-system"]
