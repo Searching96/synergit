@@ -10,7 +10,7 @@ import {
   CheckIcon,
   RepoForkedIcon,
 } from "@primer/octicons-react";
-import type { ContributionWeek, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
+import type { ContributionDay, ContributionWeek, ContributorContribution, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
 import { reposApi } from "../../../services/api";
 import { Tooltip } from "../../shared/Tooltip";
 import { SpinnerPlaceholder, TextSkeleton } from "../../shared/LoadingPlaceholders";
@@ -529,7 +529,11 @@ function ContributorsChartCard({ snapshot }: { snapshot: RepoContributorsSnapsho
         periodEnd={snapshot.period_end}
         showAxis
       />
-      <ContributionMiniTimeline weeks={snapshot.weekly_totals} />
+      <ContributionMiniTimeline
+        dailyTotals={snapshot.daily_totals}
+        periodStart={snapshot.period_start}
+        periodEnd={snapshot.period_end}
+      />
     </article>
   );
 }
@@ -622,17 +626,8 @@ function ContributionBars({
 }
 
 function buildContributionTimeline(weeks: ContributionWeek[], periodStart: string, periodEnd: string) {
-  const start = startOfDay(new Date(periodStart));
-  const end = startOfDay(new Date(periodEnd));
-  const firstLabel = firstMondayOnOrAfter(start);
-  const labelLimit = new Date(end);
-  labelLimit.setDate(labelLimit.getDate() + 1);
-  const lastLabel = lastMondayOnOrBefore(labelLimit);
-  const chartStart = new Date(firstLabel);
-  chartStart.setDate(chartStart.getDate() - 7);
-  const chartEnd = new Date(lastLabel);
-  chartEnd.setDate(chartEnd.getDate() + 3);
-  const totalDays = Math.max(daysBetween(chartStart, chartEnd), 1);
+  const domain = buildContributionChartDomain(periodStart, periodEnd);
+  const { chartStart, chartEnd, firstLabel, lastLabel, labelStepDays, totalDays } = domain;
   const bars = weeks
     .map((week) => {
       const mondayDate = startOfDay(new Date(week.week_start));
@@ -664,7 +659,7 @@ function buildContributionTimeline(weeks: ContributionWeek[], periodStart: strin
     .filter((week) => week.width > 0);
 
   const labels: Array<{ week_start: string; left: number }> = [];
-  for (const current = firstLabel; current <= lastLabel; current.setDate(current.getDate() + 7)) {
+  for (const current = firstLabel; current <= lastLabel; current.setDate(current.getDate() + labelStepDays)) {
     labels.push({
       week_start: current.toISOString(),
       left: clampPercent((daysBetween(chartStart, current) / totalDays) * 100),
@@ -672,6 +667,24 @@ function buildContributionTimeline(weeks: ContributionWeek[], periodStart: strin
   }
 
   return { bars, labels };
+}
+
+function buildContributionChartDomain(periodStart: string, periodEnd: string) {
+  const start = startOfDay(new Date(periodStart));
+  const end = startOfDay(new Date(periodEnd));
+  const periodDays = daysBetween(start, end);
+  const labelStepDays = periodDays >= 84 ? 14 : 7;
+  const firstLabel = firstMondayOnOrAfter(start);
+  const labelLimit = new Date(end);
+  labelLimit.setDate(labelLimit.getDate() + 1);
+  const lastLabel = lastMondayOnOrBefore(labelLimit);
+  const chartStart = new Date(firstLabel);
+  chartStart.setDate(chartStart.getDate() - 7);
+  const chartEnd = new Date(lastLabel);
+  chartEnd.setDate(chartEnd.getDate() + 3);
+  const totalDays = Math.max(daysBetween(chartStart, chartEnd), 1);
+
+  return { chartStart, chartEnd, firstLabel, lastLabel, labelStepDays, totalDays };
 }
 
 function startOfDay(value: Date): Date {
@@ -700,26 +713,164 @@ function clampPercent(value: number): number {
   return Math.min(Math.max(value, 0), 100);
 }
 
-function ContributionMiniTimeline({ weeks }: { weeks: ContributionWeek[] }) {
+function ContributionMiniTimeline({
+  dailyTotals,
+  periodStart,
+  periodEnd,
+}: {
+  dailyTotals: ContributionDay[];
+  periodStart: string;
+  periodEnd: string;
+}) {
+  const trend = buildContributionTrendNavigator(dailyTotals, periodStart, periodEnd);
+
   return (
-    <div className="mt-14 h-[60px] border-t border-[#8c959f]">
-      <div className="relative mt-2 h-[36px] overflow-hidden bg-[#ddf4ff]">
-        <svg className="h-full w-full" viewBox={`0 0 ${Math.max(weeks.length - 1, 1)} 36`} preserveAspectRatio="none" aria-hidden="true">
-          <polyline
-            fill="none"
-            stroke="#0969da"
-            strokeWidth="1.5"
-            points={weeks.map((week, index) => `${index},${34 - Math.min(week.commit_count, 34)}`).join(" ")}
-          />
-        </svg>
+    <div className="mt-[54px] grid h-[56px] grid-cols-[minmax(0,1fr)_42px] gap-1">
+      <div>
+        <div className="relative h-[41px] border border-[#8c959f] bg-[#ddf4ff]">
+          <div className="pointer-events-none absolute inset-y-0 bg-[rgba(125,140,255,0.28)]" style={{ left: `${trend.selectionLeft}%`, width: `${trend.selectionWidth}%` }} />
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
+            <path d={trend.areaPath} fill="#c8e1ff" opacity="0.72" />
+            <path d={trend.linePath} fill="none" stroke="#0969da" strokeLinecap="round" strokeLinejoin="round" strokeWidth="0.75" />
+          </svg>
+          <div className="pointer-events-none absolute inset-x-0 bottom-[5px] flex h-3 text-[10px] text-[var(--text-secondary)]">
+            {trend.monthLabels.map((label) => (
+              <span
+                key={`${label.text}-${label.left}`}
+                className="absolute -translate-x-1/2 whitespace-nowrap"
+                style={{ left: `${label.left}%` }}
+              >
+                {label.text}
+              </span>
+            ))}
+          </div>
+          <div className="absolute left-[-5px] top-1/2 h-[16px] w-[8px] -translate-y-1/2 border border-[#8c959f] bg-[var(--surface-canvas)]">
+            <span className="absolute left-[2px] top-[3px] h-[8px] border-l border-[#8c959f]" />
+            <span className="absolute left-[4px] top-[3px] h-[8px] border-l border-[#8c959f]" />
+          </div>
+          <div className="absolute right-[-5px] top-1/2 h-[16px] w-[8px] -translate-y-1/2 border border-[#8c959f] bg-[var(--surface-canvas)]">
+            <span className="absolute left-[2px] top-[3px] h-[8px] border-l border-[#8c959f]" />
+            <span className="absolute left-[4px] top-[3px] h-[8px] border-l border-[#8c959f]" />
+          </div>
+        </div>
+        <div className="h-[8px] rounded-b-sm bg-[#c8c8c8]" />
       </div>
-      <div className="mt-1 flex justify-around text-[10px] text-[var(--text-secondary)]">
-        <span>{weeks[0] ? formatShortMonthLabel(weeks[0].week_start) : ""}</span>
-        <span>{weeks[Math.floor(weeks.length / 2)] ? formatShortMonthLabel(weeks[Math.floor(weeks.length / 2)].week_start) : ""}</span>
-        <span>{weeks[weeks.length - 1] ? formatShortMonthLabel(weeks[weeks.length - 1].week_start) : ""}</span>
-      </div>
+      <div aria-hidden="true" />
     </div>
   );
+}
+
+function buildContributionTrendNavigator(
+  dailyTotals: ContributionDay[],
+  periodStart: string,
+  periodEnd: string,
+) {
+  const trendStart = dailyTotals[0]?.date || periodStart;
+  const trendEnd = dailyTotals[dailyTotals.length - 1]?.date || periodEnd;
+  const { chartStart, chartEnd, totalDays } = buildContributionChartDomain(trendStart, trendEnd);
+  const countByDay = new Map(dailyTotals.map((day) => [day.date, day.commit_count]));
+  const points: Array<{ x: number; y: number }> = [];
+  const counts: number[] = [];
+  for (const current = new Date(chartStart); current <= chartEnd; current.setDate(current.getDate() + 1)) {
+    const count = countByDay.get(formatISODate(current)) || 0;
+    counts.push(count);
+    points.push({
+      x: clampPercent((daysBetween(chartStart, current) / totalDays) * 100),
+      y: 30,
+    });
+  }
+
+  const smoothedCounts = smoothTrendCounts(counts);
+  const maxCount = Math.max(...smoothedCounts, 1);
+  points.forEach((point, index) => {
+    point.y = 30 - (smoothedCounts[index] / maxCount) * 20;
+  });
+
+  const trendPoints = buildTrendSplinePoints(points);
+  const linePath = buildSmoothTrendPath(trendPoints);
+  const firstPoint = trendPoints[0] || { x: 0, y: 30 };
+  const lastPoint = trendPoints[trendPoints.length - 1] || { x: 100, y: 30 };
+  const areaPath = `M ${firstPoint.x.toFixed(2)} 30 L ${firstPoint.x.toFixed(2)} ${firstPoint.y.toFixed(2)} ${linePath.replace(/^M\s+[\d.-]+\s+[\d.-]+/, "")} L ${lastPoint.x.toFixed(2)} 30 Z`;
+  const monthLabels = buildTrendMonthLabels(chartStart, chartEnd, totalDays);
+
+  return {
+    areaPath,
+    linePath,
+    monthLabels,
+    selectionLeft: 0,
+    selectionWidth: 100,
+  };
+}
+
+function smoothTrendCounts(counts: number[]): number[] {
+  const radius = counts.length >= 120 ? 30 : counts.length >= 60 ? 20 : 10;
+  const sigma = Math.max(radius / 2.8, 1);
+  let smoothed = counts;
+  for (let pass = 0; pass < 2; pass += 1) {
+    smoothed = smoothed.map((_, index) => {
+      let total = 0;
+      let weightTotal = 0;
+      for (let offset = -radius; offset <= radius; offset += 1) {
+        const value = smoothed[index + offset];
+        if (value === undefined) continue;
+        const weight = Math.exp(-(offset * offset) / (2 * sigma * sigma));
+        total += value * weight;
+        weightTotal += weight;
+      }
+      return weightTotal > 0 ? total / weightTotal : 0;
+    });
+  }
+  return smoothed;
+}
+
+function buildTrendSplinePoints(points: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (points.length <= 2) return points;
+
+  const step = points.length >= 120 ? 4 : points.length >= 60 ? 3 : 2;
+  const sampled: Array<{ x: number; y: number }> = [];
+  points.forEach((point, index) => {
+    if (index === 0 || index === points.length - 1 || index % step === 0) {
+      sampled.push(point);
+    }
+  });
+  return sampled;
+}
+
+function buildSmoothTrendPath(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return "M 0 30 L 100 30";
+  if (points.length === 1) return `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+
+  const commands = [`M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`];
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[Math.max(index - 1, 0)];
+    const current = points[index];
+    const next = points[index + 1];
+    const afterNext = points[Math.min(index + 2, points.length - 1)];
+    const controlOne = {
+      x: current.x + (next.x - previous.x) / 6,
+      y: current.y + (next.y - previous.y) / 6,
+    };
+    const controlTwo = {
+      x: next.x - (afterNext.x - current.x) / 6,
+      y: next.y - (afterNext.y - current.y) / 6,
+    };
+    commands.push(
+      `C ${controlOne.x.toFixed(2)} ${controlOne.y.toFixed(2)}, ${controlTwo.x.toFixed(2)} ${controlTwo.y.toFixed(2)}, ${next.x.toFixed(2)} ${next.y.toFixed(2)}`,
+    );
+  }
+  return commands.join(" ");
+}
+
+function buildTrendMonthLabels(chartStart: Date, chartEnd: Date, totalDays: number) {
+  const labels: Array<{ text: string; left: number }> = [];
+  const current = new Date(chartStart.getFullYear(), chartStart.getMonth() + 1, 1);
+  for (; current < chartEnd; current.setMonth(current.getMonth() + 1)) {
+    labels.push({
+      text: formatShortMonthLabel(current.toISOString()),
+      left: clampPercent((daysBetween(chartStart, current) / totalDays) * 100),
+    });
+  }
+  return labels;
 }
 
 function InsightBarTooltip({
@@ -762,7 +913,7 @@ function ContributorCard({
   periodStart,
   periodEnd,
 }: {
-  contributor: { author_name: string; commit_count: number; weeks: ContributionWeek[] };
+  contributor: ContributorContribution;
   rank: number;
   periodStart: string;
   periodEnd: string;
@@ -779,8 +930,12 @@ function ContributorCard({
           </div>
           <div className="min-w-0">
             <p className="truncate text-xl font-semibold leading-6 text-[var(--text-link)]">{contributor.author_name}</p>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              {formatNumber(contributor.commit_count)} {pluralize(contributor.commit_count, "commit")}
+            <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm text-[var(--text-secondary)]">
+              <span>
+                {formatNumber(contributor.commit_count)} {pluralize(contributor.commit_count, "commit")}
+              </span>
+              <span className="text-[#1a7f37]">{formatNumber(contributor.additions)} ++</span>
+              <span className="text-[#cf222e]">{formatNumber(contributor.deletions)} --</span>
             </p>
           </div>
         </div>
@@ -923,7 +1078,16 @@ function formatTooltipWeekLabel(value: string): string {
 }
 
 function formatShortMonthLabel(value: string): string {
-  return new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" }).format(new Date(value));
+  const date = new Date(value);
+  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(date);
+  return `${month} '${date.getFullYear().toString().slice(-2)}`;
+}
+
+function formatISODate(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function PulseLoadingLayout() {

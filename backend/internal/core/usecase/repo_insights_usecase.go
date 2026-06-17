@@ -378,6 +378,7 @@ func (s *RepoInsightsService) GetContributors(
 			PeriodEnd:     time.Now().UTC(),
 			DefaultBranch: defaultBranch,
 			WeeklyTotals:  []domain.ContributionWeek{},
+			DailyTotals:   []domain.ContributionDay{},
 			Contributors:  []domain.ContributorContribution{},
 		}, nil
 	}
@@ -389,21 +390,25 @@ func (s *RepoInsightsService) GetContributors(
 		return nil, err
 	}
 
-	commits := filterNonMergeCommits(commitsPage.Commits)
+	allContributionCommits := filterNonMergeCommits(commitsPage.Commits)
+	navigatorSince := earliestCommitDate(allContributionCommits, now)
+
+	commits := allContributionCommits
 	if !allTime {
 		commits = filterCommitsBetween(commits, since, now)
 	}
 
 	if allTime && len(commits) > 0 {
-		since = commits[0].Date.UTC()
-		for _, commit := range commits[1:] {
-			if commit.Date.UTC().Before(since) {
-				since = commit.Date.UTC()
-			}
-		}
+		since = earliestCommitDate(commits, now)
 	}
 
-	weeklyTotals, contributors := buildContributorWeeklyStats(commits, since, now)
+	diffStats, err := s.buildContributorDiffStats(repo.Path, commits)
+	if err != nil {
+		return nil, err
+	}
+
+	weeklyTotals, contributors := buildContributorWeeklyStats(commits, since, now, diffStats)
+	dailyTotals := buildContributorDailyStats(allContributionCommits, navigatorSince, now)
 	return &domain.RepoContributorsSnapshot{
 		RepoID:        repoID,
 		Period:        normalizedPeriod,
@@ -412,6 +417,7 @@ func (s *RepoInsightsService) GetContributors(
 		PeriodEnd:     now,
 		DefaultBranch: defaultBranch,
 		WeeklyTotals:  weeklyTotals,
+		DailyTotals:   dailyTotals,
 		Contributors:  contributors,
 	}, nil
 }
@@ -692,6 +698,19 @@ func filterNonMergeCommits(commits []domain.Commit) []domain.Commit {
 	return result
 }
 
+func earliestCommitDate(commits []domain.Commit, fallback time.Time) time.Time {
+	if len(commits) == 0 {
+		return fallback.UTC()
+	}
+	earliest := commits[0].Date.UTC()
+	for _, commit := range commits[1:] {
+		if commit.Date.UTC().Before(earliest) {
+			earliest = commit.Date.UTC()
+		}
+	}
+	return earliest
+}
+
 func filterCommitsBetween(commits []domain.Commit, since time.Time, until time.Time) []domain.Commit {
 	result := make([]domain.Commit, 0, len(commits))
 	for _, commit := range commits {
@@ -701,6 +720,32 @@ func filterCommitsBetween(commits []domain.Commit, since time.Time, until time.T
 		result = append(result, commit)
 	}
 	return result
+}
+
+type contributorDiffStat struct {
+	Additions int
+	Deletions int
+}
+
+func (s *RepoInsightsService) buildContributorDiffStats(
+	repoPath string,
+	commits []domain.Commit,
+) (map[string]contributorDiffStat, error) {
+	stats := map[string]contributorDiffStat{}
+	for _, commit := range commits {
+		author := normalizedCommitAuthor(commit.Author)
+		diffFiles, err := s.gitManager.GetCommitDiff(repoPath, commit.Hash)
+		if err != nil {
+			return nil, err
+		}
+		stat := stats[author]
+		for _, file := range diffFiles {
+			stat.Additions += file.Additions
+			stat.Deletions += file.Deletions
+		}
+		stats[author] = stat
+	}
+	return stats, nil
 }
 
 func timeInRange(value time.Time, since time.Time, until time.Time) bool {
@@ -716,10 +761,41 @@ func weekStart(value time.Time) time.Time {
 	return dayStart.AddDate(0, 0, -offset)
 }
 
+func buildContributorDailyStats(
+	commits []domain.Commit,
+	since time.Time,
+	until time.Time,
+) []domain.ContributionDay {
+	startDay := dayStartUTC(since)
+	endDay := dayStartUTC(until)
+	totalByDay := map[string]int{}
+	for _, commit := range commits {
+		key := dayStartUTC(commit.Date).Format("2006-01-02")
+		totalByDay[key]++
+	}
+
+	days := []domain.ContributionDay{}
+	for current := startDay; !current.After(endDay); current = current.AddDate(0, 0, 1) {
+		key := current.Format("2006-01-02")
+		days = append(days, domain.ContributionDay{
+			Date:        key,
+			CommitCount: totalByDay[key],
+		})
+	}
+	return days
+}
+
+func dayStartUTC(value time.Time) time.Time {
+	at := value.UTC()
+	year, month, day := at.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+}
+
 func buildContributorWeeklyStats(
 	commits []domain.Commit,
 	since time.Time,
 	until time.Time,
+	diffStats map[string]contributorDiffStat,
 ) ([]domain.ContributionWeek, []domain.ContributorContribution) {
 	startWeek := weekStart(since)
 	endWeek := weekStart(until)
@@ -732,10 +808,7 @@ func buildContributorWeeklyStats(
 	byAuthorWeek := map[string]map[string]int{}
 	totalByAuthor := map[string]int{}
 	for _, commit := range commits {
-		author := strings.TrimSpace(commit.Author)
-		if author == "" {
-			author = "Unknown"
-		}
+		author := normalizedCommitAuthor(commit.Author)
 		key := weekStart(commit.Date).Format("2006-01-02")
 		totalByWeek[key]++
 		totalByAuthor[author]++
@@ -766,6 +839,7 @@ func buildContributorWeeklyStats(
 
 	contributors := make([]domain.ContributorContribution, 0, len(authors))
 	for _, author := range authors {
+		diffStat := diffStats[author]
 		weeks := make([]domain.ContributionWeek, 0, len(weekKeys))
 		for _, key := range weekKeys {
 			weeks = append(weeks, domain.ContributionWeek{
@@ -776,11 +850,21 @@ func buildContributorWeeklyStats(
 		contributors = append(contributors, domain.ContributorContribution{
 			AuthorName:  author,
 			CommitCount: totalByAuthor[author],
+			Additions:   diffStat.Additions,
+			Deletions:   diffStat.Deletions,
 			Weeks:       weeks,
 		})
 	}
 
 	return weeklyTotals, contributors
+}
+
+func normalizedCommitAuthor(author string) string {
+	normalized := strings.TrimSpace(author)
+	if normalized == "" {
+		return "Unknown"
+	}
+	return normalized
 }
 
 func resolveDefaultBranchName(branches []domain.Branch) string {

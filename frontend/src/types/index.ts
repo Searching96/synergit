@@ -134,9 +134,16 @@ export interface ContributionWeek {
 	commit_count: number;
 }
 
+export interface ContributionDay {
+	date: string;
+	commit_count: number;
+}
+
 export interface ContributorContribution {
 	author_name: string;
 	commit_count: number;
+	additions: number;
+	deletions: number;
 	weeks: ContributionWeek[];
 }
 
@@ -148,6 +155,7 @@ export interface RepoContributorsSnapshot {
 	period_end: string;
 	default_branch: string;
 	weekly_totals: ContributionWeek[];
+	daily_totals: ContributionDay[];
 	contributors: ContributorContribution[];
 }
 

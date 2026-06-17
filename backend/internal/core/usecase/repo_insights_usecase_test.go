@@ -141,7 +141,11 @@ func TestBuildContributorWeeklyStats(t *testing.T) {
 	}
 
 	filtered := filterNonMergeCommits(commits)
-	weeklyTotals, contributors := buildContributorWeeklyStats(filtered, since, until)
+	diffStats := map[string]contributorDiffStat{
+		"Dana":  {Additions: 12, Deletions: 4},
+		"Chris": {Additions: 3, Deletions: 1},
+	}
+	weeklyTotals, contributors := buildContributorWeeklyStats(filtered, since, until, diffStats)
 
 	if len(filtered) != 3 {
 		t.Fatalf("expected 3 non-merge commits, got %d", len(filtered))
@@ -158,7 +162,56 @@ func TestBuildContributorWeeklyStats(t *testing.T) {
 	if contributors[0].AuthorName != "Dana" || contributors[0].CommitCount != 2 {
 		t.Fatalf("expected Dana first with 2 commits, got %+v", contributors[0])
 	}
+	if contributors[0].Additions != 12 || contributors[0].Deletions != 4 {
+		t.Fatalf("expected Dana diff stats, got %+v", contributors[0])
+	}
 	if contributors[1].AuthorName != "Chris" || contributors[1].CommitCount != 1 {
 		t.Fatalf("expected Chris second with 1 commit, got %+v", contributors[1])
+	}
+}
+
+func TestBuildContributorDailyStats(t *testing.T) {
+	since := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	until := time.Date(2026, 6, 3, 12, 0, 0, 0, time.UTC)
+	commits := []domain.Commit{
+		{Hash: "a1", Author: "Dana", Date: time.Date(2026, 6, 1, 8, 0, 0, 0, time.UTC)},
+		{Hash: "a2", Author: "Dana", Date: time.Date(2026, 6, 1, 17, 0, 0, 0, time.UTC)},
+		{Hash: "merge", Author: "Dana", Date: time.Date(2026, 6, 2, 8, 0, 0, 0, time.UTC), Parents: []string{"x", "y"}},
+		{Hash: "b1", Author: "Chris", Date: time.Date(2026, 6, 3, 8, 0, 0, 0, time.UTC)},
+	}
+
+	dailyTotals := buildContributorDailyStats(filterNonMergeCommits(commits), since, until)
+
+	if len(dailyTotals) != 3 {
+		t.Fatalf("expected 3 day buckets, got %d", len(dailyTotals))
+	}
+	wantCounts := map[string]int{
+		"2026-06-01": 2,
+		"2026-06-02": 0,
+		"2026-06-03": 1,
+	}
+	for _, day := range dailyTotals {
+		if day.CommitCount != wantCounts[day.Date] {
+			t.Fatalf("expected %s to have %d commits, got %d", day.Date, wantCounts[day.Date], day.CommitCount)
+		}
+	}
+}
+
+func TestEarliestCommitDate(t *testing.T) {
+	fallback := time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)
+	commits := []domain.Commit{
+		{Hash: "latest", Date: time.Date(2026, 6, 3, 8, 0, 0, 0, time.UTC)},
+		{Hash: "earliest", Date: time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)},
+		{Hash: "middle", Date: time.Date(2026, 6, 1, 8, 0, 0, 0, time.UTC)},
+	}
+
+	got := earliestCommitDate(commits, fallback)
+	if !got.Equal(time.Date(2026, 5, 29, 8, 0, 0, 0, time.UTC)) {
+		t.Fatalf("expected earliest commit date, got %s", got)
+	}
+
+	got = earliestCommitDate(nil, fallback)
+	if !got.Equal(fallback) {
+		t.Fatalf("expected fallback for empty commits, got %s", got)
 	}
 }

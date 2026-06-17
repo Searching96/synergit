@@ -59,6 +59,7 @@ type RepoContributorsSnapshot struct {
 	PeriodEnd     time.Time                 `json:"period_end"`
 	DefaultBranch string                    `json:"default_branch"`
 	WeeklyTotals  []ContributionWeek        `json:"weekly_totals"`
+	DailyTotals   []ContributionDay         `json:"daily_totals"`
 	Contributors  []ContributorContribution `json:"contributors"`
 }
 
@@ -67,9 +68,16 @@ type ContributionWeek struct {
 	CommitCount int    `json:"commit_count"`
 }
 
+type ContributionDay struct {
+	Date        string `json:"date"`
+	CommitCount int    `json:"commit_count"`
+}
+
 type ContributorContribution struct {
 	AuthorName  string             `json:"author_name"`
 	CommitCount int                `json:"commit_count"`
+	Additions   int                `json:"additions"`
+	Deletions   int                `json:"deletions"`
 	Weeks       []ContributionWeek `json:"weeks"`
 }
 
