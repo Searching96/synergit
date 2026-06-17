@@ -976,30 +976,31 @@ export default function RepoRootPage({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
-                  {((repoOwner || "U").charAt(0)).toUpperCase()}
-                </span>
-                <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-primary)] hover:underline truncate">{repoName}</a>
-                {repoVisibility ? (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
-                    {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-[var(--border-muted)] mb-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-6 w-6 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-default)] text-[11px] font-semibold text-[var(--text-primary)] inline-flex items-center justify-center shrink-0">
+                    {((repoOwner || "U").charAt(0)).toUpperCase()}
                   </span>
-                ) : null}
-              </div>
-              {parentRepo && (
-                <div className="w-full mt-0.5 text-xs text-[var(--text-muted)] flex items-center gap-1">
-                  <RepoForkedIcon size={12} />
-                  <span>forked from</span>
-                  <a
-                    href={`/${encodeURIComponent(parentRepo.owner || "")}/${encodeURIComponent(parentRepo.name)}`}
-                    className="hover:text-[var(--text-link)] hover:underline"
-                  >
-                    {parentRepo.owner}/{parentRepo.name}
-                  </a>
+                  <a href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}`} className="text-xl font-semibold text-[var(--text-primary)] hover:underline truncate">{repoName}</a>
+                  {repoVisibility ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)]">
+                      {repoVisibility.toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}
+                    </span>
+                  ) : null}
                 </div>
-              )}
+                {parentRepo && (
+                  <div className="mt-1 text-xs text-[var(--text-primary)]">
+                    <span>forked from </span>
+                    <a
+                      href={`/${encodeURIComponent(parentRepo.owner || "")}/${encodeURIComponent(parentRepo.name)}`}
+                      className="text-[var(--text-link)] underline"
+                    >
+                      {parentRepo.owner}/{parentRepo.name}
+                    </a>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2 shrink-0">
                 <WatchButton repoId={repoId} autoFetch showCount />
                 <button

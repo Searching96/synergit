@@ -1,3 +1,8 @@
+# Issue Rules
+
+- Agents may self-assign issue priority up to `medium`.
+- `high` priority must only be used when explicitly specified by the developer.
+
 # Issues Dashboard
 
 This is the central dashboard for tracking Synergit tasks, bugs, and technical debt. 
@@ -27,5 +32,5 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#020](./issues/020-repo-about-feature.md) | Closed | Medium | Frontend | Implement Repo About Feature | `feature`, `ui` | |
 | [#021](./issues/021-fork-repository.md) | Closed | Medium | Fullstack | Implement Repository Fork Feature | `feature`, `ui`, `api`, `git` | |
 | [#022](./issues/022-git-smart-http-authentication.md) | Closed | High | Backend | Git Smart HTTP Basic Authentication | `security`, `git`, `api` | |
-
-| [#023](./issues/023-repository-activity-page.md) | Closed | High | Fullstack | Repository Activity Page | `feature`, `ui`, `database` | |
+| [#023](./issues/023-repository-activity-page.md) | Closed | Medium | Fullstack | Repository Activity Page | `feature`, `ui`, `database`, `git` | |
+| [#024](./issues/024-forked-repo-route-redirects-to-upstream-owner.md) | Closed | High | Fullstack | Forked Repository Route Redirects to Upstream Owner | `bug`, `fork`, `routing` | [#021](./issues/021-fork-repository.md) |

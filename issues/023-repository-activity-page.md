@@ -1,11 +1,20 @@
 ---
+id: "023"
+title: "Repository Activity Page"
+priority: "medium"
 status: "closed"
-created_at: "2026-06-16T10:50:00Z"
-closed_at: "2026-06-17T14:31:00Z"
+component: "fullstack"
 labels: ["feature", "ui", "database", "git"]
+assignee: "antigravity"
+created_at: 2026-06-16
+closed_at: 2026-06-17
+related_issues: []
 ---
 
 # Repository Activity Page
+
+> [!NOTE]
+> **Component**: Fullstack | **Status**: Closed
 
 ## Description
 Currently, the repository activity is not fully tracked or displayed. Users want an "Activity" page similar to GitHub's that shows recent git operations such as direct pushes, pull request merges, branch creations, and branch deletions.
