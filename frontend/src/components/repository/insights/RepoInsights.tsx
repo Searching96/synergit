@@ -9,6 +9,7 @@ import {
   KebabHorizontalIcon,
   CheckIcon,
   RepoForkedIcon,
+  CommentDiscussionIcon,
 } from "@primer/octicons-react";
 import type { ContributionDay, ContributionWeek, ContributorContribution, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
 import { reposApi } from "../../../services/api";
@@ -26,12 +27,16 @@ interface RepoInsightsProps {
   onOpenPulse: () => void;
   onOpenContributors: () => void;
   onOpenContributorsPeriod: (search: string) => void;
+  onOpenCommunity: () => void;
+  onOpenCommunityStandards: () => void;
 }
 
 const INSIGHTS_NAV_ITEMS = [
   "Pulse",
   "Contributors",
+  "Community",
   "Community standards",
+  "Traffic",
   "Commits",
   "Code frequency",
   "Dependency graph",
@@ -74,10 +79,26 @@ export default function RepoInsights(props: RepoInsightsProps) {
     return <RepoContributorsInsights {...props} />;
   }
 
+  if (props.contentKind === "community") {
+    return <RepoCommunityInsights {...props} />;
+  }
+
+  if (props.contentKind === "community-standards") {
+    return <RepoCommunityStandardsInsights {...props} />;
+  }
+
   return <RepoPulseInsights {...props} />;
 }
 
-function RepoPulseInsights({ repoId, repoOwner, repoName, onOpenPulse, onOpenContributors }: RepoInsightsProps) {
+function RepoPulseInsights({
+  repoId,
+  repoOwner,
+  repoName,
+  onOpenPulse,
+  onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
+}: RepoInsightsProps) {
   const [pulse, setPulse] = useState<RepoPulseSnapshot | null>(null);
   const [period, setPeriod] = useState<string>("1m");
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState<boolean>(false);
@@ -142,7 +163,13 @@ function RepoPulseInsights({ repoId, repoOwner, repoName, onOpenPulse, onOpenCon
 
   return (
     <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
-      <InsightsSidebar activeItem="Pulse" onOpenPulse={onOpenPulse} onOpenContributors={onOpenContributors} />
+      <InsightsSidebar
+        activeItem="Pulse"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+      />
 
       <section className="min-w-0">
         <div className="mb-[17px] pb-2 border-b border-[var(--border-default)] flex flex-wrap items-center justify-between gap-3">
@@ -300,6 +327,8 @@ function RepoContributorsInsights({
   locationSearch,
   onOpenPulse,
   onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
   onOpenContributorsPeriod,
 }: RepoInsightsProps) {
   const [snapshot, setSnapshot] = useState<RepoContributorsSnapshot | null>(null);
@@ -332,7 +361,13 @@ function RepoContributorsInsights({
 
   return (
     <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
-      <InsightsSidebar activeItem="Contributors" onOpenPulse={onOpenPulse} onOpenContributors={onOpenContributors} />
+      <InsightsSidebar
+        activeItem="Contributors"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+      />
 
       <section className="min-w-0">
         <div className="mb-[28px] flex flex-wrap items-start justify-between gap-3">
@@ -474,20 +509,195 @@ function RepoContributorsLoading() {
   );
 }
 
+function RepoCommunityInsights({
+  onOpenPulse,
+  onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
+}: RepoInsightsProps) {
+  return (
+    <div className="mx-auto mt-7 grid w-full max-w-[1216px] grid-cols-1 gap-[62px] lg:grid-cols-[296px_minmax(0,1fr)]">
+      <InsightsSidebar
+        activeItem="Community"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+      />
+
+      <section className="flex min-h-[420px] min-w-0 items-start justify-center pt-[29px]">
+        <div className="w-full max-w-[760px] text-center">
+          <CommentDiscussionIcon size={28} className="mx-auto mb-4 text-[var(--text-secondary)]" />
+          <h2 className="text-[20px] font-semibold leading-6 text-[var(--text-primary)]">
+            Enable Discussions to unlock Community Insights!
+          </h2>
+          <p className="mt-3 text-base leading-6 text-[var(--text-secondary)]">
+            Discussions is the central space for your community to share announcements, ask questions, and host conversations.
+          </p>
+          <button
+            type="button"
+            className="mt-3 inline-flex h-8 items-center justify-center rounded-md bg-[#1f883d] px-4 text-sm font-semibold text-white hover:bg-[#1a7f37]"
+          >
+            Set up discussions
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const COMMUNITY_STANDARD_ITEMS = [
+  {
+    title: "Description",
+    description: "Add a description to your repository so people understand the goals of your project.",
+    helpText: "",
+    showAdd: true,
+  },
+  {
+    title: "README",
+    helpText: "Writing a README",
+    showAdd: true,
+  },
+  {
+    title: "Code of conduct",
+    helpText: "What is a code of conduct?",
+    showAdd: true,
+  },
+  {
+    title: "Contributing",
+    helpText: "Writing contributing guidelines",
+    showAdd: true,
+  },
+  {
+    title: "License",
+    helpText: "Choosing a license",
+    showAdd: true,
+  },
+  {
+    title: "Security policy",
+    helpText: "Set up a security policy",
+    showAdd: true,
+  },
+  {
+    title: "Issue templates",
+    helpText: "",
+    showAdd: true,
+  },
+  {
+    title: "Pull request template",
+    helpText: "",
+    showAdd: false,
+  },
+];
+
+function RepoCommunityStandardsInsights({
+  onOpenPulse,
+  onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
+}: RepoInsightsProps) {
+  return (
+    <div className="mx-auto mt-[13px] grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
+      <InsightsSidebar
+        activeItem="Community standards"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+      />
+
+      <section className="min-w-0">
+        <div className="border-b border-[var(--border-default)] pb-[11px]">
+          <h2 className="text-[26px] font-normal leading-9 text-[var(--text-primary)]">Community Standards</h2>
+        </div>
+
+        <p className="mt-[39px] text-center text-[22px] font-normal leading-7 text-[var(--text-primary)]">
+          Here's how this project compares to{" "}
+          <a href="#" className="text-[var(--text-link)] underline">
+            recommended community standards
+          </a>
+          .
+        </p>
+
+        <h3 className="mt-[42px] text-lg font-semibold leading-6 text-[var(--text-primary)]">Checklist</h3>
+
+        <div className="mt-[10px] overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
+          {COMMUNITY_STANDARD_ITEMS.map((item, index) => {
+            const isDescription = item.title === "Description";
+            return (
+              <div
+                key={item.title}
+                className={`grid grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-[var(--border-default)] px-[18px] last:border-b-0 ${
+                  isDescription ? "min-h-[102px] pb-[16px] pt-[18px]" : "min-h-[67px]"
+                }`}
+              >
+                <span className="mt-[2px] h-[9px] w-[9px] rounded-full bg-[#9a6700]" />
+                <div className={isDescription ? "self-start pt-[21px]" : ""}>
+                  <div className="text-base font-normal leading-5 text-[var(--text-primary)]">{item.title}</div>
+                  {item.description && (
+                    <p className="mt-[8px] text-sm leading-5 text-[var(--text-secondary)]">{item.description}</p>
+                  )}
+                </div>
+                <div className="justify-self-end text-sm leading-5">
+                  {item.helpText && (
+                    <a href="#" className="whitespace-nowrap text-[var(--text-link)] hover:underline">
+                      {item.helpText}
+                    </a>
+                  )}
+                </div>
+                <div className="w-[54px] justify-self-end">
+                  {item.showAdd && (
+                    <button
+                      type="button"
+                      className="inline-flex h-8 w-[54px] items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                    >
+                      Add
+                    </button>
+                  )}
+                </div>
+                {index === COMMUNITY_STANDARD_ITEMS.length - 1 && <span className="sr-only">End of checklist</span>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-[28px] text-right text-sm text-[var(--text-primary)]">
+          What is{" "}
+          <a href="#" className="text-[var(--text-link)] underline">
+            the community profile?
+          </a>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function InsightsSidebar({
   activeItem,
   onOpenPulse,
   onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
 }: {
   activeItem: string;
   onOpenPulse: () => void;
   onOpenContributors: () => void;
+  onOpenCommunity: () => void;
+  onOpenCommunityStandards: () => void;
 }) {
   return (
     <aside className="h-fit overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
       {INSIGHTS_NAV_ITEMS.map((item) => {
         const isActive = item === activeItem;
-        const onClick = item === "Pulse" ? onOpenPulse : item === "Contributors" ? onOpenContributors : undefined;
+        const onClick = item === "Pulse"
+          ? onOpenPulse
+          : item === "Contributors"
+            ? onOpenContributors
+            : item === "Community"
+              ? onOpenCommunity
+              : item === "Community standards"
+                ? onOpenCommunityStandards
+                : undefined;
         return (
           <button
             key={item}

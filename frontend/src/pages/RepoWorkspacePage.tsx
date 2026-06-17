@@ -69,6 +69,8 @@ interface RepoWorkspaceContentProps {
   onOpenRepoPulse: () => void;
   onOpenRepoContributors: () => void;
   onOpenRepoContributorsPeriod: (search: string) => void;
+  onOpenRepoCommunity: () => void;
+  onOpenRepoCommunityStandards: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -109,6 +111,8 @@ export default function RepoWorkspaceContent({
   onOpenRepoPulse,
   onOpenRepoContributors,
   onOpenRepoContributorsPeriod,
+  onOpenRepoCommunity,
+  onOpenRepoCommunityStandards,
   isResolvingRepo,
 }: RepoWorkspaceContentProps) {
   if (!selectedRepo) {
@@ -355,6 +359,8 @@ export default function RepoWorkspaceContent({
                 onOpenPulse={onOpenRepoPulse}
                 onOpenContributors={onOpenRepoContributors}
                 onOpenContributorsPeriod={onOpenRepoContributorsPeriod}
+                onOpenCommunity={onOpenRepoCommunity}
+                onOpenCommunityStandards={onOpenRepoCommunityStandards}
               />
             )}
             {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}

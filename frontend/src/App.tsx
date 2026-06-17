@@ -39,6 +39,8 @@ import {
   buildRepoTabPath,
   buildRepoUploadFilesPath,
   buildRepoContributorsPath,
+  buildRepoCommunityPath,
+  buildRepoCommunityStandardsPath,
   buildRepoPulsePath,
   buildContributorsDefaultSearch,
   normalizeContributorsSearch,
@@ -281,6 +283,10 @@ function App() {
         } else if (parsed.tab === 'insights' && parsed.contentKind === 'contributors') {
           canonicalPath = buildRepoContributorsPath(owner, targetRepo.name);
           canonicalSearch = normalizeContributorsSearch(search);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'community') {
+          canonicalPath = buildRepoCommunityPath(owner, targetRepo.name);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'community-standards') {
+          canonicalPath = buildRepoCommunityStandardsPath(owner, targetRepo.name);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -450,7 +456,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards') {
       return;
     }
 
@@ -875,6 +881,14 @@ function App() {
                 onOpenRepoContributorsPeriod={(search) => {
                   if (!selectedRepo) return;
                   navigateToPath(`${buildRepoContributorsPath(getRepoOwner(selectedRepo), selectedRepo.name)}${search}`);
+                }}
+                onOpenRepoCommunity={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(buildRepoCommunityPath(getRepoOwner(selectedRepo), selectedRepo.name));
+                }}
+                onOpenRepoCommunityStandards={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(buildRepoCommunityStandardsPath(getRepoOwner(selectedRepo), selectedRepo.name));
                 }}
               />
             </div>

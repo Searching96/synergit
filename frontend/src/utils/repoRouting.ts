@@ -40,7 +40,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse" | "contributors";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse" | "contributors" | "community" | "community-standards";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -141,6 +141,14 @@ export function buildRepoPulsePath(owner: string, repoName: string): string {
 
 export function buildRepoContributorsPath(owner: string, repoName: string): string {
   return `${buildRepoBasePath(owner, repoName)}/graphs/contributors`;
+}
+
+export function buildRepoCommunityPath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/graphs/community`;
+}
+
+export function buildRepoCommunityStandardsPath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/community`;
 }
 
 export function formatGitHubDate(value: Date): string {
@@ -474,6 +482,36 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (segments[2] === "graphs" && segments[3] === "community") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "insights",
+        contentKind: "community",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/graphs/community`,
+      };
+    }
+
+    if (segments[2] === "community") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "insights",
+        contentKind: "community-standards",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/community`,
+      };
+    }
+
     if (segments[2] === "new" || segments[2] === "edit" || segments[2] === "upload") {
       const contentKind = segments[2] as "new" | "edit" | "upload";
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
@@ -726,6 +764,36 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: buildRepoContributorsPath(repoOwner, repoName),
+      };
+    }
+
+    if (third === "graphs" && segments[3] === "community") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "insights",
+        contentKind: "community",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: buildRepoCommunityPath(repoOwner, repoName),
+      };
+    }
+
+    if (third === "community") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "insights",
+        contentKind: "community-standards",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: buildRepoCommunityStandardsPath(repoOwner, repoName),
       };
     }
 
