@@ -35,3 +35,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#023](./issues/023-repository-activity-page.md) | Closed | Medium | Fullstack | Repository Activity Page | `feature`, `ui`, `database`, `git` | |
 | [#024](./issues/024-forked-repo-route-redirects-to-upstream-owner.md) | Closed | High | Fullstack | Forked Repository Route Redirects to Upstream Owner | `bug`, `fork`, `routing` | [#021](./issues/021-fork-repository.md) |
 | [#025](./issues/025-repository-insights-pulse.md) | Closed | Medium | Fullstack | Repository Insights Pulse | `feature`, `insights`, `ui`, `api`, `git` | [#023](./issues/023-repository-activity-page.md) |
+| [#026](./issues/026-repository-insights-contributors.md) | Open | Medium | Fullstack | Repository Insights Contributors | `feature`, `insights`, `contributors`, `ui`, `api`, `git` | [#025](./issues/025-repository-insights-pulse.md) |

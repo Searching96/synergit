@@ -40,7 +40,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse" | "contributors";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -137,6 +137,36 @@ export function buildRepoTabPath(owner: string, repoName: string, tab: RepoTabKe
 
 export function buildRepoPulsePath(owner: string, repoName: string): string {
   return `${buildRepoBasePath(owner, repoName)}/pulse`;
+}
+
+export function buildRepoContributorsPath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/graphs/contributors`;
+}
+
+export function formatGitHubDate(value: Date): string {
+  return `${value.getMonth() + 1}/${value.getDate()}/${value.getFullYear()}`;
+}
+
+export function buildContributorsDefaultSearch(now: Date = new Date()): string {
+  const from = new Date(now);
+  from.setMonth(from.getMonth() - 3);
+  const params = new URLSearchParams();
+  params.set("from", formatGitHubDate(from));
+  return `?${params.toString()}`;
+}
+
+export function normalizeContributorsSearch(search: string): string {
+  const params = new URLSearchParams(search);
+  if (params.get("all") === "1") {
+    return "?all=1";
+  }
+  const from = (params.get("from") || "").trim();
+  if (from) {
+    const normalized = new URLSearchParams();
+    normalized.set("from", from);
+    return `?${normalized.toString()}`;
+  }
+  return buildContributorsDefaultSearch();
 }
 
 export function buildRepoIssuesNewPath(owner: string, repoName: string): string {
@@ -429,6 +459,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (segments[2] === "graphs" && segments[3] === "contributors") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "insights",
+        contentKind: "contributors",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/graphs/contributors`,
+      };
+    }
+
     if (segments[2] === "new" || segments[2] === "edit" || segments[2] === "upload") {
       const contentKind = segments[2] as "new" | "edit" | "upload";
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
@@ -666,6 +711,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: buildRepoPulsePath(repoOwner, repoName),
+      };
+    }
+
+    if (third === "graphs" && segments[3] === "contributors") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "insights",
+        contentKind: "contributors",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: buildRepoContributorsPath(repoOwner, repoName),
       };
     }
 

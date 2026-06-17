@@ -183,6 +183,7 @@ func main() {
 			repos.DELETE("/:repo_id/contents", repoHandler.HandleDeletePath)
 			repos.GET("/:repo_id/insights", repoInsightsHandler.HandleGetLatestInsights)
 			repos.GET("/:repo_id/insights/pulse", repoInsightsHandler.HandleGetPulse)
+			repos.GET("/:repo_id/insights/contributors", repoInsightsHandler.HandleGetContributors)
 			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 
 			// Collab routes

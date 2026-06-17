@@ -20,6 +20,11 @@ type RepoInsightsUseCase interface {
 		requesterID uuid.UUID,
 		period string,
 	) (*domain.RepoPulseSnapshot, error)
+	GetContributors(
+		repoID uuid.UUID,
+		requesterID uuid.UUID,
+		period string,
+	) (*domain.RepoContributorsSnapshot, error)
 	TriggerRecompute(
 		repoID uuid.UUID,
 		requesterID uuid.UUID,

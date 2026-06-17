@@ -129,6 +129,28 @@ export interface RepoPulseSnapshot {
 	top_committers: ContributorStat[];
 }
 
+export interface ContributionWeek {
+	week_start: string;
+	commit_count: number;
+}
+
+export interface ContributorContribution {
+	author_name: string;
+	commit_count: number;
+	weeks: ContributionWeek[];
+}
+
+export interface RepoContributorsSnapshot {
+	repo_id: string;
+	period: string;
+	period_label: string;
+	period_start: string;
+	period_end: string;
+	default_branch: string;
+	weekly_totals: ContributionWeek[];
+	contributors: ContributorContribution[];
+}
+
 export interface ProfileContributionDay {
 	date: string;
 	commit_count: number;

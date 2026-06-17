@@ -66,6 +66,9 @@ interface RepoWorkspaceContentProps {
   onRepoUpdated: (repo: Repository) => void;
   onRepoDeleted: (repoId: string) => void;
   onGoToProfile: () => void;
+  onOpenRepoPulse: () => void;
+  onOpenRepoContributors: () => void;
+  onOpenRepoContributorsPeriod: (search: string) => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -103,6 +106,9 @@ export default function RepoWorkspaceContent({
   onRepoUpdated,
   onRepoDeleted,
   onGoToProfile,
+  onOpenRepoPulse,
+  onOpenRepoContributors,
+  onOpenRepoContributorsPeriod,
   isResolvingRepo,
 }: RepoWorkspaceContentProps) {
   if (!selectedRepo) {
@@ -344,6 +350,11 @@ export default function RepoWorkspaceContent({
                 repoId={selectedRepo.id}
                 repoOwner={selectedRepo.owner}
                 repoName={selectedRepo.name}
+                contentKind={routeContentKind}
+                locationSearch={locationSearch}
+                onOpenPulse={onOpenRepoPulse}
+                onOpenContributors={onOpenRepoContributors}
+                onOpenContributorsPeriod={onOpenRepoContributorsPeriod}
               />
             )}
             {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}

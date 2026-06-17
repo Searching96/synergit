@@ -5,7 +5,7 @@ priority: "medium"
 status: "closed"
 component: "fullstack"
 labels: ["bug", "fork", "routing"]
-assignee: "antigravity"
+assignee: "codex"
 created_at: 2026-06-17
 closed_at: 2026-06-17
 related_issues: ["021"]

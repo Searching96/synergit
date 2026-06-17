@@ -6,6 +6,7 @@ import type {
   PullRequestCompareResult,
   CreateRepositoryPayload,
   ProfileActivitySnapshot,
+  RepoContributorsSnapshot,
   RepoInsightsSnapshot,
   RepoPulseSnapshot,
   CommitFileChangePayload,
@@ -167,6 +168,9 @@ export const reposApi = {
 
   getPulse: (repoId: string, period: string = '1m') =>
     fetcher<RepoPulseSnapshot>(`/repos/${repoId}/insights/pulse?period=${encodeURIComponent(period)}`),
+
+  getContributors: (repoId: string, period: string = '3m') =>
+    fetcher<RepoContributorsSnapshot>(`/repos/${repoId}/insights/contributors?period=${encodeURIComponent(period)}`),
 
   triggerInsightsRecompute: (repoId: string, trigger: string = 'manual_frontend') =>
     fetcher<{ message: string }>(

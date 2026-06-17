@@ -10,15 +10,22 @@ import {
   CheckIcon,
   RepoForkedIcon,
 } from "@primer/octicons-react";
-import type { RepoPulseSnapshot } from "../../../types";
+import type { ContributionWeek, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
 import { reposApi } from "../../../services/api";
 import { Tooltip } from "../../shared/Tooltip";
 import { SpinnerPlaceholder, TextSkeleton } from "../../shared/LoadingPlaceholders";
+import type { RepoContentKind } from "../../../utils/repoRouting";
+import { buildContributorsDefaultSearch, formatGitHubDate, normalizeContributorsSearch } from "../../../utils/repoRouting";
 
 interface RepoInsightsProps {
   repoId: string;
   repoOwner?: string;
   repoName?: string;
+  contentKind: RepoContentKind;
+  locationSearch: string;
+  onOpenPulse: () => void;
+  onOpenContributors: () => void;
+  onOpenContributorsPeriod: (search: string) => void;
 }
 
 const INSIGHTS_NAV_ITEMS = [
@@ -41,6 +48,12 @@ const PULSE_PERIOD_OPTIONS = [
   { value: "1m", label: "1 month" },
 ];
 
+const CONTRIBUTORS_PERIOD_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "1m", label: "Last month" },
+  { value: "3m", label: "Last 3 months" },
+];
+
 const formatLongDate = (value: string) => {
   const date = new Date(value);
   return new Intl.DateTimeFormat("en-US", {
@@ -56,7 +69,15 @@ const pluralize = (count: number, singular: string, plural: string = `${singular
   return count === 1 ? singular : plural;
 };
 
-export default function RepoInsights({ repoId, repoOwner, repoName }: RepoInsightsProps) {
+export default function RepoInsights(props: RepoInsightsProps) {
+  if (props.contentKind === "contributors") {
+    return <RepoContributorsInsights {...props} />;
+  }
+
+  return <RepoPulseInsights {...props} />;
+}
+
+function RepoPulseInsights({ repoId, repoOwner, repoName, onOpenPulse, onOpenContributors }: RepoInsightsProps) {
   const [pulse, setPulse] = useState<RepoPulseSnapshot | null>(null);
   const [period, setPeriod] = useState<string>("1m");
   const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState<boolean>(false);
@@ -121,21 +142,7 @@ export default function RepoInsights({ repoId, repoOwner, repoName }: RepoInsigh
 
   return (
     <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
-      <aside className="h-fit overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
-        {INSIGHTS_NAV_ITEMS.map((item, index) => (
-          <button
-            key={item}
-            type="button"
-            className={`block h-[43px] w-full border-b border-[var(--border-default)] px-[17px] text-left text-base leading-[43px] last:border-b-0 ${
-              index === 0
-                ? "border-l-2 border-l-[#fd8c73] bg-[var(--surface-canvas)] pl-[16px] font-normal text-[var(--text-primary)]"
-                : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-      </aside>
+      <InsightsSidebar activeItem="Pulse" onOpenPulse={onOpenPulse} onOpenContributors={onOpenContributors} />
 
       <section className="min-w-0">
         <div className="mb-[17px] pb-2 border-b border-[var(--border-default)] flex flex-wrap items-center justify-between gap-3">
@@ -286,6 +293,452 @@ export default function RepoInsights({ repoId, repoOwner, repoName }: RepoInsigh
       </section>
     </div>
   );
+}
+
+function RepoContributorsInsights({
+  repoId,
+  locationSearch,
+  onOpenPulse,
+  onOpenContributors,
+  onOpenContributorsPeriod,
+}: RepoInsightsProps) {
+  const [snapshot, setSnapshot] = useState<RepoContributorsSnapshot | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState<boolean>(false);
+  const [isContributionsMenuOpen, setIsContributionsMenuOpen] = useState<boolean>(false);
+
+  const period = useMemo(() => getContributorsPeriodFromSearch(locationSearch), [locationSearch]);
+  const selectedPeriod = CONTRIBUTORS_PERIOD_OPTIONS.find((item) => item.value === period) || CONTRIBUTORS_PERIOD_OPTIONS[2];
+
+  const loadContributors = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const nextSnapshot = await reposApi.getContributors(repoId, period);
+      setSnapshot(nextSnapshot);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load contributors");
+    } finally {
+      setLoading(false);
+    }
+  }, [period, repoId]);
+
+  useEffect(() => {
+    void loadContributors();
+  }, [loadContributors]);
+
+  const defaultBranch = snapshot?.default_branch || "master";
+
+  return (
+    <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
+      <InsightsSidebar activeItem="Contributors" onOpenPulse={onOpenPulse} onOpenContributors={onOpenContributors} />
+
+      <section className="min-w-0">
+        <div className="mb-[28px] flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[28px] font-semibold leading-8 text-[var(--text-primary)]">Contributors</h2>
+            <p className="mt-2 text-base text-[var(--text-secondary)]">
+              Contributions per week to {defaultBranch}, excluding merge commits
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsPeriodMenuOpen((open) => !open)}
+                className="inline-flex h-[37px] items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-[14px] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+                aria-haspopup="menu"
+                aria-expanded={isPeriodMenuOpen}
+              >
+                <span>Period: {selectedPeriod.label}</span>
+                <ChevronDownIcon size={16} className="ml-1 text-[var(--text-secondary)]" />
+              </button>
+              {isPeriodMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-20 mt-1 w-[216px] overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] py-2 shadow-lg"
+                >
+                  {CONTRIBUTORS_PERIOD_OPTIONS.map((option) => {
+                    const isSelected = option.value === period;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={isSelected}
+                        onClick={() => {
+                          setIsPeriodMenuOpen(false);
+                          onOpenContributorsPeriod(buildContributorsSearchForPeriod(option.value));
+                        }}
+                        className="flex h-9 w-full items-center gap-3 px-5 text-left text-base text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                      >
+                        <span className="inline-flex w-4 justify-center text-[var(--text-secondary)]">
+                          {isSelected ? <CheckIcon size={16} /> : null}
+                        </span>
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsContributionsMenuOpen((open) => !open)}
+                className="inline-flex h-[37px] items-center gap-1 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] px-[14px] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+                aria-haspopup="menu"
+                aria-expanded={isContributionsMenuOpen}
+              >
+                <span>Contributions: Commits</span>
+                <ChevronDownIcon size={16} className="ml-1 text-[var(--text-secondary)]" />
+              </button>
+              {isContributionsMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-20 mt-1 w-[216px] overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] py-2 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked="true"
+                    onClick={() => setIsContributionsMenuOpen(false)}
+                    className="flex h-9 w-full items-center gap-3 px-5 text-left text-base text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+                  >
+                    <span className="inline-flex w-4 justify-center text-[var(--text-secondary)]">
+                      <CheckIcon size={16} />
+                    </span>
+                    <span>Commits</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <RepoContributorsLoading />
+        ) : error ? (
+          <div className="rounded-md border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] p-6 text-sm text-[var(--text-danger)]">
+            <p className="font-medium">{error}</p>
+            <button
+              type="button"
+              onClick={() => void loadContributors()}
+              className="mt-3 h-8 rounded-md border border-[var(--border-danger-muted)] bg-[var(--surface-canvas)] px-3 font-semibold hover:bg-[var(--surface-danger-subtle)]"
+            >
+              Retry
+            </button>
+          </div>
+        ) : snapshot ? (
+          <div className="space-y-[18px]">
+            <ContributorsChartCard snapshot={snapshot} />
+            <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
+              {snapshot.contributors.map((contributor, index) => (
+                <ContributorCard
+                  key={contributor.author_name}
+                  contributor={contributor}
+                  rank={index + 1}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8 text-center text-sm text-[var(--text-secondary)]">
+            No contributor data available.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function RepoContributorsLoading() {
+  return (
+    <div className="space-y-[18px]">
+      <article className="min-h-[396px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-[18px]">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-xl font-semibold leading-6 text-[var(--text-primary)]">Commits over time</h3>
+            <TextSkeleton className="mt-2 w-[260px]" lines={1} lineClassName="h-4" />
+          </div>
+          <PulseTopCommittersHeaderActions />
+        </div>
+        <SpinnerPlaceholder className="h-[300px]" label="Loading contributor chart" size={34} />
+      </article>
+    </div>
+  );
+}
+
+function InsightsSidebar({
+  activeItem,
+  onOpenPulse,
+  onOpenContributors,
+}: {
+  activeItem: string;
+  onOpenPulse: () => void;
+  onOpenContributors: () => void;
+}) {
+  return (
+    <aside className="h-fit overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
+      {INSIGHTS_NAV_ITEMS.map((item) => {
+        const isActive = item === activeItem;
+        const onClick = item === "Pulse" ? onOpenPulse : item === "Contributors" ? onOpenContributors : undefined;
+        return (
+          <button
+            key={item}
+            type="button"
+            onClick={onClick}
+            className={`block h-[43px] w-full border-b border-[var(--border-default)] px-[17px] text-left text-base leading-[43px] last:border-b-0 ${
+              isActive
+                ? "border-l-2 border-l-[#fd8c73] bg-[var(--surface-canvas)] pl-[16px] font-normal text-[var(--text-primary)]"
+                : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)]"
+            }`}
+          >
+            {item}
+          </button>
+        );
+      })}
+    </aside>
+  );
+}
+
+function ContributorsChartCard({ snapshot }: { snapshot: RepoContributorsSnapshot }) {
+  const maxCount = Math.max(...snapshot.weekly_totals.map((week) => week.commit_count), 1);
+  const chartMax = maxCount <= 30 ? 30 : Math.ceil(maxCount / 10) * 10;
+  const rangeLabel = buildWeeklyRangeLabel(snapshot.weekly_totals, snapshot.period_start, snapshot.period_end);
+
+  return (
+    <article className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-[18px]">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-xl font-semibold leading-6 text-[var(--text-primary)]">Commits over time</h3>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">{rangeLabel}</p>
+        </div>
+        <PulseTopCommittersHeaderActions />
+      </div>
+      <ContributionBars weeks={snapshot.weekly_totals} chartMax={chartMax} heightClassName="h-[170px]" showAxis />
+      <ContributionMiniTimeline weeks={snapshot.weekly_totals} />
+    </article>
+  );
+}
+
+function ContributionBars({
+  weeks,
+  chartMax,
+  heightClassName,
+  showAxis = false,
+}: {
+  weeks: ContributionWeek[];
+  chartMax: number;
+  heightClassName: string;
+  showAxis?: boolean;
+}) {
+  const tickValues = [chartMax, Math.round(chartMax / 2), 0];
+
+  return (
+    <div className="mt-7 grid grid-cols-[minmax(0,1fr)_42px] gap-1">
+      <div className={`relative ${heightClassName} border-b border-[#d8dee4]`}>
+        {[0, 50, 100].map((top) => (
+          <div
+            key={top}
+            className={`absolute inset-x-0 border-t ${top === 100 ? "border-[#d8dee4]" : "border-dashed border-[#d8dee4]"}`}
+            style={{ top: `${top}%` }}
+          />
+        ))}
+        <div className="absolute inset-x-0 bottom-0 flex h-full items-end gap-px">
+          {weeks.map((week) => {
+            const height = week.commit_count > 0 ? Math.max((week.commit_count / chartMax) * 100, 2) : 0;
+            return (
+              <div key={week.week_start} className="flex h-full min-w-3 flex-1 items-end">
+                <div
+                  className="w-full bg-[#0969da]"
+                  style={{ height: `${height}%` }}
+                  title={`${week.commit_count} commits during week of ${week.week_start}`}
+                />
+              </div>
+            );
+          })}
+        </div>
+        {showAxis && (
+          <span className="absolute right-[-72px] top-1/2 -translate-y-1/2 rotate-90 origin-center text-xs text-[var(--text-secondary)]">Contributions</span>
+        )}
+        <div className="absolute inset-x-0 top-full mt-4 flex justify-between text-xs text-[var(--text-secondary)]">
+          {weeks.filter((_, index) => index % Math.max(Math.ceil(weeks.length / 5), 1) === 0).map((week) => (
+            <span key={week.week_start}>{formatShortWeekLabel(week.week_start)}</span>
+          ))}
+        </div>
+      </div>
+      {showAxis && (
+        <div className={`relative ${heightClassName} text-xs text-[var(--text-secondary)]`}>
+          {tickValues.map((value, index) => (
+            <span
+              key={`${value}-${index}`}
+              className="absolute left-0 -translate-y-1/2"
+              style={{ top: `${index * 50}%` }}
+            >
+              {formatNumber(value)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContributionMiniTimeline({ weeks }: { weeks: ContributionWeek[] }) {
+  return (
+    <div className="mt-14 h-[60px] border-t border-[#8c959f]">
+      <div className="relative mt-2 h-[36px] overflow-hidden bg-[#ddf4ff]">
+        <svg className="h-full w-full" viewBox={`0 0 ${Math.max(weeks.length - 1, 1)} 36`} preserveAspectRatio="none" aria-hidden="true">
+          <polyline
+            fill="none"
+            stroke="#0969da"
+            strokeWidth="1.5"
+            points={weeks.map((week, index) => `${index},${34 - Math.min(week.commit_count, 34)}`).join(" ")}
+          />
+        </svg>
+      </div>
+      <div className="mt-1 flex justify-around text-[10px] text-[var(--text-secondary)]">
+        <span>{weeks[0] ? formatShortMonthLabel(weeks[0].week_start) : ""}</span>
+        <span>{weeks[Math.floor(weeks.length / 2)] ? formatShortMonthLabel(weeks[Math.floor(weeks.length / 2)].week_start) : ""}</span>
+        <span>{weeks[weeks.length - 1] ? formatShortMonthLabel(weeks[weeks.length - 1].week_start) : ""}</span>
+      </div>
+    </div>
+  );
+}
+
+function ContributorCard({
+  contributor,
+  rank,
+}: {
+  contributor: { author_name: string; commit_count: number; weeks: ContributionWeek[] };
+  rank: number;
+}) {
+  const maxCount = Math.max(...contributor.weeks.map((week) => week.commit_count), 1);
+  const chartMax = maxCount <= 20 ? 20 : Math.ceil(maxCount / 10) * 10;
+
+  return (
+    <article className="min-h-[216px] w-full rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-[16px] pb-[18px] pt-[18px]">
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border-default)] bg-[var(--surface-subtle)] text-center text-sm font-semibold leading-10 text-[var(--text-primary)]">
+            {(contributor.author_name || "?").charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-xl font-semibold leading-6 text-[var(--text-link)]">{contributor.author_name}</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              {formatNumber(contributor.commit_count)} {pluralize(contributor.commit_count, "commit")}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-[var(--text-secondary)]">
+          <span className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-xs font-semibold text-[var(--text-primary)]">#{rank}</span>
+          <KebabHorizontalIcon size={18} />
+          <GearIcon size={18} />
+        </div>
+      </div>
+      <ContributorMiniBars weeks={contributor.weeks} chartMax={chartMax} />
+    </article>
+  );
+}
+
+function ContributorMiniBars({ weeks, chartMax }: { weeks: ContributionWeek[]; chartMax: number }) {
+  const tickValues = [chartMax, Math.round(chartMax / 2), 0];
+  const labelInterval = Math.max(Math.ceil(weeks.length / 5), 1);
+  const labeledWeeks = weeks.filter((_, index) => index % labelInterval === 0);
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_38px] gap-0">
+      <div className="min-w-0">
+        <div className="relative h-[102px] border-b border-[#d8dee4]">
+          {[0, 50, 100].map((top) => (
+            <div
+              key={top}
+              className={`absolute inset-x-0 border-t ${top === 100 ? "border-[#d8dee4]" : "border-dashed border-[#d8dee4]"}`}
+              style={{ top: `${top}%` }}
+            />
+          ))}
+          <div className="absolute inset-x-0 bottom-0 flex h-full items-end gap-px">
+            {weeks.map((week) => {
+              const height = week.commit_count > 0 ? Math.max((week.commit_count / chartMax) * 100, 2) : 0;
+              return (
+                <div key={week.week_start} className="flex h-full min-w-2 flex-1 items-end">
+                  <div
+                    className="w-full bg-[#0969da]"
+                    style={{ height: `${height}%` }}
+                    title={`${week.commit_count} commits during week of ${week.week_start}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <span className="absolute right-[-70px] top-1/2 -translate-y-1/2 rotate-90 origin-center text-xs text-[var(--text-secondary)]">Contributions</span>
+        </div>
+        <div className="mt-3 flex justify-between overflow-hidden text-xs text-[var(--text-secondary)]">
+          {labeledWeeks.map((week) => (
+            <span key={week.week_start} className="whitespace-nowrap">
+              {formatShortWeekLabel(week.week_start)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="relative h-[102px] text-xs text-[var(--text-secondary)]">
+        {tickValues.map((value, index) => (
+          <span
+            key={`${value}-${index}`}
+            className="absolute left-0 -translate-y-1/2"
+            style={{ top: `${index * 50}%` }}
+          >
+            {formatNumber(value)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getContributorsPeriodFromSearch(search: string): string {
+  const normalized = normalizeContributorsSearch(search);
+  const params = new URLSearchParams(normalized);
+  if (params.get("all") === "1") return "all";
+  const from = params.get("from") || "";
+  if (from === formatGitHubDate(addMonths(new Date(), -1))) return "1m";
+  return "3m";
+}
+
+function buildContributorsSearchForPeriod(period: string): string {
+  if (period === "all") {
+    return "?all=1";
+  }
+  if (period === "1m") {
+    const params = new URLSearchParams();
+    params.set("from", formatGitHubDate(addMonths(new Date(), -1)));
+    return `?${params.toString()}`;
+  }
+  return buildContributorsDefaultSearch();
+}
+
+function addMonths(value: Date, months: number): Date {
+  const next = new Date(value);
+  next.setMonth(next.getMonth() + months);
+  return next;
+}
+
+function buildWeeklyRangeLabel(weeks: ContributionWeek[], periodStart: string, periodEnd: string): string {
+  const start = weeks[0]?.week_start || periodStart;
+  const end = weeks[weeks.length - 1]?.week_start || periodEnd;
+  return `Weekly from ${formatLongDate(start)} to ${formatLongDate(end)}`;
+}
+
+function formatShortWeekLabel(value: string): string {
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }).format(new Date(value));
+}
+
+function formatShortMonthLabel(value: string): string {
+  return new Intl.DateTimeFormat("en-US", { month: "short", year: "2-digit" }).format(new Date(value));
 }
 
 function PulseLoadingLayout() {
@@ -457,6 +910,13 @@ function PulseTopCommittersHeader() {
   return (
     <div className="mb-5 flex items-center justify-between gap-2">
       <h3 className="text-xl font-semibold leading-6 text-[var(--text-primary)]">Top Committers</h3>
+      <PulseTopCommittersHeaderActions />
+    </div>
+  );
+}
+
+function PulseTopCommittersHeaderActions() {
+  return (
       <div className="flex items-center gap-3 text-[var(--text-secondary)]">
         <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-[var(--surface-subtle)]" aria-label="More options">
           <KebabHorizontalIcon size={18} />
@@ -465,7 +925,6 @@ function PulseTopCommittersHeader() {
           <GearIcon size={18} />
         </button>
       </div>
-    </div>
   );
 }
 

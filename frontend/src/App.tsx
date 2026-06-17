@@ -38,7 +38,10 @@ import {
   buildRepoPullViewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
+  buildRepoContributorsPath,
   buildRepoPulsePath,
+  buildContributorsDefaultSearch,
+  normalizeContributorsSearch,
   normalizeCommitFilterSearch,
   normalizePathValue,
   normalizeProfileTab,
@@ -275,6 +278,9 @@ function App() {
           canonicalPath = buildRepoIssueViewPath(owner, targetRepo.name, parsed.contentPath);
         } else if (parsed.tab === 'insights' && parsed.contentKind === 'pulse') {
           canonicalPath = buildRepoPulsePath(owner, targetRepo.name);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'contributors') {
+          canonicalPath = buildRepoContributorsPath(owner, targetRepo.name);
+          canonicalSearch = normalizeContributorsSearch(search);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -444,7 +450,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors') {
       return;
     }
 
@@ -858,6 +864,18 @@ function App() {
                 onRepoUpdated={handleRepoUpdatedWrapper}
                 onRepoDeleted={handleRepoDeletedWrapper}
                 onGoToProfile={() => navigateToProfileTab('overview')}
+                onOpenRepoPulse={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(buildRepoPulsePath(getRepoOwner(selectedRepo), selectedRepo.name));
+                }}
+                onOpenRepoContributors={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(`${buildRepoContributorsPath(getRepoOwner(selectedRepo), selectedRepo.name)}${buildContributorsDefaultSearch()}`);
+                }}
+                onOpenRepoContributorsPeriod={(search) => {
+                  if (!selectedRepo) return;
+                  navigateToPath(`${buildRepoContributorsPath(getRepoOwner(selectedRepo), selectedRepo.name)}${search}`);
+                }}
               />
             </div>
 

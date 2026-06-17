@@ -50,6 +50,29 @@ type RepoPulseSummary struct {
 	Deletions                int `json:"deletions"`
 }
 
+// RepoContributorsSnapshot summarizes default-branch contributors over time.
+type RepoContributorsSnapshot struct {
+	RepoID        uuid.UUID                 `json:"repo_id"`
+	Period        string                    `json:"period"`
+	PeriodLabel   string                    `json:"period_label"`
+	PeriodStart   time.Time                 `json:"period_start"`
+	PeriodEnd     time.Time                 `json:"period_end"`
+	DefaultBranch string                    `json:"default_branch"`
+	WeeklyTotals  []ContributionWeek        `json:"weekly_totals"`
+	Contributors  []ContributorContribution `json:"contributors"`
+}
+
+type ContributionWeek struct {
+	WeekStart   string `json:"week_start"`
+	CommitCount int    `json:"commit_count"`
+}
+
+type ContributorContribution struct {
+	AuthorName  string             `json:"author_name"`
+	CommitCount int                `json:"commit_count"`
+	Weeks       []ContributionWeek `json:"weeks"`
+}
+
 // CommitTrendPoint represents commit count grouped by day.
 type CommitTrendPoint struct {
 	Date        string `json:"date"`

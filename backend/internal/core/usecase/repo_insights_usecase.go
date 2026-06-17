@@ -338,6 +338,97 @@ func resolvePulsePeriod(period string) (time.Duration, string, bool) {
 	}
 }
 
+func (s *RepoInsightsService) GetContributors(
+	repoID uuid.UUID,
+	requesterID uuid.UUID,
+	period string,
+) (*domain.RepoContributorsSnapshot, error) {
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	normalizedPeriod := strings.TrimSpace(strings.ToLower(period))
+	if normalizedPeriod == "" {
+		normalizedPeriod = "3m"
+	}
+	window, periodLabel, allTime, ok := resolveContributorsPeriod(normalizedPeriod)
+	if !ok {
+		return nil, errors.New("unsupported contributors period")
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+	defaultBranch := resolveDefaultBranchName(branches)
+	if defaultBranch == "" {
+		return &domain.RepoContributorsSnapshot{
+			RepoID:        repoID,
+			Period:        normalizedPeriod,
+			PeriodLabel:   periodLabel,
+			PeriodStart:   time.Now().UTC(),
+			PeriodEnd:     time.Now().UTC(),
+			DefaultBranch: defaultBranch,
+			WeeklyTotals:  []domain.ContributionWeek{},
+			Contributors:  []domain.ContributorContribution{},
+		}, nil
+	}
+
+	now := time.Now().UTC()
+	since := now.Add(-window)
+	commitsPage, err := s.gitManager.GetCommits(repo.Path, defaultBranch, "", 1000000, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	commits := filterNonMergeCommits(commitsPage.Commits)
+	if !allTime {
+		commits = filterCommitsBetween(commits, since, now)
+	}
+
+	if allTime && len(commits) > 0 {
+		since = commits[0].Date.UTC()
+		for _, commit := range commits[1:] {
+			if commit.Date.UTC().Before(since) {
+				since = commit.Date.UTC()
+			}
+		}
+	}
+
+	weeklyTotals, contributors := buildContributorWeeklyStats(commits, since, now)
+	return &domain.RepoContributorsSnapshot{
+		RepoID:        repoID,
+		Period:        normalizedPeriod,
+		PeriodLabel:   periodLabel,
+		PeriodStart:   since,
+		PeriodEnd:     now,
+		DefaultBranch: defaultBranch,
+		WeeklyTotals:  weeklyTotals,
+		Contributors:  contributors,
+	}, nil
+}
+
+func resolveContributorsPeriod(period string) (time.Duration, string, bool, bool) {
+	switch strings.TrimSpace(strings.ToLower(period)) {
+	case "all":
+		return 0, "All", true, true
+	case "1m":
+		return 30 * 24 * time.Hour, "Last month", false, true
+	case "3m":
+		return 90 * 24 * time.Hour, "Last 3 months", false, true
+	default:
+		return 0, "", false, false
+	}
+}
+
 func (s *RepoInsightsService) TriggerRecompute(
 	repoID uuid.UUID,
 	requesterID uuid.UUID,
@@ -590,9 +681,106 @@ func filterNonMergeCommitsBetween(commits []domain.Commit, since time.Time, unti
 	return result
 }
 
+func filterNonMergeCommits(commits []domain.Commit) []domain.Commit {
+	result := make([]domain.Commit, 0, len(commits))
+	for _, commit := range commits {
+		if len(commit.Parents) > 1 {
+			continue
+		}
+		result = append(result, commit)
+	}
+	return result
+}
+
+func filterCommitsBetween(commits []domain.Commit, since time.Time, until time.Time) []domain.Commit {
+	result := make([]domain.Commit, 0, len(commits))
+	for _, commit := range commits {
+		if !timeInRange(commit.Date, since, until) {
+			continue
+		}
+		result = append(result, commit)
+	}
+	return result
+}
+
 func timeInRange(value time.Time, since time.Time, until time.Time) bool {
 	at := value.UTC()
 	return (at.Equal(since) || at.After(since)) && (at.Equal(until) || at.Before(until))
+}
+
+func weekStart(value time.Time) time.Time {
+	at := value.UTC()
+	year, month, day := at.Date()
+	dayStart := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	offset := (int(dayStart.Weekday()) + 6) % 7
+	return dayStart.AddDate(0, 0, -offset)
+}
+
+func buildContributorWeeklyStats(
+	commits []domain.Commit,
+	since time.Time,
+	until time.Time,
+) ([]domain.ContributionWeek, []domain.ContributorContribution) {
+	startWeek := weekStart(since)
+	endWeek := weekStart(until)
+	weekKeys := []string{}
+	for current := startWeek; !current.After(endWeek); current = current.AddDate(0, 0, 7) {
+		weekKeys = append(weekKeys, current.Format("2006-01-02"))
+	}
+
+	totalByWeek := map[string]int{}
+	byAuthorWeek := map[string]map[string]int{}
+	totalByAuthor := map[string]int{}
+	for _, commit := range commits {
+		author := strings.TrimSpace(commit.Author)
+		if author == "" {
+			author = "Unknown"
+		}
+		key := weekStart(commit.Date).Format("2006-01-02")
+		totalByWeek[key]++
+		totalByAuthor[author]++
+		if byAuthorWeek[author] == nil {
+			byAuthorWeek[author] = map[string]int{}
+		}
+		byAuthorWeek[author][key]++
+	}
+
+	weeklyTotals := make([]domain.ContributionWeek, 0, len(weekKeys))
+	for _, key := range weekKeys {
+		weeklyTotals = append(weeklyTotals, domain.ContributionWeek{
+			WeekStart:   key,
+			CommitCount: totalByWeek[key],
+		})
+	}
+
+	authors := make([]string, 0, len(totalByAuthor))
+	for author := range totalByAuthor {
+		authors = append(authors, author)
+	}
+	sort.Slice(authors, func(i int, j int) bool {
+		if totalByAuthor[authors[i]] == totalByAuthor[authors[j]] {
+			return authors[i] < authors[j]
+		}
+		return totalByAuthor[authors[i]] > totalByAuthor[authors[j]]
+	})
+
+	contributors := make([]domain.ContributorContribution, 0, len(authors))
+	for _, author := range authors {
+		weeks := make([]domain.ContributionWeek, 0, len(weekKeys))
+		for _, key := range weekKeys {
+			weeks = append(weeks, domain.ContributionWeek{
+				WeekStart:   key,
+				CommitCount: byAuthorWeek[author][key],
+			})
+		}
+		contributors = append(contributors, domain.ContributorContribution{
+			AuthorName:  author,
+			CommitCount: totalByAuthor[author],
+			Weeks:       weeks,
+		})
+	}
+
+	return weeklyTotals, contributors
 }
 
 func resolveDefaultBranchName(branches []domain.Branch) string {
