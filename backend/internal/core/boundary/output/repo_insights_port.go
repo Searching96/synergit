@@ -41,6 +41,7 @@ type RepoInsightsMetricComputer interface {
 type RepoInsightsUseCase interface {
 	RepoInsightsScheduler
 	GetLatestInsights(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoInsightsSnapshot, error)
+	GetPulse(repoID uuid.UUID, requesterID uuid.UUID, period string) (*domain.RepoPulseSnapshot, error)
 	GetProfileActivity(requesterID uuid.UUID, year int) (*domain.ProfileActivitySnapshot, error)
 	TriggerRecompute(repoID uuid.UUID, requesterID uuid.UUID, trigger string) error
 	RecomputeNow(repoID uuid.UUID, trigger string) error

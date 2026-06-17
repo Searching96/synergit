@@ -40,7 +40,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -128,8 +128,15 @@ export function buildRepoTabPath(owner: string, repoName: string, tab: RepoTabKe
   if (tab === "files") {
     return base;
   }
+  if (tab === "insights") {
+    return `${base}/pulse`;
+  }
 
   return `${base}/${tab}`;
+}
+
+export function buildRepoPulsePath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/pulse`;
 }
 
 export function buildRepoIssuesNewPath(owner: string, repoName: string): string {
@@ -407,6 +414,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (segments[2] === "pulse") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "insights",
+        contentKind: "pulse",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/pulse`,
+      };
+    }
+
     if (segments[2] === "new" || segments[2] === "edit" || segments[2] === "upload") {
       const contentKind = segments[2] as "new" | "edit" | "upload";
       const branch = segments[3] ? decodeURIComponent(segments[3]) : "master";
@@ -629,6 +651,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: `${base}/fork`,
+      };
+    }
+
+    if (third === "pulse") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "insights",
+        contentKind: "pulse",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: buildRepoPulsePath(repoOwner, repoName),
       };
     }
 

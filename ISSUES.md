@@ -34,3 +34,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#022](./issues/022-git-smart-http-authentication.md) | Closed | High | Backend | Git Smart HTTP Basic Authentication | `security`, `git`, `api` | |
 | [#023](./issues/023-repository-activity-page.md) | Closed | Medium | Fullstack | Repository Activity Page | `feature`, `ui`, `database`, `git` | |
 | [#024](./issues/024-forked-repo-route-redirects-to-upstream-owner.md) | Closed | High | Fullstack | Forked Repository Route Redirects to Upstream Owner | `bug`, `fork`, `routing` | [#021](./issues/021-fork-repository.md) |
+| [#025](./issues/025-repository-insights-pulse.md) | Closed | Medium | Fullstack | Repository Insights Pulse | `feature`, `insights`, `ui`, `api`, `git` | [#023](./issues/023-repository-activity-page.md) |

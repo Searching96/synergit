@@ -38,6 +38,7 @@ import {
   buildRepoPullViewPath,
   buildRepoTabPath,
   buildRepoUploadFilesPath,
+  buildRepoPulsePath,
   normalizeCommitFilterSearch,
   normalizePathValue,
   normalizeProfileTab,
@@ -272,6 +273,8 @@ function App() {
           canonicalPath = buildRepoIssuesNewPath(owner, targetRepo.name);
         } else if (parsed.tab === 'issues' && parsed.contentKind === 'issue-view') {
           canonicalPath = buildRepoIssueViewPath(owner, targetRepo.name, parsed.contentPath);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'pulse') {
+          canonicalPath = buildRepoPulsePath(owner, targetRepo.name);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -441,7 +444,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse') {
       return;
     }
 

@@ -43,6 +43,7 @@ export interface Commit {
 	author: string;
 	message: string;
 	date: string; // ISO string from the backend
+	parents?: string[];
 }
 
 export interface CommitPage {
@@ -96,6 +97,36 @@ export interface RepoInsightsSnapshot {
 	primary_language?: string;
 	language_breakdown: LanguageBreakdownStat[];
 	last_error?: string;
+}
+
+export interface RepoPulseOverview {
+	active_pull_requests: number;
+	active_issues: number;
+	merged_pull_requests: number;
+	open_pull_requests: number;
+	closed_issues: number;
+	new_issues: number;
+}
+
+export interface RepoPulseSummary {
+	author_count: number;
+	default_branch_commit_count: number;
+	all_branch_commit_count: number;
+	files_changed: number;
+	additions: number;
+	deletions: number;
+}
+
+export interface RepoPulseSnapshot {
+	repo_id: string;
+	period: string;
+	period_label: string;
+	period_start: string;
+	period_end: string;
+	default_branch: string;
+	overview: RepoPulseOverview;
+	summary: RepoPulseSummary;
+	top_committers: ContributorStat[];
 }
 
 export interface ProfileContributionDay {

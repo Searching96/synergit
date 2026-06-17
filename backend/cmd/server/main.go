@@ -10,12 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
-	"synergit/internal/adapter/gateway/git_analysis"
 	httpHandler "synergit/internal/adapter/controller"
 	"synergit/internal/adapter/controller/middleware"
+	"synergit/internal/adapter/gateway/git_analysis"
+	"synergit/internal/adapter/gateway/security"
 	"synergit/internal/adapter/repository"
 	"synergit/internal/adapter/repository/postgres"
-	"synergit/internal/adapter/gateway/security"
 	"synergit/internal/core/usecase"
 
 	"github.com/gin-contrib/cors"
@@ -182,6 +182,7 @@ func main() {
 			repos.POST("/:repo_id/commit-files", repoHandler.HandleCommitFilesChange)
 			repos.DELETE("/:repo_id/contents", repoHandler.HandleDeletePath)
 			repos.GET("/:repo_id/insights", repoInsightsHandler.HandleGetLatestInsights)
+			repos.GET("/:repo_id/insights/pulse", repoInsightsHandler.HandleGetPulse)
 			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 
 			// Collab routes

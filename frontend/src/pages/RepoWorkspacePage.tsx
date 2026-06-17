@@ -339,7 +339,13 @@ export default function RepoWorkspaceContent({
             {activeTab === "projects" && <RepoProjectsPage />}
             {activeTab === "wiki" && <RepoWikiPage repoName={selectedRepo.name} />}
             {activeTab === "security" && <RepoSecurityPage />}
-            {activeTab === "insights" && <RepoInsights repoId={selectedRepo.id} />}
+            {activeTab === "insights" && (
+              <RepoInsights
+                repoId={selectedRepo.id}
+                repoOwner={selectedRepo.owner}
+                repoName={selectedRepo.name}
+              />
+            )}
             {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}
             {activeTab === "settings" && (
               <RepoSettingsPage

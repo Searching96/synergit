@@ -15,6 +15,11 @@ type RepoInsightsUseCase interface {
 		repoID uuid.UUID,
 		requesterID uuid.UUID,
 	) (*domain.RepoInsightsSnapshot, error)
+	GetPulse(
+		repoID uuid.UUID,
+		requesterID uuid.UUID,
+		period string,
+	) (*domain.RepoPulseSnapshot, error)
 	TriggerRecompute(
 		repoID uuid.UUID,
 		requesterID uuid.UUID,

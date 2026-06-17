@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -578,10 +578,10 @@ func (g *LocalGitAdapter) GetCommitsBatch(repoPath string, branch string, paths 
 			}
 
 			commitsPage, err := getCommitsWithRef(localRepo, refHash, pathFilter, 1, 0)
-			
+
 			mu.Lock()
 			defer mu.Unlock()
-			
+
 			if err == nil && len(commitsPage.Commits) > 0 {
 				commitCopy := commitsPage.Commits[0]
 				result[pathFilter] = &commitCopy
@@ -741,11 +741,17 @@ func listCommits(r *git.Repository, logOptions *git.LogOptions, limit int, offse
 }
 
 func mapToDomainCommit(c *object.Commit) domain.Commit {
+	parents := make([]string, 0, c.NumParents())
+	for _, parent := range c.ParentHashes {
+		parents = append(parents, parent.String())
+	}
+
 	return domain.Commit{
 		Hash:    c.Hash.String(),
 		Author:  c.Author.Name,
 		Message: strings.TrimSpace(c.Message),
 		Date:    c.Author.When,
+		Parents: parents,
 	}
 }
 
@@ -1946,7 +1952,6 @@ func (g *LocalGitAdapter) ResolveConflictsAndCommit(repoPath string, sourceBranc
 	return nil
 }
 
-
 func (g *LocalGitAdapter) GetCommitDetail(repoPath string, commitHash string) (*domain.Commit, error) {
 	fullPath := g.resolveRepoPath(repoPath)
 	r, err := git.PlainOpen(fullPath)
@@ -1960,12 +1965,8 @@ func (g *LocalGitAdapter) GetCommitDetail(repoPath string, commitHash string) (*
 		return nil, fmt.Errorf("commit not found: %w", err)
 	}
 
-	return &domain.Commit{
-		Hash:    commit.Hash.String(),
-		Author:  commit.Author.Name,
-		Message: strings.TrimSpace(commit.Message),
-		Date:    commit.Author.When,
-	}, nil
+	mapped := mapToDomainCommit(commit)
+	return &mapped, nil
 }
 
 func (g *LocalGitAdapter) GetCommitDiff(repoPath string, commitHash string) ([]domain.DiffFile, error) {

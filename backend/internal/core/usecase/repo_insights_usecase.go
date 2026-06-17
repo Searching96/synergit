@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
-	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -211,6 +212,130 @@ func (s *RepoInsightsService) GetLatestInsights(
 	}
 
 	return snapshot, nil
+}
+
+func (s *RepoInsightsService) GetPulse(
+	repoID uuid.UUID,
+	requesterID uuid.UUID,
+	period string,
+) (*domain.RepoPulseSnapshot, error) {
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	normalizedPeriod := strings.TrimSpace(strings.ToLower(period))
+	if normalizedPeriod == "" {
+		normalizedPeriod = "1m"
+	}
+	window, periodLabel, ok := resolvePulsePeriod(normalizedPeriod)
+	if !ok {
+		return nil, errors.New("unsupported pulse period")
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	now := time.Now().UTC()
+	since := now.Add(-window)
+
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	defaultBranch := resolveDefaultBranchName(branches)
+	commitsByHash := map[string]domain.Commit{}
+	defaultBranchCommits := []domain.Commit{}
+
+	for _, branch := range branches {
+		commitsPage, err := s.gitManager.GetCommits(repo.Path, branch.Name, "", 1000000, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		filtered := filterNonMergeCommitsBetween(commitsPage.Commits, since, now)
+		if branch.Name == defaultBranch {
+			defaultBranchCommits = filtered
+		}
+		for _, commit := range filtered {
+			commitsByHash[commit.Hash] = commit
+		}
+	}
+
+	issues, err := s.issueStore.ListByRepo(repoID)
+	if err != nil {
+		return nil, err
+	}
+	pullRequests, err := s.pullStore.ListByRepo(repoID)
+	if err != nil {
+		return nil, err
+	}
+
+	filesChanged := map[string]struct{}{}
+	additions := 0
+	deletions := 0
+	for _, commit := range defaultBranchCommits {
+		diffFiles, err := s.gitManager.GetCommitDiff(repo.Path, commit.Hash)
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range diffFiles {
+			if strings.TrimSpace(file.Path) != "" {
+				filesChanged[file.Path] = struct{}{}
+			}
+			additions += file.Additions
+			deletions += file.Deletions
+		}
+	}
+
+	topCommitters := buildPulseTopCommitters(commitsByHash)
+	authorNames := map[string]struct{}{}
+	for _, commit := range commitsByHash {
+		author := strings.TrimSpace(commit.Author)
+		if author == "" {
+			author = "Unknown"
+		}
+		authorNames[author] = struct{}{}
+	}
+
+	return &domain.RepoPulseSnapshot{
+		RepoID:        repoID,
+		Period:        normalizedPeriod,
+		PeriodLabel:   periodLabel,
+		PeriodStart:   since,
+		PeriodEnd:     now,
+		DefaultBranch: defaultBranch,
+		Overview:      buildPulseOverview(issues, pullRequests, since, now),
+		Summary: domain.RepoPulseSummary{
+			AuthorCount:              len(authorNames),
+			DefaultBranchCommitCount: len(defaultBranchCommits),
+			AllBranchCommitCount:     len(commitsByHash),
+			FilesChanged:             len(filesChanged),
+			Additions:                additions,
+			Deletions:                deletions,
+		},
+		TopCommitters: topCommitters,
+	}, nil
+}
+
+func resolvePulsePeriod(period string) (time.Duration, string, bool) {
+	switch strings.TrimSpace(strings.ToLower(period)) {
+	case "24h":
+		return 24 * time.Hour, "24 hours", true
+	case "3d":
+		return 72 * time.Hour, "3 days", true
+	case "1w":
+		return 7 * 24 * time.Hour, "1 week", true
+	case "1m":
+		return 30 * 24 * time.Hour, "1 month", true
+	default:
+		return 0, "", false
+	}
 }
 
 func (s *RepoInsightsService) TriggerRecompute(
@@ -449,6 +574,104 @@ func filterCommitsSince(commits []domain.Commit, since time.Time) []domain.Commi
 	}
 	return result
 
+}
+
+func filterNonMergeCommitsBetween(commits []domain.Commit, since time.Time, until time.Time) []domain.Commit {
+	result := make([]domain.Commit, 0, len(commits))
+	for _, commit := range commits {
+		if len(commit.Parents) > 1 {
+			continue
+		}
+		if !timeInRange(commit.Date, since, until) {
+			continue
+		}
+		result = append(result, commit)
+	}
+	return result
+}
+
+func timeInRange(value time.Time, since time.Time, until time.Time) bool {
+	at := value.UTC()
+	return (at.Equal(since) || at.After(since)) && (at.Equal(until) || at.Before(until))
+}
+
+func resolveDefaultBranchName(branches []domain.Branch) string {
+	if len(branches) == 0 {
+		return ""
+	}
+	for _, branch := range branches {
+		if branch.IsDefault {
+			return branch.Name
+		}
+	}
+	return branches[0].Name
+}
+
+func buildPulseTopCommitters(commitsByHash map[string]domain.Commit) []domain.ContributorStat {
+	byAuthor := map[string]int{}
+	for _, commit := range commitsByHash {
+		author := strings.TrimSpace(commit.Author)
+		if author == "" {
+			author = "Unknown"
+		}
+		byAuthor[author]++
+	}
+
+	stats := make([]domain.ContributorStat, 0, len(byAuthor))
+	for author, count := range byAuthor {
+		stats = append(stats, domain.ContributorStat{
+			AuthorName:  author,
+			CommitCount: count,
+		})
+	}
+
+	sort.Slice(stats, func(i int, j int) bool {
+		if stats[i].CommitCount == stats[j].CommitCount {
+			return stats[i].AuthorName < stats[j].AuthorName
+		}
+		return stats[i].CommitCount > stats[j].CommitCount
+	})
+
+	if len(stats) > 5 {
+		stats = stats[:5]
+	}
+
+	return stats
+}
+
+func buildPulseOverview(
+	issues []domain.Issue,
+	pullRequests []domain.PullRequest,
+	since time.Time,
+	until time.Time,
+) domain.RepoPulseOverview {
+	overview := domain.RepoPulseOverview{}
+
+	for _, issue := range issues {
+		if issue.Status == domain.IssueStatusClosed && timeInRange(issue.UpdatedAt, since, until) {
+			overview.ClosedIssues++
+			continue
+		}
+
+		if issue.Status == domain.IssueStatusOpen {
+			overview.NewIssues++
+		}
+	}
+	overview.ActiveIssues = overview.ClosedIssues + overview.NewIssues
+
+	for _, pull := range pullRequests {
+		if pull.Status == domain.PullRequestStatusMerged && timeInRange(pull.UpdatedAt, since, until) {
+			overview.MergedPullRequests++
+			continue
+		}
+
+		if pull.Status == domain.PullRequestStatusOpen {
+			overview.OpenPullRequests++
+		}
+	}
+	overview.ActivePullRequests = overview.MergedPullRequests + overview.OpenPullRequests
+
+	return overview
 }
 
 func (s *RepoInsightsService) listAccessibleRepos(requesterID uuid.UUID) ([]*domain.Repo, error) {

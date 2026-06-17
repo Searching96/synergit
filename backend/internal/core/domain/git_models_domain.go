@@ -24,6 +24,7 @@ type Commit struct {
 	Author  string    `json:"author"`
 	Message string    `json:"message"`
 	Date    time.Time `json:"date"`
+	Parents []string  `json:"parents,omitempty"`
 }
 
 type CommitPage struct {

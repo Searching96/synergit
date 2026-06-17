@@ -38,6 +38,27 @@ func (h *RepoInsightsHandler) HandleGetLatestInsights(c *gin.Context) {
 	c.JSON(http.StatusOK, snapshot)
 }
 
+func (h *RepoInsightsHandler) HandleGetPulse(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	period := strings.TrimSpace(c.Query("period"))
+	snapshot, err := h.repoInsightsUseCase.GetPulse(repoID, requesterID, period)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, snapshot)
+}
+
 func (h *RepoInsightsHandler) HandleTriggerRecompute(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

@@ -19,6 +19,37 @@ type RepoInsightsSnapshot struct {
 	LastError         string               `json:"last_error,omitempty"`
 }
 
+// RepoPulseSnapshot summarizes repository activity for a short period.
+type RepoPulseSnapshot struct {
+	RepoID        uuid.UUID         `json:"repo_id"`
+	Period        string            `json:"period"`
+	PeriodLabel   string            `json:"period_label"`
+	PeriodStart   time.Time         `json:"period_start"`
+	PeriodEnd     time.Time         `json:"period_end"`
+	DefaultBranch string            `json:"default_branch"`
+	Overview      RepoPulseOverview `json:"overview"`
+	Summary       RepoPulseSummary  `json:"summary"`
+	TopCommitters []ContributorStat `json:"top_committers"`
+}
+
+type RepoPulseOverview struct {
+	ActivePullRequests int `json:"active_pull_requests"`
+	ActiveIssues       int `json:"active_issues"`
+	MergedPullRequests int `json:"merged_pull_requests"`
+	OpenPullRequests   int `json:"open_pull_requests"`
+	ClosedIssues       int `json:"closed_issues"`
+	NewIssues          int `json:"new_issues"`
+}
+
+type RepoPulseSummary struct {
+	AuthorCount              int `json:"author_count"`
+	DefaultBranchCommitCount int `json:"default_branch_commit_count"`
+	AllBranchCommitCount     int `json:"all_branch_commit_count"`
+	FilesChanged             int `json:"files_changed"`
+	Additions                int `json:"additions"`
+	Deletions                int `json:"deletions"`
+}
+
 // CommitTrendPoint represents commit count grouped by day.
 type CommitTrendPoint struct {
 	Date        string `json:"date"`
