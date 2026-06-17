@@ -3,9 +3,9 @@ import { Loader2 } from "lucide-react";
 import CommitHistory from "../components/repository/code/CommitHistory";
 import CommitDiffPage from "../components/repository/code/CommitDiffPage";
 import BranchesPage from "../components/repository/code/BranchesPage";
-import FileExplorer from "../components/repository/code/FileExplorer";
+import RepoRootPage from "../components/repository/code/RepoRootPage";
 import NewFilePage from "../components/repository/code/NewFilePage";
-import RepoTreeBrowserPage from "../components/repository/code/RepoTreeBrowserPage";
+import RepoFileTreeBrowserPage from "../components/repository/code/RepoFileTreeBrowserPage";
 import UploadFilesPage from "../components/repository/code/UploadFilesPage";
 import IssueBoard from "../components/repository/issues/IssueBoard";
 import IssueDetailPage from "../components/repository/issues/IssueDetailPage";
@@ -20,6 +20,7 @@ import PullRequestComparePage from "../components/repository/pulls/PullRequestCo
 import ConflictResolver from "../components/repository/pulls/ConflictResolver";
 import PullRequestDetailPage from "../components/repository/pulls/PullRequestDetailPage";
 import PullRequestBoard from "../components/repository/pulls/PullRequestBoard";
+import { ActivityPage } from "../components/repository/ActivityPage";
 import type { RepoContentKind } from "../utils/repoRouting";
 import type { RepoTabKey } from "../utils/repoTabs";
 
@@ -228,7 +229,7 @@ export default function RepoWorkspaceContent({
               />
             )}
             {activeTab === "files" && (routeContentKind === "tree" || routeContentKind === "blob") && (
-              <RepoTreeBrowserPage
+              <RepoFileTreeBrowserPage
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 branch={currentBranch || routeBranch || defaultBranchName}
@@ -241,10 +242,12 @@ export default function RepoWorkspaceContent({
                 onOpenEditFile={onOpenEditFile}
                 onOpenUploadFiles={onOpenUploadFiles}
                 onOpenRepoCompare={onOpenRepoCompare}
+                repoOwner={selectedRepo.owner || currentUsername}
+                currentUsername={currentUsername}
               />
             )}
             {activeTab === "files" && routeContentKind === "root" && (
-              <FileExplorer
+              <RepoRootPage
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
                 repoDescription={selectedRepo.description}
@@ -256,6 +259,7 @@ export default function RepoWorkspaceContent({
                 repoForks={selectedRepo.forks}
                 repoWatchers={selectedRepo.watchers}
                 cloneUrl={selectedRepo.clone_url}
+                parentId={selectedRepo.parent_id}
                 branch={currentBranch || routeBranch || defaultBranchName}
                 branches={branches}
                 initialLocation={explorerInitialLocation}
@@ -336,6 +340,7 @@ export default function RepoWorkspaceContent({
             {activeTab === "wiki" && <RepoWikiPage repoName={selectedRepo.name} />}
             {activeTab === "security" && <RepoSecurityPage />}
             {activeTab === "insights" && <RepoInsights repoId={selectedRepo.id} />}
+            {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}
             {activeTab === "settings" && (
               <RepoSettingsPage
                 repo={selectedRepo}

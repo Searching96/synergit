@@ -4,8 +4,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { useRepository } from "./contexts/RepositoryContext";
 import type { CreateRepositoryPayload, Repository } from "./types/index";
 import type { ForkRepositoryPayload } from "./services/api/repos";
-import { checkBackendAvailability, reposApi } from "./services/api";
-import { RepoForkedIcon } from "@primer/octicons-react";
+import { checkBackendAvailability } from "./services/api";
 import { PageReadyProvider } from "./contexts/PageReadyContext";
 import Auth from "./components/auth/Auth";
 import GithubProfilePages from "./pages/ProfilePage";
@@ -112,7 +111,6 @@ function App() {
   const [routeContentKind, setRouteContentKind] = useState<RepoContentKind>(initialRoute.contentKind);
   const [routeContentPath, setRouteContentPath] = useState<string>(initialRoute.contentPath);
   const [routeBranch, setRouteBranch] = useState<string>(initialRoute.branch);
-  const [parentRepo, setParentRepo] = useState<Repository | null>(null);
 
   const profileFetchPending = profileRepoCountPending || profileRepositoriesPending;
 
@@ -697,18 +695,6 @@ function App() {
                     {selectedRepo.name}
                   </RouteButton>
                 </div>
-                {parentRepo && (
-                  <div className="text-xs text-[var(--text-muted)] flex items-center gap-1 -mt-0.5">
-                    <RepoForkedIcon size={12} />
-                    <span>forked from</span>
-                    <button 
-                      className="hover:text-[var(--text-accent)] hover:underline"
-                      onClick={() => navigateToPath(`/${getRepoOwner(parentRepo)}/${parentRepo.name}`)}
-                    >
-                      {getRepoOwner(parentRepo)}/{parentRepo.name}
-                    </button>
-                  </div>
-                )}
               </div>
             ) : null}
             onMenuClick={() => setIsSidebarMenuOpen(true)}
@@ -736,144 +722,143 @@ function App() {
           />
         </header>
 
-        <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${
-          isFullBrowserMode ? "overflow-hidden" : ""
-        }`}>
+        <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${isFullBrowserMode ? "overflow-hidden" : ""
+          }`}>
           <div className={`flex flex-col ${isFullBrowserMode ? "h-full" : ""}`}>
-          <div className={`${isFullBrowserMode ? "flex-1 h-full min-h-0" : ""}`}>
-          <RepoWorkspaceContent
-            selectedRepo={selectedRepo}
-            currentUsername={currentUsername}
-            selectedRepoVisibility={selectedRepoVisibility}
-            isResolvingRepo={!selectedRepo && !profileFetchFailed && !repoRouteResolved}
-            isFullBrowserMode={isFullBrowserMode}
-            activeTab={activeTab}
-            routeContentKind={routeContentKind}
-            routeContentPath={routeContentPath}
-            routeBranch={routeBranch}
-            defaultBranchName={defaultBranchName}
-            currentBranch={currentBranch || ''}
-            branches={branches}
-            explorerInitialLocation={explorerInitialLocation}
-            locationSearch={window.location.search}
-            onSelectBranch={handleSelectBranch}
-            onSelectCommitBranch={handleSelectCommitBranch}
-            onNavigateRepoLocation={handleNavigateRepoLocation}
-            onBackToFiles={() => {
-              if (!selectedRepo) {
-                return;
-              }
+            <div className={`${isFullBrowserMode ? "flex-1 h-full min-h-0" : ""}`}>
+              <RepoWorkspaceContent
+                selectedRepo={selectedRepo}
+                currentUsername={currentUsername}
+                selectedRepoVisibility={selectedRepoVisibility}
+                isResolvingRepo={!selectedRepo && !profileFetchFailed && !repoRouteResolved}
+                isFullBrowserMode={isFullBrowserMode}
+                activeTab={activeTab}
+                routeContentKind={routeContentKind}
+                routeContentPath={routeContentPath}
+                routeBranch={routeBranch}
+                defaultBranchName={defaultBranchName}
+                currentBranch={currentBranch || ''}
+                branches={branches}
+                explorerInitialLocation={explorerInitialLocation}
+                locationSearch={window.location.search}
+                onSelectBranch={handleSelectBranch}
+                onSelectCommitBranch={handleSelectCommitBranch}
+                onNavigateRepoLocation={handleNavigateRepoLocation}
+                onBackToFiles={() => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoTab(selectedRepo, 'files');
-            }}
-            onNavigateRepoContent={(contentKind, contentPath, branchName) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoTab(selectedRepo, 'files');
+                }}
+                onNavigateRepoContent={(contentKind, contentPath, branchName) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoContent(selectedRepo, contentKind, contentPath, branchName);
-            }}
-            onOpenRepoCommits={(branchName, search = '') => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoContent(selectedRepo, contentKind, contentPath, branchName);
+                }}
+                onOpenRepoCommits={(branchName, search = '') => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoCommits(selectedRepo, branchName, search);
-            }}
-            onOpenBranches={() => {
-              if (!selectedRepo) return;
-              const owner = getRepoOwner(selectedRepo);
-              navigateToPath(buildRepoBranchesPath(owner, selectedRepo.name));
-            }}
-            onOpenCreateFile={(branchName, directoryPath) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoCommits(selectedRepo, branchName, search);
+                }}
+                onOpenBranches={() => {
+                  if (!selectedRepo) return;
+                  const owner = getRepoOwner(selectedRepo);
+                  navigateToPath(buildRepoBranchesPath(owner, selectedRepo.name));
+                }}
+                onOpenCreateFile={(branchName, directoryPath) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
-            }}
-            onOpenEditFile={(branchName, filePath) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoNewFile(selectedRepo, branchName, directoryPath);
+                }}
+                onOpenEditFile={(branchName, filePath) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoEditFile(selectedRepo, branchName, filePath);
-            }}
-            onOpenUploadFiles={(branchName, directoryPath) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoEditFile(selectedRepo, branchName, filePath);
+                }}
+                onOpenUploadFiles={(branchName, directoryPath) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
-            }}
-            onOpenFork={() => {
-              if (!selectedRepo) return;
-              navigateToPath(`${buildRepoBasePath(getRepoOwner(selectedRepo), selectedRepo.name)}/fork`);
-            }}
-            onOpenRepoCompare={(baseRef, headRef) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoUploadFiles(selectedRepo, branchName, directoryPath);
+                }}
+                onOpenFork={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(`${buildRepoBasePath(getRepoOwner(selectedRepo), selectedRepo.name)}/fork`);
+                }}
+                onOpenRepoCompare={(baseRef, headRef) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoCompare(selectedRepo, baseRef, headRef);
-            }}
-            onOpenPullRequest={(pullNumber) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoCompare(selectedRepo, baseRef, headRef);
+                }}
+                onOpenPullRequest={(pullNumber) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoPullView(selectedRepo, pullNumber);
-            }}
-            onOpenPullRequestConflicts={(pullNumber) => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoPullView(selectedRepo, pullNumber);
+                }}
+                onOpenPullRequestConflicts={(pullNumber) => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoPullConflicts(selectedRepo, pullNumber);
-            }}
-            onBackToPullRequests={() => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoPullConflicts(selectedRepo, pullNumber);
+                }}
+                onBackToPullRequests={() => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoTab(selectedRepo, 'pulls');
-            }}
-            onOpenCreateIssue={() => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoTab(selectedRepo, 'pulls');
+                }}
+                onOpenCreateIssue={() => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoIssuesNew(selectedRepo);
-            }}
-            onCloseCreateIssue={() => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoIssuesNew(selectedRepo);
+                }}
+                onCloseCreateIssue={() => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoTab(selectedRepo, 'issues');
-            }}
-            onOpenIssue={(issueNumber) => {
-              if (!selectedRepo) {
-                return;
+                  navigateToRepoTab(selectedRepo, 'issues');
+                }}
+                onOpenIssue={(issueNumber) => {
+                  if (!selectedRepo) {
+                    return;
 
-              }
+                  }
 
-              navigateToRepoIssueView(selectedRepo, issueNumber);
-            }}
-            onBackToIssues={() => {
-              if (!selectedRepo) {
-                return;
-              }
+                  navigateToRepoIssueView(selectedRepo, issueNumber);
+                }}
+                onBackToIssues={() => {
+                  if (!selectedRepo) {
+                    return;
+                  }
 
-              navigateToRepoTab(selectedRepo, 'issues');
-            }}
-            onRepoUpdated={handleRepoUpdatedWrapper}
-            onRepoDeleted={handleRepoDeletedWrapper}
-            onGoToProfile={() => navigateToProfileTab('overview')}
-          />
+                  navigateToRepoTab(selectedRepo, 'issues');
+                }}
+                onRepoUpdated={handleRepoUpdatedWrapper}
+                onRepoDeleted={handleRepoDeletedWrapper}
+                onGoToProfile={() => navigateToProfileTab('overview')}
+              />
+            </div>
+
           </div>
-
-        </div>
         </main>
       </div>
     );

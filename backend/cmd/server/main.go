@@ -70,6 +70,7 @@ func main() {
 	dbStarAdapter := postgres.NewPostgresStarStore(db)
 	dbWatcherAdapter := postgres.NewPostgresWatcherStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
+	dbRepoEventAdapter := postgres.NewPostgresRepoEventStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -80,8 +81,9 @@ func main() {
 	repoInsightUseCase := usecase.NewRepoInsightsService(dbRepoInsightsAdapter, dbRepoAdapter,
 		dbCollabAdapter, dbIssueAdapter, dbPRAdapter, dbUserAdapter, gitAdapter,
 		repoInsightsMetricComputer)
+	repoEventUseCase := usecase.NewRepoEventService(dbRepoEventAdapter)
 	repoUseCase := usecase.NewRepoService(gitAdapter, dbRepoAdapter, dbCollabAdapter,
-		dbUserAdapter, repoInsightUseCase)
+		dbUserAdapter, repoInsightUseCase, repoEventUseCase)
 	authUseCase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUseCase := usecase.NewCollaboratorService(dbCollabAdapter)
 	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
@@ -89,7 +91,7 @@ func main() {
 	starUseCase := usecase.NewStarService(dbStarAdapter)
 	watcherUseCase := usecase.NewWatcherService(dbWatcherAdapter)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
-		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore)
+		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore, repoEventUseCase)
 	userUseCase := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
@@ -104,6 +106,7 @@ func main() {
 	prLabelHandler := httpHandler.NewPRLabelHandler(prUseCase)
 	userSettingsHandler := httpHandler.NewUserSettingsHandler(userUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
+	repoEventHandler := httpHandler.NewRepoEventHandler(repoEventUseCase)
 
 	// 5. Set up the gin router
 	router := gin.Default()
@@ -158,6 +161,7 @@ func main() {
 			repos.GET("", repoHandler.HandleGetRepos)
 			repos.GET("/:repo_id", repoHandler.HandleGetRepo)
 			repos.GET("/count", repoHandler.HandleGetOwnedRepoCount)
+			repos.GET("/:repo_id/activity", repoEventHandler.HandleGetActivity)
 			repos.PATCH("/:repo_id/visibility", repoHandler.HandleUpdateRepoVisibility)
 			repos.PATCH("/:repo_id/name", repoHandler.HandleRenameRepo)
 			repos.PATCH("/:repo_id/details", repoHandler.HandleUpdateRepoDetails)

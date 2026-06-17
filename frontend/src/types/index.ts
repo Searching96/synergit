@@ -319,3 +319,23 @@ export interface DeletePathPayload {
 	path: string;
 	commit_message: string;
 }
+export type EventType =
+  | 'direct_push'
+  | 'pr_merge'
+  | 'branch_creation'
+  | 'branch_deletion'
+  | 'force_push'
+  | 'merge_queue_merge';
+
+export interface RepoEvent {
+  id: string;
+  repo_id: string;
+  actor_id: string;
+  event_type: EventType;
+  payload: any;
+  created_at: string;
+  actor: {
+    username: string;
+    email: string;
+  };
+}

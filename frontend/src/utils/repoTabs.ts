@@ -21,7 +21,8 @@ export type RepoTabKey =
   | "wiki"
   | "security"
   | "insights"
-  | "settings";
+  | "settings"
+  | "activity";
 
 export interface RepoTabItem {
   key: RepoTabKey;
@@ -42,4 +43,7 @@ export const REPO_TABS: RepoTabItem[] = [
   { key: "settings", label: "Settings", icon: GearIcon },
 ];
 
-export const REPO_TAB_KEY_SET = new Set<RepoTabKey>(REPO_TABS.map((tab) => tab.key));
+export const REPO_TAB_KEY_SET = new Set<RepoTabKey>([
+  ...REPO_TABS.map((tab) => tab.key),
+  "activity",
+]);

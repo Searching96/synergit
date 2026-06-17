@@ -21,7 +21,7 @@ func (p *PostgresWatcherStore) Watch(userID uuid.UUID, repoID uuid.UUID) error {
 	_, err := p.db.Exec(`
 		INSERT INTO repo_watchers (user_id, repo_id, created_at)
 		VALUES ($1, $2, NOW())
-		ON CONFLICT (repo_id, user_id) DO NOTHING`, userID, repoID)
+		ON CONFLICT DO NOTHING`, userID, repoID)
 	return err
 }
 

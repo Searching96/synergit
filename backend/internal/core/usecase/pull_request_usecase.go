@@ -20,6 +20,7 @@ type PullRequestService struct {
 	userStore     output.UserRepository
 	labelStore    output.PullRequestLabelRepository
 	assigneeStore output.PullRequestAssigneeRepository
+	repoEventUseCase output.RepoEventUseCase
 }
 
 func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (int, error) {
@@ -39,6 +40,7 @@ func NewPullRequestService(
 	userStore output.UserRepository,
 	labelStore output.PullRequestLabelRepository,
 	assigneeStore output.PullRequestAssigneeRepository,
+	repoEventUseCase output.RepoEventUseCase,
 ) *PullRequestService {
 	return &PullRequestService{
 		prStore:       prStore,
@@ -48,6 +50,7 @@ func NewPullRequestService(
 		userStore:     userStore,
 		labelStore:    labelStore,
 		assigneeStore: assigneeStore,
+		repoEventUseCase: repoEventUseCase,
 	}
 }
 
@@ -291,6 +294,10 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 	}
 
 	_ = s.prStore.AddEvent(prID, mergerID, "merged")
+
+	if s.repoEventUseCase != nil {
+		s.repoEventUseCase.LogEvent(pr.RepoID, mergerID, domain.EventTypePRMerge, fmt.Sprintf(`{"pr_id": "%s", "target_branch": "%s"}`, pr.ID, pr.TargetBranch))
+	}
 
 	return nil
 }

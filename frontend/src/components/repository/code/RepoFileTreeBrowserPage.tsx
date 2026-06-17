@@ -30,7 +30,7 @@ type ExplorerLocation = {
   path?: string;
 };
 
-interface RepoTreeBrowserPageProps {
+interface RepoFileTreeBrowserPageProps {
   repoId: string;
   repoName: string;
   branch: string;
@@ -43,6 +43,8 @@ interface RepoTreeBrowserPageProps {
   onOpenEditFile?: (branchName: string, filePath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare?: (baseRef?: string, headRef?: string) => void;
+  repoOwner?: string;
+  currentUsername?: string;
 }
 
 function normalizePath(input: string): string {
@@ -115,7 +117,7 @@ function authorInitial(author: string): string {
   return (author.trim().charAt(0) || "U").toUpperCase();
 }
 
-export default function RepoTreeBrowserPage({
+export default function RepoFileTreeBrowserPage({
   repoId,
   repoName,
   branch,
@@ -126,7 +128,9 @@ export default function RepoTreeBrowserPage({
   onOpenCommitHistory,
   onOpenEditFile,
   onOpenRepoCompare,
-}: RepoTreeBrowserPageProps) {
+  repoOwner,
+  currentUsername,
+}: RepoFileTreeBrowserPageProps) {
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>({});
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set([""]));
   const [currentDirPath, setCurrentDirPath] = useState<string>("");
@@ -867,19 +871,20 @@ export default function RepoTreeBrowserPage({
                 <ul>
                   {currentDirPath ? (
                     <li className="border-b border-[var(--border-muted)]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void openDirectory(getParentPath(currentDirPath));
-                        }}
+                      <div
                         className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
                       >
-                        <span className="min-w-0 inline-flex items-center gap-2 text-[var(--text-link)]">
+                        <span className="min-w-0 inline-flex items-center gap-2 text-[var(--text-primary)]">
                           <FileDirectoryFillIcon size={16} className="text-[#54aeff]" />
-                          ..
+                          <a
+                            href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/tree/${encodeURIComponent(branch)}${getParentPath(currentDirPath) ? `/${getParentPath(currentDirPath)}` : ''}`}
+                            onClick={(e) => { e.preventDefault(); void openDirectory(getParentPath(currentDirPath)); }}
+                            className="font-medium text-[var(--text-secondary)] hover:text-[var(--text-link)] cursor-pointer"
+                          >
+                            ..
+                          </a>
                         </span>
-                        <span className="text-right text-[var(--text-secondary)]">-</span>
-                      </button>
+                        </div>
                     </li>
                   ) : null}
 
@@ -888,15 +893,7 @@ export default function RepoTreeBrowserPage({
 
                     return (
                       <li key={entry.path} className="border-b border-[var(--border-muted)] last:border-b-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (entry.type === "DIR") {
-                              void openDirectory(entry.path);
-                            } else {
-                              openFile(entry.path);
-                            }
-                          }}
+                        <div
                           className="w-full grid grid-cols-[minmax(0,1fr)_minmax(220px,1fr)_160px] gap-4 px-4 py-2 text-sm hover:bg-[var(--surface-subtle)]"
                         >
                           <span className="min-w-0 inline-flex items-center gap-2 text-left">
@@ -905,7 +902,20 @@ export default function RepoTreeBrowserPage({
                             ) : (
                               <FileIcon size={16} className="text-[var(--text-secondary)]" />
                             )}
-                            <span className="truncate text-[var(--text-link)]">{entry.name}</span>
+                            <a
+                              href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/${entry.type === "DIR" ? "tree" : "blob"}/${encodeURIComponent(branch)}/${entry.path}`}
+                              onClick={(e) => { 
+                                e.preventDefault(); 
+                                if (entry.type === "DIR") {
+                                  void openDirectory(entry.path);
+                                } else {
+                                  openFile(entry.path);
+                                }
+                              }}
+                              className="truncate text-[var(--text-secondary)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
+                            >
+                              {entry.name}
+                            </a>
                           </span>
                           <span className="text-left text-[var(--text-secondary)] truncate inline-flex items-center gap-2">
                             {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
@@ -913,11 +923,10 @@ export default function RepoTreeBrowserPage({
                           <span className="text-right text-[var(--text-secondary)]">
                             {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
                           </span>
-                        </button>
+                        </div>
                       </li>
                     );
                   })}
-
                   {currentEntries.length === 0 && !loadingPathSet.has(normalizePath(currentDirPath)) ? (
                     <li className="px-4 py-6 text-sm text-[var(--text-secondary)]">No files found in this directory.</li>
                   ) : null}

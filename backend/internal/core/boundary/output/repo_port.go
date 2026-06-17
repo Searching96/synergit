@@ -35,7 +35,7 @@ type RepoUseCase interface {
 	// Deprecated: repo_id smart HTTP path is legacy and not exposed publicly.
 	ReceivePack(repoID uuid.UUID, requestPayload ByteReader,
 		responseWriter ByteWriter) error
-	ReceivePackByOwnerAndName(ownerUsername string, repoName string,
+	ReceivePackByOwnerAndName(requesterID uuid.UUID, ownerUsername string, repoName string,
 		requestPayload ByteReader, responseWriter ByteWriter) error
 	GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo, error)
 	CountOwnedRepositories(requesterID uuid.UUID) (int, error)
@@ -49,9 +49,9 @@ type RepoUseCase interface {
 	GetCommitDetail(repoID uuid.UUID, commitHash string) (*domain.Commit, error)
 	GetCommitDiff(repoID uuid.UUID, commitHash string) ([]domain.DiffFile, error)
 	GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
-	CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
-	RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error)
-	DeleteRepoBranch(repoID uuid.UUID, branchName string) error
+	CreateRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error)
+	RenameRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error)
+	DeleteRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, branchName string) error
 	CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,
 		filePath string, content string, commitMessage string) error
 	CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID, branch string,

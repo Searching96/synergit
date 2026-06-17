@@ -27,7 +27,7 @@ import {
   StarIcon,
 } from "@primer/octicons-react";
 import ReactMarkdown from "react-markdown";
-import type { Branch, CommitStats, LanguageBreakdownStat, RepoFile } from "../../../types";
+import type { Branch, CommitStats, LanguageBreakdownStat, RepoFile, Repository } from "../../../types";
 import { Avatar } from "../../shared/Avatar";
 import { OcticonCopy } from "../../icons/Octicons";
 import { reposApi } from "../../../services/api";
@@ -48,7 +48,7 @@ type ExplorerLocation = {
   path?: string;
 };
 
-interface FileExplorerProps {
+interface RepoRootPageProps {
   repoId: string;
   repoName: string;
   repoDescription?: string;
@@ -70,6 +70,7 @@ interface FileExplorerProps {
   onOpenCreateFile?: (branchName: string, directoryPath: string) => void;
   onOpenUploadFiles?: (branchName: string, directoryPath: string) => void;
   onOpenRepoCompare?: (baseRef?: string, headRef?: string) => void;
+  parentId?: string;
   currentUsername?: string;
   onOpenFork?: () => void;
 }
@@ -205,7 +206,7 @@ function languageGraphColor(language: string, index: number): string {
 }
 
 
-export default function FileExplorer({
+export default function RepoRootPage({
   repoId,
   repoName,
   repoDescription,
@@ -228,7 +229,8 @@ export default function FileExplorer({
   onOpenRepoCompare,
   currentUsername,
   onOpenFork,
-}: FileExplorerProps) {
+  parentId,
+}: RepoRootPageProps) {
   const treeCacheKey = `repo-tree:${repoId}:${branch}`;
   const [entriesByPath, setEntriesByPath] = useState<Record<string, RepoFile[]>>(() => {
     try {
@@ -260,6 +262,19 @@ export default function FileExplorer({
   const [isCommittingReadme, setIsCommittingReadme] = useState<boolean>(false);
 
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [parentRepo, setParentRepo] = useState<Repository | null>(null);
+
+  useEffect(() => {
+    if (!parentId) {
+      setParentRepo(null);
+      return;
+    }
+    let active = true;
+    reposApi.getRepoById(parentId)
+      .then((repo) => { if (active) setParentRepo(repo ?? null); })
+      .catch(() => { if (active) setParentRepo(null); });
+    return () => { active = false; };
+  }, [parentId]);
 
   const handleSaveAbout = async (payload: { description?: string; website?: string; topics?: string[] }) => {
     try {
@@ -973,6 +988,18 @@ export default function FileExplorer({
                   </span>
                 ) : null}
               </div>
+              {parentRepo && (
+                <div className="w-full mt-0.5 text-xs text-[var(--text-muted)] flex items-center gap-1">
+                  <RepoForkedIcon size={12} />
+                  <span>forked from</span>
+                  <a
+                    href={`/${encodeURIComponent(parentRepo.owner || "")}/${encodeURIComponent(parentRepo.name)}`}
+                    className="hover:text-[var(--text-link)] hover:underline"
+                  >
+                    {parentRepo.owner}/{parentRepo.name}
+                  </a>
+                </div>
+              )}
               <div className="flex items-center gap-2 shrink-0">
                 <WatchButton repoId={repoId} autoFetch showCount />
                 <button
@@ -1228,10 +1255,7 @@ export default function FileExplorer({
 
                       return (
                         <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
-                          <button
-                            type="button"
-                            onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
-                            // 2. Conditionally apply rounded-b-md if isLast is true
+                          <div
                             className={`w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)] ${isLast ? "rounded-b-md" : ""
                               }`}
                           >
@@ -1241,7 +1265,13 @@ export default function FileExplorer({
                               ) : (
                                 <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
                               )}
-                              <span className="truncate text-[var(--text-link)]">{item.name}</span>
+                              <a
+                                href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/${item.type === "DIR" ? "tree" : "blob"}/${encodeURIComponent(branch)}/${item.path}`}
+                                onClick={(e) => { e.preventDefault(); item.type === "DIR" ? openDirectory(item.path) : openFile(item.path); }}
+                                className="truncate text-[var(--text-secondary)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
+                              >
+                                {item.name}
+                              </a>
                             </span>
                             <span className="truncate text-left text-[var(--text-secondary)]">
                               {isBatchLoading ? <span className="inline-block h-3 w-3/4 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.message}
@@ -1249,7 +1279,7 @@ export default function FileExplorer({
                             <span className="text-right text-[var(--text-secondary)]">
                               {isBatchLoading ? <span className="inline-block h-3 w-16 rounded bg-[var(--surface-subtle)] animate-pulse" /> : details.when}
                             </span>
-                          </button>
+                          </div>
                         </li>
                       );
                     })}
@@ -1446,10 +1476,13 @@ export default function FileExplorer({
                 </div>
 
                 <div className="flex flex-col gap-1 text-sm text-[var(--text-secondary)]">
-                  <p className="inline-flex items-center gap-2">
+                  <a 
+                    href={`/${encodeURIComponent(repoOwner || "")}/${encodeURIComponent(repoName)}/activity`}
+                    className="inline-flex items-center gap-2 hover:text-[var(--text-link)]"
+                  >
                     <PulseIcon size={14} className="text-[var(--text-muted)]" />
                     Activity
-                  </p>
+                  </a>
                   <p className="inline-flex items-center gap-2">
                     <StarIcon size={14} className="text-[var(--text-muted)]" />
                     {starCount.toLocaleString()} {starCount === 1 ? "star" : "stars"}
@@ -1648,18 +1681,22 @@ export default function FileExplorer({
                   <ul>
                     {currentDirPath !== "" && (
                       <li className="border-t border-[var(--border-muted)] first:border-t-0">
-                        <button
-                          type="button"
-                          onClick={() => openDirectory(getParentPath(currentDirPath))}
+                        <div
                           className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                         >
                           <span className="min-w-0 flex items-center gap-2 text-left text-[var(--text-primary)]">
                             <FileDirectoryFillIcon size={16} className="text-[#54aeff] shrink-0" />
-                            ..
+                            <a
+                              href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/tree/${encodeURIComponent(branch)}${getParentPath(currentDirPath) ? `/${getParentPath(currentDirPath)}` : ''}`}
+                              onClick={(e) => { e.preventDefault(); openDirectory(getParentPath(currentDirPath)); }}
+                              className="font-medium text-[var(--text-secondary)] hover:text-[var(--text-link)] cursor-pointer"
+                            >
+                              ..
+                            </a>
                           </span>
                           <span className="text-left text-[var(--text-secondary)]">Up one level</span>
                           <span className="text-right text-[var(--text-secondary)]">-</span>
-                        </button>
+                        </div>
                       </li>
                     )}
 
@@ -1668,9 +1705,7 @@ export default function FileExplorer({
 
                       return (
                         <li key={item.path} className="border-t border-[var(--border-muted)] first:border-t-0">
-                          <button
-                            type="button"
-                            onClick={() => (item.type === "DIR" ? openDirectory(item.path) : openFile(item.path))}
+                          <div
                             className="w-full px-4 py-3 grid grid-cols-[minmax(0,1fr)_minmax(140px,260px)_130px] gap-4 text-sm hover:bg-[var(--surface-subtle)]"
                           >
                             <span className="min-w-0 flex items-center gap-2 text-left">
@@ -1679,11 +1714,17 @@ export default function FileExplorer({
                               ) : (
                                 <FileIcon size={16} className="text-[var(--text-secondary)] shrink-0" />
                               )}
-                              <span className="truncate text-[var(--text-link)]">{item.name}</span>
+                              <a
+                                href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/${item.type === "DIR" ? "tree" : "blob"}/${encodeURIComponent(branch)}/${item.path}`}
+                                onClick={(e) => { e.preventDefault(); item.type === "DIR" ? openDirectory(item.path) : openFile(item.path); }}
+                                className="truncate text-[var(--text-secondary)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
+                              >
+                                {item.name}
+                              </a>
                             </span>
                             <span className="truncate text-left text-[var(--text-secondary)]">{details.message}</span>
                             <span className="text-right text-[var(--text-secondary)]">{details.when}</span>
-                          </button>
+                          </div>
                         </li>
                       );
                     })}

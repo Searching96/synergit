@@ -324,10 +324,15 @@ func (h *RepoHandler) HandleReceivePackPublic(c *gin.Context) {
 		return
 	}
 
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
 	c.Header("Content-Type", "application/x-git-receive-pack-result")
 	c.Header("Cache-Control", "no-cache")
 
-	err := h.repoUseCase.ReceivePackByOwnerAndName(owner, repo, c.Request.Body,
+	err := h.repoUseCase.ReceivePackByOwnerAndName(requesterID, owner, repo, c.Request.Body,
 		c.Writer)
 	if err != nil {
 		fmt.Printf("Error receiving pack: %v\n", err)
@@ -653,7 +658,12 @@ func (h *RepoHandler) HandleCreateBranch(c *gin.Context) {
 		return
 	}
 
-	branch, err := h.repoUseCase.CreateRepoBranch(repoID, req.Name, req.FromBranch)
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	branch, err := h.repoUseCase.CreateRepoBranch(repoID, requesterID, req.Name, req.FromBranch)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return
@@ -674,7 +684,12 @@ func (h *RepoHandler) HandleRenameBranch(c *gin.Context) {
 		return
 	}
 
-	branch, err := h.repoUseCase.RenameRepoBranch(repoID, req.OldName, req.NewName)
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	branch, err := h.repoUseCase.RenameRepoBranch(repoID, requesterID, req.OldName, req.NewName)
 	if err != nil {
 		respondUseCaseError(c, err)
 		return
@@ -695,7 +710,12 @@ func (h *RepoHandler) HandleDeleteBranch(c *gin.Context) {
 		return
 	}
 
-	if err := h.repoUseCase.DeleteRepoBranch(repoID, branchName); err != nil {
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.repoUseCase.DeleteRepoBranch(repoID, requesterID, branchName); err != nil {
 		respondUseCaseError(c, err)
 		return
 	}

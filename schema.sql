@@ -195,3 +195,15 @@ CREATE TABLE IF NOT EXISTS pull_request_assignees (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pr_assignees_pr ON pull_request_assignees (pull_request_id, assigned_at);
+
+
+CREATE TABLE IF NOT EXISTS repo_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    repo_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_repo_events_repo_id ON repo_events (repo_id, created_at DESC);

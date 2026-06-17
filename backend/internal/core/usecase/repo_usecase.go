@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
@@ -19,6 +20,7 @@ type RepoService struct {
 	userStore   output.UserRepository
 
 	repoInsightsScheduler output.RepoInsightsScheduler
+	repoEventUseCase      output.RepoEventUseCase
 }
 
 // NewRepoService creates a new usecase instance
@@ -28,6 +30,7 @@ func NewRepoService(
 	cs output.CollaboratorRepository,
 	us output.UserRepository,
 	ris output.RepoInsightsScheduler,
+	reu output.RepoEventUseCase,
 ) *RepoService {
 	return &RepoService{
 		gitManager:            gm,
@@ -35,6 +38,7 @@ func NewRepoService(
 		collabStore:           cs,
 		userStore:             us,
 		repoInsightsScheduler: ris,
+		repoEventUseCase:      reu,
 	}
 }
 
@@ -269,12 +273,44 @@ func (s *RepoService) ReceivePack(repoID uuid.UUID, requestPayload output.ByteRe
 	return nil
 }
 
-func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName string,
+func (s *RepoService) emitPushEvents(repoID, requesterID uuid.UUID, repoPath string, before, after map[string]string) {
+	if s.repoEventUseCase == nil {
+		return
+	}
+
+	// Deleted branches
+	for name := range before {
+		if _, exists := after[name]; !exists {
+			payload := fmt.Sprintf(`{"ref": "%s"}`, name)
+			s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchDeletion, payload)
+		}
+	}
+
+	// Created or Updated branches
+	for name, hashAfter := range after {
+		hashBefore, exists := before[name]
+		if !exists {
+			payload := fmt.Sprintf(`{"ref": "%s", "hash": "%s"}`, name, hashAfter)
+			s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchCreation, payload)
+		} else if hashBefore != hashAfter {
+			payload := fmt.Sprintf(`{"ref": "%s", "old_hash": "%s", "new_hash": "%s"}`, name, hashBefore, hashAfter)
+			s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeDirectPush, payload)
+		}
+	}
+}
+
+func (s *RepoService) ReceivePackByOwnerAndName(requesterID uuid.UUID, ownerUsername string, repoName string,
 	requestPayload output.ByteReader, responseWriter output.ByteWriter) error {
 
 	repoPath, err := s.resolveRepoPathByOwnerAndName(ownerUsername, repoName)
 	if err != nil {
 		return err
+	}
+
+	branchesBefore, _ := s.gitManager.GetBranches(repoPath)
+	beforeMap := make(map[string]string)
+	for _, b := range branchesBefore {
+		beforeMap[b.Name] = b.CommitHash
 	}
 
 	if err := s.gitManager.ReceivePack(repoPath, requestPayload, responseWriter); err != nil {
@@ -284,6 +320,12 @@ func (s *RepoService) ReceivePackByOwnerAndName(ownerUsername string, repoName s
 	repo, err := s.repoStore.FindByOwnerAndName(ownerUsername, repoName)
 	if err == nil && repo != nil {
 		if repoUUID, parseErr := uuid.Parse(repo.ID); parseErr == nil {
+			branchesAfter, _ := s.gitManager.GetBranches(repoPath)
+			afterMap := make(map[string]string)
+			for _, b := range branchesAfter {
+				afterMap[b.Name] = b.CommitHash
+			}
+			s.emitPushEvents(repoUUID, requesterID, repoPath, beforeMap, afterMap)
 			s.enqueueInsights(repoUUID, "receive_pack_public")
 		}
 	}
@@ -527,7 +569,7 @@ func (s *RepoService) GetRepoBranches(repoID uuid.UUID) ([]domain.Branch, error)
 	return s.gitManager.GetBranches(repoPath)
 }
 
-func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error) {
+func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, newBranch string, fromBranch string) (*domain.Branch, error) {
 	if err := domain.ValidateBranchName(newBranch); err != nil {
 		return nil, err
 	}
@@ -537,10 +579,15 @@ func (s *RepoService) CreateRepoBranch(repoID uuid.UUID, newBranch string, fromB
 		return nil, err
 	}
 
-	return s.gitManager.CreateBranch(repoPath, newBranch, fromBranch)
+	b, err := s.gitManager.CreateBranch(repoPath, newBranch, fromBranch)
+	if err == nil && s.repoEventUseCase != nil {
+		payload := fmt.Sprintf(`{"ref": "%s", "hash": "%s"}`, newBranch, b.CommitHash)
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchCreation, payload)
+	}
+	return b, err
 }
 
-func (s *RepoService) RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error) {
+func (s *RepoService) RenameRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, oldBranch string, newBranch string) (*domain.Branch, error) {
 	if err := domain.ValidateBranchName(oldBranch); err != nil {
 		return nil, err
 	}
@@ -553,10 +600,16 @@ func (s *RepoService) RenameRepoBranch(repoID uuid.UUID, oldBranch string, newBr
 		return nil, err
 	}
 
-	return s.gitManager.RenameBranch(repoPath, oldBranch, newBranch)
+	b, err := s.gitManager.RenameBranch(repoPath, oldBranch, newBranch)
+	if err == nil && s.repoEventUseCase != nil {
+		// Just log creation of new branch and deletion of old branch
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchDeletion, fmt.Sprintf(`{"ref": "%s"}`, oldBranch))
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchCreation, fmt.Sprintf(`{"ref": "%s", "hash": "%s"}`, newBranch, b.CommitHash))
+	}
+	return b, err
 }
 
-func (s *RepoService) DeleteRepoBranch(repoID uuid.UUID, branchName string) error {
+func (s *RepoService) DeleteRepoBranch(repoID uuid.UUID, requesterID uuid.UUID, branchName string) error {
 	if err := domain.ValidateBranchName(branchName); err != nil {
 		return err
 	}
@@ -566,7 +619,11 @@ func (s *RepoService) DeleteRepoBranch(repoID uuid.UUID, branchName string) erro
 		return err
 	}
 
-	return s.gitManager.DeleteBranch(repoPath, branchName)
+	err = s.gitManager.DeleteBranch(repoPath, branchName)
+	if err == nil && s.repoEventUseCase != nil {
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeBranchDeletion, fmt.Sprintf(`{"ref": "%s"}`, branchName))
+	}
+	return err
 }
 
 type repoCommitContext struct {
@@ -611,6 +668,17 @@ func (s *RepoService) CommitFileChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return err
 	}
 
+	if s.repoEventUseCase != nil {
+		b, _ := s.gitManager.GetBranches(ctx.RepoPath)
+		var hash string
+		for _, branchObj := range b {
+			if branchObj.Name == branch {
+				hash = branchObj.CommitHash
+			}
+		}
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeDirectPush, fmt.Sprintf(`{"ref": "%s", "new_hash": "%s", "commit_message": "%s"}`, branch, hash, commitMessage))
+	}
+
 	s.enqueueInsights(repoID, "commit_file_change")
 
 	return nil
@@ -634,6 +702,17 @@ func (s *RepoService) CommitFilesChange(repoID uuid.UUID, requesterID uuid.UUID,
 		return err
 	}
 
+	if s.repoEventUseCase != nil {
+		b, _ := s.gitManager.GetBranches(ctx.RepoPath)
+		var hash string
+		for _, branchObj := range b {
+			if branchObj.Name == branch {
+				hash = branchObj.CommitHash
+			}
+		}
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeDirectPush, fmt.Sprintf(`{"ref": "%s", "new_hash": "%s", "commit_message": "%s"}`, branch, hash, commitMessage))
+	}
+
 	s.enqueueInsights(repoID, "commit_files_change")
 
 	return nil
@@ -653,6 +732,17 @@ func (s *RepoService) DeletePath(repoID uuid.UUID, requesterID uuid.UUID,
 	if err := s.gitManager.DeletePath(ctx.RepoPath, branch, path,
 		ctx.AuthorName, ctx.AuthorEmail, commitMessage); err != nil {
 		return err
+	}
+
+	if s.repoEventUseCase != nil {
+		b, _ := s.gitManager.GetBranches(ctx.RepoPath)
+		var hash string
+		for _, branchObj := range b {
+			if branchObj.Name == branch {
+				hash = branchObj.CommitHash
+			}
+		}
+		s.repoEventUseCase.LogEvent(repoID, requesterID, domain.EventTypeDirectPush, fmt.Sprintf(`{"ref": "%s", "new_hash": "%s", "commit_message": "%s"}`, branch, hash, commitMessage))
 	}
 
 	s.enqueueInsights(repoID, "delete_path")
