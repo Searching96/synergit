@@ -71,6 +71,7 @@ interface RepoWorkspaceContentProps {
   onOpenRepoContributorsPeriod: (search: string) => void;
   onOpenRepoCommunity: () => void;
   onOpenRepoCommunityStandards: () => void;
+  onOpenRepoCommitActivity: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -113,6 +114,7 @@ export default function RepoWorkspaceContent({
   onOpenRepoContributorsPeriod,
   onOpenRepoCommunity,
   onOpenRepoCommunityStandards,
+  onOpenRepoCommitActivity,
   isResolvingRepo,
 }: RepoWorkspaceContentProps) {
   if (!selectedRepo) {
@@ -361,6 +363,7 @@ export default function RepoWorkspaceContent({
                 onOpenContributorsPeriod={onOpenRepoContributorsPeriod}
                 onOpenCommunity={onOpenRepoCommunity}
                 onOpenCommunityStandards={onOpenRepoCommunityStandards}
+                onOpenCommitActivity={onOpenRepoCommitActivity}
               />
             )}
             {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}

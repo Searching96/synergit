@@ -197,6 +197,35 @@ func TestBuildContributorDailyStats(t *testing.T) {
 	}
 }
 
+func TestBuildCommitActivityWeeklyStats(t *testing.T) {
+	since := time.Date(2025, 6, 18, 12, 0, 0, 0, time.UTC)
+	until := time.Date(2025, 7, 9, 12, 0, 0, 0, time.UTC)
+	commits := []domain.Commit{
+		{Hash: "a1", Date: time.Date(2025, 6, 19, 8, 0, 0, 0, time.UTC)},
+		{Hash: "a2", Date: time.Date(2025, 6, 22, 8, 0, 0, 0, time.UTC)},
+		{Hash: "merge", Date: time.Date(2025, 6, 23, 8, 0, 0, 0, time.UTC), Parents: []string{"x", "y"}},
+		{Hash: "b1", Date: time.Date(2025, 7, 1, 8, 0, 0, 0, time.UTC)},
+	}
+
+	filtered := filterNonMergeCommitsBetween(commits, since, until)
+	weeks := buildCommitActivityWeeklyStats(filtered, since, until)
+
+	if len(weeks) != 4 {
+		t.Fatalf("expected 4 weekly buckets, got %d", len(weeks))
+	}
+	want := map[string]int{
+		"2025-06-16": 2,
+		"2025-06-23": 0,
+		"2025-06-30": 1,
+		"2025-07-07": 0,
+	}
+	for _, week := range weeks {
+		if week.CommitCount != want[week.WeekStart] {
+			t.Fatalf("expected %s to have %d commits, got %d", week.WeekStart, want[week.WeekStart], week.CommitCount)
+		}
+	}
+}
+
 func TestEarliestCommitDate(t *testing.T) {
 	fallback := time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)
 	commits := []domain.Commit{

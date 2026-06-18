@@ -422,6 +422,54 @@ func (s *RepoInsightsService) GetContributors(
 	}, nil
 }
 
+func (s *RepoInsightsService) GetCommitActivity(
+	repoID uuid.UUID,
+	requesterID uuid.UUID,
+) (*domain.RepoCommitActivitySnapshot, error) {
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+	defaultBranch := resolveDefaultBranchName(branches)
+	now := time.Now().UTC()
+	since := now.AddDate(-1, 0, 0)
+	if defaultBranch == "" {
+		return &domain.RepoCommitActivitySnapshot{
+			RepoID:        repoID,
+			PeriodStart:   since,
+			PeriodEnd:     now,
+			DefaultBranch: defaultBranch,
+			WeeklyTotals:  buildCommitActivityWeeklyStats(nil, since, now),
+		}, nil
+	}
+
+	commitsPage, err := s.gitManager.GetCommits(repo.Path, defaultBranch, "", 1000000, 0)
+	if err != nil {
+		return nil, err
+	}
+	commits := filterNonMergeCommitsBetween(commitsPage.Commits, since, now)
+
+	return &domain.RepoCommitActivitySnapshot{
+		RepoID:        repoID,
+		PeriodStart:   since,
+		PeriodEnd:     now,
+		DefaultBranch: defaultBranch,
+		WeeklyTotals:  buildCommitActivityWeeklyStats(commits, since, now),
+	}, nil
+}
+
 func resolveContributorsPeriod(period string) (time.Duration, string, bool, bool) {
 	switch strings.TrimSpace(strings.ToLower(period)) {
 	case "all":
@@ -783,6 +831,30 @@ func buildContributorDailyStats(
 		})
 	}
 	return days
+}
+
+func buildCommitActivityWeeklyStats(
+	commits []domain.Commit,
+	since time.Time,
+	until time.Time,
+) []domain.ContributionWeek {
+	startWeek := weekStart(since)
+	endWeek := weekStart(until)
+	totalByWeek := map[string]int{}
+	for _, commit := range commits {
+		key := weekStart(commit.Date).Format("2006-01-02")
+		totalByWeek[key]++
+	}
+
+	weeks := []domain.ContributionWeek{}
+	for current := startWeek; !current.After(endWeek); current = current.AddDate(0, 0, 7) {
+		key := current.Format("2006-01-02")
+		weeks = append(weeks, domain.ContributionWeek{
+			WeekStart:   key,
+			CommitCount: totalByWeek[key],
+		})
+	}
+	return weeks
 }
 
 func dayStartUTC(value time.Time) time.Time {

@@ -80,6 +80,26 @@ func (h *RepoInsightsHandler) HandleGetContributors(c *gin.Context) {
 	c.JSON(http.StatusOK, snapshot)
 }
 
+func (h *RepoInsightsHandler) HandleGetCommitActivity(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	snapshot, err := h.repoInsightsUseCase.GetCommitActivity(repoID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, snapshot)
+}
+
 func (h *RepoInsightsHandler) HandleTriggerRecompute(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
 	if !ok {

@@ -81,6 +81,15 @@ type ContributorContribution struct {
 	Weeks       []ContributionWeek `json:"weeks"`
 }
 
+// RepoCommitActivitySnapshot summarizes weekly commits over the last year.
+type RepoCommitActivitySnapshot struct {
+	RepoID        uuid.UUID          `json:"repo_id"`
+	PeriodStart   time.Time          `json:"period_start"`
+	PeriodEnd     time.Time          `json:"period_end"`
+	DefaultBranch string             `json:"default_branch"`
+	WeeklyTotals  []ContributionWeek `json:"weekly_totals"`
+}
+
 // CommitTrendPoint represents commit count grouped by day.
 type CommitTrendPoint struct {
 	Date        string `json:"date"`

@@ -40,7 +40,7 @@ export const GLOBAL_PAGE_TITLES: Record<GlobalPageKey, string> = {
 
 const GLOBAL_PAGE_SET = new Set<GlobalPageKey>(Object.keys(GLOBAL_PAGE_TITLES) as GlobalPageKey[]);
 
-export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse" | "contributors" | "community" | "community-standards";
+export type RepoContentKind = "root" | "tree" | "blob" | "commits" | "new" | "edit" | "upload" | "compare" | "commit-view" | "branches" | "issues-new" | "issue-view" | "pull-view" | "pull-conflicts" | "fork" | "pulse" | "contributors" | "community" | "community-standards" | "commit-activity";
 
 export type ParsedRoute = {
   viewMode: "profile" | "repo" | "create-repo" | "global";
@@ -149,6 +149,10 @@ export function buildRepoCommunityPath(owner: string, repoName: string): string 
 
 export function buildRepoCommunityStandardsPath(owner: string, repoName: string): string {
   return `${buildRepoBasePath(owner, repoName)}/community`;
+}
+
+export function buildRepoCommitActivityPath(owner: string, repoName: string): string {
+  return `${buildRepoBasePath(owner, repoName)}/graphs/commit-activity`;
 }
 
 export function formatGitHubDate(value: Date): string {
@@ -497,6 +501,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
       };
     }
 
+    if (segments[2] === "graphs" && segments[3] === "commit-activity") {
+      return {
+        viewMode: "repo",
+        repoOwner: null,
+        repoName: null,
+        repoId,
+        tab: "insights",
+        contentKind: "commit-activity",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: `/repos/${encodeURIComponent(repoId)}/graphs/commit-activity`,
+      };
+    }
+
     if (segments[2] === "community") {
       return {
         viewMode: "repo",
@@ -779,6 +798,21 @@ export function parseAppPath(pathname: string): ParsedRoute {
         branch: "",
         globalPage: null,
         normalizedPath: buildRepoCommunityPath(repoOwner, repoName),
+      };
+    }
+
+    if (third === "graphs" && segments[3] === "commit-activity") {
+      return {
+        viewMode: "repo",
+        repoOwner,
+        repoName,
+        repoId: null,
+        tab: "insights",
+        contentKind: "commit-activity",
+        contentPath: "",
+        branch: "",
+        globalPage: null,
+        normalizedPath: buildRepoCommitActivityPath(repoOwner, repoName),
       };
     }
 

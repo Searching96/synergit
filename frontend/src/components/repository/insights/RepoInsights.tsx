@@ -11,7 +11,7 @@ import {
   RepoForkedIcon,
   CommentDiscussionIcon,
 } from "@primer/octicons-react";
-import type { ContributionDay, ContributionWeek, ContributorContribution, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
+import type { ContributionDay, ContributionWeek, ContributorContribution, RepoCommitActivitySnapshot, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
 import { reposApi } from "../../../services/api";
 import { Tooltip } from "../../shared/Tooltip";
 import { SpinnerPlaceholder, TextSkeleton } from "../../shared/LoadingPlaceholders";
@@ -29,6 +29,7 @@ interface RepoInsightsProps {
   onOpenContributorsPeriod: (search: string) => void;
   onOpenCommunity: () => void;
   onOpenCommunityStandards: () => void;
+  onOpenCommitActivity: () => void;
 }
 
 const INSIGHTS_NAV_ITEMS = [
@@ -87,6 +88,10 @@ export default function RepoInsights(props: RepoInsightsProps) {
     return <RepoCommunityStandardsInsights {...props} />;
   }
 
+  if (props.contentKind === "commit-activity") {
+    return <RepoCommitActivityInsights {...props} />;
+  }
+
   return <RepoPulseInsights {...props} />;
 }
 
@@ -98,6 +103,7 @@ function RepoPulseInsights({
   onOpenContributors,
   onOpenCommunity,
   onOpenCommunityStandards,
+  onOpenCommitActivity,
 }: RepoInsightsProps) {
   const [pulse, setPulse] = useState<RepoPulseSnapshot | null>(null);
   const [period, setPeriod] = useState<string>("1m");
@@ -169,6 +175,7 @@ function RepoPulseInsights({
         onOpenContributors={onOpenContributors}
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
       />
 
       <section className="min-w-0">
@@ -329,6 +336,7 @@ function RepoContributorsInsights({
   onOpenContributors,
   onOpenCommunity,
   onOpenCommunityStandards,
+  onOpenCommitActivity,
   onOpenContributorsPeriod,
 }: RepoInsightsProps) {
   const [snapshot, setSnapshot] = useState<RepoContributorsSnapshot | null>(null);
@@ -367,6 +375,7 @@ function RepoContributorsInsights({
         onOpenContributors={onOpenContributors}
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
       />
 
       <section className="min-w-0">
@@ -514,6 +523,7 @@ function RepoCommunityInsights({
   onOpenContributors,
   onOpenCommunity,
   onOpenCommunityStandards,
+  onOpenCommitActivity,
 }: RepoInsightsProps) {
   return (
     <div className="mx-auto mt-7 grid w-full max-w-[1216px] grid-cols-1 gap-[62px] lg:grid-cols-[296px_minmax(0,1fr)]">
@@ -523,6 +533,7 @@ function RepoCommunityInsights({
         onOpenContributors={onOpenContributors}
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
       />
 
       <section className="flex min-h-[420px] min-w-0 items-start justify-center pt-[29px]">
@@ -595,6 +606,7 @@ function RepoCommunityStandardsInsights({
   onOpenContributors,
   onOpenCommunity,
   onOpenCommunityStandards,
+  onOpenCommitActivity,
 }: RepoInsightsProps) {
   return (
     <div className="mx-auto mt-[13px] grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
@@ -604,6 +616,7 @@ function RepoCommunityStandardsInsights({
         onOpenContributors={onOpenContributors}
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
       />
 
       <section className="min-w-0">
@@ -672,18 +685,253 @@ function RepoCommunityStandardsInsights({
   );
 }
 
+function RepoCommitActivityInsights({
+  repoId,
+  repoOwner,
+  repoName,
+  onOpenPulse,
+  onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
+  onOpenCommitActivity,
+}: RepoInsightsProps) {
+  const [snapshot, setSnapshot] = useState<RepoCommitActivitySnapshot | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCommitActivity = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const nextSnapshot = await reposApi.getCommitActivity(repoId);
+      setSnapshot(nextSnapshot);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load commit activity");
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId]);
+
+  useEffect(() => {
+    void loadCommitActivity();
+  }, [loadCommitActivity]);
+
+  const repoFullName = repoOwner && repoName ? `${repoOwner}/${repoName}` : repoName || "this repository";
+
+  return (
+    <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
+      <InsightsSidebar
+        activeItem="Commits"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
+      />
+
+      <section className="min-w-0">
+        <h2 className="mb-[29px] text-[28px] font-normal leading-9 text-[var(--text-primary)]">
+          Commits over the last year of <span className="font-semibold">{repoFullName}</span>
+        </h2>
+
+        {loading ? (
+          <article className="min-h-[592px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-[18px] py-[19px]">
+            <CommitActivityCardHeader />
+            <SpinnerPlaceholder className="h-[500px]" label="Loading commit activity" size={34} />
+          </article>
+        ) : error ? (
+          <div className="rounded-md border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] p-6 text-sm text-[var(--text-danger)]">
+            <p className="font-medium">{error}</p>
+            <button
+              type="button"
+              onClick={() => void loadCommitActivity()}
+              className="mt-3 h-8 rounded-md border border-[var(--border-danger-muted)] bg-[var(--surface-canvas)] px-3 font-semibold hover:bg-[var(--surface-danger-subtle)]"
+            >
+              Retry
+            </button>
+          </div>
+        ) : snapshot ? (
+          <CommitActivityChartCard snapshot={snapshot} />
+        ) : (
+          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-8 text-center text-sm text-[var(--text-secondary)]">
+            No commit activity available.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function CommitActivityCardHeader() {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <h3 className="text-xl font-semibold leading-6 text-[var(--text-primary)]">Commits</h3>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">Number of commits per week</p>
+      </div>
+      <PulseTopCommittersHeaderActions />
+    </div>
+  );
+}
+
+function CommitActivityChartCard({ snapshot }: { snapshot: RepoCommitActivitySnapshot }) {
+  const maxCount = Math.max(...snapshot.weekly_totals.map((week) => week.commit_count), 1);
+  const chartMax = maxCount <= 40 ? 40 : Math.ceil(maxCount / 10) * 10;
+  const ticks = buildCommitActivityTicks(chartMax);
+  const chart = buildCommitActivityChart(snapshot.weekly_totals, snapshot.period_start, snapshot.period_end);
+
+  return (
+    <article className="min-h-[592px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-[18px] py-[19px]">
+      <CommitActivityCardHeader />
+
+      <div className="mt-[22px] grid grid-cols-[42px_minmax(0,1fr)] gap-5 pr-1">
+        <div className="relative h-[444px] text-right text-sm text-[var(--text-secondary)]">
+          <span className="absolute left-[-24px] top-1/2 -translate-y-1/2 rotate-[-90deg] text-sm">Commits</span>
+          {ticks.map((tick) => (
+            <span key={tick.value} className="absolute right-0 -translate-y-1/2" style={{ top: `${tick.top}%` }}>
+              {tick.value}
+            </span>
+          ))}
+        </div>
+
+        <div className="relative h-[484px]">
+          <div className="relative h-[444px] border-b border-[#d8dee4]">
+            {ticks.map((tick) => (
+              <div
+                key={tick.value}
+                className={`absolute inset-x-0 border-t ${tick.value === 0 ? "border-[#d8dee4]" : "border-dashed border-[#d8dee4]"}`}
+                style={{ top: `${tick.top}%` }}
+              />
+            ))}
+            {chart.bars.map((bar) => {
+              const height = bar.commit_count > 0 ? Math.max((bar.commit_count / chartMax) * 100, 1.5) : 0;
+              return (
+                <div
+                  key={bar.week_start}
+                  className="group absolute bottom-0 flex h-full items-end"
+                  style={{
+                    left: `${bar.left}%`,
+                    width: `${bar.width}%`,
+                  }}
+                >
+                  <CommitActivityBarTooltip week={bar} heightPercent={height} />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="relative mt-[15px] h-5 text-sm text-[var(--text-secondary)]">
+            {chart.monthLabels.map((label) => (
+              <span key={`${label.text}-${label.left}`} className="absolute -translate-x-1/2" style={{ left: `${label.left}%` }}>
+                {label.text}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CommitActivityBarTooltip({
+  week,
+  heightPercent,
+}: {
+  week: ContributionWeek;
+  heightPercent: number;
+}) {
+  const hasCommits = week.commit_count > 0;
+  const mondayDate = dayStartLocal(new Date(week.week_start));
+  const sundayDate = new Date(mondayDate);
+  sundayDate.setDate(sundayDate.getDate() - 1);
+
+  return (
+    <div
+      className="group relative w-full bg-[#2da44e]"
+      style={{ height: `${heightPercent}%` }}
+      tabIndex={hasCommits ? 0 : undefined}
+    >
+      <div className="h-full w-full" />
+      {hasCommits && (
+        <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-xs font-normal text-[var(--text-primary)] shadow-md group-hover:block group-focus:block">
+          <div className="min-w-[124px]">
+            <p className="mb-2 whitespace-nowrap">Week of {formatTooltipWeekLabel(sundayDate.toISOString())}</p>
+            <div className="flex items-center justify-between gap-5">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-3 w-3 bg-[#2da44e]" />
+                <span>Commits</span>
+              </span>
+              <span>{formatNumber(week.commit_count)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildCommitActivityTicks(chartMax: number) {
+  const step = Math.max(Math.round(chartMax / 8), 1);
+  const ticks: Array<{ value: number; top: number }> = [];
+  for (let value = chartMax; value >= 0; value -= step) {
+    ticks.push({
+      value,
+      top: ((chartMax - value) / chartMax) * 100,
+    });
+  }
+  if (ticks[ticks.length - 1]?.value !== 0) {
+    ticks.push({ value: 0, top: 100 });
+  }
+  return ticks;
+}
+
+function buildCommitActivityChart(weeks: ContributionWeek[], periodStart: string, periodEnd: string) {
+  const start = dayStartLocal(new Date(periodStart));
+  const end = dayStartLocal(new Date(periodEnd));
+  const totalDays = Math.max(daysBetween(start, end), 1);
+  const barWidth = Math.max((7 / totalDays) * 100 * 0.78, 0.7);
+
+  const bars = weeks.map((week) => {
+    const weekDate = dayStartLocal(new Date(week.week_start));
+    const centerLeft = clampPercent((daysBetween(start, weekDate) / totalDays) * 100);
+    const left = Math.min(Math.max(centerLeft - barWidth / 2, 0), 100 - barWidth);
+    return {
+      ...week,
+      left,
+      width: barWidth,
+    };
+  });
+
+  const monthLabels: Array<{ text: string; left: number }> = [];
+  const current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+  for (; current <= end; current.setMonth(current.getMonth() + 1)) {
+    monthLabels.push({
+      text: new Intl.DateTimeFormat("en-US", { month: "short" }).format(current),
+      left: clampPercent((daysBetween(start, current) / totalDays) * 100),
+    });
+  }
+
+  return { bars, monthLabels };
+}
+
+function dayStartLocal(value: Date): Date {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
 function InsightsSidebar({
   activeItem,
   onOpenPulse,
   onOpenContributors,
   onOpenCommunity,
   onOpenCommunityStandards,
+  onOpenCommitActivity,
 }: {
   activeItem: string;
   onOpenPulse: () => void;
   onOpenContributors: () => void;
   onOpenCommunity: () => void;
   onOpenCommunityStandards: () => void;
+  onOpenCommitActivity: () => void;
 }) {
   return (
     <aside className="h-fit overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
@@ -697,7 +945,9 @@ function InsightsSidebar({
               ? onOpenCommunity
               : item === "Community standards"
                 ? onOpenCommunityStandards
-                : undefined;
+                : item === "Commits"
+                  ? onOpenCommitActivity
+                  : undefined;
         return (
           <button
             key={item}

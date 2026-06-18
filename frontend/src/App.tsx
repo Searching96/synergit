@@ -41,6 +41,7 @@ import {
   buildRepoContributorsPath,
   buildRepoCommunityPath,
   buildRepoCommunityStandardsPath,
+  buildRepoCommitActivityPath,
   buildRepoPulsePath,
   buildContributorsDefaultSearch,
   normalizeContributorsSearch,
@@ -287,6 +288,8 @@ function App() {
           canonicalPath = buildRepoCommunityPath(owner, targetRepo.name);
         } else if (parsed.tab === 'insights' && parsed.contentKind === 'community-standards') {
           canonicalPath = buildRepoCommunityStandardsPath(owner, targetRepo.name);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'commit-activity') {
+          canonicalPath = buildRepoCommitActivityPath(owner, targetRepo.name);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -456,7 +459,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards' || routeContentKind === 'commit-activity') {
       return;
     }
 
@@ -889,6 +892,10 @@ function App() {
                 onOpenRepoCommunityStandards={() => {
                   if (!selectedRepo) return;
                   navigateToPath(buildRepoCommunityStandardsPath(getRepoOwner(selectedRepo), selectedRepo.name));
+                }}
+                onOpenRepoCommitActivity={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(buildRepoCommitActivityPath(getRepoOwner(selectedRepo), selectedRepo.name));
                 }}
               />
             </div>

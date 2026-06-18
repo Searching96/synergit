@@ -159,6 +159,14 @@ export interface RepoContributorsSnapshot {
 	contributors: ContributorContribution[];
 }
 
+export interface RepoCommitActivitySnapshot {
+	repo_id: string;
+	period_start: string;
+	period_end: string;
+	default_branch: string;
+	weekly_totals: ContributionWeek[];
+}
+
 export interface ProfileContributionDay {
 	date: string;
 	commit_count: number;
