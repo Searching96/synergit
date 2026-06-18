@@ -226,6 +226,46 @@ func TestBuildCommitActivityWeeklyStats(t *testing.T) {
 	}
 }
 
+func TestBuildCodeFrequencyWeeklyStats(t *testing.T) {
+	since := time.Date(2025, 6, 18, 12, 0, 0, 0, time.UTC)
+	until := time.Date(2025, 7, 9, 12, 0, 0, 0, time.UTC)
+	commits := []domain.Commit{
+		{Hash: "a1", Date: time.Date(2025, 6, 19, 8, 0, 0, 0, time.UTC)},
+		{Hash: "a2", Date: time.Date(2025, 6, 22, 8, 0, 0, 0, time.UTC)},
+		{Hash: "b1", Date: time.Date(2025, 7, 1, 8, 0, 0, 0, time.UTC)},
+	}
+	diffStats := map[string]codeFrequencyDiffStat{
+		"a1": {Additions: 10, Deletions: 2},
+		"a2": {Additions: 7, Deletions: 3},
+		"b1": {Additions: 4, Deletions: 12},
+	}
+
+	weeks := buildCodeFrequencyWeeklyStats(commits, diffStats, since, until)
+
+	if len(weeks) != 4 {
+		t.Fatalf("expected 4 weekly buckets, got %d", len(weeks))
+	}
+	want := map[string]codeFrequencyDiffStat{
+		"2025-06-16": {Additions: 17, Deletions: 5},
+		"2025-06-23": {},
+		"2025-06-30": {Additions: 4, Deletions: 12},
+		"2025-07-07": {},
+	}
+	for _, week := range weeks {
+		expected := want[week.WeekStart]
+		if week.Additions != expected.Additions || week.Deletions != expected.Deletions {
+			t.Fatalf(
+				"expected %s to have +%d/-%d, got +%d/-%d",
+				week.WeekStart,
+				expected.Additions,
+				expected.Deletions,
+				week.Additions,
+				week.Deletions,
+			)
+		}
+	}
+}
+
 func TestEarliestCommitDate(t *testing.T) {
 	fallback := time.Date(2026, 6, 18, 0, 0, 0, 0, time.UTC)
 	commits := []domain.Commit{

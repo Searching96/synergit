@@ -6,6 +6,7 @@ import type {
   PullRequestCompareResult,
   CreateRepositoryPayload,
   ProfileActivitySnapshot,
+  RepoCodeFrequencySnapshot,
   RepoContributorsSnapshot,
   RepoCommitActivitySnapshot,
   RepoInsightsSnapshot,
@@ -175,6 +176,9 @@ export const reposApi = {
 
   getCommitActivity: (repoId: string) =>
     fetcher<RepoCommitActivitySnapshot>(`/repos/${repoId}/insights/commit-activity`),
+
+  getCodeFrequency: (repoId: string) =>
+    fetcher<RepoCodeFrequencySnapshot>(`/repos/${repoId}/insights/code-frequency`),
 
   triggerInsightsRecompute: (repoId: string, trigger: string = 'manual_frontend') =>
     fetcher<{ message: string }>(

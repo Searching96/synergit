@@ -42,6 +42,7 @@ import {
   buildRepoCommunityPath,
   buildRepoCommunityStandardsPath,
   buildRepoCommitActivityPath,
+  buildRepoCodeFrequencyPath,
   buildRepoPulsePath,
   buildContributorsDefaultSearch,
   normalizeContributorsSearch,
@@ -290,6 +291,8 @@ function App() {
           canonicalPath = buildRepoCommunityStandardsPath(owner, targetRepo.name);
         } else if (parsed.tab === 'insights' && parsed.contentKind === 'commit-activity') {
           canonicalPath = buildRepoCommitActivityPath(owner, targetRepo.name);
+        } else if (parsed.tab === 'insights' && parsed.contentKind === 'code-frequency') {
+          canonicalPath = buildRepoCodeFrequencyPath(owner, targetRepo.name);
         }
 
         replaceHistoryIfNeeded(`${canonicalPath}${canonicalSearch}`);
@@ -459,7 +462,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards' || routeContentKind === 'commit-activity') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards' || routeContentKind === 'commit-activity' || routeContentKind === 'code-frequency') {
       return;
     }
 
@@ -896,6 +899,10 @@ function App() {
                 onOpenRepoCommitActivity={() => {
                   if (!selectedRepo) return;
                   navigateToPath(buildRepoCommitActivityPath(getRepoOwner(selectedRepo), selectedRepo.name));
+                }}
+                onOpenRepoCodeFrequency={() => {
+                  if (!selectedRepo) return;
+                  navigateToPath(buildRepoCodeFrequencyPath(getRepoOwner(selectedRepo), selectedRepo.name));
                 }}
               />
             </div>

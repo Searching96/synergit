@@ -72,6 +72,7 @@ interface RepoWorkspaceContentProps {
   onOpenRepoCommunity: () => void;
   onOpenRepoCommunityStandards: () => void;
   onOpenRepoCommitActivity: () => void;
+  onOpenRepoCodeFrequency: () => void;
 }
 
 export default function RepoWorkspaceContent({
@@ -115,6 +116,7 @@ export default function RepoWorkspaceContent({
   onOpenRepoCommunity,
   onOpenRepoCommunityStandards,
   onOpenRepoCommitActivity,
+  onOpenRepoCodeFrequency,
   isResolvingRepo,
 }: RepoWorkspaceContentProps) {
   if (!selectedRepo) {
@@ -364,6 +366,7 @@ export default function RepoWorkspaceContent({
                 onOpenCommunity={onOpenRepoCommunity}
                 onOpenCommunityStandards={onOpenRepoCommunityStandards}
                 onOpenCommitActivity={onOpenRepoCommitActivity}
+                onOpenCodeFrequency={onOpenRepoCodeFrequency}
               />
             )}
             {activeTab === "activity" && <ActivityPage repoId={selectedRepo.id} />}

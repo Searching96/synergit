@@ -39,4 +39,3 @@ The Commits insights page should show weekly commit activity over the last year 
 - Rendered the Commits sub tab under Insights with GitHub-style heading, card, Octicon action controls, y-axis, month labels, and green weekly bars.
 - Tuned commit activity bars so the final partial week still renders as a full-width bar.
 - Added GitHub-style hover tooltip for non-empty weekly bars and suppressed tooltip display for zero-commit weeks.
-- Verified with `go test ./...`, targeted frontend eslint, and `npm.cmd run build`.

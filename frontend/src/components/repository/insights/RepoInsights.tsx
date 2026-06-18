@@ -11,7 +11,7 @@ import {
   RepoForkedIcon,
   CommentDiscussionIcon,
 } from "@primer/octicons-react";
-import type { ContributionDay, ContributionWeek, ContributorContribution, RepoCommitActivitySnapshot, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
+import type { CodeFrequencyWeek, ContributionDay, ContributionWeek, ContributorContribution, RepoCodeFrequencySnapshot, RepoCommitActivitySnapshot, RepoContributorsSnapshot, RepoPulseSnapshot } from "../../../types";
 import { reposApi } from "../../../services/api";
 import { Tooltip } from "../../shared/Tooltip";
 import { SpinnerPlaceholder, TextSkeleton } from "../../shared/LoadingPlaceholders";
@@ -30,6 +30,7 @@ interface RepoInsightsProps {
   onOpenCommunity: () => void;
   onOpenCommunityStandards: () => void;
   onOpenCommitActivity: () => void;
+  onOpenCodeFrequency: () => void;
 }
 
 const INSIGHTS_NAV_ITEMS = [
@@ -92,6 +93,10 @@ export default function RepoInsights(props: RepoInsightsProps) {
     return <RepoCommitActivityInsights {...props} />;
   }
 
+  if (props.contentKind === "code-frequency") {
+    return <RepoCodeFrequencyInsights {...props} />;
+  }
+
   return <RepoPulseInsights {...props} />;
 }
 
@@ -104,6 +109,7 @@ function RepoPulseInsights({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
 }: RepoInsightsProps) {
   const [pulse, setPulse] = useState<RepoPulseSnapshot | null>(null);
   const [period, setPeriod] = useState<string>("1m");
@@ -176,6 +182,7 @@ function RepoPulseInsights({
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
         onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
       />
 
       <section className="min-w-0">
@@ -337,6 +344,7 @@ function RepoContributorsInsights({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
   onOpenContributorsPeriod,
 }: RepoInsightsProps) {
   const [snapshot, setSnapshot] = useState<RepoContributorsSnapshot | null>(null);
@@ -376,6 +384,7 @@ function RepoContributorsInsights({
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
         onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
       />
 
       <section className="min-w-0">
@@ -524,6 +533,7 @@ function RepoCommunityInsights({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
 }: RepoInsightsProps) {
   return (
     <div className="mx-auto mt-7 grid w-full max-w-[1216px] grid-cols-1 gap-[62px] lg:grid-cols-[296px_minmax(0,1fr)]">
@@ -534,6 +544,7 @@ function RepoCommunityInsights({
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
         onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
       />
 
       <section className="flex min-h-[420px] min-w-0 items-start justify-center pt-[29px]">
@@ -607,6 +618,7 @@ function RepoCommunityStandardsInsights({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
 }: RepoInsightsProps) {
   return (
     <div className="mx-auto mt-[13px] grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
@@ -617,6 +629,7 @@ function RepoCommunityStandardsInsights({
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
         onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
       />
 
       <section className="min-w-0">
@@ -685,6 +698,261 @@ function RepoCommunityStandardsInsights({
   );
 }
 
+function RepoCodeFrequencyInsights({
+  repoId,
+  repoOwner,
+  repoName,
+  onOpenPulse,
+  onOpenContributors,
+  onOpenCommunity,
+  onOpenCommunityStandards,
+  onOpenCommitActivity,
+  onOpenCodeFrequency,
+}: RepoInsightsProps) {
+  const [snapshot, setSnapshot] = useState<RepoCodeFrequencySnapshot | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCodeFrequency = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const nextSnapshot = await reposApi.getCodeFrequency(repoId);
+      setSnapshot(nextSnapshot);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load code frequency");
+    } finally {
+      setLoading(false);
+    }
+  }, [repoId]);
+
+  useEffect(() => {
+    void loadCodeFrequency();
+  }, [loadCodeFrequency]);
+
+  const repoFullName = repoOwner && repoName ? `${repoOwner}/${repoName}` : repoName || "this repository";
+
+  return (
+    <div className="mx-auto mt-7 grid w-full max-w-[1368px] grid-cols-1 gap-[27px] lg:grid-cols-[333px_minmax(0,1fr)]">
+      <InsightsSidebar
+        activeItem="Code frequency"
+        onOpenPulse={onOpenPulse}
+        onOpenContributors={onOpenContributors}
+        onOpenCommunity={onOpenCommunity}
+        onOpenCommunityStandards={onOpenCommunityStandards}
+        onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
+      />
+
+      <section className="min-w-0">
+        <h2 className="mb-[29px] text-[28px] font-normal leading-8 text-[var(--text-primary)]">
+          Code frequency over the history of <span className="font-semibold">{repoFullName}</span>
+        </h2>
+
+        {loading ? (
+          <article className="min-h-[592px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-[18px] py-[19px]">
+            <CodeFrequencyCardHeader />
+            <SpinnerPlaceholder className="h-[500px]" label="Loading code frequency" size={34} />
+          </article>
+        ) : error ? (
+          <div className="rounded-md border border-[#ffb3b3] bg-[#ffebe9] p-6 text-[#cf222e]">
+            <p className="font-semibold">An error occurred</p>
+            <button
+              type="button"
+              onClick={() => void loadCodeFrequency()}
+              className="mt-4 rounded-md border border-[#ffb3b3] bg-[var(--surface-canvas)] px-4 py-2 text-sm font-semibold text-[#cf222e]"
+            >
+              Retry
+            </button>
+          </div>
+        ) : snapshot ? (
+          <CodeFrequencyChartCard snapshot={snapshot} />
+        ) : (
+          <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-6 text-[var(--text-secondary)]">
+            No code frequency data available.
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function CodeFrequencyCardHeader() {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <h3 className="text-xl font-semibold leading-6 text-[var(--text-primary)]">Code frequency</h3>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">Additions and deletions per week</p>
+      </div>
+      <PulseTopCommittersHeaderActions />
+    </div>
+  );
+}
+
+function CodeFrequencyBarTooltip({
+  color,
+  label,
+  value,
+  weekDate,
+  placement,
+  heightPercent,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  weekDate: Date;
+  placement: "additions" | "deletions";
+  heightPercent: number;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute left-1/2 z-20 min-w-[148px] -translate-x-1/2 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-3 py-2 text-xs font-normal text-[var(--text-primary)] shadow-md"
+      style={placement === "additions"
+        ? { bottom: `calc(50% + ${heightPercent}% + 8px)` }
+        : { top: `calc(50% + ${heightPercent}% + 8px)` }}
+    >
+      <p className="mb-2 whitespace-nowrap">Week of {formatTooltipWeekLabel(weekDate.toISOString())}</p>
+      <div className="flex items-center justify-between gap-5">
+        <span className="inline-flex items-center gap-2">
+          <span className="h-3 w-3" style={{ backgroundColor: color }} />
+          <span>{label}</span>
+        </span>
+        <span>{formatNumber(value)}</span>
+      </div>
+    </div>
+  );
+}
+
+function CodeFrequencyChartCard({ snapshot }: { snapshot: RepoCodeFrequencySnapshot }) {
+  const [hoveredBar, setHoveredBar] = useState<{ weekStart: string; type: "additions" | "deletions" } | null>(null);
+  const maxMagnitude = Math.max(
+    ...snapshot.weekly_totals.map((week) => Math.max(week.additions, week.deletions)),
+    1,
+  );
+  const chartMax = buildCodeFrequencyChartMax(maxMagnitude);
+  const ticks = buildCodeFrequencyTicks(chartMax);
+  const chart = buildCodeFrequencyChart(snapshot.weekly_totals, snapshot.period_start, snapshot.period_end);
+
+  return (
+    <article className="min-h-[592px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-[18px] py-[19px]">
+      <CodeFrequencyCardHeader />
+
+      <div className="mt-[24px] grid grid-cols-[minmax(0,1fr)_124px] gap-[30px]">
+        <div className="relative h-[476px]">
+          <div className="absolute inset-x-0 top-0 h-[444px] border-b border-[#d8dee4]">
+            {ticks.map((tick) => (
+              <div
+                key={tick.value}
+                className={`absolute inset-x-0 border-t ${tick.value === 0 ? "border-[#d8dee4]" : "border-dashed border-[#d8dee4]"}`}
+                style={{ top: `${tick.top}%` }}
+              />
+            ))}
+            {chart.axisLabels.map((label) => (
+              <div
+                key={`${label.text}-${label.left}`}
+                className="absolute bottom-0 top-0 border-l border-dashed border-[#d8dee4]"
+                style={{ left: `${label.left}%` }}
+              />
+            ))}
+            {chart.bars.map((bar) => {
+              const additionHeight = bar.additions > 0 ? Math.max((bar.additions / chartMax) * 50, 0.35) : 0;
+              const deletionHeight = bar.deletions > 0 ? Math.max((bar.deletions / chartMax) * 50, 0.35) : 0;
+              const isAdditionHover = hoveredBar?.type === "additions";
+              const isDeletionHover = hoveredBar?.type === "deletions";
+              const isCurrentAddition = hoveredBar?.weekStart === bar.week_start && hoveredBar.type === "additions";
+              const isCurrentDeletion = hoveredBar?.weekStart === bar.week_start && hoveredBar.type === "deletions";
+              const tooltipWeekDate = getSundayForWeekStart(bar.week_start);
+              return (
+                <div
+                  key={bar.week_start}
+                  className="absolute bottom-0 top-0"
+                  style={{ left: `${bar.left}%`, width: `${bar.width}%` }}
+                  onMouseLeave={() => setHoveredBar(null)}
+                >
+                  {(isCurrentAddition || isCurrentDeletion) && (
+                    <div
+                      className="pointer-events-none absolute bottom-0 top-0 w-px -translate-x-1/2 bg-[#8c959f]/35"
+                      style={{ left: `${bar.centerLeft}%` }}
+                    />
+                  )}
+                  {bar.additions > 0 && (
+                    <div
+                      className={`absolute bottom-1/2 inset-x-0 bg-[#2da44e] transition-opacity ${isDeletionHover ? "opacity-25" : "opacity-100"}`}
+                      style={{ height: `${additionHeight}%` }}
+                      onMouseEnter={() => setHoveredBar({ weekStart: bar.week_start, type: "additions" })}
+                      onFocus={() => setHoveredBar({ weekStart: bar.week_start, type: "additions" })}
+                      onBlur={() => setHoveredBar(null)}
+                      tabIndex={0}
+                    />
+                  )}
+                  {bar.deletions > 0 && (
+                    <div
+                      className={`absolute top-1/2 inset-x-0 bg-[#e8112d] transition-opacity ${isAdditionHover ? "opacity-25" : "opacity-100"}`}
+                      style={{ height: `${deletionHeight}%` }}
+                      onMouseEnter={() => setHoveredBar({ weekStart: bar.week_start, type: "deletions" })}
+                      onFocus={() => setHoveredBar({ weekStart: bar.week_start, type: "deletions" })}
+                      onBlur={() => setHoveredBar(null)}
+                      tabIndex={0}
+                    />
+                  )}
+                  {isCurrentAddition && (
+                    <CodeFrequencyBarTooltip
+                      color="#2da44e"
+                      label="Additions"
+                      value={bar.additions}
+                      weekDate={tooltipWeekDate}
+                      placement="additions"
+                      heightPercent={additionHeight}
+                    />
+                  )}
+                  {isCurrentDeletion && (
+                    <CodeFrequencyBarTooltip
+                      color="#e8112d"
+                      label="Deletions"
+                      value={bar.deletions}
+                      weekDate={tooltipWeekDate}
+                      placement="deletions"
+                      heightPercent={deletionHeight}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            <div className="pointer-events-none absolute bottom-0 top-0 right-[-47px] w-12 text-sm text-[var(--text-secondary)]">
+              {ticks.map((tick) => (
+                <span key={tick.value} className="absolute left-0 -translate-y-1/2" style={{ top: `${tick.top}%` }}>
+                  {formatFrequencyTick(tick.value)}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="absolute inset-x-0 top-[458px] h-5 text-sm text-[var(--text-secondary)]">
+            {chart.axisLabels.map((label) => (
+              <span key={`${label.text}-${label.left}`} className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${label.left}%` }}>
+                {label.text}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex h-[444px] items-center justify-start pl-[10px] text-sm text-[var(--text-primary)]">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="h-[13px] w-[13px] bg-[#2da44e]" />
+              <span>Additions</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-[13px] w-[13px] bg-[#e8112d]" />
+              <span>Deletions</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function RepoCommitActivityInsights({
   repoId,
   repoOwner,
@@ -694,6 +962,7 @@ function RepoCommitActivityInsights({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
 }: RepoInsightsProps) {
   const [snapshot, setSnapshot] = useState<RepoCommitActivitySnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -727,6 +996,7 @@ function RepoCommitActivityInsights({
         onOpenCommunity={onOpenCommunity}
         onOpenCommunityStandards={onOpenCommunityStandards}
         onOpenCommitActivity={onOpenCommitActivity}
+        onOpenCodeFrequency={onOpenCodeFrequency}
       />
 
       <section className="min-w-0">
@@ -870,6 +1140,138 @@ function CommitActivityBarTooltip({
   );
 }
 
+function buildCodeFrequencyChartMax(maxMagnitude: number) {
+  if (maxMagnitude <= 0) return 1;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxMagnitude)));
+  const candidates = [1, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]
+    .map((value) => value * magnitude)
+    .concat([15 * magnitude, 20 * magnitude]);
+  return candidates.find((candidate) => maxMagnitude <= candidate && maxMagnitude > (candidate * 2) / 3) || Math.ceil(maxMagnitude);
+}
+
+function buildCodeFrequencyTicks(chartMax: number) {
+  const positiveStep = chartMax / 3;
+  return [
+    { value: chartMax, top: 0 },
+    { value: Math.round(positiveStep * 2), top: 16.6667 },
+    { value: Math.round(positiveStep), top: 33.3333 },
+    { value: 0, top: 50 },
+    { value: -Math.round(positiveStep), top: 66.6667 },
+    { value: -Math.round(positiveStep * 2), top: 83.3333 },
+    { value: -chartMax, top: 100 },
+  ];
+}
+
+function buildCodeFrequencyChart(weeks: CodeFrequencyWeek[], periodStart: string, periodEnd: string) {
+  const periodStartDate = dayStartLocal(new Date(periodStart));
+  const periodEndDate = dayStartLocal(new Date(periodEnd));
+  const firstSunday = getSundayForWeekStart(weeks[0]?.week_start || getMondayDate(periodStartDate).toISOString());
+  const lastSunday = getSundayForWeekStart(weeks[weeks.length - 1]?.week_start || getMondayDate(periodEndDate).toISOString());
+  const domainStart = new Date(firstSunday);
+  domainStart.setDate(domainStart.getDate() - 3);
+  const domainEnd = new Date(lastSunday);
+  domainEnd.setDate(domainEnd.getDate() + 4);
+  const totalDays = Math.max(daysBetween(domainStart, domainEnd), 1);
+  const barWidth = (7 / totalDays) * 100;
+
+  const bars = weeks.map((week) => {
+    const sundayDate = getSundayForWeekStart(week.week_start);
+    const barStart = new Date(sundayDate);
+    barStart.setDate(barStart.getDate() - 3);
+    const left = clampPercent((daysBetween(domainStart, barStart) / totalDays) * 100);
+    const centerLeft = clampPercent((daysBetween(domainStart, sundayDate) / totalDays) * 100);
+    const markerLeft = barWidth === 0 ? 50 : ((centerLeft - left) / barWidth) * 100;
+    return {
+      ...week,
+      left,
+      centerLeft: clampPercent(markerLeft),
+      width: barWidth,
+    };
+  });
+
+  const axisLabels = buildCodeFrequencyAxisLabels(domainStart, domainEnd, totalDays);
+
+  return { bars, axisLabels };
+}
+
+function buildCodeFrequencyAxisLabels(domainStart: Date, domainEnd: Date, totalDays: number) {
+  if (totalDays <= 120) {
+    return buildCodeFrequencyBiweeklyLabels(domainStart, domainEnd, totalDays);
+  }
+  return buildCodeFrequencyBimonthlyLabels(domainStart, domainEnd, totalDays);
+}
+
+function buildCodeFrequencyBiweeklyLabels(domainStart: Date, domainEnd: Date, totalDays: number) {
+  const labels: Array<{ text: string; left: number }> = [];
+  const seenText = new Set<string>();
+  const current = getMondayDate(domainStart);
+  if (current < domainStart) {
+    current.setDate(current.getDate() + 7);
+  }
+  for (; current <= domainEnd; current.setDate(current.getDate() + 14)) {
+    const text = formatCodeFrequencyDayLabel(current);
+    if (seenText.has(text)) continue;
+    seenText.add(text);
+    labels.push({
+      text,
+      left: clampPercent((daysBetween(domainStart, current) / totalDays) * 100),
+    });
+  }
+  return labels;
+}
+
+function buildCodeFrequencyBimonthlyLabels(domainStart: Date, domainEnd: Date, totalDays: number) {
+  const labels: Array<{ text: string; left: number }> = [];
+  const seenText = new Set<string>();
+  const current = new Date(domainStart.getFullYear(), domainStart.getMonth(), 1);
+  if (current < domainStart) {
+    current.setMonth(current.getMonth() + 1);
+  }
+  for (; current <= domainEnd; current.setMonth(current.getMonth() + 2)) {
+    const text = formatShortMonthYearLabel(current);
+    if (seenText.has(text)) continue;
+    seenText.add(text);
+    labels.push({
+      text,
+      left: clampPercent((daysBetween(domainStart, current) / totalDays) * 100),
+    });
+  }
+  return labels;
+}
+
+function getMondayDate(value: Date) {
+  const date = dayStartLocal(value);
+  const offset = (date.getDay() + 6) % 7;
+  date.setDate(date.getDate() - offset);
+  return date;
+}
+
+function getSundayForWeekStart(value: string) {
+  const date = dayStartLocal(new Date(value));
+  date.setDate(date.getDate() - 1);
+  return date;
+}
+
+function formatShortMonthYearLabel(value: Date) {
+  const month = new Intl.DateTimeFormat("en-US", { month: "short" }).format(value);
+  return `${month} '${value.getFullYear().toString().slice(-2)}`;
+}
+
+function formatCodeFrequencyDayLabel(value: Date) {
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(value);
+}
+
+function formatFrequencyTick(value: number) {
+  if (value === 0) return "0";
+  const sign = value < 0 ? "-" : "";
+  const absolute = Math.abs(value);
+  if (absolute >= 1000) {
+    const compact = absolute / 1000;
+    return `${sign}${Number.isInteger(compact) ? compact.toFixed(0) : compact.toFixed(1)}k`;
+  }
+  return `${sign}${absolute}`;
+}
+
 function buildCommitActivityTicks(chartMax: number) {
   const step = Math.max(Math.round(chartMax / 8), 1);
   const ticks: Array<{ value: number; top: number }> = [];
@@ -925,6 +1327,7 @@ function InsightsSidebar({
   onOpenCommunity,
   onOpenCommunityStandards,
   onOpenCommitActivity,
+  onOpenCodeFrequency,
 }: {
   activeItem: string;
   onOpenPulse: () => void;
@@ -932,6 +1335,7 @@ function InsightsSidebar({
   onOpenCommunity: () => void;
   onOpenCommunityStandards: () => void;
   onOpenCommitActivity: () => void;
+  onOpenCodeFrequency: () => void;
 }) {
   return (
     <aside className="h-fit overflow-hidden rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)]">
@@ -947,7 +1351,9 @@ function InsightsSidebar({
                 ? onOpenCommunityStandards
                 : item === "Commits"
                   ? onOpenCommitActivity
-                  : undefined;
+                  : item === "Code frequency"
+                    ? onOpenCodeFrequency
+                    : undefined;
         return (
           <button
             key={item}
@@ -1044,7 +1450,7 @@ function ContributionBars({
               >
                 {week.showHoverMarker && (
                   <div
-                    className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#0969da]/35 group-hover:block group-focus-within:block"
+                    className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#8c959f]/35 group-hover:block group-focus-within:block"
                     style={{ left: `${week.markerLeft}%` }}
                   />
                 )}
@@ -1458,7 +1864,7 @@ function ContributorMiniBars({
                 >
                   {week.showHoverMarker && (
                     <div
-                      className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#0969da]/35 group-hover:block group-focus-within:block"
+                      className="pointer-events-none absolute bottom-0 top-0 hidden w-px -translate-x-1/2 bg-[#8c959f]/35 group-hover:block group-focus-within:block"
                       style={{ left: `${week.markerLeft}%` }}
                     />
                   )}

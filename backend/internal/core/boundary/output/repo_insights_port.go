@@ -44,6 +44,7 @@ type RepoInsightsUseCase interface {
 	GetPulse(repoID uuid.UUID, requesterID uuid.UUID, period string) (*domain.RepoPulseSnapshot, error)
 	GetContributors(repoID uuid.UUID, requesterID uuid.UUID, period string) (*domain.RepoContributorsSnapshot, error)
 	GetCommitActivity(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoCommitActivitySnapshot, error)
+	GetCodeFrequency(repoID uuid.UUID, requesterID uuid.UUID) (*domain.RepoCodeFrequencySnapshot, error)
 	GetProfileActivity(requesterID uuid.UUID, year int) (*domain.ProfileActivitySnapshot, error)
 	TriggerRecompute(repoID uuid.UUID, requesterID uuid.UUID, trigger string) error
 	RecomputeNow(repoID uuid.UUID, trigger string) error

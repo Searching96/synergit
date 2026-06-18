@@ -90,6 +90,21 @@ type RepoCommitActivitySnapshot struct {
 	WeeklyTotals  []ContributionWeek `json:"weekly_totals"`
 }
 
+// RepoCodeFrequencySnapshot summarizes weekly code churn over repository history.
+type RepoCodeFrequencySnapshot struct {
+	RepoID        uuid.UUID               `json:"repo_id"`
+	PeriodStart   time.Time               `json:"period_start"`
+	PeriodEnd     time.Time               `json:"period_end"`
+	DefaultBranch string                  `json:"default_branch"`
+	WeeklyTotals  []CodeFrequencyWeekStat `json:"weekly_totals"`
+}
+
+type CodeFrequencyWeekStat struct {
+	WeekStart string `json:"week_start"`
+	Additions int    `json:"additions"`
+	Deletions int    `json:"deletions"`
+}
+
 // CommitTrendPoint represents commit count grouped by day.
 type CommitTrendPoint struct {
 	Date        string `json:"date"`

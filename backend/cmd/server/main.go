@@ -185,6 +185,7 @@ func main() {
 			repos.GET("/:repo_id/insights/pulse", repoInsightsHandler.HandleGetPulse)
 			repos.GET("/:repo_id/insights/contributors", repoInsightsHandler.HandleGetContributors)
 			repos.GET("/:repo_id/insights/commit-activity", repoInsightsHandler.HandleGetCommitActivity)
+			repos.GET("/:repo_id/insights/code-frequency", repoInsightsHandler.HandleGetCodeFrequency)
 			repos.POST("/:repo_id/insights/recompute", repoInsightsHandler.HandleTriggerRecompute)
 
 			// Collab routes

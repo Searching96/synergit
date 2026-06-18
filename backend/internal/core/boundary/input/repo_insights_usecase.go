@@ -29,6 +29,10 @@ type RepoInsightsUseCase interface {
 		repoID uuid.UUID,
 		requesterID uuid.UUID,
 	) (*domain.RepoCommitActivitySnapshot, error)
+	GetCodeFrequency(
+		repoID uuid.UUID,
+		requesterID uuid.UUID,
+	) (*domain.RepoCodeFrequencySnapshot, error)
 	TriggerRecompute(
 		repoID uuid.UUID,
 		requesterID uuid.UUID,

@@ -167,6 +167,20 @@ export interface RepoCommitActivitySnapshot {
 	weekly_totals: ContributionWeek[];
 }
 
+export interface CodeFrequencyWeek {
+	week_start: string;
+	additions: number;
+	deletions: number;
+}
+
+export interface RepoCodeFrequencySnapshot {
+	repo_id: string;
+	period_start: string;
+	period_end: string;
+	default_branch: string;
+	weekly_totals: CodeFrequencyWeek[];
+}
+
 export interface ProfileContributionDay {
 	date: string;
 	commit_count: number;

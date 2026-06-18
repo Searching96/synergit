@@ -470,6 +470,58 @@ func (s *RepoInsightsService) GetCommitActivity(
 	}, nil
 }
 
+func (s *RepoInsightsService) GetCodeFrequency(
+	repoID uuid.UUID,
+	requesterID uuid.UUID,
+) (*domain.RepoCodeFrequencySnapshot, error) {
+	if err := s.authorizeRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	repo, err := s.repoStore.FindByID(repoID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repository not found")
+	}
+
+	branches, err := s.gitManager.GetBranches(repo.Path)
+	if err != nil {
+		return nil, err
+	}
+	defaultBranch := resolveDefaultBranchName(branches)
+	now := time.Now().UTC()
+	if defaultBranch == "" {
+		return &domain.RepoCodeFrequencySnapshot{
+			RepoID:        repoID,
+			PeriodStart:   now,
+			PeriodEnd:     now,
+			DefaultBranch: defaultBranch,
+			WeeklyTotals:  buildCodeFrequencyWeeklyStats(nil, nil, now, now),
+		}, nil
+	}
+
+	commitsPage, err := s.gitManager.GetCommits(repo.Path, defaultBranch, "", 1000000, 0)
+	if err != nil {
+		return nil, err
+	}
+	commits := filterNonMergeCommits(commitsPage.Commits)
+	since := earliestCommitDate(commits, now)
+	diffStats, err := s.buildCodeFrequencyDiffStats(repo.Path, commits)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.RepoCodeFrequencySnapshot{
+		RepoID:        repoID,
+		PeriodStart:   since,
+		PeriodEnd:     now,
+		DefaultBranch: defaultBranch,
+		WeeklyTotals:  buildCodeFrequencyWeeklyStats(commits, diffStats, since, now),
+	}, nil
+}
+
 func resolveContributorsPeriod(period string) (time.Duration, string, bool, bool) {
 	switch strings.TrimSpace(strings.ToLower(period)) {
 	case "all":
@@ -775,6 +827,11 @@ type contributorDiffStat struct {
 	Deletions int
 }
 
+type codeFrequencyDiffStat struct {
+	Additions int
+	Deletions int
+}
+
 func (s *RepoInsightsService) buildContributorDiffStats(
 	repoPath string,
 	commits []domain.Commit,
@@ -792,6 +849,26 @@ func (s *RepoInsightsService) buildContributorDiffStats(
 			stat.Deletions += file.Deletions
 		}
 		stats[author] = stat
+	}
+	return stats, nil
+}
+
+func (s *RepoInsightsService) buildCodeFrequencyDiffStats(
+	repoPath string,
+	commits []domain.Commit,
+) (map[string]codeFrequencyDiffStat, error) {
+	stats := map[string]codeFrequencyDiffStat{}
+	for _, commit := range commits {
+		diffFiles, err := s.gitManager.GetCommitDiff(repoPath, commit.Hash)
+		if err != nil {
+			return nil, err
+		}
+		stat := stats[commit.Hash]
+		for _, file := range diffFiles {
+			stat.Additions += file.Additions
+			stat.Deletions += file.Deletions
+		}
+		stats[commit.Hash] = stat
 	}
 	return stats, nil
 }
@@ -852,6 +929,37 @@ func buildCommitActivityWeeklyStats(
 		weeks = append(weeks, domain.ContributionWeek{
 			WeekStart:   key,
 			CommitCount: totalByWeek[key],
+		})
+	}
+	return weeks
+}
+
+func buildCodeFrequencyWeeklyStats(
+	commits []domain.Commit,
+	diffStats map[string]codeFrequencyDiffStat,
+	since time.Time,
+	until time.Time,
+) []domain.CodeFrequencyWeekStat {
+	startWeek := weekStart(since)
+	endWeek := weekStart(until)
+	statsByWeek := map[string]codeFrequencyDiffStat{}
+	for _, commit := range commits {
+		key := weekStart(commit.Date).Format("2006-01-02")
+		commitDiff := diffStats[commit.Hash]
+		weekStat := statsByWeek[key]
+		weekStat.Additions += commitDiff.Additions
+		weekStat.Deletions += commitDiff.Deletions
+		statsByWeek[key] = weekStat
+	}
+
+	weeks := []domain.CodeFrequencyWeekStat{}
+	for current := startWeek; !current.After(endWeek); current = current.AddDate(0, 0, 7) {
+		key := current.Format("2006-01-02")
+		stat := statsByWeek[key]
+		weeks = append(weeks, domain.CodeFrequencyWeekStat{
+			WeekStart: key,
+			Additions: stat.Additions,
+			Deletions: stat.Deletions,
 		})
 	}
 	return weeks
