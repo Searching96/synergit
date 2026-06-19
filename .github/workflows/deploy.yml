@@ -53,7 +53,7 @@ jobs:
             cd ~/synergit
             
             # Pull the latest code from GitHub (Uses the previously configured Deploy Key)
-            git pull origin main
+            git pull origin master
             
             # Instruct Docker Compose to rebuild updated containers
             docker compose up -d --build
