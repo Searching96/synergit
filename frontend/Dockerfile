@@ -3,16 +3,16 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 
 # 1. Copy package files
-COPY frontend/package*.json ./
+COPY package*.json ./
 
 # 2. Copy the scripts folder required by the postinstall hook
-COPY frontend/scripts ./scripts
+COPY scripts ./scripts
 
 # 3. Install dependencies
 RUN npm install
 
 # 4. Copy the rest of the frontend source code
-COPY frontend/ .
+COPY . .
 
 # 5. Build the static files
 RUN npm run build
