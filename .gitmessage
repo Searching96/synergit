@@ -11,10 +11,12 @@
 #    - fix      : A bug fix
 #    - perf     : A code change that improves performance (short for performance)
 #    - refac    : A code change that improves structure/readability without changing external behavior (short for refactor)
+#    - ci       : Changes to our CI configuration files and scripts (e.g., GitHub Actions, Travis, Docker workflows)
 #    - docs     : Documentation only changes (e.g., README.md, /issues)
 #    - style    : Formatting, white-space, missing semi-colons (no code logic changes)
 #    - test     : Adding missing tests or correcting existing tests
 #    - chore    : Maintenance, build process, or auxiliary tool changes
+#    - minor    : Small tweaks or trivial changes that don't fit neatly into other categories
 #
 # 2. SCOPE (Optional):
 #    - The specific component or layer affected.

@@ -3,11 +3,12 @@ import { authApi } from "../../services/api";
 import { BookOpen } from "lucide-react";
 
 interface AuthProps {
+  isSignupRoute?: boolean;
   onLoginSuccess: (token: string) => void;
 }
 
-export default function Auth({ onLoginSuccess }: AuthProps) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function Auth({ isSignupRoute, onLoginSuccess }: AuthProps) {
+  const [isLogin, setIsLogin] = useState(!isSignupRoute);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -106,8 +107,10 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
             <button
               type="button" // Adding type="button" prevents accidental form submissions
               onClick={() => {
-                setIsLogin(!isLogin);
+                const nextIsLogin = !isLogin;
+                setIsLogin(nextIsLogin);
                 setError('');
+                window.history.replaceState({}, '', nextIsLogin ? '/login' : '/signup');
               }}
               className="text-sm font-medium text-[var(--text-link)] hover:text-[var(--text-link)]"
             >

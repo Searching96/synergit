@@ -539,7 +539,7 @@ function App() {
     logout();
     clearState();
     setViewMode('profile');
-    navigateToPath(`/${encodeURIComponent(currentUsername)}`, { replace: true });
+    navigateToPath('/login', { replace: true });
     setCreateRepoError(null);
     setCreateRepoSubmitting(false);
     setCreateForkError(null);
@@ -612,8 +612,15 @@ function App() {
     }
 
     if (!isAuthenticated) {
-      return <Auth onLoginSuccess={(token) => {
+      if (window.location.pathname === '/') {
+        window.history.replaceState({}, '', '/login');
+      }
+      const isSignup = window.location.pathname === '/signup';
+      return <Auth isSignupRoute={isSignup} onLoginSuccess={(token) => {
         login(token);
+        if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
+          navigateToPath('/', { replace: true });
+        }
       }} />;
     }
 
