@@ -1,14 +1,16 @@
 import { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../../services/api";
 import { BookOpen } from "lucide-react";
 
 interface AuthProps {
-  isSignupRoute?: boolean;
   onLoginSuccess: (token: string) => void;
 }
 
-export default function Auth({ isSignupRoute, onLoginSuccess }: AuthProps) {
-  const [isLogin, setIsLogin] = useState(!isSignupRoute);
+export default function Auth({ onLoginSuccess }: AuthProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isLogin = location.pathname !== '/signup';
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,8 +28,8 @@ export default function Auth({ isSignupRoute, onLoginSuccess }: AuthProps) {
         onLoginSuccess(res.token);
       } else {
         await authApi.register({ username, email, password });
-        setIsLogin(true);
         setError('Registration successful! Please log in.');
+        navigate('/login', { replace: true });
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred. Please try again.');
@@ -107,10 +109,8 @@ export default function Auth({ isSignupRoute, onLoginSuccess }: AuthProps) {
             <button
               type="button" // Adding type="button" prevents accidental form submissions
               onClick={() => {
-                const nextIsLogin = !isLogin;
-                setIsLogin(nextIsLogin);
                 setError('');
-                window.history.replaceState({}, '', nextIsLogin ? '/login' : '/signup');
+                navigate(isLogin ? '/signup' : '/login', { replace: true });
               }}
               className="text-sm font-medium text-[var(--text-link)] hover:text-[var(--text-link)]"
             >

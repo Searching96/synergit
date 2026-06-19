@@ -11,11 +11,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function getUsernameFromToken(token: string | null): string {
-  if (!token) return 'owner';
+  if (!token) return '';
 
   try {
     const payloadPart = token.split('.')[1];
-    if (!payloadPart) return 'owner';
+    if (!payloadPart) return '';
 
     const normalizedBase64 = payloadPart
       .replace(/-/g, '+')
@@ -27,10 +27,10 @@ export function getUsernameFromToken(token: string | null): string {
       return payload.username;
     }
   } catch {
-    return 'owner';
+    return '';
   }
 
-  return 'owner';
+  return '';
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
-    setCurrentUsername('owner');
+    setCurrentUsername('');
   };
 
   return (

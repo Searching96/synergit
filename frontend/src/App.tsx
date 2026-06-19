@@ -340,10 +340,6 @@ function App() {
       (activeTab === 'pulls' && routeContentKind === 'pull-conflicts'));
 
   useEffect(() => {
-    applyRoute(location.pathname, location.search, { replace: true });
-  }, [location, applyRoute]);
-
-  useEffect(() => {
     if (!isAuthenticated) return;
     applyRoute(location.pathname, location.search, { replace: true });
     if (repos.length > 0) setRepoRouteResolved(true);
@@ -612,13 +608,15 @@ function App() {
     }
 
     if (!isAuthenticated) {
-      if (window.location.pathname === '/') {
+      if (location.pathname !== '/login' && location.pathname !== '/signup') {
+        // use React Router navigation asynchronously if needed, or better yet, since we are in render,
+        // we should just let the Navigate component handle it, or we can just use location.pathname
+        // But since we can't call navigate during render, we'll use history state replacement
         window.history.replaceState({}, '', '/login');
       }
-      const isSignup = window.location.pathname === '/signup';
-      return <Auth isSignupRoute={isSignup} onLoginSuccess={(token) => {
+      return <Auth onLoginSuccess={(token) => {
         login(token);
-        if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
+        if (location.pathname === '/login' || location.pathname === '/signup' || window.location.pathname === '/login' || window.location.pathname === '/signup') {
           navigateToPath('/', { replace: true });
         }
       }} />;
