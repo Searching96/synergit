@@ -1,9 +1,9 @@
 .env
 .vscode
 
+ssl/
 node_modules/
-latex/
 synergit-report/
 
-*.pdf
-*.exe
+**.pdf
+**.exe
