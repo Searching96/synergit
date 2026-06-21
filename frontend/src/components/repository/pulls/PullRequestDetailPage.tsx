@@ -20,14 +20,15 @@ import {
 } from "lucide-react";
 import { CommitChangeLink } from "../../shared/CommitChangeLink";
 import { shortenHash } from "../../../utils/stringUtils";
-import { collaboratorsApi } from "../../../services/api";
+import { collaboratorsApi, issuesApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
-import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady } from "../../icons/Octicons";
-import { CopyIcon, CheckIcon } from "@primer/octicons-react";
+import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady, OcticonCrossReference } from "../../icons/Octicons";
+import { CopyIcon, CheckIcon, IssueOpenedIcon, IssueClosedIcon } from "@primer/octicons-react";
 import { Tooltip } from "../../../components/shared/Tooltip";
-import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
+import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator, Issue } from "../../../types";
 import MergeOperationPanel from "./MergeOperationPanel";
+import DevelopmentSidebarItem from "./DevelopmentSidebarItem";
 
 interface PullRequestDetailPageProps {
   repoId: string;
@@ -36,7 +37,7 @@ interface PullRequestDetailPageProps {
   onBack: () => void;
   onOpenConflicts: () => void;
   onOpenPullRequest: (pullNumber: number) => void;
-
+  onOpenIssue: (issueNumber: number) => void;
 }
 
 function relativeTime(timestamp: string): string {
@@ -92,6 +93,10 @@ function pullEventText(type: string): string {
       return "reopened this";
     case "merged":
       return "merged this";
+    case "issue_linked":
+      return "linked an issue that may be closed by this pull request";
+    case "issue_unlinked":
+      return "removed a link to an issue that may be closed by this pull request";
     default:
       return type;
   }
@@ -105,7 +110,7 @@ export default function PullRequestDetailPage({
   onBack,
   onOpenConflicts,
   onOpenPullRequest,
-
+  onOpenIssue,
 }: PullRequestDetailPageProps) {
   const [pull, setPull] = useState<PullRequest | null>(null);
   const [compareData, setCompareData] = useState<PullRequestCompareResult | null>(null);
@@ -118,6 +123,7 @@ export default function PullRequestDetailPage({
   const [commentPreview, setCommentPreview] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [issues, setIssues] = useState<Issue[]>([]);
 
   const [isStickyVisible, setIsStickyVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -159,6 +165,15 @@ export default function PullRequestDetailPage({
     return map;
   }, [collaborators]);
 
+  const issueNumberMap = useMemo(() => {
+    const mapping = new Map<string, number>();
+    const sortedByCreatedAsc = [...issues].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    sortedByCreatedAsc.forEach((issue, index) => {
+      mapping.set(issue.id, index + 1);
+    });
+    return mapping;
+  }, [issues]);
+
   const load = useCallback(async (isSilent?: boolean) => {
     try {
       if (!isSilent) {
@@ -168,11 +183,13 @@ export default function PullRequestDetailPage({
         setConflictFiles([]);
         setEvents([]);
       }
-      const [pulls, collabs] = await Promise.all([
+      const [pulls, collabs, repoIssues] = await Promise.all([
         pullsApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
+        issuesApi.list(repoId).catch(() => []),
       ]);
       setCollaborators(collabs || []);
+      setIssues(repoIssues || []);
 
       const sorted = [...(pulls || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       const resolved = sorted[Number(pullNumber) - 1] || null;
@@ -301,44 +318,144 @@ export default function PullRequestDetailPage({
     return (
       <li
         key={event.id}
-        className={`relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-center text-sm ${
+        className={`relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start text-sm ${
           isClosed || isMerged ? "after:absolute after:-bottom-2.5 after:left-0 after:right-0 after:h-1 after:bg-[var(--border-muted)]" : ""
         }`}
       >
-        <span className={`absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center ${badgeClass}`}>
+        <span className={`absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center ${badgeClass}`}>
           <Icon size={14} />
         </span>
-        <span className="absolute left-[calc(var(--rail)_+_18px)] top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-          {(event.actor || creatorName).charAt(0)}
-        </span>
-        {isMerged ? (
-          <div className="min-w-0 flex-1 pl-8 flex items-center justify-between gap-3 text-[var(--text-secondary)]">
+        <div className="flex-1 min-w-0 flex items-center gap-2 text-[var(--text-secondary)]">
+          <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+            {(event.actor || creatorName).charAt(0)}
+          </span>
+          {isMerged ? (
+            <div className="min-w-0 flex-1 flex items-center justify-between gap-3">
+              <span className="min-w-0">
+                <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
+                merged commit{" "}
+                <CommitChangeLink hash={mergeCommitHash} text={shortenHash(mergeCommitHash)} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
+                into{" "}
+                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.target_branch}</span>{" "}
+                <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleRevert()}
+                disabled={updating}
+                title="Create a new pull request to revert these changes"
+                className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Revert
+              </button>
+            </div>
+          ) : (
             <span className="min-w-0">
-              <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span>{" "}
-              merged commit{" "}
-              <CommitChangeLink hash={mergeCommitHash} text={shortenHash(mergeCommitHash)} className="font-mono font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline" />{" "}
-              into{" "}
-              <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.target_branch}</span>{" "}
+              <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
               <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
             </span>
-            <button
-              type="button"
-              onClick={() => void handleRevert()}
-              disabled={updating}
-              title="Create a new pull request to revert these changes"
-              className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Revert
-            </button>
-          </div>
-        ) : (
-          <span className="pl-8 text-[var(--text-secondary)]">
-            <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> {pullEventText(event.event_type)}{" "}
-            <span title={fullTime(event.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(event.created_at)}</span>
-          </span>
-        )}
+          )}
+        </div>
       </li>
     );
+  };
+
+  const renderUnlinkedIssue = (event: PullRequestEvent) => {
+    const issueNo = event.issue?.id ? issueNumberMap.get(event.issue.id) || 0 : 0;
+    return (
+      <li
+        key={`unlinked-${event.id}`}
+        className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start text-sm"
+      >
+        <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+          <OcticonCrossReference size={16} />
+        </span>
+        <div className="text-[var(--text-secondary)] w-full">
+          <div className="flex items-center gap-1.5">
+            <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+              {(event.actor || creatorName).charAt(0)}
+            </span>
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-[var(--text-primary)]">{event.actor || creatorName}</span> removed a link to an issue{" "}
+              <span title={fullTime(event.created_at)} className="hover:underline hover:text-[var(--text-link)] cursor-pointer">{relativeTime(event.created_at)}</span>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {event.issue ? (
+              <div className="flex items-center justify-between">
+                <span onClick={() => onOpenIssue(issueNo)} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline cursor-pointer">
+                  {event.issue.title} <span className="text-[var(--text-secondary)] font-normal">#{issueNo}</span>
+                </span>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-white ${
+                  event.issue.status === "OPEN" ? "bg-[#2da44e]" : "bg-[#57606a]"
+                }`}>
+                  {event.issue.status === "OPEN" ? <IssueOpenedIcon size={14} /> : <IssueClosedIcon size={14} />}
+                  {event.issue.status === "OPEN" ? "Open" : "Closed"}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </li>
+    );
+  };
+
+  const renderLinkedIssueGroup = (group: PullRequestEvent[]) => {
+    const first = group[0];
+    return (
+      <li
+        key={`linked-group-${first.id}`}
+        className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start text-sm"
+      >
+        <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+          <OcticonCrossReference size={16} />
+        </span>
+        <div className="text-[var(--text-secondary)] w-full">
+          <div>
+            This was linked to {group.length === 1 ? "an issue" : "issues"}{" "}
+            <span title={fullTime(first.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(first.created_at)}</span>
+          </div>
+          <div className="mt-3 flex flex-col gap-3">
+            {group.map(e => {
+              const issueNo = e.issue?.id ? issueNumberMap.get(e.issue.id) || 0 : 0;
+              return e.issue ? (
+                <div key={e.id} className="flex items-center justify-between">
+                  <span onClick={() => onOpenIssue(issueNo)} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline cursor-pointer">
+                    {e.issue.title} <span className="text-[var(--text-secondary)] font-normal">#{issueNo}</span>
+                  </span>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-white ${
+                    e.issue.status === "OPEN" ? "bg-[#2da44e]" : "bg-[#57606a]"
+                  }`}>
+                    {e.issue.status === "OPEN" ? <IssueOpenedIcon size={14} /> : <IssueClosedIcon size={14} />}
+                    {e.issue.status === "OPEN" ? "Open" : "Closed"}
+                  </span>
+                </div>
+              ) : null;
+            })}
+          </div>
+        </div>
+      </li>
+    );
+  };
+
+  const renderEventList = (eventsList: PullRequestEvent[]) => {
+    const items = [];
+    for (let i = 0; i < eventsList.length; i++) {
+      const event = eventsList[i];
+      if (event.event_type === "issue_linked") {
+        const group = [event];
+        while (i + 1 < eventsList.length && eventsList[i + 1].event_type === "issue_linked") {
+          i++;
+          group.push(eventsList[i]);
+        }
+        items.push(renderLinkedIssueGroup(group));
+      } else if (event.event_type === "issue_unlinked") {
+        items.push(renderUnlinkedIssue(event));
+      } else {
+        items.push(renderEvent(event));
+      }
+    }
+    return items;
   };
 
   if (loading && !pull) {
@@ -356,6 +473,25 @@ export default function PullRequestDetailPage({
     );
   }
 
+  const prSubtitle = pull?.status === "MERGED" ? (
+    <span>
+      <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> merged{" "}
+      <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+      <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
+      from{" "}
+      <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>{" "}
+      <span title={fullTime(mergedTime)} className="underline hover:text-[var(--text-link)]">{relativeTime(mergedTime)}</span>
+    </span>
+  ) : (
+    <span>
+      <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> wants to merge{" "}
+      <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+      <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.target_branch}</span>{" "}
+      from{" "}
+      <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.source_branch}</span>
+    </span>
+  );
+
   return (
     <div className="w-full relative">
       <div 
@@ -372,9 +508,14 @@ export default function PullRequestDetailPage({
               {copy.icon}
               {copy.label}
             </span>
-            <h1 className="text-xl font-semibold text-[var(--text-primary)]">
-              {pull.title} <span className="text-[var(--text-secondary)] font-normal">#{pullNumber}</span>
-            </h1>
+            <div className="flex flex-col min-w-0">
+              <h1 className="text-xl font-semibold text-[var(--text-primary)] truncate">
+                {pull?.title} <span className="text-[var(--text-secondary)] font-normal">#{pullNumber}</span>
+              </h1>
+              <div className="text-sm text-[var(--text-secondary)] truncate">
+                {prSubtitle}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Tooltip content={copied ? "Copied!" : "Copy link"} placement="bottom-end">
@@ -411,24 +552,7 @@ export default function PullRequestDetailPage({
               {copy.icon}
               {copy.label}
             </span>
-            {pull.status === "MERGED" ? (
-              <span>
-                <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> merged{" "}
-                <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
-                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-                from{" "}
-                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>{" "}
-                <span title={fullTime(mergedTime)} className="underline hover:text-[var(--text-link)]">{relativeTime(mergedTime)}</span>
-              </span>
-            ) : (
-              <span>
-                <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> wants to merge{" "}
-                <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
-                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
-                from{" "}
-                <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>
-              </span>
-            )}
+            {prSubtitle}
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
@@ -501,14 +625,19 @@ export default function PullRequestDetailPage({
               <span className="absolute left-16 right-0 -bottom-2.5 h-[2px] bg-[var(--border-muted)]" aria-hidden />
             )}
             <ul className="space-y-4">
-              <li className="relative pl-[calc(var(--rail)_+_17px)]">
-                <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+              <li className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start">
+                <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
                   <OcticonRepoPush size={14} />
                 </span>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
-                  <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span>
-                </p>
+                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                  <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                    {creatorName.charAt(0)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
+                    <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span>
+                  </div>
+                </div>
               </li>
 
               {(compareData?.commits || []).map((commit) => {
@@ -516,7 +645,7 @@ export default function PullRequestDetailPage({
                 const authorInitial = (author.charAt(0) || "U").toUpperCase();
                 return (
                   <li key={commit.hash} className="relative pl-[calc(var(--rail)_+_17px)]">
-                    <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full border border-[var(--border-muted)] bg-[var(--surface-canvas)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                    <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
                       <OcticonGitCommit size={14} />
                     </span>
                     <div className="min-h-8 flex items-center justify-between gap-3 text-sm">
@@ -546,7 +675,7 @@ export default function PullRequestDetailPage({
                 );
               })}
 
-              {mainEvents.map(renderEvent)}
+              {renderEventList(mainEvents)}
             </ul>
           </div>
 
@@ -556,7 +685,7 @@ export default function PullRequestDetailPage({
                 <span className="absolute left-[var(--rail)] top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
               )}
               <ul className="space-y-4">
-                {postMergeEvents.map(renderEvent)}
+                {renderEventList(postMergeEvents)}
               </ul>
             </div>
           )}
@@ -661,8 +790,6 @@ export default function PullRequestDetailPage({
             ["Labels", "None yet", ""],
             ["Projects", "None yet", ""],
             ["Milestone", "No milestone", ""],
-            ["Development", "Successfully merging this pull request may close these issues.", ""],
-            ["Notifications", "You're receiving notifications because you modified the open/close state.", "Customize"],
           ].map(([title, body, action]) => (
             <div key={title} className="pb-4 border-b border-[var(--border-muted)]">
               <div className="flex items-center justify-between">
@@ -675,6 +802,19 @@ export default function PullRequestDetailPage({
               <p className="mt-2 text-xs text-[var(--text-secondary)]">{body}</p>
             </div>
           ))}
+
+          <DevelopmentSidebarItem repoId={repoId} pullId={pull.id} issueNumberMap={issueNumberMap} onLinkedIssuesChange={() => void load(true)} />
+
+          <div className="pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Notifications</span>
+              <span className="inline-flex items-center gap-2">
+                <span className="text-xs text-[var(--text-link)]">Customize</span>
+                <Settings size={14} className="text-[var(--text-secondary)]" />
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">You're receiving notifications because you modified the open/close state.</p>
+          </div>
           <div className="pb-4 border-b border-[var(--border-muted)]">
             <p className="font-semibold text-[var(--text-primary)]">1 participant</p>
             <div className="mt-2 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">

@@ -86,12 +86,12 @@ func main() {
 		dbUserAdapter, repoInsightUseCase, repoEventUseCase)
 	authUseCase := usecase.NewAuthService(dbUserAdapter, passwordHasher, tokenManager)
 	collabUseCase := usecase.NewCollaboratorService(dbCollabAdapter)
-	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter)
+	issueUseCase := usecase.NewIssueService(dbIssueAdapter, dbCollabAdapter, dbPRAdapter)
 	labelUseCase := usecase.NewLabelService(dbLabelAdapter, dbIssueAdapter, dbCollabAdapter)
 	starUseCase := usecase.NewStarService(dbStarAdapter)
 	watcherUseCase := usecase.NewWatcherService(dbWatcherAdapter)
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
-		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore, repoEventUseCase)
+		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore, repoEventUseCase, dbIssueAdapter)
 	userUseCase := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
@@ -203,6 +203,11 @@ func main() {
 			repos.POST("/:repo_id/pulls/:pull_id/revert", prHandler.HandleRevertPullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/close", prHandler.HandleClosePullRequest)
 			repos.POST("/:repo_id/pulls/:pull_id/reopen", prHandler.HandleReopenPullRequest)
+
+			// PR issues
+			repos.GET("/:repo_id/pulls/:pull_id/issues", prHandler.HandleListLinkedIssues)
+			repos.POST("/:repo_id/pulls/:pull_id/issues", prHandler.HandleLinkIssue)
+			repos.DELETE("/:repo_id/pulls/:pull_id/issues/:issue_id", prHandler.HandleUnlinkIssue)
 
 			// PR labels & assignees
 			repos.GET("/:repo_id/pulls/:pull_id/labels", prLabelHandler.HandleListLabels)

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -21,6 +22,7 @@ type PullRequestService struct {
 	labelStore    output.PullRequestLabelRepository
 	assigneeStore output.PullRequestAssigneeRepository
 	repoEventUseCase output.RepoEventUseCase
+	issueStore    output.IssueRepository
 }
 
 func (s *PullRequestService) resolvePRNumber(repoID uuid.UUID, prID uuid.UUID) (int, error) {
@@ -41,6 +43,7 @@ func NewPullRequestService(
 	labelStore output.PullRequestLabelRepository,
 	assigneeStore output.PullRequestAssigneeRepository,
 	repoEventUseCase output.RepoEventUseCase,
+	issueStore output.IssueRepository,
 ) *PullRequestService {
 	return &PullRequestService{
 		prStore:       prStore,
@@ -51,6 +54,7 @@ func NewPullRequestService(
 		labelStore:    labelStore,
 		assigneeStore: assigneeStore,
 		repoEventUseCase: repoEventUseCase,
+		issueStore:    issueStore,
 	}
 }
 
@@ -227,7 +231,27 @@ func (s *PullRequestService) ListPullRequestEvents(repoID uuid.UUID, prID uuid.U
 		return nil, errors.New("unauthorized: you do not have access to this repo")
 	}
 
-	return s.prStore.ListEvents(prID)
+	events, err := s.prStore.ListEvents(prID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range events {
+		if events[i].EventType == "issue_linked" || events[i].EventType == "issue_unlinked" {
+			var payloadData map[string]string
+			if err := json.Unmarshal(events[i].Payload, &payloadData); err == nil {
+				if issueIDStr, ok := payloadData["issue_id"]; ok {
+					if issueID, err := uuid.Parse(issueIDStr); err == nil {
+						if issue, err := s.issueStore.GetByID(issueID); err == nil && issue != nil {
+							events[i].Issue = issue
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return events, nil
 }
 
 func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID, customCommitMessage string, customDescription string) error {
@@ -297,6 +321,17 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 
 	if s.repoEventUseCase != nil {
 		s.repoEventUseCase.LogEvent(pr.RepoID, mergerID, domain.EventTypePRMerge, fmt.Sprintf(`{"pr_id": "%s", "target_branch": "%s"}`, pr.ID, pr.TargetBranch))
+	}
+
+	linkedIssues, err := s.prStore.ListLinkedIssues(prID)
+	if err == nil {
+		for _, issue := range linkedIssues {
+			if issue.Status != domain.IssueStatusClosed || issue.CloseReason != domain.IssueCloseReasonCompleted {
+				if err := s.issueStore.UpdateStatus(issue.ID, domain.IssueStatusClosed, domain.IssueCloseReasonCompleted); err == nil {
+					_ = s.issueStore.AddEvent(issue.ID, mergerID, "closed_completed")
+				}
+			}
+		}
 	}
 
 	return nil
@@ -555,4 +590,83 @@ func (s *PullRequestService) ResolveConflicts(prID uuid.UUID, requesterID uuid.U
 	}
 
 	return nil
+}
+
+func (s *PullRequestService) LinkIssueToPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error {
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return errors.New("pull request not found")
+	}
+
+	if pr.RepoID != repoID {
+		return errors.New("pull request not found in repository")
+	}
+
+	issue, err := s.issueStore.GetByID(issueID)
+	if err != nil || issue == nil {
+		return errors.New("issue not found")
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || (role != domain.CollaboratorRoleOwner && role != domain.CollaboratorRoleMaintainer && role != domain.CollaboratorRoleWrite) {
+		return errors.New("unauthorized: you do not have write access to this repo")
+	}
+
+	if err := s.prStore.LinkIssue(prID, issueID); err != nil {
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]string{"issue_id": issueID.String()})
+	err = s.prStore.AddEventWithPayload(prID, requesterID, "issue_linked", payload)
+
+	issuePayload, _ := json.Marshal(map[string]string{"pull_request_id": prID.String()})
+	_ = s.issueStore.AddEventWithPayload(issueID, requesterID, "pr_linked", issuePayload)
+
+	return err
+}
+
+func (s *PullRequestService) UnlinkIssueFromPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error {
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return errors.New("pull request not found")
+	}
+
+	if pr.RepoID != repoID {
+		return errors.New("pull request not found in repository")
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || (role != domain.CollaboratorRoleOwner && role != domain.CollaboratorRoleMaintainer && role != domain.CollaboratorRoleWrite) {
+		return errors.New("unauthorized: you do not have write access to this repo")
+	}
+
+	if err := s.prStore.UnlinkIssue(prID, issueID); err != nil {
+		return err
+	}
+
+	payload, _ := json.Marshal(map[string]string{"issue_id": issueID.String()})
+	err = s.prStore.AddEventWithPayload(prID, requesterID, "issue_unlinked", payload)
+
+	issuePayload, _ := json.Marshal(map[string]string{"pull_request_id": prID.String()})
+	_ = s.issueStore.AddEventWithPayload(issueID, requesterID, "pr_unlinked", issuePayload)
+
+	return err
+}
+
+func (s *PullRequestService) ListLinkedIssuesForPR(repoID uuid.UUID, prID uuid.UUID, requesterID uuid.UUID) ([]domain.Issue, error) {
+	pr, err := s.prStore.GetByID(prID)
+	if err != nil || pr == nil {
+		return nil, errors.New("pull request not found")
+	}
+
+	if pr.RepoID != repoID {
+		return nil, errors.New("pull request not found in repository")
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || !role.IsValid() {
+		return nil, errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	return s.prStore.ListLinkedIssues(prID)
 }

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -37,12 +38,15 @@ type PRAssignee struct {
 }
 
 type PullRequestEvent struct {
-	ID            uuid.UUID `json:"id"`
-	PullRequestID uuid.UUID `json:"pull_request_id"`
-	ActorID       uuid.UUID `json:"actor_id"`
-	Actor         string    `json:"actor"`
-	EventType     string    `json:"event_type"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            uuid.UUID       `json:"id"`
+	PullRequestID uuid.UUID       `json:"pull_request_id"`
+	ActorID       uuid.UUID       `json:"actor_id"`
+	Actor         string          `json:"actor"`
+	EventType     string          `json:"event_type"`
+	Payload       json.RawMessage `json:"payload,omitempty"`
+	Issue         *Issue          `json:"issue,omitempty"`
+	IssueNumber   int             `json:"issue_number,omitempty"`
+	CreatedAt     time.Time       `json:"created_at"`
 }
 
 type CompareFileStatus string

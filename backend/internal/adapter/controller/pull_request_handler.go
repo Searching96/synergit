@@ -298,3 +298,113 @@ func (h *PullRequestHandler) HandleResolveConflicts(c *gin.Context) {
 		Message: "conflicts resolved successfully",
 	})
 }
+
+func (h *PullRequestHandler) HandleLinkIssue(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		IssueID string `json:"issue_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid request payload"})
+		return
+	}
+
+	issueID, err := uuid.Parse(req.IssueID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid issue_id format"})
+		return
+	}
+
+	if err := h.prUseCase.LinkIssueToPR(repoID, pullID, issueID, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, dto.MessageResponse{Message: "issue linked successfully"})
+}
+
+func (h *PullRequestHandler) HandleUnlinkIssue(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	issueIDStr := c.Param("issue_id")
+	issueID, err := uuid.Parse(issueIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid issue_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	if err := h.prUseCase.UnlinkIssueFromPR(repoID, pullID, issueID, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "issue unlinked successfully"})
+}
+
+func (h *PullRequestHandler) HandleListLinkedIssues(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	pullIDStr := c.Param("pull_id")
+	pullID, err := uuid.Parse(pullIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid pull_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	issues, err := h.prUseCase.ListLinkedIssuesForPR(repoID, pullID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	if issues == nil {
+		issues = []domain.Issue{}
+	}
+
+	c.JSON(http.StatusOK, issues)
+}

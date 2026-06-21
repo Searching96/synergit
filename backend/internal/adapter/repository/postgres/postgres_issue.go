@@ -226,9 +226,20 @@ func (p *PostgresIssueStore) AddEvent(issueID uuid.UUID, actorID uuid.UUID,
 	return err
 }
 
+func (p *PostgresIssueStore) AddEventWithPayload(issueID uuid.UUID, actorID uuid.UUID,
+	eventType string, payload []byte) error {
+
+	query := `
+		INSERT INTO issue_events (id, issue_id, actor_id, event_type, payload, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())`
+
+	_, err := p.db.Exec(query, uuid.New(), issueID, actorID, eventType, payload)
+	return err
+}
+
 func (p *PostgresIssueStore) ListEvents(issueID uuid.UUID) ([]domain.IssueEvent, error) {
 	query := `
-		SELECT e.id, e.issue_id, e.actor_id, u.username, e.event_type, e.created_at
+		SELECT e.id, e.issue_id, e.actor_id, u.username, e.event_type, e.payload, e.created_at
 		FROM issue_events e
 		JOIN users u ON u.id = e.actor_id
 		WHERE e.issue_id = $1
@@ -244,7 +255,7 @@ func (p *PostgresIssueStore) ListEvents(issueID uuid.UUID) ([]domain.IssueEvent,
 	for rows.Next() {
 		var event domain.IssueEvent
 		if err := rows.Scan(&event.ID, &event.IssueID, &event.ActorID,
-			&event.Actor, &event.EventType, &event.CreatedAt); err != nil {
+			&event.Actor, &event.EventType, &event.Payload, &event.CreatedAt); err != nil {
 			return nil, err
 		}
 		events = append(events, event)

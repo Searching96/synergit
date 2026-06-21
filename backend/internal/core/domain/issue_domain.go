@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -83,12 +84,15 @@ type IssueAssignee struct {
 }
 
 type IssueEvent struct {
-	ID        uuid.UUID `json:"id"`
-	IssueID   uuid.UUID `json:"issue_id"`
-	ActorID   uuid.UUID `json:"actor_id"`
-	Actor     string    `json:"actor"`
-	EventType string    `json:"event_type"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                uuid.UUID       `json:"id"`
+	IssueID           uuid.UUID       `json:"issue_id"`
+	ActorID           uuid.UUID       `json:"actor_id"`
+	Actor             string          `json:"actor"`
+	EventType         string          `json:"event_type"`
+	Payload           json.RawMessage `json:"payload,omitempty"`
+	PullRequest       *PullRequest    `json:"pull_request,omitempty"`
+	PullRequestNumber int             `json:"pull_request_number,omitempty"`
+	CreatedAt         time.Time       `json:"created_at"`
 }
 
 type IssueComment struct {

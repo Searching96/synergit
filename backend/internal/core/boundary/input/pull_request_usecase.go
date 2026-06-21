@@ -32,4 +32,7 @@ type PullRequestUseCase interface {
 		requesterID uuid.UUID) ([]domain.ConflictFile, error)
 	ResolveConflicts(prID uuid.UUID, requesterID uuid.UUID,
 		commitMessage string, resolutions []domain.ConflictResolution) error
+	LinkIssueToPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error
+	UnlinkIssueFromPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error
+	ListLinkedIssuesForPR(repoID uuid.UUID, prID uuid.UUID, requesterID uuid.UUID) ([]domain.Issue, error)
 }

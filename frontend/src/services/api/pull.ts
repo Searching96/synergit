@@ -1,5 +1,5 @@
 import { fetcher } from "./client";
-import type { ConflictFile, CreatePullRequestPayload, Label, PullRequest, PullRequestEvent, ResolveConflictsPayload } from "../../types";
+import type { ConflictFile, CreatePullRequestPayload, Issue, Label, PullRequest, PullRequestEvent, ResolveConflictsPayload } from "../../types";
 
 export const pullsApi = {
   create: (repoId: string, payload: CreatePullRequestPayload): Promise<PullRequest> => {
@@ -87,8 +87,24 @@ export const pullsApi = {
       body: JSON.stringify({ user_id: userId }),
     }),
 
-  removePRAssignee: (repoId: string, pullId: string, userId: string) =>
-    fetcher<void>(`/repos/${repoId}/pulls/${pullId}/assignees/${encodeURIComponent(userId)}`, {
-      method: 'DELETE',
-    }),
+	removePRAssignee: (repoId: string, pullId: string, userId: string) =>
+		fetcher<void>(`/repos/${repoId}/pulls/${pullId}/assignees/${encodeURIComponent(userId)}`, {
+			method: 'DELETE',
+		}),
+
+	// PR Issues
+	getLinkedIssues: (repoId: string, pullId: string) =>
+		fetcher<Issue[]>(`/repos/${repoId}/pulls/${pullId}/issues`),
+
+	linkIssue: (repoId: string, pullId: string, issueId: string) =>
+		fetcher<{ message: string }>(`/repos/${repoId}/pulls/${pullId}/issues`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ issue_id: issueId }),
+		}),
+
+	unlinkIssue: (repoId: string, pullId: string, issueId: string) =>
+		fetcher<void>(`/repos/${repoId}/pulls/${pullId}/issues/${encodeURIComponent(issueId)}`, {
+			method: 'DELETE',
+		}),
 };

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"synergit/internal/core/domain"
@@ -15,14 +16,17 @@ var _ output.IssueUseCase = (*IssueService)(nil)
 type IssueService struct {
 	issueStore  output.IssueRepository
 	collabStore output.CollaboratorRepository
+	prStore     output.PullRequestRepository
 }
 
 func NewIssueService(issueStore output.IssueRepository,
-	collabStore output.CollaboratorRepository) *IssueService {
+	collabStore output.CollaboratorRepository,
+	prStore output.PullRequestRepository) *IssueService {
 
 	return &IssueService{
 		issueStore:  issueStore,
 		collabStore: collabStore,
+		prStore:     prStore,
 	}
 }
 
@@ -227,7 +231,30 @@ func (s *IssueService) ListIssueEvents(repoID uuid.UUID, issueID uuid.UUID,
 		return nil, err
 	}
 
-	return s.issueStore.ListEvents(issue.ID)
+	events, err := s.issueStore.ListEvents(issue.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range events {
+		if events[i].EventType == "pr_linked" || events[i].EventType == "pr_unlinked" {
+			var payloadData map[string]string
+			if err := json.Unmarshal(events[i].Payload, &payloadData); err == nil {
+				if prIDStr, ok := payloadData["pull_request_id"]; ok {
+					if prID, err := uuid.Parse(prIDStr); err == nil {
+						if pr, err := s.prStore.GetByID(prID); err == nil && pr != nil {
+							events[i].PullRequest = pr
+							if prNum, err := s.prStore.GetSequenceNumber(pr.RepoID, pr.ID); err == nil {
+								events[i].PullRequestNumber = prNum
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return events, nil
 }
 
 func (s *IssueService) ListIssueComments(repoID uuid.UUID, issueID uuid.UUID,

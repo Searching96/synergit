@@ -14,7 +14,11 @@ type PullRequestRepository interface {
 	UpdateStatus(id uuid.UUID, status domain.PullRequestStatus) error
 	UpdateCommitHashes(id uuid.UUID, sourceCommitHash string, targetCommitHash string) error
 	AddEvent(prID uuid.UUID, actorID uuid.UUID, eventType string) error
+	AddEventWithPayload(prID uuid.UUID, actorID uuid.UUID, eventType string, payload []byte) error
 	ListEvents(prID uuid.UUID) ([]domain.PullRequestEvent, error)
+	LinkIssue(prID uuid.UUID, issueID uuid.UUID) error
+	UnlinkIssue(prID uuid.UUID, issueID uuid.UUID) error
+	ListLinkedIssues(prID uuid.UUID) ([]domain.Issue, error)
 }
 
 type PullRequestLabelRepository interface {

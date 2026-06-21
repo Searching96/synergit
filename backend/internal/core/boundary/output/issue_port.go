@@ -15,6 +15,7 @@ type IssueRepository interface {
 	RemoveAssignee(issueID uuid.UUID, userID uuid.UUID) error
 	ListAssignees(issueID uuid.UUID) ([]domain.IssueAssignee, error)
 	AddEvent(issueID uuid.UUID, actorID uuid.UUID, eventType string) error
+	AddEventWithPayload(issueID uuid.UUID, actorID uuid.UUID, eventType string, payload []byte) error
 	ListEvents(issueID uuid.UUID) ([]domain.IssueEvent, error)
 	AddComment(comment *domain.IssueComment) error
 	ListComments(issueID uuid.UUID) ([]domain.IssueComment, error)

@@ -251,6 +251,8 @@ export interface PullRequestEvent {
 	actor_id: string;
 	actor: string;
 	event_type: string;
+	payload?: any;
+	issue?: Issue;
 	created_at: string;
 }
 
@@ -296,12 +298,15 @@ export interface IssueAssignee {
 }
 
 export interface IssueEvent {
-	id: string;
-	issue_id: string;
-	actor_id: string;
-	actor: string;
-	event_type: string;
-	created_at: string;
+  id: string;
+  issue_id: string;
+  actor_id: string;
+  actor: string;
+  event_type: string;
+  payload?: any;
+  pull_request?: PullRequest;
+  pull_request_number?: number;
+  created_at: string;
 }
 
 export interface IssueComment {

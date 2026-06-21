@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Code, Heading, Italic, Link, List, ListOrdered, Settings } from "lucide-react";
 import { CopyIcon, CheckIcon } from "@primer/octicons-react";
+import { OcticonGitPullRequest, OcticonCrossReference } from "../../icons/Octicons";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
 import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, Label, RepoCollaborator } from "../../../types";
 import { Tooltip } from "../../../components/shared/Tooltip";
@@ -370,26 +371,58 @@ export default function IssueDetailPage({
             <div className="relative mt-4">
               <span className="absolute left-[var(--rail)] -top-4 -bottom-6 w-0.5 bg-[var(--border-muted)]" aria-hidden />
               <ul className="space-y-3">
-                {timeline.map((item) =>
-                  item.kind === "event" ? (
-                    <li key={`e-${item.event.id}`} className="relative pl-[calc(var(--rail)_+_17px)] flex items-center text-sm">
-                      <span
-                        style={{ backgroundColor: eventColor(item.event.event_type) }}
-                        className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center"
-                      >
-                        <EventIcon type={item.event.event_type} />
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
-                        <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                          {item.event.actor.charAt(0)}
+                {timeline.map((item) => {
+                  if (item.kind === "event") {
+                    if (item.event.event_type === "pr_linked" || item.event.event_type === "pr_unlinked") {
+                      return (
+                        <li key={`e-${item.event.id}`} className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start text-sm">
+                          <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                            <OcticonCrossReference size={16} />
+                          </span>
+                          <div className="text-[var(--text-secondary)] w-full">
+                            <div className="flex items-center gap-1.5">
+                              <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                {(item.event.actor || creatorName).charAt(0)}
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-[var(--text-primary)]">{item.event.actor || creatorName}</span>
+                                <span>{item.event.event_type === "pr_linked" ? "linked a pull request that will close this issue" : "removed a link to a pull request"}</span>
+                                {item.event.pull_request && (
+                                  <span className="inline-flex items-center gap-1">
+                                    <OcticonGitPullRequest size={16} className={item.event.pull_request.status === "OPEN" ? "text-[var(--fgColor-open,#1a7f37)]" : "text-[var(--text-accent-purple)]"} />
+                                    <a href={`/repository/${repoId}/pulls/${item.event.pull_request_number}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline">
+                                      {item.event.pull_request.title} #{item.event.pull_request_number}
+                                    </a>
+                                  </span>
+                                )}
+                                <span title={fullTime(item.event.created_at)} className="hover:underline hover:text-[var(--text-link)] cursor-pointer">{relativeTime(item.event.created_at)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    }
+                    return (
+                      <li key={`e-${item.event.id}`} className="relative pl-[calc(var(--rail)_+_17px)] flex items-center text-sm">
+                        <span
+                          style={{ backgroundColor: eventColor(item.event.event_type) }}
+                          className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full text-white inline-flex items-center justify-center"
+                        >
+                          <EventIcon type={item.event.event_type} />
                         </span>
-                        <span>
-                          <span className="font-semibold text-[var(--text-primary)]">{item.event.actor}</span> {eventText(item.event.event_type)}{" "}
-                          <span title={fullTime(item.event.created_at)} className="hover:underline">{relativeTime(item.event.created_at)}</span>
+                        <span className="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
+                          <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                            {item.event.actor.charAt(0)}
+                          </span>
+                          <span>
+                            <span className="font-semibold text-[var(--text-primary)]">{item.event.actor}</span> {eventText(item.event.event_type)}{" "}
+                            <span title={fullTime(item.event.created_at)} className="hover:underline">{relativeTime(item.event.created_at)}</span>
+                          </span>
                         </span>
-                      </span>
-                    </li>
-                  ) : (
+                      </li>
+                    );
+                  }
+                  return (
                     <li key={`c-${item.comment.id}`} className="relative pl-16">
                       <span className="absolute left-0 top-0 h-10 w-10 rounded-full bg-[var(--surface-badge)] text-sm inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
                         {item.comment.author.charAt(0)}
@@ -406,8 +439,8 @@ export default function IssueDetailPage({
                         <div className="px-3 py-2 text-sm text-[var(--text-primary)] whitespace-pre-wrap">{item.comment.body}</div>
                       </div>
                     </li>
-                  ),
-                )}
+                  );
+                })}
               </ul>
             </div>
           ) : null}
