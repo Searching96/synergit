@@ -27,8 +27,8 @@ export function QueryInput({ value, onChange, onEnter, containerClassName, place
     // But what if they have quotes? e.g. label:"bug fix"
     // For simplicity, we highlight any word that comes right after a colon, up to the next space.
     // And if it has quotes, we just highlight the quotes as well.
-    // Regex matches [key]:[value]
-    const regex = /([^:\s]+):([^\s]+)/g;
+    // Regex matches [key]:[value] or [key]:"[value with spaces]"
+    const regex = /([^:\s]+):("[^"]*"|[^\s]+)/g;
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
 

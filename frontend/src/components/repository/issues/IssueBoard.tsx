@@ -960,10 +960,9 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
           </div>
         </div>
       ) : (
-      <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
-        <div className="p-4 border-b border-[var(--border-muted)]">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex-1 min-w-0">
+      <>
+        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex-1 min-w-0">
               <div className="flex items-center">
                 <QueryInput
                   value={searchInput}
@@ -996,15 +995,15 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
               <button
                 type="button"
                 onClick={onOpenCreate}
-                className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
+                className="h-9 px-3 rounded-md border border-transparent bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
               >
                 New issue
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
+          <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           {selectionActive ? (
             <>
               <div className="flex items-center gap-3 text-sm">
@@ -1393,7 +1392,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
               return (
                 <li key={issue.id} className="px-4 py-3 hover:bg-[var(--surface-subtle)]">
-                  <div className="grid grid-cols-[20px_20px_minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="grid grid-cols-[16px_16px_minmax(0,1fr)_auto] items-start gap-3">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -1505,6 +1504,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
           </ul>
         )}
       </section>
+      </>
       )}
     </div>
   );

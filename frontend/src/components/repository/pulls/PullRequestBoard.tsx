@@ -657,7 +657,7 @@ export default function PullRequestBoard({
           <button
             type="button"
             onClick={onOpenCompare}
-            className="h-9 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
+            className="h-9 px-3 rounded-md border border-transparent bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold inline-flex items-center gap-2 hover:bg-[var(--accent-primary-hover)]"
           >
             New pull request
           </button>
@@ -1043,7 +1043,7 @@ export default function PullRequestBoard({
 
               return (
                 <div key={pull.id} className="px-4 py-2 hover:bg-[var(--surface-subtle)]">
-                  <div className="grid grid-cols-[20px_18px_minmax(0,1fr)_160px] gap-3 items-start">
+                  <div className="grid grid-cols-[16px_16px_minmax(0,1fr)_160px] gap-3 items-start">
                     <label className="hidden md:flex items-center h-6">
                       <input
                         type="checkbox"
