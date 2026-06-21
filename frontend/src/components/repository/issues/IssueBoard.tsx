@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
+import { QueryInput } from "../../shared/QueryInput";
 import type { Issue, IssueAssignee, IssueCloseReason, IssueStatus, Label, RepoCollaborator } from "../../../types";
 
 interface IssueBoardProps {
@@ -964,22 +965,13 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex-1 min-w-0">
               <div className="flex items-center">
-                <div className="relative flex-1 min-w-0">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        applySearch();
-                      }
-                    }}
-                    placeholder="Search Issues"
-                    className="h-9 w-full rounded-l-md border border-[var(--border-default)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-primary)]"
-                  />
-                </div>
+                <QueryInput
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  onEnter={applySearch}
+                  placeholder="Search Issues"
+                  containerClassName="flex-1 min-w-0 h-9 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-canvas)]"
+                />
 
                 <button
                   type="button"

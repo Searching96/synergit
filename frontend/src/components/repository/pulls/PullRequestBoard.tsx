@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { QueryInput } from "../../shared/QueryInput";
 import type { Label, PullRequest, RepoCollaborator } from "../../../types";
 import { pullsApi } from "../../../services/api/pull";
 import { collaboratorsApi, labelsApi } from "../../../services/api";
@@ -619,23 +620,14 @@ export default function PullRequestBoard({
             ) : null}
           </div>
 
-          <div className="relative flex-1 min-w-0">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  applySearch();
-                }
-              }}
-              className="h-9 w-full border-y border-[var(--border-default)] bg-[var(--surface-canvas)] pl-9 pr-3 text-sm text-[var(--text-primary)]"
-              placeholder="Search all pull requests"
-              aria-label="Search all pull requests"
-            />
-          </div>
+          <QueryInput
+            value={searchInput}
+            onChange={setSearchInput}
+            onEnter={applySearch}
+            placeholder="Search all pull requests"
+            aria-label="Search all pull requests"
+            containerClassName="flex-1 min-w-0 h-9 border-y border-[var(--border-default)] bg-[var(--surface-canvas)]"
+          />
 
           <button
             type="button"
