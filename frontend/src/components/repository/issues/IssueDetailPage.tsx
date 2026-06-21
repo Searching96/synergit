@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Code, Heading, Italic, Link, List, ListOrdered, Settings } from "lucide-react";
+import { CopyIcon, CheckIcon } from "@primer/octicons-react";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
 import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, Label, RepoCollaborator } from "../../../types";
+import { Tooltip } from "../../../components/shared/Tooltip";
 
 interface IssueDetailPageProps {
   repoId: string;
@@ -102,6 +104,36 @@ export default function IssueDetailPage({
   const [assignees, setAssignees] = useState<IssueAssignee[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [copied, setCopied] = useState<boolean>(false);
+  const [isStickyVisible, setIsStickyVisible] = useState<boolean>(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!sentinelRef.current) return;
+      const rect = sentinelRef.current.getBoundingClientRect();
+      // Show sticky header when sentinel is above the viewport
+      setIsStickyVisible(rect.top < 0);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollContainer = document.querySelector('main') || document.documentElement;
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   const [updating, setUpdating] = useState<boolean>(false);
   const [commentBody, setCommentBody] = useState<string>("");
   const [posting, setPosting] = useState<boolean>(false);
@@ -232,24 +264,74 @@ export default function IssueDetailPage({
   const creatorName = nameById[issue.creator_id] || "Someone";
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      <div 
+        className={`fixed top-0 left-0 w-full z-50 bg-[var(--surface-canvas)] border-b border-[var(--border-muted)] shadow-sm transition-transform duration-200 ${
+          isStickyVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold text-white"
+              style={{ backgroundColor: statusColor }}
+            >
+              {issue.status === "OPEN" ? <CircleDot size={15} /> : closedCompleted ? <CheckCircle2 size={15} /> : <CircleSlash size={15} />}
+              {statusLabel}
+            </span>
+            <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+              {issue.title} <span className="text-[var(--text-secondary)] font-normal">#{issueNumber}</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenCreate}
+              className="shrink-0 h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)]"
+            >
+              New issue
+            </button>
+            <Tooltip content={copied ? "Copied!" : "Copy link"} placement="bottom-end">
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="shrink-0 h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+              >
+                {copied ? <CheckIcon size={16} className="text-[var(--fgColor-open,#1a7f37)]" /> : <CopyIcon size={16} />}
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+
       {error ? (
         <div className="mb-3 p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
           {error}
         </div>
       ) : null}
 
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="text-2xl text-[var(--text-primary)]">
-          {issue.title} <span className="text-[var(--text-secondary)] font-light">#{issueNumber}</span>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+          {issue.title} <span className="text-[var(--text-secondary)] font-normal">#{issueNumber}</span>
         </h1>
-        <button
-          type="button"
-          onClick={onOpenCreate}
-          className="shrink-0 h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)]"
-        >
-          New issue
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onOpenCreate}
+            className="shrink-0 h-8 px-3 rounded-md bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold hover:bg-[var(--accent-primary-hover)]"
+          >
+            New issue
+          </button>
+          <Tooltip content={copied ? "Copied!" : "Copy link"} placement="bottom-end">
+            <button
+              type="button"
+              onClick={handleCopyUrl}
+              className="shrink-0 h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+            >
+              {copied ? <CheckIcon size={16} className="text-[var(--fgColor-open,#1a7f37)]" /> : <CopyIcon size={16} />}
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <div className="py-3 border-b border-[var(--border-muted)]">
@@ -261,6 +343,8 @@ export default function IssueDetailPage({
           {statusLabel}
         </span>
       </div>
+      
+      <div ref={sentinelRef} className="h-0 w-full" />
 
       <div className="flex flex-col gap-6 lg:flex-row pt-5">
         <div className="flex-1 min-w-0" style={{ "--rail": "85px" } as CSSProperties}>
@@ -329,7 +413,7 @@ export default function IssueDetailPage({
           ) : null}
 
           <div className="relative pl-16 mt-6 ml-[calc(var(--rail)_-_85px)]">
-            <span className="  absolute left-0 top-0 h-10 w-10 rounded-full bg-[var(--surface-badge)] text-sm inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+            <span className="absolute left-0 top-0 h-10 w-10 rounded-full bg-[var(--surface-badge)] text-sm inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
               {(currentUsername || "?").charAt(0)}
             </span>
             <h3 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">Add a comment</h3>

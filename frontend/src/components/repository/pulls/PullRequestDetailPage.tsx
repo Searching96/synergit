@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   AtSign,
@@ -24,6 +24,8 @@ import { collaboratorsApi } from "../../../services/api";
 import { pullsApi } from "../../../services/api/pull";
 import { reposApi } from "../../../services/api/repos";
 import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady } from "../../icons/Octicons";
+import { CopyIcon, CheckIcon } from "@primer/octicons-react";
+import { Tooltip } from "../../../components/shared/Tooltip";
 import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator } from "../../../types";
 import MergeOperationPanel from "./MergeOperationPanel";
 
@@ -116,6 +118,36 @@ export default function PullRequestDetailPage({
   const [commentPreview, setCommentPreview] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [isStickyVisible, setIsStickyVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!sentinelRef.current) return;
+      const rect = sentinelRef.current.getBoundingClientRect();
+      setIsStickyVisible(rect.top < 0);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollContainer = document.querySelector('main') || document.documentElement;
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const nameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -325,7 +357,38 @@ export default function PullRequestDetailPage({
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      <div 
+        className={`fixed top-0 left-0 w-full z-50 bg-[var(--surface-canvas)] border-b border-[var(--border-muted)] shadow-sm transition-transform duration-200 ${
+          isStickyVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
+        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold text-white"
+              style={{ backgroundColor: copy.color }}
+            >
+              {copy.icon}
+              {copy.label}
+            </span>
+            <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+              {pull.title} <span className="text-[var(--text-secondary)] font-normal">#{pullNumber}</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip content={copied ? "Copied!" : "Copy link"} placement="bottom-end">
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="shrink-0 h-8 px-2 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+              >
+                {copied ? <CheckIcon size={16} className="text-[var(--fgColor-open,#1a7f37)]" /> : <CopyIcon size={16} />}
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
       {error ? (
         <div className="mb-3 p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
           {error}
@@ -374,6 +437,8 @@ export default function PullRequestDetailPage({
           </button>
         </div>
       </div>
+      
+      <div ref={sentinelRef} className="h-0 w-full" />
 
       <nav className="mt-5 border-b border-[var(--border-muted)] flex items-end justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1">
