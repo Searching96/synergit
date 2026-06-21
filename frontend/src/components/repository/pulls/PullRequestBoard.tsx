@@ -694,7 +694,7 @@ export default function PullRequestBoard({
                       <button
                         type="button"
                         onClick={() => void bulkMarkAs("OPEN")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
                         <OcticonGitPullRequest size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
                         Open
@@ -704,7 +704,7 @@ export default function PullRequestBoard({
                       <button
                         type="button"
                         onClick={() => void bulkMarkAs("CLOSED")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
                         <OcticonGitPullRequestClosed size={16} className="text-[var(--text-danger)]" />
                         Closed
@@ -737,7 +737,7 @@ export default function PullRequestBoard({
                             <button
                               type="button"
                               onClick={() => void togglePRLabel(label.id)}
-                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                             >
                               <input type="checkbox" readOnly checked={checkedLabels.has(label.id)} className="mt-0.5 h-4 w-4" />
                               <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
@@ -785,7 +785,7 @@ export default function PullRequestBoard({
                             key={collaborator.user_id}
                             type="button"
                             onClick={() => void togglePRAssignee(collaborator.user_id)}
-                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                           >
                             <input type="checkbox" readOnly checked={checkedAssignees.has(collaborator.user_id)} className="h-4 w-4" />
                             <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
@@ -847,7 +847,7 @@ export default function PullRequestBoard({
                             <button
                               type="button"
                               onClick={() => applySearchToken("author", author)}
-                              className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                             >
                               <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
                                 {author.charAt(0)}
@@ -885,7 +885,7 @@ export default function PullRequestBoard({
                             <button
                               type="button"
                               onClick={() => applySearchToken("label", label.name)}
-                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                             >
                               <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
                               <span className="min-w-0 flex-1">
@@ -941,7 +941,7 @@ export default function PullRequestBoard({
                         key={item.value}
                         type="button"
                         onClick={() => applySearchToken("review", item.value)}
-                        className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
                         <span className="flex-1 text-sm text-[var(--text-primary)]">{item.label}</span>
                         {hasQueryValue("review", item.value) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
@@ -967,7 +967,7 @@ export default function PullRequestBoard({
                             key={collaborator.user_id}
                             type="button"
                             onClick={() => applySearchToken("assignee", name)}
-                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                           >
                             <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
                               {name.charAt(0)}
@@ -992,7 +992,7 @@ export default function PullRequestBoard({
                       <button
                         type="button"
                         onClick={() => applySortToken("newest")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
                         <span className="flex-1">Newest</span>
                         {sortOrder === "newest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
@@ -1002,7 +1002,7 @@ export default function PullRequestBoard({
                       <button
                         type="button"
                         onClick={() => applySortToken("oldest")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                        className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                       >
                         <span className="flex-1">Oldest</span>
                         {sortOrder === "oldest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}

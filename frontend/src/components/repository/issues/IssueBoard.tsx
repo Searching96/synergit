@@ -236,16 +236,13 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
   const [createTitle, setCreateTitle] = useState<string>('');
   const [createDescription, setCreateDescription] = useState<string>('');
-
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [lastCreatedIssueNo, setLastCreatedIssueNo] = useState<number | null>(null);
 
   const loadIssues = useCallback(async (silent = false) => {
     try {
       if (!silent) {
         setListLoading(true);
       }
-      setError(null);
       const data = await issuesApi.list(repoId);
       setIssues(data || []);
 
@@ -274,9 +271,8 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       );
 
       setLabelsByIssueId(Object.fromEntries(labelEntries));
+      return data;
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to load issues';
-      setError(errMsg);
     } finally {
       if (!silent) {
         setListLoading(false);
@@ -286,8 +282,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
   useEffect(() => {
     setIssues([]);
-    setError(null);
-    setMessage(null);
     setCreateTitle('');
     setCreateDescription('');
     setActiveFilter("OPEN");
@@ -443,8 +437,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
     try {
       setCreatingIssue(true);
-      setError(null);
-      setMessage(null);
 
       const createdIssue = await issuesApi.create(repoId, {
         title: createTitle.trim(),
@@ -463,19 +455,34 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       setCreateLabels(new Set());
       setCreateMenu(null);
       setSelectedIssueIds(new Set());
-      setMessage('Issue created successfully.');
 
-      await loadIssues(true);
+      const newIssuesData = await loadIssues(true);
+
+      let newIssueNo = 0;
+      if (newIssuesData) {
+        const sortedAsc = [...newIssuesData].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        const idx = sortedAsc.findIndex((i) => i.id === createdIssue.id);
+        if (idx !== -1) newIssueNo = idx + 1;
+      }
 
       if (!createMore) {
-        setActiveFilter(createdIssue.status);
-        setSearchInput(replaceStateQueryToken(searchInput, createdIssue.status));
-        setAppliedSearch(replaceStateQueryToken(appliedSearch, createdIssue.status));
-        onCloseCreate();
+        if (newIssueNo > 0) {
+          onOpenIssue(newIssueNo);
+          return;
+        } else {
+          setActiveFilter(createdIssue.status);
+          setSearchInput(replaceStateQueryToken(searchInput, createdIssue.status));
+          setAppliedSearch(replaceStateQueryToken(appliedSearch, createdIssue.status));
+          onCloseCreate();
+        }
+      } else {
+        if (newIssueNo > 0) {
+          setLastCreatedIssueNo(newIssueNo);
+        }
       }
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to create issue';
-      setError(errMsg);
     } finally {
       setCreatingIssue(false);
     }
@@ -584,8 +591,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
         : issue.status === "CLOSED" && (issue.close_reason || "COMPLETED") === target;
 
     try {
-      setError(null);
-      setMessage(null);
       await Promise.all(
         selectedVisible
           .filter((issue) => !isNoOp(issue))
@@ -593,9 +598,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       );
       setSelectedIssueIds(new Set());
       await loadIssues(true);
-      setMessage("Issues updated.");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update issues");
     }
   };
 
@@ -608,7 +611,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
   const toggleAssignee = async (userId: string) => {
     const remove = isAssigneeOnAll(userId);
     try {
-      setError(null);
       const tasks = selectedVisible.map((issue) => {
         const has = (assigneesByIssueId[issue.id] || []).some((a) => a.user_id === userId);
         if (remove && has) return issuesApi.unassign(repoId, issue.id, userId);
@@ -618,7 +620,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
       await loadIssues(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update assignees");
     }
   };
 
@@ -631,7 +632,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
   const toggleLabel = async (labelId: string) => {
     const remove = isLabelOnAll(labelId);
     try {
-      setError(null);
       const tasks = selectedVisible.map((issue) => {
         const has = (labelsByIssueId[issue.id] || []).some((l) => l.id === labelId);
         if (remove && has) return labelsApi.remove(repoId, issue.id, labelId);
@@ -641,7 +641,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
       await loadIssues(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update labels");
     }
   };
 
@@ -695,17 +694,6 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
 
   return (
     <div className="space-y-4 max-w-none">
-      {error && (
-        <div className="p-3 text-sm border border-[var(--border-danger-soft)] bg-[var(--surface-danger-subtle)] text-[var(--text-danger)] rounded-md">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="p-3 text-sm border border-[var(--border-info-muted)] bg-[var(--surface-info-subtle)] text-[var(--text-link)] rounded-md">
-          {message}
-        </div>
-      )}
 
       {isCreating ? (
         <div className="w-full">
@@ -773,10 +761,19 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
-                <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
-                  <input type="checkbox" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} className="h-4 w-4" />
-                  Create more
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="inline-flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer">
+                    <input type="checkbox" checked={createMore} onChange={(e) => setCreateMore(e.target.checked)} className="h-4 w-4 cursor-pointer" />
+                    Create more
+                  </label>
+                  {lastCreatedIssueNo !== null && (
+                    <span className="text-sm text-[var(--text-secondary)] flex items-center gap-1.5 before:content-['·'] before:mr-1">
+                      <button type="button" onClick={() => onOpenIssue(lastCreatedIssueNo)} className="text-[var(--text-link)] hover:underline">
+                        Issue #{lastCreatedIssueNo} created
+                      </button>
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={onCloseCreate}
@@ -855,7 +852,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                                 <button
                                   type="button"
                                   onClick={() => toggleCreateAssignee(collaborator.user_id)}
-                                  className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                                 >
                                   <input type="checkbox" readOnly checked={createAssignees.has(collaborator.user_id)} className="h-4 w-4" />
                                   <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
@@ -923,7 +920,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                                 <button
                                   type="button"
                                   onClick={() => toggleCreateLabel(label.id)}
-                                  className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                                 >
                                   <input type="checkbox" readOnly checked={createLabels.has(label.id)} className="mt-0.5 h-4 w-4" />
                                   <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
@@ -960,9 +957,9 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
           </div>
         </div>
       ) : (
-      <>
-        <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex-1 min-w-0">
+        <>
+          <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center">
                 <QueryInput
                   value={searchInput}
@@ -1002,509 +999,509 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
             </div>
           </div>
 
-        <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
-          <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          {selectionActive ? (
-            <>
-              <div className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={toggleSelectAll}
-                  aria-label="Select all issues"
-                  className="h-4 w-4"
-                />
-                <span className="font-semibold text-[var(--text-primary)]">
-                  {selectedVisible.length} of {filteredIssues.length} selected
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <ToolbarDropdown
-                  icon={<CheckCircle2 size={14} />}
-                  label="Mark as"
-                  open={openMenu === "mark"}
-                  onToggle={() => toggleMenu("mark")}
-                  width="w-52"
-                >
-                  <ul className="py-1 text-sm">
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => void bulkMarkAs("OPEN")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                      >
-                        <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
-                        Open
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => void bulkMarkAs("COMPLETED")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                      >
-                        <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
-                        Completed
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        onClick={() => void bulkMarkAs("NOT_PLANNED")}
-                        className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                      >
-                        <CircleSlash size={16} className="text-[var(--text-secondary)]" />
-                        Not planned
-                      </button>
-                    </li>
-                  </ul>
-                </ToolbarDropdown>
-
-                <ToolbarDropdown
-                  icon={<Tag size={14} />}
-                  label="Label"
-                  open={openMenu === "label"}
-                  onToggle={() => toggleMenu("label")}
-                  width="w-80"
-                >
-                  <div className="p-2">
-                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to selected issues</p>
-                    <input
-                      value={labelFilter}
-                      onChange={(e) => setLabelFilter(e.target.value)}
-                      placeholder="Filter labels"
-                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-                    />
-                    <ul className="mt-1 max-h-72 overflow-auto">
-                      {visibleLabels.length === 0 ? (
-                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
-                      ) : (
-                        visibleLabels.map((label) => (
-                          <li key={label.id}>
-                            <button
-                              type="button"
-                              onClick={() => void toggleLabel(label.id)}
-                              className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
-                            >
-                              <input type="checkbox" readOnly checked={isLabelOnAll(label.id)} className="mt-0.5 h-4 w-4" />
-                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                              <span className="min-w-0">
-                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
-                                {label.description ? (
-                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
-                                ) : null}
-                              </span>
-                            </button>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  </div>
-                </ToolbarDropdown>
-
-                <ToolbarDropdown
-                  icon={<Users size={14} />}
-                  label="Assign"
-                  open={openMenu === "assign"}
-                  onToggle={() => toggleMenu("assign")}
-                  width="w-72"
-                >
-                  <div className="p-2">
-                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
-                    <input
-                      value={assigneeFilter}
-                      onChange={(e) => setAssigneeFilter(e.target.value)}
-                      placeholder="Filter assignees"
-                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-                    />
-                    <ul className="mt-1 max-h-72 overflow-auto">
-                      {visibleCollaborators.length === 0 ? (
-                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
-                      ) : (
-                        visibleCollaborators.map((collaborator) => (
-                          <li key={collaborator.user_id}>
-                            <button
-                              type="button"
-                              onClick={() => void toggleAssignee(collaborator.user_id)}
-                              className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                            >
-                              <input type="checkbox" readOnly checked={isAssigneeOnAll(collaborator.user_id)} className="h-4 w-4" />
-                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                                {(collaborator.username ?? "?").charAt(0)}
-                              </span>
-                              <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
-                            </button>
-                          </li>
-                        ))
-                      )}
-                    </ul>
-                  </div>
-                </ToolbarDropdown>
-
-                <button
-                  type="button"
-                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                >
-                  <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" className="inline-block">
-                    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16h-8.5a.75.75 0 0 1 0-1.5h8.5a.25.25 0 0 0 .25-.25V6.5h-13v1.75a.75.75 0 0 1-1.5 0ZM6.5 5h8V1.75a.25.25 0 0 0-.25-.25H6.5Zm-5 0H5V1.5H1.75a.25.25 0 0 0-.25.25Z" />
-                    <path d="M1.5 13.737a2.25 2.25 0 0 1 2.262-2.25L4 11.49v1.938c0 .218.26.331.42.183l2.883-2.677a.25.25 0 0 0 0-.366L4.42 7.89a.25.25 0 0 0-.42.183V9.99l-.23-.001A3.75 3.75 0 0 0 0 13.738v1.012a.75.75 0 0 0 1.5 0v-1.013Z" />
-                  </svg>
-                  Project
-                  <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
-                </button>
-
-                <button
-                  type="button"
-                  className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                >
-                  <Milestone size={14} />
-                  Milestone
-                  <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={toggleSelectAll}
-                  aria-label="Select all issues"
-                  className="h-4 w-4"
-                />
-
-            <button
-              type="button"
-              onClick={() => applyFilter("OPEN")}
-              className={`inline-flex items-center gap-2 ${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              Open
-              <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{openCount}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyFilter("CLOSED")}
-              className={`inline-flex items-center gap-2 ${activeFilter === "CLOSED" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-            >
-              Closed
-              <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{closedCount}</span>
-            </button>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <FilterDropdown
-              label="Author"
-              open={openMenu === "filter-author"}
-              onToggle={() => toggleMenu("filter-author")}
-            >
-              <div className="p-2">
-                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by author</p>
-                <ul className="max-h-72 overflow-auto">
-                  {issueAuthorOptions.length === 0 ? (
-                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No authors found</li>
-                  ) : (
-                    issueAuthorOptions.map((author) => (
-                      <li key={author}>
-                        <button
-                          type="button"
-                          onClick={() => applySearchToken("author", author, false)}
-                          className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                        >
-                          <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                            {author.charAt(0)}
-                          </span>
-                          <span className="flex-1 text-sm text-[var(--text-primary)]">{author}</span>
-                          {hasQueryValue("author", author) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
-            </FilterDropdown>
-
-            <FilterDropdown
-              label="Labels"
-              open={openMenu === "filter-label"}
-              onToggle={() => toggleMenu("filter-label")}
-              width="w-80"
-            >
-              <div className="p-2">
-                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by label</p>
-                <input
-                  value={labelFilter}
-                  onChange={(e) => setLabelFilter(e.target.value)}
-                  placeholder="Filter labels"
-                  className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-                />
-                <ul className="mt-1 max-h-72 overflow-auto">
-                  {visibleLabels.length === 0 ? (
-                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
-                  ) : (
-                    visibleLabels.map((label) => (
-                      <li key={label.id}>
-                        <button
-                          type="button"
-                          onClick={() => applySearchToken("label", label.name, false)}
-                          className="w-full px-2 py-1.5 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
-                        >
-                          <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
-                            {label.description ? (
-                              <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
-                            ) : null}
-                          </span>
-                          {hasQueryValue("label", label.name) ? <CheckCircle2 size={14} className="mt-0.5 text-[var(--fgColor-open,#1a7f37)]" /> : null}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
-            </FilterDropdown>
-
-            <FilterDropdown
-              label="Projects"
-              open={openMenu === "filter-project"}
-              onToggle={() => toggleMenu("filter-project")}
-            >
-              <div className="p-3 text-sm">
-                <p className="font-semibold text-[var(--text-primary)]">Filter by project</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">No projects are available for this repository.</p>
-              </div>
-            </FilterDropdown>
-
-            <FilterDropdown
-              label="Milestones"
-              open={openMenu === "filter-milestone"}
-              onToggle={() => toggleMenu("filter-milestone")}
-            >
-              <div className="p-3 text-sm">
-                <p className="font-semibold text-[var(--text-primary)]">Filter by milestone</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">No milestones are available for this repository.</p>
-              </div>
-            </FilterDropdown>
-
-            <FilterDropdown
-              label="Assignees"
-              open={openMenu === "filter-assignee"}
-              onToggle={() => toggleMenu("filter-assignee")}
-            >
-              <div className="p-2">
-                <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by assignee</p>
-                <input
-                  value={assigneeFilter}
-                  onChange={(e) => setAssigneeFilter(e.target.value)}
-                  placeholder="Filter assignees"
-                  className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
-                />
-                <ul className="mt-1 max-h-72 overflow-auto">
-                  {visibleCollaborators.length === 0 ? (
-                    <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
-                  ) : (
-                    visibleCollaborators.map((collaborator) => {
-                      const name = collaborator.username ?? collaborator.user_id;
-                      return (
-                        <li key={collaborator.user_id}>
-                          <button
-                            type="button"
-                            onClick={() => applySearchToken("assignee", name, false)}
-                            className="w-full px-2 py-1.5 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                          >
-                            <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                              {name.charAt(0)}
-                            </span>
-                            <span className="flex-1 text-sm text-[var(--text-primary)]">{name}</span>
-                            {hasQueryValue("assignee", name) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
-                          </button>
-                        </li>
-                      );
-                    })
-                  )}
-                </ul>
-              </div>
-            </FilterDropdown>
-
-            <FilterDropdown
-              label={sortOrder === "newest" ? "Newest" : "Oldest"}
-              open={openMenu === "filter-sort"}
-              onToggle={() => toggleMenu("filter-sort")}
-              width="w-44"
-            >
-              <ul className="py-1 text-sm">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => applySortToken("newest")}
-                    className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                  >
-                    <span className="flex-1">Newest</span>
-                    {sortOrder === "newest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => applySortToken("oldest")}
-                    className="w-full px-3 py-2 text-left inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
-                  >
-                    <span className="flex-1">Oldest</span>
-                    {sortOrder === "oldest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
-                  </button>
-                </li>
-              </ul>
-            </FilterDropdown>
-          </div>
-            </>
-          )}
-        </div>
-
-        {listLoading ? null : filteredIssues.length === 0 ? (
-          <div className="py-16 text-center">
-            <CircleDot size={24} className="mx-auto text-[var(--text-muted)]" />
-            <p className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">No {activeFilter.toLowerCase()} issues found</p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Create an issue or adjust the search and filters.</p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-[var(--border-muted)]">
-            {filteredIssues.map((issue) => {
-              const issueNo = issueNumberMap.get(issue.id) || 0;
-              const isSelected = selectedIssueIds.has(issue.id);
-              const showNotPlanned = issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED";
-              const issueLabels = labelsByIssueId[issue.id] || [];
-              const creatorName = collaboratorNameById[issue.creator_id] || "Someone";
-              const youCreated = creatorName === currentUsername;
-              const youAssigned = (assigneesByIssueId[issue.id] || []).some((a) => collaboratorNameById[a.user_id] === currentUsername);
-              const hoverNote =
-                youCreated && youAssigned
-                  ? "You are assigned to and opened this issue"
-                  : youCreated
-                    ? "You opened this issue"
-                    : youAssigned
-                      ? "You are assigned to this issue"
-                      : `${creatorName} opened this issue`;
-              const statusColor = issue.status === "OPEN" ? "#1a7f37" : showNotPlanned ? "#6e7781" : "#8250df";
-              const statusLabel = issue.status === "OPEN" ? "Open" : showNotPlanned ? "Closed as not planned" : "Closed";
-
-              return (
-                <li key={issue.id} className="px-4 py-3 hover:bg-[var(--surface-subtle)]">
-                  <div className="grid grid-cols-[16px_16px_minmax(0,1fr)_auto] items-start gap-3">
+          <section className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)]">
+            <div className="px-4 py-3 border-b border-[var(--border-muted)] flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              {selectionActive ? (
+                <>
+                  <div className="flex items-center gap-3 text-sm">
                     <input
                       type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelectIssue(issue.id)}
-                      aria-label={`Select issue ${issue.title}`}
-                      className="mt-1 h-4 w-4"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all issues"
+                      className="h-4 w-4"
+                    />
+                    <span className="font-semibold text-[var(--text-primary)]">
+                      {selectedVisible.length} of {filteredIssues.length} selected
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ToolbarDropdown
+                      icon={<CheckCircle2 size={14} />}
+                      label="Mark as"
+                      open={openMenu === "mark"}
+                      onToggle={() => toggleMenu("mark")}
+                      width="w-52"
+                    >
+                      <ul className="py-1 text-sm">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => void bulkMarkAs("OPEN")}
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                            Open
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => void bulkMarkAs("COMPLETED")}
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
+                            Completed
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => void bulkMarkAs("NOT_PLANNED")}
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <CircleSlash size={16} className="text-[var(--text-secondary)]" />
+                            Not planned
+                          </button>
+                        </li>
+                      </ul>
+                    </ToolbarDropdown>
+
+                    <ToolbarDropdown
+                      icon={<Tag size={14} />}
+                      label="Label"
+                      open={openMenu === "label"}
+                      onToggle={() => toggleMenu("label")}
+                      width="w-80"
+                    >
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to selected issues</p>
+                        <input
+                          value={labelFilter}
+                          onChange={(e) => setLabelFilter(e.target.value)}
+                          placeholder="Filter labels"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleLabels.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                          ) : (
+                            visibleLabels.map((label) => (
+                              <li key={label.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => void toggleLabel(label.id)}
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <input type="checkbox" readOnly checked={isLabelOnAll(label.id)} className="mt-0.5 h-4 w-4" />
+                                  <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                                  <span className="min-w-0">
+                                    <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                    {label.description ? (
+                                      <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                    ) : null}
+                                  </span>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </ToolbarDropdown>
+
+                    <ToolbarDropdown
+                      icon={<Users size={14} />}
+                      label="Assign"
+                      open={openMenu === "assign"}
+                      onToggle={() => toggleMenu("assign")}
+                      width="w-72"
+                    >
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
+                        <input
+                          value={assigneeFilter}
+                          onChange={(e) => setAssigneeFilter(e.target.value)}
+                          placeholder="Filter assignees"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleCollaborators.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                          ) : (
+                            visibleCollaborators.map((collaborator) => (
+                              <li key={collaborator.user_id}>
+                                <button
+                                  type="button"
+                                  onClick={() => void toggleAssignee(collaborator.user_id)}
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <input type="checkbox" readOnly checked={isAssigneeOnAll(collaborator.user_id)} className="h-4 w-4" />
+                                  <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                    {(collaborator.username ?? "?").charAt(0)}
+                                  </span>
+                                  <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </ToolbarDropdown>
+
+                    <button
+                      type="button"
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                    >
+                      <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" className="inline-block">
+                        <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16h-8.5a.75.75 0 0 1 0-1.5h8.5a.25.25 0 0 0 .25-.25V6.5h-13v1.75a.75.75 0 0 1-1.5 0ZM6.5 5h8V1.75a.25.25 0 0 0-.25-.25H6.5Zm-5 0H5V1.5H1.75a.25.25 0 0 0-.25.25Z" />
+                        <path d="M1.5 13.737a2.25 2.25 0 0 1 2.262-2.25L4 11.49v1.938c0 .218.26.331.42.183l2.883-2.677a.25.25 0 0 0 0-.366L4.42 7.89a.25.25 0 0 0-.42.183V9.99l-.23-.001A3.75 3.75 0 0 0 0 13.738v1.012a.75.75 0 0 0 1.5 0v-1.013Z" />
+                      </svg>
+                      Project
+                      <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-sm text-[var(--text-primary)] inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                    >
+                      <Milestone size={14} />
+                      Milestone
+                      <span className="inline-block w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-current align-middle ml-0.5" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all issues"
+                      className="h-4 w-4"
                     />
 
-                    <span className="mt-1">
-                      {issue.status === 'OPEN' ? (
-                        <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
-                      ) : issue.close_reason === 'NOT_PLANNED' ? (
-                        <CircleSlash size={16} className="text-[var(--text-secondary)]" />
-                      ) : (
-                        <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
-                      )}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => applyFilter("OPEN")}
+                      className={`inline-flex items-center gap-2 ${activeFilter === "OPEN" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                    >
+                      Open
+                      <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{openCount}</span>
+                    </button>
 
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="relative group/card inline-block">
-                          <span
-                            onClick={() => onOpenIssue(issueNo)}
-                            className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--text-link)] hover:underline"
-                          >
-                            {issue.title}
-                          </span>
-                          <div className="hidden group-hover/card:block absolute left-0 top-full z-30 mt-2 w-96 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg text-left font-normal">
-                            <div className="p-3 border-b border-[var(--border-muted)]">
-                              <p className="text-xs text-[var(--text-secondary)]">{repoOwner}/{repoName} {formatIssueDate(issue.created_at)}</p>
-                              <p className="mt-1 text-sm">
-                                <span className="font-semibold text-[var(--text-primary)]">{issue.title}</span>{" "}
-                                <span className="text-[var(--text-secondary)]">#{issueNo}</span>
-                              </p>
-                              <span
-                                className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white"
-                                style={{ backgroundColor: statusColor }}
-                              >
-                                {issue.status === "OPEN" ? <CircleDot size={13} /> : showNotPlanned ? <CircleSlash size={13} /> : <CheckCircle2 size={13} />}
-                                {statusLabel}
-                              </span>
-                            </div>
-                            <div className="p-3 text-sm text-[var(--text-secondary)] border-b border-[var(--border-muted)]">
-                              {issue.description.trim() || "No description provided"}
-                            </div>
-                            {issueLabels.length > 0 ? (
-                              <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-[var(--border-muted)]">
-                                {issueLabels.map((label) => (
-                                  <span
-                                    key={label.id}
-                                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                    style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
-                                  >
-                                    {label.name}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                            <div className="px-3 py-2 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase">
-                                {creatorName.charAt(0)}
-                              </span>
-                              {hoverNote}
-                            </div>
-                          </div>
-                        </span>
-                        {(labelsByIssueId[issue.id] || []).map((label) => (
-                          <span
-                            key={label.id}
-                            className="rounded-full px-2 py-0.5 text-[11px] font-semibold leading-tight"
-                            style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
-                          >
-                            {label.name}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
-                        <span>#{issueNo}</span>
-                        <span>·</span>
-                        <span>{issue.status === 'OPEN' ? 'opened' : 'closed'} {toRelativeTime(issue.created_at)}</span>
-                        {showNotPlanned ? (
-                          <>
-                            <span>·</span>
-                            <span>not planned</span>
-                          </>
-                        ) : null}
-                        <span>({formatIssueDate(issue.created_at)})</span>
-                      </p>
-                    </div>
-
-                    <div className="flex items-center -space-x-1 shrink-0">
-                      {(assigneesByIssueId[issue.id] || []).map((assignee) => {
-                        const name = collaboratorNameById[assignee.user_id] || assignee.user_id;
-                        return (
-                          <span
-                            key={assignee.user_id}
-                            title={name}
-                            className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)] ring-1 ring-[var(--surface-canvas)]"
-                          >
-                            {name.charAt(0)}
-                          </span>
-                        );
-                      })}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => applyFilter("CLOSED")}
+                      className={`inline-flex items-center gap-2 ${activeFilter === "CLOSED" ? "text-[var(--text-primary)] font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                    >
+                      Closed
+                      <span className="rounded-full bg-[var(--surface-badge)] px-2 py-0.5 text-xs">{closedCount}</span>
+                    </button>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-      </>
+
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <FilterDropdown
+                      label="Author"
+                      open={openMenu === "filter-author"}
+                      onToggle={() => toggleMenu("filter-author")}
+                    >
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by author</p>
+                        <ul className="max-h-72 overflow-auto">
+                          {issueAuthorOptions.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No authors found</li>
+                          ) : (
+                            issueAuthorOptions.map((author) => (
+                              <li key={author}>
+                                <button
+                                  type="button"
+                                  onClick={() => applySearchToken("author", author, false)}
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                    {author.charAt(0)}
+                                  </span>
+                                  <span className="flex-1 text-sm text-[var(--text-primary)]">{author}</span>
+                                  {hasQueryValue("author", author) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </FilterDropdown>
+
+                    <FilterDropdown
+                      label="Labels"
+                      open={openMenu === "filter-label"}
+                      onToggle={() => toggleMenu("filter-label")}
+                      width="w-80"
+                    >
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by label</p>
+                        <input
+                          value={labelFilter}
+                          onChange={(e) => setLabelFilter(e.target.value)}
+                          placeholder="Filter labels"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleLabels.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                          ) : (
+                            visibleLabels.map((label) => (
+                              <li key={label.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => applySearchToken("label", label.name, false)}
+                                  className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                                >
+                                  <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                    {label.description ? (
+                                      <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                    ) : null}
+                                  </span>
+                                  {hasQueryValue("label", label.name) ? <CheckCircle2 size={14} className="mt-0.5 text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                                </button>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    </FilterDropdown>
+
+                    <FilterDropdown
+                      label="Projects"
+                      open={openMenu === "filter-project"}
+                      onToggle={() => toggleMenu("filter-project")}
+                    >
+                      <div className="p-3 text-sm">
+                        <p className="font-semibold text-[var(--text-primary)]">Filter by project</p>
+                        <p className="mt-1 text-xs text-[var(--text-secondary)]">No projects are available for this repository.</p>
+                      </div>
+                    </FilterDropdown>
+
+                    <FilterDropdown
+                      label="Milestones"
+                      open={openMenu === "filter-milestone"}
+                      onToggle={() => toggleMenu("filter-milestone")}
+                    >
+                      <div className="p-3 text-sm">
+                        <p className="font-semibold text-[var(--text-primary)]">Filter by milestone</p>
+                        <p className="mt-1 text-xs text-[var(--text-secondary)]">No milestones are available for this repository.</p>
+                      </div>
+                    </FilterDropdown>
+
+                    <FilterDropdown
+                      label="Assignees"
+                      open={openMenu === "filter-assignee"}
+                      onToggle={() => toggleMenu("filter-assignee")}
+                    >
+                      <div className="p-2">
+                        <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Filter by assignee</p>
+                        <input
+                          value={assigneeFilter}
+                          onChange={(e) => setAssigneeFilter(e.target.value)}
+                          placeholder="Filter assignees"
+                          className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                        />
+                        <ul className="mt-1 max-h-72 overflow-auto">
+                          {visibleCollaborators.length === 0 ? (
+                            <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                          ) : (
+                            visibleCollaborators.map((collaborator) => {
+                              const name = collaborator.username ?? collaborator.user_id;
+                              return (
+                                <li key={collaborator.user_id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => applySearchToken("assignee", name, false)}
+                                    className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                                  >
+                                    <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                      {name.charAt(0)}
+                                    </span>
+                                    <span className="flex-1 text-sm text-[var(--text-primary)]">{name}</span>
+                                    {hasQueryValue("assignee", name) ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                                  </button>
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      </div>
+                    </FilterDropdown>
+
+                    <FilterDropdown
+                      label={sortOrder === "newest" ? "Newest" : "Oldest"}
+                      open={openMenu === "filter-sort"}
+                      onToggle={() => toggleMenu("filter-sort")}
+                      width="w-44"
+                    >
+                      <ul className="py-1 text-sm">
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => applySortToken("newest")}
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <span className="flex-1">Newest</span>
+                            {sortOrder === "newest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            type="button"
+                            onClick={() => applySortToken("oldest")}
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                          >
+                            <span className="flex-1">Oldest</span>
+                            {sortOrder === "oldest" ? <CheckCircle2 size={14} className="text-[var(--fgColor-open,#1a7f37)]" /> : null}
+                          </button>
+                        </li>
+                      </ul>
+                    </FilterDropdown>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {listLoading ? null : filteredIssues.length === 0 ? (
+              <div className="py-16 text-center">
+                <CircleDot size={24} className="mx-auto text-[var(--text-muted)]" />
+                <p className="mt-3 text-2xl font-semibold text-[var(--text-primary)]">No {activeFilter.toLowerCase()} issues found</p>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">Create an issue or adjust the search and filters.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-[var(--border-muted)]">
+                {filteredIssues.map((issue) => {
+                  const issueNo = issueNumberMap.get(issue.id) || 0;
+                  const isSelected = selectedIssueIds.has(issue.id);
+                  const showNotPlanned = issue.status === "CLOSED" && issue.close_reason === "NOT_PLANNED";
+                  const issueLabels = labelsByIssueId[issue.id] || [];
+                  const creatorName = collaboratorNameById[issue.creator_id] || "Someone";
+                  const youCreated = creatorName === currentUsername;
+                  const youAssigned = (assigneesByIssueId[issue.id] || []).some((a) => collaboratorNameById[a.user_id] === currentUsername);
+                  const hoverNote =
+                    youCreated && youAssigned
+                      ? "You are assigned to and opened this issue"
+                      : youCreated
+                        ? "You opened this issue"
+                        : youAssigned
+                          ? "You are assigned to this issue"
+                          : `${creatorName} opened this issue`;
+                  const statusColor = issue.status === "OPEN" ? "#1a7f37" : showNotPlanned ? "#6e7781" : "#8250df";
+                  const statusLabel = issue.status === "OPEN" ? "Open" : showNotPlanned ? "Closed as not planned" : "Closed";
+
+                  return (
+                    <li key={issue.id} className="px-4 py-3 hover:bg-[var(--surface-subtle)]">
+                      <div className="grid grid-cols-[16px_16px_minmax(0,1fr)_auto] items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectIssue(issue.id)}
+                          aria-label={`Select issue ${issue.title}`}
+                          className="mt-1 h-4 w-4"
+                        />
+
+                        <span className="mt-1">
+                          {issue.status === 'OPEN' ? (
+                            <CircleDot size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                          ) : issue.close_reason === 'NOT_PLANNED' ? (
+                            <CircleSlash size={16} className="text-[var(--text-secondary)]" />
+                          ) : (
+                            <CheckCircle2 size={16} className="text-[var(--text-accent-purple)]" />
+                          )}
+                        </span>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="relative group/card inline-block">
+                              <span
+                                onClick={() => onOpenIssue(issueNo)}
+                                className="text-sm font-semibold text-[var(--text-primary)] cursor-pointer hover:text-[var(--text-link)] hover:underline"
+                              >
+                                {issue.title}
+                              </span>
+                              <div className="hidden group-hover/card:block absolute left-0 top-full z-30 mt-2 w-96 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg text-left font-normal">
+                                <div className="p-3 border-b border-[var(--border-muted)]">
+                                  <p className="text-xs text-[var(--text-secondary)]">{repoOwner}/{repoName} {formatIssueDate(issue.created_at)}</p>
+                                  <p className="mt-1 text-sm">
+                                    <span className="font-semibold text-[var(--text-primary)]">{issue.title}</span>{" "}
+                                    <span className="text-[var(--text-secondary)]">#{issueNo}</span>
+                                  </p>
+                                  <span
+                                    className="mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-white"
+                                    style={{ backgroundColor: statusColor }}
+                                  >
+                                    {issue.status === "OPEN" ? <CircleDot size={13} /> : showNotPlanned ? <CircleSlash size={13} /> : <CheckCircle2 size={13} />}
+                                    {statusLabel}
+                                  </span>
+                                </div>
+                                <div className="p-3 text-sm text-[var(--text-secondary)] border-b border-[var(--border-muted)]">
+                                  {issue.description.trim() || "No description provided"}
+                                </div>
+                                {issueLabels.length > 0 ? (
+                                  <div className="px-3 py-2 flex flex-wrap gap-1 border-b border-[var(--border-muted)]">
+                                    {issueLabels.map((label) => (
+                                      <span
+                                        key={label.id}
+                                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                        style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                                      >
+                                        {label.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="px-3 py-2 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                                  <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase">
+                                    {creatorName.charAt(0)}
+                                  </span>
+                                  {hoverNote}
+                                </div>
+                              </div>
+                            </span>
+                            {(labelsByIssueId[issue.id] || []).map((label) => (
+                              <span
+                                key={label.id}
+                                className="rounded-full px-2 py-0.5 text-[11px] font-semibold leading-tight"
+                                style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                              >
+                                {label.name}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="mt-1 text-xs text-[var(--text-secondary)] flex flex-wrap items-center gap-1.5">
+                            <span>#{issueNo}</span>
+                            <span>·</span>
+                            <span>{issue.status === 'OPEN' ? 'opened' : 'closed'} {toRelativeTime(issue.created_at)}</span>
+                            {showNotPlanned ? (
+                              <>
+                                <span>·</span>
+                                <span>not planned</span>
+                              </>
+                            ) : null}
+                            <span>({formatIssueDate(issue.created_at)})</span>
+                          </p>
+                        </div>
+
+                        <div className="flex items-center -space-x-1 shrink-0">
+                          {(assigneesByIssueId[issue.id] || []).map((assignee) => {
+                            const name = collaboratorNameById[assignee.user_id] || assignee.user_id;
+                            return (
+                              <span
+                                key={assignee.user_id}
+                                title={name}
+                                className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)] ring-1 ring-[var(--surface-canvas)]"
+                              >
+                                {name.charAt(0)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </>
       )}
     </div>
   );

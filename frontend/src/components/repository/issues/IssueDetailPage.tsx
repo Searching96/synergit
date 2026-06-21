@@ -407,7 +407,7 @@ export default function IssueDetailPage({
                               key={opt.reason}
                               type="button"
                               onClick={() => void applyStatus("CLOSED", opt.reason)}
-                              className="w-full px-3 py-2 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                              className="w-full px-3 py-2 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                             >
                               <span className="mt-0.5">{opt.icon}</span>
                               <span className="min-w-0">
@@ -446,7 +446,7 @@ export default function IssueDetailPage({
                           <button
                             type="button"
                             onClick={() => void applyStatus("OPEN")}
-                            className="w-full px-3 py-2 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            className="w-full px-3 py-2 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                           >
                             <span className="mt-0.5"><ReopenedIcon size={15} className="text-[var(--fgColor-open,#1a7f37)]" /></span>
                             <span className="block text-sm font-semibold text-[var(--text-primary)]">Reopen issue</span>
@@ -459,7 +459,7 @@ export default function IssueDetailPage({
                               key={opt.reason}
                               type="button"
                               onClick={() => void applyStatus("CLOSED", opt.reason)}
-                              className="w-full px-3 py-2 text-left inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                              className="w-full px-3 py-2 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
                             >
                               <span className="mt-0.5"><CircleSlash size={15} className="text-[var(--text-secondary)]" /></span>
                               <span className="min-w-0">
