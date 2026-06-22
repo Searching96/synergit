@@ -948,7 +948,12 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
                 <div key={section.label} className="pb-4 border-b border-[var(--border-muted)]">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-[var(--text-primary)]">{section.label}</span>
-                    <Settings size={14} className="text-[var(--text-secondary)]" />
+                    <button
+                      type="button"
+                      className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                    >
+                      <Settings size={14} />
+                    </button>
                   </div>
                   <p className="mt-2 text-xs text-[var(--text-secondary)]">{section.value}</p>
                 </div>

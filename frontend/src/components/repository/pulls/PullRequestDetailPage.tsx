@@ -26,7 +26,8 @@ import { reposApi } from "../../../services/api/repos";
 import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady, OcticonCrossReference } from "../../icons/Octicons";
 import { CopyIcon, CheckIcon, IssueOpenedIcon, IssueClosedIcon } from "@primer/octicons-react";
 import { Tooltip } from "../../../components/shared/Tooltip";
-import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator, Issue } from "../../../types";
+import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator, Issue, Label } from "../../../types";
+import { labelsApi } from "../../../services/api/labels";
 import MergeOperationPanel from "./MergeOperationPanel";
 import DevelopmentSidebarItem from "./DevelopmentSidebarItem";
 
@@ -38,6 +39,15 @@ interface PullRequestDetailPageProps {
   onOpenConflicts: () => void;
   onOpenPullRequest: (pullNumber: number) => void;
   onOpenIssue: (issueNumber: number) => void;
+}
+
+function labelTextColor(hex: string): string {
+  const c = hex.replace("#", "");
+  if (c.length < 6) return "#1f2328";
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#1f2328" : "#ffffff";
 }
 
 function relativeTime(timestamp: string): string {
@@ -124,6 +134,12 @@ export default function PullRequestDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [assignees, setAssignees] = useState<Array<{ user_id: string; assigned_at: string }>>([]);
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [repoLabels, setRepoLabels] = useState<Label[]>([]);
+  const [openMenu, setOpenMenu] = useState<"assignees" | "labels" | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("");
+  const [labelFilter, setLabelFilter] = useState<string>("");
 
   const [isStickyVisible, setIsStickyVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -183,13 +199,15 @@ export default function PullRequestDetailPage({
         setConflictFiles([]);
         setEvents([]);
       }
-      const [pulls, collabs, repoIssues] = await Promise.all([
+      const [pulls, collabs, repoIssues, rLabels] = await Promise.all([
         pullsApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
         issuesApi.list(repoId).catch(() => []),
+        labelsApi.listForRepo(repoId).catch(() => []),
       ]);
       setCollaborators(collabs || []);
       setIssues(repoIssues || []);
+      setRepoLabels(rLabels || []);
 
       const sorted = [...(pulls || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       const resolved = sorted[Number(pullNumber) - 1] || null;
@@ -205,7 +223,7 @@ export default function PullRequestDetailPage({
         return;
       }
 
-      const [freshPull, compare, pullEvents, conflicts] = await Promise.all([
+      const [freshPull, compare, pullEvents, conflicts, asg, lb] = await Promise.all([
         pullsApi.get(repoId, resolved.id).catch(() => resolved),
         reposApi.getCompare(
           repoId,
@@ -218,11 +236,15 @@ export default function PullRequestDetailPage({
         ).catch(() => null),
         pullsApi.listEvents(repoId, resolved.id).catch(() => []),
         pullsApi.getConflicts(repoId, resolved.id).catch(() => []),
+        pullsApi.listPRAssignees(repoId, resolved.id).catch(() => []),
+        pullsApi.listPRLabels(repoId, resolved.id).catch(() => []),
       ]);
       setPull(freshPull);
       setCompareData(compare);
       setEvents(pullEvents || []);
       setConflictFiles(conflicts || []);
+      setAssignees(asg || []);
+      setLabels(lb || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load pull request");
     } finally {
@@ -296,6 +318,44 @@ export default function PullRequestDetailPage({
       setUpdating(false);
     }
   };
+
+  const toggleAssignee = async (userId: string) => {
+    if (!pull) return;
+    try {
+      if (assignees.some((a) => a.user_id === userId)) {
+        await pullsApi.removePRAssignee(repoId, pull.id, userId);
+        setAssignees((prev) => prev.filter((a) => a.user_id !== userId));
+      } else {
+        await pullsApi.addPRAssignee(repoId, pull.id, userId);
+        setAssignees((prev) => [...prev, { user_id: userId, assigned_at: new Date().toISOString() }]);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+    }
+  };
+
+  const toggleLabel = async (labelId: string) => {
+    if (!pull) return;
+    try {
+      if (labels.some((l) => l.id === labelId)) {
+        await pullsApi.removePRLabel(repoId, pull.id, labelId);
+        setLabels((prev) => prev.filter((l) => l.id !== labelId));
+      } else {
+        await pullsApi.addPRLabel(repoId, pull.id, labelId);
+        const l = repoLabels.find((r) => r.id === labelId);
+        if (l) setLabels((prev) => [...prev, l]);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+    }
+  };
+
+  const visibleCollaborators = collaborators.filter((c) =>
+    (c.username || c.user_id).toLowerCase().includes(assigneeFilter.toLowerCase())
+  );
+  const visibleLabels = repoLabels.filter((l) =>
+    l.name.toLowerCase().includes(labelFilter.toLowerCase())
+  );
 
   const filteredEvents = events.filter((event) => event.event_type !== "opened");
   const mergedIndex = filteredEvents.findIndex((e) => e.event_type === "merged");
@@ -784,24 +844,182 @@ export default function PullRequestDetailPage({
         </div>
 
         <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 text-sm">
-          {[
-            ["Reviewers", "Copilot", "Request"],
-            ["Assignees", "No one-assigned", ""],
-            ["Labels", "None yet", ""],
-            ["Projects", "None yet", ""],
-            ["Milestone", "No milestone", ""],
-          ].map(([title, body, action]) => (
-            <div key={title} className="pb-4 border-b border-[var(--border-muted)]">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-[var(--text-primary)]">{title}</span>
-                <span className="inline-flex items-center gap-2">
-                  {action ? <span className="text-xs text-[var(--text-link)]">{action}</span> : null}
-                  <Settings size={14} className="text-[var(--text-secondary)]" />
-                </span>
-              </div>
-              <p className="mt-2 text-xs text-[var(--text-secondary)]">{body}</p>
+          <div className="pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Reviewers</span>
+              <span className="inline-flex items-center gap-2">
+                <span className="text-xs text-[var(--text-link)] hover:underline cursor-pointer">Request</span>
+                <Settings size={14} className="text-[var(--text-secondary)]" />
+              </span>
             </div>
-          ))}
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">Copilot</p>
+          </div>
+
+          <div className="relative pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Assignees</span>
+              <button
+                type="button"
+                aria-label="Edit assignees"
+                onClick={() => setOpenMenu((m) => (m === "assignees" ? null : "assignees"))}
+                className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                <Settings size={14} />
+              </button>
+            </div>
+            {assignees.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                No one assigned
+                {collaborators.some((c) => c.username === currentUsername) ? (
+                  <>
+                    {" "}&mdash;{" "}
+                    <button type="button" onClick={() => {
+                      const me = collaborators.find((c) => c.username === currentUsername);
+                      if (me) void toggleAssignee(me.user_id);
+                    }} className="text-[var(--text-link)] hover:underline">
+                      Assign yourself
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : (
+              <div className="mt-2 space-y-1">
+                {assignees.map((a) => {
+                  const name = nameById[a.user_id] || a.user_id;
+                  return (
+                    <div key={a.user_id} className="flex items-center gap-2">
+                      <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                        {name.charAt(0)}
+                      </span>
+                      <span className="font-medium text-[var(--text-primary)]">{name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {openMenu === "assignees" ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
+                    <input
+                      value={assigneeFilter}
+                      onChange={(e) => setAssigneeFilter(e.target.value)}
+                      placeholder="Filter assignees"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleCollaborators.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                      ) : (
+                        visibleCollaborators.map((collaborator) => (
+                          <li key={collaborator.user_id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleAssignee(collaborator.user_id)}
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={assignees.some((a) => a.user_id === collaborator.user_id)} className="h-4 w-4" />
+                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                {(collaborator.username ?? "?").charAt(0)}
+                              </span>
+                              <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div className="relative pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Labels</span>
+              <button
+                type="button"
+                aria-label="Edit labels"
+                onClick={() => setOpenMenu((m) => (m === "labels" ? null : "labels"))}
+                className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                <Settings size={14} />
+              </button>
+            </div>
+            {labels.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {labels.map((label) => (
+                  <span
+                    key={label.id}
+                    className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                    style={{ backgroundColor: label.color, color: labelTextColor(label.color) }}
+                  >
+                    {label.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            {openMenu === "labels" ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to this pull request</p>
+                    <input
+                      value={labelFilter}
+                      onChange={(e) => setLabelFilter(e.target.value)}
+                      placeholder="Filter labels"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleLabels.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                      ) : (
+                        visibleLabels.map((label) => (
+                          <li key={label.id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleLabel(label.id)}
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={labels.some((l) => l.id === label.id)} className="mt-0.5 h-4 w-4" />
+                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                {label.description ? (
+                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div className="pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Projects</span>
+              <Settings size={14} className="text-[var(--text-secondary)]" />
+            </div>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+          </div>
+
+          <div className="pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Milestone</span>
+              <Settings size={14} className="text-[var(--text-secondary)]" />
+            </div>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">No milestone</p>
+          </div>
 
           <DevelopmentSidebarItem repoId={repoId} pullId={pull.id} issueNumberMap={issueNumberMap} onLinkedIssuesChange={() => void load(true)} />
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { GearIcon, CheckIcon, GitPullRequestIcon, GitBranchIcon, GitMergeIcon, GitPullRequestClosedIcon, SearchIcon, ArrowLeftIcon, CopyIcon, XIcon } from "@primer/octicons-react";
+import { CheckIcon, GitPullRequestIcon, GitBranchIcon, GitMergeIcon, GitPullRequestClosedIcon, SearchIcon, ArrowLeftIcon, CopyIcon, XIcon } from "@primer/octicons-react";
+import { Settings } from "lucide-react";
 import CreateIssueBranchPopup from "./CreateIssueBranchPopup";
 import { Toast } from "../../shared/Toast";
 import { Tooltip } from "../../shared/Tooltip";
@@ -12,10 +13,10 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
   const [isOpen, setIsOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  
+
   const [allPulls, setAllPulls] = useState<PullRequest[]>([]);
   const [allBranches, setAllBranches] = useState<Branch[]>([]);
-  
+
   const [linkedPulls, setLinkedPulls] = useState<PullRequest[]>([]);
   const [linkedBranchNames, setLinkedBranchNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +56,7 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
     const items: SuggestionItem[] = [];
     allPulls.forEach(pr => items.push({ type: 'pr', id: pr.id, title: pr.title, pr }));
     allBranches.forEach(b => items.push({ type: 'branch', id: b.name, title: b.name, branch: b }));
-    
+
     if (!filter) return items;
     const lower = filter.toLowerCase();
     return items.filter(i => i.title.toLowerCase().includes(lower));
@@ -124,13 +125,13 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
         </div>
         <div className="w-6 shrink-0 flex items-center justify-center pt-0.5">
           {item.type === 'pr' ? (
-             <span className={item.pr.status === "OPEN" ? "text-[var(--fgColor-open,#1a7f37)]" : item.pr.status === "MERGED" ? "text-[var(--fgColor-done,#8250df)]" : "text-[var(--fgColor-closed,#cf222e)]"}>
-               {item.pr.status === "OPEN" ? <GitPullRequestIcon size={16} /> : item.pr.status === "MERGED" ? <GitMergeIcon size={16} /> : <GitPullRequestClosedIcon size={16} />}
-             </span>
+            <span className={item.pr.status === "OPEN" ? "text-[var(--fgColor-open,#1a7f37)]" : item.pr.status === "MERGED" ? "text-[var(--fgColor-done,#8250df)]" : "text-[var(--fgColor-closed,#cf222e)]"}>
+              {item.pr.status === "OPEN" ? <GitPullRequestIcon size={16} /> : item.pr.status === "MERGED" ? <GitMergeIcon size={16} /> : <GitPullRequestClosedIcon size={16} />}
+            </span>
           ) : (
-             <span className="text-[var(--text-secondary)]">
-               <GitBranchIcon size={16} />
-             </span>
+            <span className="text-[var(--text-secondary)]">
+              <GitBranchIcon size={16} />
+            </span>
           )}
         </div>
         <div className="flex-1 min-w-0 pl-1">
@@ -145,11 +146,11 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
     <div className="pb-4 border-b border-[var(--border-muted)] relative">
       <div className="flex items-center justify-between">
         <span className="font-semibold text-[var(--text-primary)]">Development</span>
-        <button 
+        <button
           onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-center gap-2 hover:text-[var(--text-link)] text-[var(--text-secondary)] transition-colors"
+          className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
         >
-          <GearIcon size={14} />
+          <Settings size={14} />
         </button>
       </div>
 

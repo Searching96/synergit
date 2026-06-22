@@ -104,6 +104,10 @@ export default function IssueDetailPage({
   const [labels, setLabels] = useState<Label[]>([]);
   const [assignees, setAssignees] = useState<IssueAssignee[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
+  const [repoLabels, setRepoLabels] = useState<Label[]>([]);
+  const [openMenu, setOpenMenu] = useState<"assignees" | "labels" | "relationships" | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("");
+  const [labelFilter, setLabelFilter] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
   const [isStickyVisible, setIsStickyVisible] = useState<boolean>(false);
@@ -172,11 +176,13 @@ export default function IssueDetailPage({
         setLoading(true);
         setError(null);
       }
-      const [list, collabs] = await Promise.all([
+      const [list, collabs, rLabels] = await Promise.all([
         issuesApi.list(repoId),
         collaboratorsApi.list(repoId).catch(() => []),
+        labelsApi.listForRepo(repoId).catch(() => []),
       ]);
       setCollaborators(collabs || []);
+      setRepoLabels(rLabels || []);
       const sorted = [...(list || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
       const resolved = sorted[Number(issueNumber) - 1] || null;
       if (!isSilent) {
@@ -243,6 +249,43 @@ export default function IssueDetailPage({
       setPosting(false);
     }
   };
+
+  const toggleAssignee = async (userId: string) => {
+    if (!issue) return;
+    try {
+      const has = assignees.some((a) => a.user_id === userId);
+      if (has) {
+        await issuesApi.unassign(repoId, issue.id, userId);
+      } else {
+        await issuesApi.assign(repoId, issue.id, { user_id: userId });
+      }
+      await loadDetails(issue);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleLabel = async (labelId: string) => {
+    if (!issue) return;
+    try {
+      const has = labels.some((l) => l.id === labelId);
+      if (has) {
+        await labelsApi.remove(repoId, issue.id, labelId);
+      } else {
+        await labelsApi.add(repoId, issue.id, { label_id: labelId });
+      }
+      await loadDetails(issue);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const visibleCollaborators = collaborators.filter((c) =>
+    (c.username ?? "").toLowerCase().includes(assigneeFilter.trim().toLowerCase()),
+  );
+  const visibleLabels = repoLabels.filter((l) =>
+    (l.name ?? "").toLowerCase().includes(labelFilter.trim().toLowerCase()),
+  );
 
   if (loading && !issue) {
     return null;
@@ -630,13 +673,33 @@ export default function IssueDetailPage({
         </div>
 
         <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 text-sm">
-          <div className="pb-4 border-b border-[var(--border-muted)]">
+          <div className="relative pb-4 border-b border-[var(--border-muted)]">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-[var(--text-primary)]">Assignees</span>
-              <Settings size={14} className="text-[var(--text-secondary)]" />
+              <button
+                type="button"
+                aria-label="Edit assignees"
+                onClick={() => setOpenMenu((m) => (m === "assignees" ? null : "assignees"))}
+                className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                <Settings size={14} />
+              </button>
             </div>
             {assignees.length === 0 ? (
-              <p className="mt-2 text-xs text-[var(--text-secondary)]">No one assigned</p>
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                No one assigned
+                {collaborators.some((c) => c.username === currentUsername) ? (
+                  <>
+                    {" "}&mdash;{" "}
+                    <button type="button" onClick={() => {
+                      const me = collaborators.find((c) => c.username === currentUsername);
+                      if (me) void toggleAssignee(me.user_id);
+                    }} className="text-[var(--text-link)] hover:underline">
+                      Assign yourself
+                    </button>
+                  </>
+                ) : null}
+              </p>
             ) : (
               <div className="mt-2 space-y-1">
                 {assignees.map((a) => {
@@ -652,12 +715,56 @@ export default function IssueDetailPage({
                 })}
               </div>
             )}
+            {openMenu === "assignees" ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Select assignees</p>
+                    <input
+                      value={assigneeFilter}
+                      onChange={(e) => setAssigneeFilter(e.target.value)}
+                      placeholder="Filter assignees"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleCollaborators.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No collaborators found</li>
+                      ) : (
+                        visibleCollaborators.map((collaborator) => (
+                          <li key={collaborator.user_id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleAssignee(collaborator.user_id)}
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={assignees.some((a) => a.user_id === collaborator.user_id)} className="h-4 w-4" />
+                              <span className="h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[10px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                                {(collaborator.username ?? "?").charAt(0)}
+                              </span>
+                              <span className="text-sm text-[var(--text-primary)]">{collaborator.username ?? collaborator.user_id}</span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
 
-          <div className="pb-4 border-b border-[var(--border-muted)]">
+          <div className="relative pb-4 border-b border-[var(--border-muted)]">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-[var(--text-primary)]">Labels</span>
-              <Settings size={14} className="text-[var(--text-secondary)]" />
+              <button
+                type="button"
+                aria-label="Edit labels"
+                onClick={() => setOpenMenu((m) => (m === "labels" ? null : "labels"))}
+                className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                <Settings size={14} />
+              </button>
             </div>
             {labels.length === 0 ? (
               <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
@@ -674,6 +781,73 @@ export default function IssueDetailPage({
                 ))}
               </div>
             )}
+            {openMenu === "labels" ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-80 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                  <div className="p-2">
+                    <p className="px-1 pb-1 text-xs font-semibold text-[var(--text-secondary)]">Apply labels to this issue</p>
+                    <input
+                      value={labelFilter}
+                      onChange={(e) => setLabelFilter(e.target.value)}
+                      placeholder="Filter labels"
+                      className="w-full h-8 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-2 text-sm text-[var(--text-primary)]"
+                    />
+                    <ul className="mt-1 max-h-72 overflow-auto">
+                      {visibleLabels.length === 0 ? (
+                        <li className="px-2 py-2 text-xs text-[var(--text-secondary)]">No labels found</li>
+                      ) : (
+                        visibleLabels.map((label) => (
+                          <li key={label.id}>
+                            <button
+                              type="button"
+                              onClick={() => void toggleLabel(label.id)}
+                              className="w-full px-2 py-1.5 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                            >
+                              <input type="checkbox" readOnly checked={labels.some((l) => l.id === label.id)} className="mt-0.5 h-4 w-4" />
+                              <span className="mt-1 h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium text-[var(--text-primary)]">{label.name}</span>
+                                {label.description ? (
+                                  <span className="block text-xs text-[var(--text-secondary)]">{label.description}</span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div className="relative pb-4 border-b border-[var(--border-muted)]">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[var(--text-primary)]">Relationships</span>
+              <button
+                type="button"
+                onClick={() => setOpenMenu((m) => (m === "relationships" ? null : "relationships"))}
+                className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+              >
+                <Settings size={14} />
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+            {openMenu === "relationships" ? (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
+                <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg p-2">
+                  <button type="button" className="w-full px-2 py-1.5 text-left text-sm text-[var(--text-primary)] rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-between group">
+                    <span>Mark as blocked by</span>
+                  </button>
+                  <button type="button" className="w-full px-2 py-1.5 text-left text-sm text-[var(--text-primary)] rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-between group">
+                    <span>Mark as blocking</span>
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
 
           <IssueDevelopmentSidebarItem repoId={repoId} issueId={issue.id} issueNumber={issueNumber} issueTitle={issue.title} onUpdate={() => void loadDetails(issue)} />
@@ -684,7 +858,12 @@ export default function IssueDetailPage({
             <div key={section.label} className="pb-4 border-b border-[var(--border-muted)]">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-[var(--text-primary)]">{section.label}</span>
-                <Settings size={14} className="text-[var(--text-secondary)]" />
+                <button
+                  type="button"
+                  className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                >
+                  <Settings size={14} />
+                </button>
               </div>
               <p className="mt-2 text-xs text-[var(--text-secondary)]">{section.value}</p>
             </div>
