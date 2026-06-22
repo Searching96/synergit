@@ -6,6 +6,7 @@ import type {
   IssueAssignee,
   IssueComment,
   IssueEvent,
+  PullRequest,
   UpdateIssueStatusPayload,
 } from '../../types';
 
@@ -69,5 +70,22 @@ export const issuesApi = {
     fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/assignees/${encodeURIComponent(userId)}`, {
       method: 'DELETE',
     }),
-};
 
+  listLinkedPullRequests: (repoId: string, issueId: string): Promise<PullRequest[]> =>
+    fetcher<PullRequest[]>(`/repos/${repoId}/issues/${issueId}/pulls`),
+
+  listLinkedBranches: (repoId: string, issueId: string): Promise<string[]> =>
+    fetcher<string[]>(`/repos/${repoId}/issues/${issueId}/branches`),
+
+  linkBranch: (repoId: string, issueId: string, branchName: string): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/branches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch_name: branchName }),
+    }),
+
+  unlinkBranch: (repoId: string, issueId: string, branchName: string): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/branches/${encodeURIComponent(branchName)}`, {
+      method: 'DELETE',
+    }),
+};

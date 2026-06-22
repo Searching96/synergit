@@ -303,6 +303,54 @@ func (s *IssueService) CreateIssueComment(repoID uuid.UUID, issueID uuid.UUID,
 	return comment, nil
 }
 
+func (s *IssueService) LinkBranchToIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error {
+	if _, err := s.requireRepoAccess(repoID, requesterID); err != nil {
+		return err
+	}
+
+	issue, err := s.issueStore.GetByID(issueID)
+	if err != nil {
+		return err
+	}
+	if issue == nil || issue.RepoID != repoID {
+		return errors.New("issue not found")
+	}
+
+	return s.issueStore.LinkBranch(issueID, branchName)
+}
+
+func (s *IssueService) UnlinkBranchFromIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error {
+	if _, err := s.requireRepoAccess(repoID, requesterID); err != nil {
+		return err
+	}
+
+	issue, err := s.issueStore.GetByID(issueID)
+	if err != nil {
+		return err
+	}
+	if issue == nil || issue.RepoID != repoID {
+		return errors.New("issue not found")
+	}
+
+	return s.issueStore.UnlinkBranch(issueID, branchName)
+}
+
+func (s *IssueService) ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]string, error) {
+	if _, err := s.requireRepoAccess(repoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	issue, err := s.issueStore.GetByID(issueID)
+	if err != nil {
+		return nil, err
+	}
+	if issue == nil || issue.RepoID != repoID {
+		return nil, errors.New("issue not found")
+	}
+
+	return s.issueStore.ListLinkedBranches(issueID)
+}
+
 func (s *IssueService) requireRepoAccess(repoID uuid.UUID,
 	requesterID uuid.UUID) (domain.CollaboratorRole, error) {
 

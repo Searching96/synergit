@@ -46,3 +46,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#031](./issues/031-repository-insights-code-frequency.md) | Closed | Medium | Medium | Fullstack | Repository Insights Code Frequency | `feature`, `insights`, `code-frequency`, `ui`, `api`, `git` | [#030](./issues/030-repository-insights-commit-activity.md) |
 | [#032](./issues/032-create-more-issue-flow.md) | Closed | Low | Low | Frontend | Enhance Issue Creation Flow: Create More & Redirection | `feature`, `ux` | |
 | [#033](./issues/033-link-issue-to-pull-request.md) | Closed | High | Medium | Fullstack | Link Issue to Pull Request Feature | `feature`, `pull-requests`, `issues`, `ui` | |
+| [#034](./issues/034-issue-development-sidebar-popup.md) | Closed | Medium | Medium | Fullstack | Issue Development Sidebar Popup | `feature`, `issues`, `ui`, `api` | |

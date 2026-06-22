@@ -27,4 +27,7 @@ type IssueUseCase interface {
 		requesterID uuid.UUID) ([]domain.IssueComment, error)
 	CreateIssueComment(repoID uuid.UUID, issueID uuid.UUID,
 		authorID uuid.UUID, body string) (*domain.IssueComment, error)
+	LinkBranchToIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
+	UnlinkBranchFromIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
+	ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]string, error)
 }

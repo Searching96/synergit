@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Code, Heading, Italic, Link, List, ListOrdered, Settings } from "lucide-react";
-import { CopyIcon, CheckIcon } from "@primer/octicons-react";
-import { OcticonGitPullRequest, OcticonCrossReference } from "../../icons/Octicons";
+import { CopyIcon, CheckIcon, GitPullRequestIcon, GitMergeIcon, GitPullRequestClosedIcon } from "@primer/octicons-react";
+import { OcticonCrossReference } from "../../icons/Octicons";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
 import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, Label, RepoCollaborator } from "../../../types";
 import { Tooltip } from "../../../components/shared/Tooltip";
-
+import IssueDevelopmentSidebarItem from "./IssueDevelopmentSidebarItem";
 interface IssueDetailPageProps {
   repoId: string;
   currentUsername: string;
@@ -371,13 +371,33 @@ export default function IssueDetailPage({
             <div className="relative mt-4">
               <span className="absolute left-[var(--rail)] -top-4 -bottom-6 w-0.5 bg-[var(--border-muted)]" aria-hidden />
               <ul className="space-y-3">
-                {timeline.map((item) => {
+                {timeline.map((item, index) => {
                   if (item.kind === "event") {
                     if (item.event.event_type === "pr_linked" || item.event.event_type === "pr_unlinked") {
+                      const prevItem = index > 0 ? timeline[index - 1] : null;
+                      const nextItem = index < timeline.length - 1 ? timeline[index + 1] : null;
+                      
+                      const prevIsLink = prevItem?.kind === "event" && (prevItem.event.event_type === "pr_linked" || prevItem.event.event_type === "pr_unlinked");
+                      const nextIsLink = nextItem?.kind === "event" && (nextItem.event.event_type === "pr_linked" || nextItem.event.event_type === "pr_unlinked");
+                      
+                      const pt = prevIsLink ? "pt-1" : "pt-4";
+                      const pb = nextIsLink ? "pb-1" : "pb-4";
+                      const iconTop = prevIsLink ? "top-1" : "top-4";
+
                       return (
-                        <li key={`e-${item.event.id}`} className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start text-sm">
-                          <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
-                            <OcticonCrossReference size={16} />
+                        <li key={`e-${item.event.id}`} className={`relative ${pt} ${pb} pl-[calc(var(--rail)_+_17px)] flex items-start text-sm`}>
+                          <span className={`absolute left-[calc(var(--rail)_-_11px)] ${iconTop} z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center`}>
+                            {item.event.event_type === "pr_unlinked" && item.event.pull_request ? (
+                              item.event.pull_request.status === "OPEN" ? (
+                                <GitPullRequestIcon size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                              ) : item.event.pull_request.status === "MERGED" ? (
+                                <GitMergeIcon size={16} className="text-[var(--fgColor-done,#8250df)]" />
+                              ) : (
+                                <GitPullRequestClosedIcon size={16} className="text-[var(--fgColor-closed,#cf222e)]" />
+                              )
+                            ) : (
+                              <OcticonCrossReference size={16} />
+                            )}
                           </span>
                           <div className="text-[var(--text-secondary)] w-full">
                             <div className="flex items-center gap-1.5">
@@ -389,7 +409,13 @@ export default function IssueDetailPage({
                                 <span>{item.event.event_type === "pr_linked" ? "linked a pull request that will close this issue" : "removed a link to a pull request"}</span>
                                 {item.event.pull_request && (
                                   <span className="inline-flex items-center gap-1">
-                                    <OcticonGitPullRequest size={16} className={item.event.pull_request.status === "OPEN" ? "text-[var(--fgColor-open,#1a7f37)]" : "text-[var(--text-accent-purple)]"} />
+                                    {item.event.pull_request.status === "OPEN" ? (
+                                      <GitPullRequestIcon size={16} className="text-[var(--fgColor-open,#1a7f37)]" />
+                                    ) : item.event.pull_request.status === "MERGED" ? (
+                                      <GitMergeIcon size={16} className="text-[var(--fgColor-done,#8250df)]" />
+                                    ) : (
+                                      <GitPullRequestClosedIcon size={16} className="text-[var(--fgColor-closed,#cf222e)]" />
+                                    )}
                                     <a href={`/repository/${repoId}/pulls/${item.event.pull_request_number}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline">
                                       {item.event.pull_request.title} #{item.event.pull_request_number}
                                     </a>
@@ -650,6 +676,7 @@ export default function IssueDetailPage({
             )}
           </div>
 
+          <IssueDevelopmentSidebarItem repoId={repoId} issueId={issue.id} issueNumber={issueNumber} issueTitle={issue.title} onUpdate={() => void loadDetails(issue)} />
           {[
             { label: "Projects", value: "None yet" },
             { label: "Milestone", value: "No milestone" },

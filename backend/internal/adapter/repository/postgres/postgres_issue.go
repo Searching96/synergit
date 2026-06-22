@@ -307,3 +307,51 @@ func (p *PostgresIssueStore) ListComments(issueID uuid.UUID) ([]domain.IssueComm
 
 	return comments, nil
 }
+
+func (p *PostgresIssueStore) LinkBranch(issueID uuid.UUID, branchName string) error {
+	query := `
+		INSERT INTO issue_linked_branches (issue_id, branch_name, linked_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (issue_id, branch_name) DO NOTHING`
+
+	_, err := p.db.Exec(query, issueID, branchName)
+	return err
+}
+
+func (p *PostgresIssueStore) UnlinkBranch(issueID uuid.UUID, branchName string) error {
+	query := `
+		DELETE FROM issue_linked_branches
+		WHERE issue_id = $1 AND branch_name = $2`
+
+	_, err := p.db.Exec(query, issueID, branchName)
+	return err
+}
+
+func (p *PostgresIssueStore) ListLinkedBranches(issueID uuid.UUID) ([]string, error) {
+	query := `
+		SELECT branch_name
+		FROM issue_linked_branches
+		WHERE issue_id = $1
+		ORDER BY linked_at ASC`
+
+	rows, err := p.db.Query(query, issueID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var branches []string
+	for rows.Next() {
+		var branch string
+		if err := rows.Scan(&branch); err != nil {
+			return nil, err
+		}
+		branches = append(branches, branch)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return branches, nil
+}

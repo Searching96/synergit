@@ -10,6 +10,7 @@ type RepoRepository interface {
 	Save(repo *domain.Repo) error
 	FindAll() ([]*domain.Repo, error)
 	FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo, error)
+	FindContributedByUser(userID uuid.UUID) ([]*domain.Repo, error)
 	CountOwnedByUser(userID uuid.UUID) (int, error)
 	FindByID(id uuid.UUID) (*domain.Repo, error)
 	FindByOwnerAndName(ownerUsername string, repoName string) (*domain.Repo, error)

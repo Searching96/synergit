@@ -19,6 +19,9 @@ type IssueRepository interface {
 	ListEvents(issueID uuid.UUID) ([]domain.IssueEvent, error)
 	AddComment(comment *domain.IssueComment) error
 	ListComments(issueID uuid.UUID) ([]domain.IssueComment, error)
+	LinkBranch(issueID uuid.UUID, branchName string) error
+	UnlinkBranch(issueID uuid.UUID, branchName string) error
+	ListLinkedBranches(issueID uuid.UUID) ([]string, error)
 }
 
 type IssueUseCase interface {
@@ -41,4 +44,7 @@ type IssueUseCase interface {
 		requesterID uuid.UUID) ([]domain.IssueComment, error)
 	CreateIssueComment(repoID uuid.UUID, issueID uuid.UUID,
 		authorID uuid.UUID, body string) (*domain.IssueComment, error)
+	LinkBranchToIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
+	UnlinkBranchFromIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
+	ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]string, error)
 }

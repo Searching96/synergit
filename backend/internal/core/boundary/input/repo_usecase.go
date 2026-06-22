@@ -22,6 +22,7 @@ type RepoUseCase interface {
 	ReceivePackByOwnerAndName(requesterID uuid.UUID, ownerUsername string, repoName string,
 		requestPayload output.ByteReader, responseWriter output.ByteWriter) error
 	GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo, error)
+	GetContributedRepositories(requesterID uuid.UUID) ([]*domain.Repo, error)
 	GetRepositoryByID(repoID uuid.UUID) (*domain.Repo, error)
 	CountOwnedRepositories(requesterID uuid.UUID) (int, error)
 	UpdateRepositoryVisibility(repoID uuid.UUID, requesterID uuid.UUID,

@@ -73,7 +73,7 @@ export default function BranchTagMenu({
       ? [activeBranch, ...branches.map((item) => item.name)]
       : branches.map((item) => item.name);
 
-    return values.map((name) => {
+    const mappedItems = values.map((name) => {
       const matchedBranch = knownBranchMap.get(name);
       return {
         value: name,
@@ -81,6 +81,12 @@ export default function BranchTagMenu({
         isDefault: !!matchedBranch?.is_default,
         isCurrent: name === activeBranch,
       };
+    });
+
+    return mappedItems.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return 0;
     });
   }, [activeBranch, branches]);
 
@@ -199,9 +205,9 @@ export default function BranchTagMenu({
             <button
               type="button"
               onClick={() => setMenuTab("branches")}
-              className={`h-8 px-3 rounded-t-md border border-b-0 ${
+              className={`h-8 px-3 rounded-t-md border -mb-px ${
                 menuTab === "branches"
-                  ? "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-primary)]"
+                  ? "bg-[var(--surface-canvas)] border-[var(--border-default)] border-b-transparent text-[var(--text-primary)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
@@ -210,9 +216,9 @@ export default function BranchTagMenu({
             <button
               type="button"
               onClick={() => setMenuTab("tags")}
-              className={`h-8 px-3 rounded-t-md border border-b-0 ${
+              className={`h-8 px-3 rounded-t-md border -mb-px ${
                 menuTab === "tags"
-                  ? "bg-[var(--surface-subtle)] border-[var(--border-default)] text-[var(--text-primary)]"
+                  ? "bg-[var(--surface-canvas)] border-[var(--border-default)] border-b-transparent text-[var(--text-primary)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >

@@ -19,6 +19,7 @@ type PullRequestRepository interface {
 	LinkIssue(prID uuid.UUID, issueID uuid.UUID) error
 	UnlinkIssue(prID uuid.UUID, issueID uuid.UUID) error
 	ListLinkedIssues(prID uuid.UUID) ([]domain.Issue, error)
+	ListLinkedPRsForIssue(issueID uuid.UUID) ([]domain.PullRequest, error)
 }
 
 type PullRequestLabelRepository interface {

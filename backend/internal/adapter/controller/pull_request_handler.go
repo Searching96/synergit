@@ -408,3 +408,36 @@ func (h *PullRequestHandler) HandleListLinkedIssues(c *gin.Context) {
 
 	c.JSON(http.StatusOK, issues)
 }
+
+func (h *PullRequestHandler) HandleListLinkedPRsForIssue(c *gin.Context) {
+	repoIDStr := c.Param("repo_id")
+	repoID, err := uuid.Parse(repoIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid repo_id format"})
+		return
+	}
+
+	issueIDStr := c.Param("issue_id")
+	issueID, err := uuid.Parse(issueIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid issue_id format"})
+		return
+	}
+
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	prs, err := h.prUseCase.ListLinkedPRsForIssue(repoID, issueID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	if prs == nil {
+		prs = []domain.PullRequest{}
+	}
+
+	c.JSON(http.StatusOK, prs)
+}

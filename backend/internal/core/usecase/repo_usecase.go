@@ -359,6 +359,32 @@ func (s *RepoService) GetAllRepositories(requesterID uuid.UUID) ([]*domain.Repo,
 	return repos, nil
 }
 
+func (s *RepoService) GetContributedRepositories(requesterID uuid.UUID) ([]*domain.Repo, error) {
+	repos, err := s.repoStore.FindContributedByUser(requesterID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, repo := range repos {
+		if repo == nil {
+			continue
+		}
+
+		if strings.TrimSpace(repo.PrimaryLanguage) != "" {
+			continue
+		}
+
+		repoUUID, parseErr := uuid.Parse(repo.ID)
+		if parseErr != nil {
+			continue
+		}
+
+		s.enqueueInsights(repoUUID, "repo_list_missing_primary_language")
+	}
+
+	return repos, nil
+}
+
 func (s *RepoService) GetRepositoryByID(repoID uuid.UUID) (*domain.Repo, error) {
 	repo, err := s.repoStore.FindByID(repoID)
 	if err != nil {

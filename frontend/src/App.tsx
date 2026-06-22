@@ -300,8 +300,8 @@ function App() {
         setSelectedRepoId(null);
       }
 
-      if (parsed.tab === 'files' && parsed.branch) {
-        setCurrentBranch(parsed.branch);
+      if (parsed.tab === 'files') {
+        setCurrentBranch(parsed.branch || '');
       }
 
       return parsed;
@@ -336,7 +336,7 @@ function App() {
   const isFullBrowserMode =
     !!selectedRepo &&
     ((activeTab === 'files' &&
-      (routeContentKind === 'tree' || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit' || routeContentKind === 'commit-view')) ||
+      ((routeContentKind === 'tree' && routeContentPath !== '') || routeContentKind === 'blob' || routeContentKind === 'new' || routeContentKind === 'edit' || routeContentKind === 'commit-view')) ||
       (activeTab === 'pulls' && routeContentKind === 'pull-conflicts'));
 
   useEffect(() => {
@@ -373,17 +373,16 @@ function App() {
     const owner = getRepoOwner(repo);
 
     if (contentKind === 'root') {
-      navigateToPath(buildRepoBasePath(owner, repo.name));
+      if (branchName === defaultBranchName) {
+        navigateToPath(buildRepoBasePath(owner, repo.name));
+      } else {
+        navigateToPath(buildRepoContentPath(owner, repo.name, 'tree', branchName, ''));
+      }
       return;
     }
 
     if (contentKind === 'blob') {
       navigateToPath(buildRepoContentPath(owner, repo.name, 'blob', branchName, contentPath));
-      return;
-    }
-
-    if (!contentPath && branchName === defaultBranchName) {
-      navigateToPath(buildRepoBasePath(owner, repo.name));
       return;
     }
 
@@ -462,7 +461,8 @@ function App() {
       return;
     }
 
-    navigateToRepoContent(selectedRepo, routeContentKind, routeContentPath, branchName);
+    const targetContentKind = routeContentKind === 'root' ? 'tree' : routeContentKind;
+    navigateToRepoContent(selectedRepo, targetContentKind, routeContentPath, branchName);
   };
 
   const handleSelectCommitBranch = (branchName: string) => {
@@ -707,6 +707,7 @@ function App() {
               <div className="flex flex-col min-w-0">
                 <div className="min-w-0 flex items-center gap-1 text-sm font-semibold">
                   <RouteButton
+                    href={`/${encodeURIComponent(selectedRepoOwner)}`}
                     onClick={() => navigateToPath(`/${encodeURIComponent(selectedRepoOwner)}`)}
                     className="max-w-[180px] truncate"
                   >
@@ -715,6 +716,7 @@ function App() {
                   <span className="text-[var(--text-muted)] font-normal">/</span>
                   <RouteButton
                     selected
+                    href={`/${encodeURIComponent(selectedRepoOwner)}/${encodeURIComponent(selectedRepo.name)}`}
                     onClick={() => navigateToRepoTab(selectedRepo, 'files')}
                     className="truncate"
                   >

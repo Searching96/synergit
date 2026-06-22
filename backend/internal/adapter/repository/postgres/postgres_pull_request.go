@@ -258,3 +258,36 @@ func (p *PostgresPullRequestStore) ListLinkedIssues(prID uuid.UUID) ([]domain.Is
 
 	return issues, nil
 }
+
+func (p *PostgresPullRequestStore) ListLinkedPRsForIssue(issueID uuid.UUID) ([]domain.PullRequest, error) {
+	query := `
+		SELECT pr.id, pr.repo_id, pr.creator_id, pr.title, pr.description, pr.source_branch, pr.target_branch, pr.source_commit_hash, pr.target_commit_hash, pr.status, pr.created_at, pr.updated_at
+		FROM pull_requests pr
+		JOIN pull_request_linked_issues prli ON pr.id = prli.pull_request_id
+		WHERE prli.issue_id = $1
+		ORDER BY prli.linked_at ASC`
+
+	rows, err := p.db.Query(query, issueID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pullRequests []domain.PullRequest
+	for rows.Next() {
+		var pr domain.PullRequest
+		err := rows.Scan(&pr.ID, &pr.RepoID, &pr.CreatorID, &pr.Title, &pr.Description,
+			&pr.SourceBranch, &pr.TargetBranch, &pr.SourceCommitHash, &pr.TargetCommitHash,
+			&pr.Status, &pr.CreatedAt, &pr.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		pullRequests = append(pullRequests, pr)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return pullRequests, nil
+}

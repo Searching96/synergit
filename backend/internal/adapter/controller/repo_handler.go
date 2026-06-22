@@ -346,7 +346,17 @@ func (h *RepoHandler) HandleGetRepos(c *gin.Context) {
 		return
 	}
 
-	repos, err := h.repoUseCase.GetAllRepositories(requesterID)
+	repoType := c.Query("type")
+
+	var repos []*domain.Repo
+	var err error
+
+	if repoType == "contributed" {
+		repos, err = h.repoUseCase.GetContributedRepositories(requesterID)
+	} else {
+		repos, err = h.repoUseCase.GetAllRepositories(requesterID)
+	}
+
 	if err != nil {
 		respondUseCaseError(c, err)
 		return

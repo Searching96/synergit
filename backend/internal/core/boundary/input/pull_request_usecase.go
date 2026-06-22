@@ -35,4 +35,5 @@ type PullRequestUseCase interface {
 	LinkIssueToPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error
 	UnlinkIssueFromPR(repoID uuid.UUID, prID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) error
 	ListLinkedIssuesForPR(repoID uuid.UUID, prID uuid.UUID, requesterID uuid.UUID) ([]domain.Issue, error)
+	ListLinkedPRsForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]domain.PullRequest, error)
 }

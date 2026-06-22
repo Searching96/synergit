@@ -307,3 +307,66 @@ func (h *IssueHandler) HandleCreateIssueComment(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, comment)
 }
+
+func (h *IssueHandler) HandleLinkBranch(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok { return }
+	issueID, ok := parseIssueID(c)
+	if !ok { return }
+	requesterID, ok := parseRequesterID(c)
+	if !ok { return }
+
+	var req dto.LinkBranchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if err := h.issueUseCase.LinkBranchToIssue(repoID, issueID, req.BranchName, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "branch linked successfully"})
+}
+
+func (h *IssueHandler) HandleUnlinkBranch(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok { return }
+	issueID, ok := parseIssueID(c)
+	if !ok { return }
+	requesterID, ok := parseRequesterID(c)
+	if !ok { return }
+
+	branchName := c.Param("branch_name")
+	if branchName == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "missing branch_name"})
+		return
+	}
+
+	if err := h.issueUseCase.UnlinkBranchFromIssue(repoID, issueID, branchName, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "branch unlinked successfully"})
+}
+
+func (h *IssueHandler) HandleListLinkedBranches(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok { return }
+	issueID, ok := parseIssueID(c)
+	if !ok { return }
+	requesterID, ok := parseRequesterID(c)
+	if !ok { return }
+
+	branches, err := h.issueUseCase.ListLinkedBranchesForIssue(repoID, issueID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	if branches == nil {
+		branches = []string{}
+	}
+
+	c.JSON(http.StatusOK, branches)
+}

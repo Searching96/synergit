@@ -100,6 +100,13 @@ CREATE INDEX IF NOT EXISTS idx_issues_repo_created_at
 CREATE INDEX IF NOT EXISTS idx_issues_repo_status
     ON issues (repo_id, status);
 
+CREATE TABLE IF NOT EXISTS issue_linked_branches (
+    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    branch_name VARCHAR(255) NOT NULL,
+    linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (issue_id, branch_name)
+);
+
 CREATE TABLE IF NOT EXISTS issue_assignees (
     issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -11,7 +11,11 @@ type UpdateIssueStatusRequest struct {
 }
 
 type AssignIssueRequest struct {
-	UserID string `json:"user_id"`
+	UserID string `json:"user_id" binding:"required"`
+}
+
+type LinkBranchRequest struct {
+	BranchName string `json:"branch_name" binding:"required"`
 }
 
 type CreateIssueCommentRequest struct {

@@ -45,13 +45,13 @@ export function useLatestCommitMap(
     let active = true;
     setIsLoading(true);
 
-    missingPaths.forEach(p => fetchedPathsRef.current.add(p));
-
     reposApi.getCommitsBatch(repoId, branch, missingPaths)
       .then((batchResult) => {
         if (!active) {
           return;
         }
+
+        missingPaths.forEach((p) => fetchedPathsRef.current.add(p));
 
         setCommitMap((prev) => {
           const next = { ...prev };

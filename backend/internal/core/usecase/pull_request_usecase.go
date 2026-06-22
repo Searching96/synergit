@@ -670,3 +670,21 @@ func (s *PullRequestService) ListLinkedIssuesForPR(repoID uuid.UUID, prID uuid.U
 
 	return s.prStore.ListLinkedIssues(prID)
 }
+
+func (s *PullRequestService) ListLinkedPRsForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]domain.PullRequest, error) {
+	issue, err := s.issueStore.GetByID(issueID)
+	if err != nil || issue == nil {
+		return nil, errors.New("issue not found")
+	}
+
+	if issue.RepoID != repoID {
+		return nil, errors.New("issue not found in repository")
+	}
+
+	role, err := s.collabStore.GetRole(repoID, requesterID)
+	if err != nil || !role.IsValid() {
+		return nil, errors.New("unauthorized: you do not have access to this repo")
+	}
+
+	return s.prStore.ListLinkedPRsForIssue(issueID)
+}

@@ -242,7 +242,7 @@ export default function RepoWorkspaceContent({
                 }}
               />
             )}
-            {activeTab === "files" && (routeContentKind === "tree" || routeContentKind === "blob") && (
+            {activeTab === "files" && ((routeContentKind === "tree" && routeContentPath !== "") || routeContentKind === "blob") && (
               <RepoFileTreeBrowserPage
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}
@@ -260,7 +260,7 @@ export default function RepoWorkspaceContent({
                 currentUsername={currentUsername}
               />
             )}
-            {activeTab === "files" && routeContentKind === "root" && (
+            {activeTab === "files" && (routeContentKind === "root" || (routeContentKind === "tree" && routeContentPath === "")) && (
               <RepoRootPage
                 repoId={selectedRepo.id}
                 repoName={selectedRepo.name}

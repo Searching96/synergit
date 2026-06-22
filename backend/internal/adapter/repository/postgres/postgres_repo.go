@@ -155,6 +155,65 @@ func (p *PostgresRepoStore) FindVisibleToUser(userID uuid.UUID) ([]*domain.Repo,
 	return repos, nil
 }
 
+func (p *PostgresRepoStore) FindContributedByUser(userID uuid.UUID) ([]*domain.Repo, error) {
+	query := `
+		SELECT DISTINCT r.id, r.name, r.path, r.created_at, r.description, r.website, r.topics, r.visibility, r.primary_language, r.parent_id,
+		       COALESCE(owner_user.username, ''),
+		       (SELECT COUNT(*) FROM issues i WHERE i.repo_id = r.id AND i.status = 'OPEN') AS open_issues,
+		       (SELECT COUNT(*) FROM pull_requests pr WHERE pr.repo_id = r.id AND pr.status = 'OPEN') AS open_pulls,
+		       (SELECT COUNT(*) FROM repo_stars rs WHERE rs.repo_id = r.id) AS stars_count,
+		       (SELECT COUNT(*) FROM repositories forks WHERE forks.parent_id = r.id) AS forks_count,
+		       (SELECT COUNT(*) FROM repo_watchers rw WHERE rw.repo_id = r.id) AS watchers_count
+		FROM repositories r
+		LEFT JOIN repository_collaborators rc
+			ON rc.repository_id = r.id AND rc.user_id = $1
+		LEFT JOIN repository_collaborators owner_rc
+			ON owner_rc.repository_id = r.id AND owner_rc.role = 'OWNER'
+		LEFT JOIN users owner_user ON owner_user.id = owner_rc.user_id
+		WHERE rc.user_id IS NOT NULL
+		ORDER BY r.created_at`
+
+	rows, err := p.db.Query(query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	repos := []*domain.Repo{}
+	for rows.Next() {
+		repo := &domain.Repo{}
+		var description, website, visibility, primaryLanguage, owner, parentID sql.NullString
+		var topicsJSON []byte
+		if err := rows.Scan(&repo.ID, &repo.Name, &repo.Path, &repo.CreatedAt,
+			&description, &website, &topicsJSON, &visibility, &primaryLanguage, &parentID, &owner,
+			&repo.OpenIssuesCount, &repo.OpenPullsCount, &repo.StarsCount, &repo.ForksCount, &repo.WatchersCount); err != nil {
+			return nil, err
+		}
+		repo.Description = strings.TrimSpace(description.String)
+		repo.Website = strings.TrimSpace(website.String)
+		if len(topicsJSON) > 0 {
+			_ = json.Unmarshal(topicsJSON, &repo.Topics)
+		}
+		repo.Visibility = domain.RepoVisibility(strings.TrimSpace(visibility.String))
+		if repo.Visibility == "" {
+			repo.Visibility = domain.RepoVisibilityPublic
+		}
+		repo.PrimaryLanguage = strings.TrimSpace(primaryLanguage.String)
+		if parentID.Valid {
+			parentIDStr := parentID.String
+			repo.ParentID = &parentIDStr
+		}
+		repo.Owner = strings.TrimSpace(owner.String)
+		repos = append(repos, repo)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return repos, nil
+}
+
 func (p *PostgresRepoStore) CountOwnedByUser(userID uuid.UUID) (int, error) {
 	var count int
 	err := p.db.QueryRow(`

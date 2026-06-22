@@ -28,7 +28,10 @@ export interface ForkRepositoryPayload {
 }
 
 export const reposApi = {
-  getRepos: () => fetcher<Repository[]>('/repos'),
+  getRepos: (type?: string) => {
+    const url = type ? `/repos?type=${encodeURIComponent(type)}` : '/repos';
+    return fetcher<Repository[]>(url);
+  },
 
   getRepoById: (repoId: string) => fetcher<Repository>(`/repos/${repoId}`),
 

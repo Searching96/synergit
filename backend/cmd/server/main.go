@@ -228,6 +228,10 @@ func main() {
 			repos.POST("/:repo_id/issues/:issue_id/comments", issueHandler.HandleCreateIssueComment)
 			repos.POST("/:repo_id/issues/:issue_id/assignees", issueHandler.HandleAssignIssue)
 			repos.DELETE("/:repo_id/issues/:issue_id/assignees/:user_id", issueHandler.HandleUnassignIssue)
+			repos.GET("/:repo_id/issues/:issue_id/pulls", prHandler.HandleListLinkedPRsForIssue)
+			repos.GET("/:repo_id/issues/:issue_id/branches", issueHandler.HandleListLinkedBranches)
+			repos.POST("/:repo_id/issues/:issue_id/branches", issueHandler.HandleLinkBranch)
+			repos.DELETE("/:repo_id/issues/:issue_id/branches/:branch_name", issueHandler.HandleUnlinkBranch)
 
 			// Label routes
 			repos.GET("/:repo_id/labels", labelHandler.HandleListLabels)
