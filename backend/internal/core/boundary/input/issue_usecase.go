@@ -30,4 +30,7 @@ type IssueUseCase interface {
 	LinkBranchToIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
 	UnlinkBranchFromIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
 	ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]string, error)
+	ListIssueRelationships(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) (*domain.IssueRelationships, error)
+	LinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error
+	UnlinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error
 }

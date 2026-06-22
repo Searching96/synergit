@@ -19,7 +19,7 @@ export function RepoAboutModal({ repo, onClose, onSave }: RepoAboutModalProps) {
 
   const handleSave = () => {
     // Add any pending topic before saving
-    let finalTopics = [...topics];
+    const finalTopics = [...topics];
     const pendingTopic = topicInput.trim();
     if (pendingTopic && !finalTopics.includes(pendingTopic)) {
       finalTopics.push(pendingTopic);

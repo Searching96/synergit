@@ -135,6 +135,16 @@ func (s *IssueService) TransitionIssueStatus(repoID uuid.UUID, issueID uuid.UUID
 		return err
 	}
 
+	if parsedStatus == domain.IssueStatusClosed && parsedCloseReason == domain.IssueCloseReasonCompleted {
+		openBlockers, err := s.issueStore.CountOpenBlockers(issue.ID)
+		if err != nil {
+			return err
+		}
+		if openBlockers > 0 {
+			return errors.New("cannot close issue as completed while it is blocked by open issues")
+		}
+	}
+
 	if err := s.issueStore.UpdateStatus(issue.ID, parsedStatus, parsedCloseReason); err != nil {
 		return err
 	}
@@ -349,6 +359,134 @@ func (s *IssueService) ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid
 	}
 
 	return s.issueStore.ListLinkedBranches(issueID)
+}
+
+func (s *IssueService) ListIssueRelationships(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) (*domain.IssueRelationships, error) {
+	issue, err := s.getIssueForRepo(repoID, issueID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.requireRepoAccess(issue.RepoID, requesterID); err != nil {
+		return nil, err
+	}
+
+	blockedBy, err := s.issueStore.ListBlockedBy(issue.ID)
+	if err != nil {
+		return nil, err
+	}
+	blocking, err := s.issueStore.ListBlocking(issue.ID)
+	if err != nil {
+		return nil, err
+	}
+	if blockedBy == nil {
+		blockedBy = []domain.Issue{}
+	}
+	if blocking == nil {
+		blocking = []domain.Issue{}
+	}
+
+	return &domain.IssueRelationships{
+		BlockedBy: blockedBy,
+		Blocking:  blocking,
+	}, nil
+}
+
+func (s *IssueService) LinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error {
+	issue, targetIssue, parsedType, requesterRole, err := s.resolveRelationshipRequest(repoID, issueID, targetIssueID, relationshipType, requesterID)
+	if err != nil {
+		return err
+	}
+	if !requesterRole.CanWrite() {
+		return errors.New("unauthorized: you do not have permission to update issue relationships")
+	}
+
+	blockingIssueID, blockedIssueID := issueRelationshipDirection(issue.ID, targetIssue.ID, parsedType)
+	edges, err := s.issueStore.ListRelationshipEdgesByRepo(repoID)
+	if err != nil {
+		return err
+	}
+	for _, edge := range edges {
+		if edge.BlockingIssueID == blockingIssueID && edge.BlockedIssueID == blockedIssueID {
+			return errors.New("issue relationship already exists")
+		}
+	}
+	if relationshipCreatesCycle(edges, blockingIssueID, blockedIssueID) {
+		return errors.New("cannot create circular issue relationship")
+	}
+
+	return s.issueStore.LinkRelationship(blockingIssueID, blockedIssueID)
+}
+
+func (s *IssueService) UnlinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error {
+	issue, targetIssue, parsedType, requesterRole, err := s.resolveRelationshipRequest(repoID, issueID, targetIssueID, relationshipType, requesterID)
+	if err != nil {
+		return err
+	}
+	if !requesterRole.CanWrite() {
+		return errors.New("unauthorized: you do not have permission to update issue relationships")
+	}
+
+	blockingIssueID, blockedIssueID := issueRelationshipDirection(issue.ID, targetIssue.ID, parsedType)
+	return s.issueStore.UnlinkRelationship(blockingIssueID, blockedIssueID)
+}
+
+func (s *IssueService) resolveRelationshipRequest(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) (*domain.Issue, *domain.Issue, domain.IssueRelationshipType, domain.CollaboratorRole, error) {
+	parsedType, err := domain.ParseIssueRelationshipType(relationshipType)
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+	if issueID == targetIssueID {
+		return nil, nil, "", "", errors.New("cannot relate an issue to itself")
+	}
+
+	issue, err := s.getIssueForRepo(repoID, issueID)
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+	targetIssue, err := s.getIssueForRepo(repoID, targetIssueID)
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+	requesterRole, err := s.requireRepoAccess(issue.RepoID, requesterID)
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+
+	return issue, targetIssue, parsedType, requesterRole, nil
+}
+
+func issueRelationshipDirection(issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType domain.IssueRelationshipType) (uuid.UUID, uuid.UUID) {
+	if relationshipType == domain.IssueRelationshipBlockedBy {
+		return targetIssueID, issueID
+	}
+	return issueID, targetIssueID
+}
+
+func relationshipCreatesCycle(edges []domain.IssueRelationshipEdge, blockingIssueID uuid.UUID, blockedIssueID uuid.UUID) bool {
+	adjacency := map[uuid.UUID][]uuid.UUID{}
+	for _, edge := range edges {
+		adjacency[edge.BlockingIssueID] = append(adjacency[edge.BlockingIssueID], edge.BlockedIssueID)
+	}
+
+	seen := map[uuid.UUID]bool{}
+	var visit func(uuid.UUID) bool
+	visit = func(current uuid.UUID) bool {
+		if current == blockingIssueID {
+			return true
+		}
+		if seen[current] {
+			return false
+		}
+		seen[current] = true
+		for _, next := range adjacency[current] {
+			if visit(next) {
+				return true
+			}
+		}
+		return false
+	}
+
+	return visit(blockedIssueID)
 }
 
 func (s *IssueService) requireRepoAccess(repoID uuid.UUID,

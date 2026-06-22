@@ -232,6 +232,9 @@ func main() {
 			repos.GET("/:repo_id/issues/:issue_id/branches", issueHandler.HandleListLinkedBranches)
 			repos.POST("/:repo_id/issues/:issue_id/branches", issueHandler.HandleLinkBranch)
 			repos.DELETE("/:repo_id/issues/:issue_id/branches/:branch_name", issueHandler.HandleUnlinkBranch)
+			repos.GET("/:repo_id/issues/:issue_id/relationships", issueHandler.HandleListIssueRelationships)
+			repos.POST("/:repo_id/issues/:issue_id/relationships", issueHandler.HandleLinkIssueRelationship)
+			repos.DELETE("/:repo_id/issues/:issue_id/relationships", issueHandler.HandleUnlinkIssueRelationship)
 
 			// Label routes
 			repos.GET("/:repo_id/labels", labelHandler.HandleListLabels)

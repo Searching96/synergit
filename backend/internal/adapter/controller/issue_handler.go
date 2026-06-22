@@ -370,3 +370,94 @@ func (h *IssueHandler) HandleListLinkedBranches(c *gin.Context) {
 
 	c.JSON(http.StatusOK, branches)
 }
+
+func (h *IssueHandler) HandleListIssueRelationships(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	relationships, err := h.issueUseCase.ListIssueRelationships(repoID, issueID, requesterID)
+	if err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, relationships)
+}
+
+func (h *IssueHandler) HandleLinkIssueRelationship(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.IssueRelationshipRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	targetIssueID, err := uuid.Parse(req.TargetIssueID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid target_issue_id format"})
+		return
+	}
+
+	if err := h.issueUseCase.LinkIssueRelationship(repoID, issueID, targetIssueID, req.RelationshipType, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "issue relationship linked successfully"})
+}
+
+func (h *IssueHandler) HandleUnlinkIssueRelationship(c *gin.Context) {
+	repoID, ok := parseRepoID(c)
+	if !ok {
+		return
+	}
+	issueID, ok := parseIssueID(c)
+	if !ok {
+		return
+	}
+	requesterID, ok := parseRequesterID(c)
+	if !ok {
+		return
+	}
+
+	var req dto.IssueRelationshipRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	targetIssueID, err := uuid.Parse(req.TargetIssueID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "invalid target_issue_id format"})
+		return
+	}
+
+	if err := h.issueUseCase.UnlinkIssueRelationship(repoID, issueID, targetIssueID, req.RelationshipType, requesterID); err != nil {
+		respondUseCaseError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.MessageResponse{Message: "issue relationship unlinked successfully"})
+}

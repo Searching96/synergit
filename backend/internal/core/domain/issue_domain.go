@@ -17,11 +17,17 @@ const (
 )
 
 type IssueCloseReason string
+type IssueRelationshipType string
 
 const (
 	IssueCloseReasonCompleted  IssueCloseReason = "COMPLETED"
 	IssueCloseReasonNotPlanned IssueCloseReason = "NOT_PLANNED"
 	IssueCloseReasonDuplicate  IssueCloseReason = "DUPLICATE"
+)
+
+const (
+	IssueRelationshipBlockedBy IssueRelationshipType = "blocked_by"
+	IssueRelationshipBlocking  IssueRelationshipType = "blocking"
 )
 
 func ParseIssueStatus(rawStatus string) (IssueStatus, error) {
@@ -64,6 +70,24 @@ func (r IssueCloseReason) IsValid() bool {
 	}
 }
 
+func ParseIssueRelationshipType(rawType string) (IssueRelationshipType, error) {
+	relationshipType := IssueRelationshipType(strings.ToLower(strings.TrimSpace(rawType)))
+	if !relationshipType.IsValid() {
+		return "", errors.New("invalid relationship type: must be blocked_by or blocking")
+	}
+
+	return relationshipType, nil
+}
+
+func (t IssueRelationshipType) IsValid() bool {
+	switch t {
+	case IssueRelationshipBlockedBy, IssueRelationshipBlocking:
+		return true
+	default:
+		return false
+	}
+}
+
 type Issue struct {
 	ID          uuid.UUID        `json:"id"`
 	RepoID      uuid.UUID        `json:"repo_id"`
@@ -75,6 +99,16 @@ type Issue struct {
 	CreatedAt   time.Time        `json:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at"`
 	Assignees   []IssueAssignee  `json:"assignees,omitempty"`
+}
+
+type IssueRelationships struct {
+	BlockedBy []Issue `json:"blocked_by"`
+	Blocking  []Issue `json:"blocking"`
+}
+
+type IssueRelationshipEdge struct {
+	BlockingIssueID uuid.UUID `json:"blocking_issue_id"`
+	BlockedIssueID  uuid.UUID `json:"blocked_issue_id"`
 }
 
 type IssueAssignee struct {

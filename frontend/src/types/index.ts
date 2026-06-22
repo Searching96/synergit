@@ -251,7 +251,7 @@ export interface PullRequestEvent {
 	actor_id: string;
 	actor: string;
 	event_type: string;
-	payload?: any;
+	payload?: unknown;
 	issue?: Issue;
 	created_at: string;
 }
@@ -290,6 +290,7 @@ export interface PullRequestCompareResult {
 
 export type IssueStatus = 'OPEN' | 'CLOSED';
 export type IssueCloseReason = 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE';
+export type IssueRelationshipType = 'blocked_by' | 'blocking';
 
 export interface IssueAssignee {
 	issue_id: string;
@@ -303,7 +304,7 @@ export interface IssueEvent {
   actor_id: string;
   actor: string;
   event_type: string;
-  payload?: any;
+  payload?: unknown;
   pull_request?: PullRequest;
   pull_request_number?: number;
   created_at: string;
@@ -329,6 +330,11 @@ export interface Issue {
 	created_at: string;
 	updated_at: string;
 	assignees?: IssueAssignee[];
+}
+
+export interface IssueRelationships {
+	blocked_by: Issue[];
+	blocking: Issue[];
 }
 
 export interface CreateBranchPayload {
@@ -360,6 +366,11 @@ export interface UpdateIssueStatusPayload {
 
 export interface AssignIssuePayload {
 	user_id: string;
+}
+
+export interface IssueRelationshipPayload {
+	target_issue_id: string;
+	relationship_type: IssueRelationshipType;
 }
 
 export interface Label {
@@ -420,7 +431,7 @@ export interface RepoEvent {
   repo_id: string;
   actor_id: string;
   event_type: EventType;
-  payload: any;
+  payload: unknown;
   created_at: string;
   actor: {
     username: string;

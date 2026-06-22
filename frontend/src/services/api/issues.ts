@@ -6,6 +6,8 @@ import type {
   IssueAssignee,
   IssueComment,
   IssueEvent,
+  IssueRelationshipPayload,
+  IssueRelationships,
   PullRequest,
   UpdateIssueStatusPayload,
 } from '../../types';
@@ -76,6 +78,23 @@ export const issuesApi = {
 
   listLinkedBranches: (repoId: string, issueId: string): Promise<string[]> =>
     fetcher<string[]>(`/repos/${repoId}/issues/${issueId}/branches`),
+
+  listRelationships: (repoId: string, issueId: string): Promise<IssueRelationships> =>
+    fetcher<IssueRelationships>(`/repos/${repoId}/issues/${issueId}/relationships`),
+
+  linkRelationship: (repoId: string, issueId: string, payload: IssueRelationshipPayload): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/relationships`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
+
+  unlinkRelationship: (repoId: string, issueId: string, payload: IssueRelationshipPayload): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/relationships`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }),
 
   linkBranch: (repoId: string, issueId: string, branchName: string): Promise<{ message: string }> =>
     fetcher<{ message: string }>(`/repos/${repoId}/issues/${issueId}/branches`, {

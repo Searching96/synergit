@@ -273,6 +273,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       setLabelsByIssueId(Object.fromEntries(labelEntries));
       return data;
     } catch (err: unknown) {
+      console.error(err);
     } finally {
       if (!silent) {
         setListLoading(false);
@@ -483,6 +484,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
         }
       }
     } catch (err: unknown) {
+      console.error(err);
     } finally {
       setCreatingIssue(false);
     }
@@ -599,6 +601,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       setSelectedIssueIds(new Set());
       await loadIssues(true);
     } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -620,6 +623,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
       await loadIssues(true);
     } catch (err: unknown) {
+      console.error(err);
     }
   };
 
@@ -641,6 +645,7 @@ export default function IssueBoard({ repoId, repoName, repoOwner, currentUsernam
       await Promise.all(tasks.filter((t): t is Promise<{ message: string }> => t !== null));
       await loadIssues(true);
     } catch (err: unknown) {
+      console.error(err);
     }
   };
 

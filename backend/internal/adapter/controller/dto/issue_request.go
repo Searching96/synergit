@@ -18,6 +18,11 @@ type LinkBranchRequest struct {
 	BranchName string `json:"branch_name" binding:"required"`
 }
 
+type IssueRelationshipRequest struct {
+	TargetIssueID    string `json:"target_issue_id" binding:"required"`
+	RelationshipType string `json:"relationship_type" binding:"required"`
+}
+
 type CreateIssueCommentRequest struct {
 	Body string `json:"body"`
 }

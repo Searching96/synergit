@@ -16,7 +16,29 @@ type PostgresIssueStore struct {
 }
 
 func NewPostgresIssueStore(db *sql.DB) *PostgresIssueStore {
-	return &PostgresIssueStore{db: db}
+	store := &PostgresIssueStore{db: db}
+	store.ensureRelationshipSchema()
+	return store
+}
+
+func (p *PostgresIssueStore) ensureRelationshipSchema() {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS issue_relationships (
+			blocking_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+			blocked_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+			linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (blocking_issue_id, blocked_issue_id),
+			CHECK (blocking_issue_id <> blocked_issue_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocked
+			ON issue_relationships (blocked_issue_id, linked_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocking
+			ON issue_relationships (blocking_issue_id, linked_at)`,
+	}
+
+	for _, query := range queries {
+		_, _ = p.db.Exec(query)
+	}
 }
 
 func (p *PostgresIssueStore) Create(issue *domain.Issue) error {
@@ -354,4 +376,151 @@ func (p *PostgresIssueStore) ListLinkedBranches(issueID uuid.UUID) ([]string, er
 	}
 
 	return branches, nil
+}
+
+func (p *PostgresIssueStore) LinkRelationship(blockingIssueID uuid.UUID, blockedIssueID uuid.UUID) error {
+	query := `
+		INSERT INTO issue_relationships (blocking_issue_id, blocked_issue_id, linked_at)
+		VALUES ($1, $2, NOW())
+		ON CONFLICT (blocking_issue_id, blocked_issue_id) DO NOTHING`
+
+	result, err := p.db.Exec(query, blockingIssueID, blockedIssueID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return errors.New("issue relationship already exists")
+	}
+
+	return nil
+}
+
+func (p *PostgresIssueStore) UnlinkRelationship(blockingIssueID uuid.UUID, blockedIssueID uuid.UUID) error {
+	query := `
+		DELETE FROM issue_relationships
+		WHERE blocking_issue_id = $1 AND blocked_issue_id = $2`
+
+	result, err := p.db.Exec(query, blockingIssueID, blockedIssueID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return errors.New("issue relationship not found")
+	}
+
+	return nil
+}
+
+func (p *PostgresIssueStore) ListBlockedBy(issueID uuid.UUID) ([]domain.Issue, error) {
+	query := `
+		SELECT i.id, i.repo_id, i.creator_id, i.title, i.description, i.status, i.close_reason, i.created_at, i.updated_at
+		FROM issues i
+		JOIN issue_relationships ir ON ir.blocking_issue_id = i.id
+		WHERE ir.blocked_issue_id = $1
+		ORDER BY ir.linked_at ASC`
+
+	return p.listRelationshipIssues(query, issueID)
+}
+
+func (p *PostgresIssueStore) ListBlocking(issueID uuid.UUID) ([]domain.Issue, error) {
+	query := `
+		SELECT i.id, i.repo_id, i.creator_id, i.title, i.description, i.status, i.close_reason, i.created_at, i.updated_at
+		FROM issues i
+		JOIN issue_relationships ir ON ir.blocked_issue_id = i.id
+		WHERE ir.blocking_issue_id = $1
+		ORDER BY ir.linked_at ASC`
+
+	return p.listRelationshipIssues(query, issueID)
+}
+
+func (p *PostgresIssueStore) listRelationshipIssues(query string, issueID uuid.UUID) ([]domain.Issue, error) {
+	rows, err := p.db.Query(query, issueID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	issues := []domain.Issue{}
+	for rows.Next() {
+		var issue domain.Issue
+		var closeReason sql.NullString
+		if err := rows.Scan(
+			&issue.ID,
+			&issue.RepoID,
+			&issue.CreatorID,
+			&issue.Title,
+			&issue.Description,
+			&issue.Status,
+			&closeReason,
+			&issue.CreatedAt,
+			&issue.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if closeReason.Valid {
+			issue.CloseReason = domain.IssueCloseReason(closeReason.String)
+		}
+		issues = append(issues, issue)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return issues, nil
+}
+
+func (p *PostgresIssueStore) ListRelationshipEdgesByRepo(repoID uuid.UUID) ([]domain.IssueRelationshipEdge, error) {
+	query := `
+		SELECT ir.blocking_issue_id, ir.blocked_issue_id
+		FROM issue_relationships ir
+		JOIN issues blocking ON blocking.id = ir.blocking_issue_id
+		JOIN issues blocked ON blocked.id = ir.blocked_issue_id
+		WHERE blocking.repo_id = $1 AND blocked.repo_id = $1`
+
+	rows, err := p.db.Query(query, repoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	edges := []domain.IssueRelationshipEdge{}
+	for rows.Next() {
+		var edge domain.IssueRelationshipEdge
+		if err := rows.Scan(&edge.BlockingIssueID, &edge.BlockedIssueID); err != nil {
+			return nil, err
+		}
+		edges = append(edges, edge)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return edges, nil
+}
+
+func (p *PostgresIssueStore) CountOpenBlockers(issueID uuid.UUID) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM issue_relationships ir
+		JOIN issues blocker ON blocker.id = ir.blocking_issue_id
+		WHERE ir.blocked_issue_id = $1 AND blocker.status = $2`
+
+	var count int
+	if err := p.db.QueryRow(query, issueID, domain.IssueStatusOpen).Scan(&count); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

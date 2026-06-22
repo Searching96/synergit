@@ -22,6 +22,12 @@ type IssueRepository interface {
 	LinkBranch(issueID uuid.UUID, branchName string) error
 	UnlinkBranch(issueID uuid.UUID, branchName string) error
 	ListLinkedBranches(issueID uuid.UUID) ([]string, error)
+	LinkRelationship(blockingIssueID uuid.UUID, blockedIssueID uuid.UUID) error
+	UnlinkRelationship(blockingIssueID uuid.UUID, blockedIssueID uuid.UUID) error
+	ListBlockedBy(issueID uuid.UUID) ([]domain.Issue, error)
+	ListBlocking(issueID uuid.UUID) ([]domain.Issue, error)
+	ListRelationshipEdgesByRepo(repoID uuid.UUID) ([]domain.IssueRelationshipEdge, error)
+	CountOpenBlockers(issueID uuid.UUID) (int, error)
 }
 
 type IssueUseCase interface {
@@ -47,4 +53,7 @@ type IssueUseCase interface {
 	LinkBranchToIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
 	UnlinkBranchFromIssue(repoID uuid.UUID, issueID uuid.UUID, branchName string, requesterID uuid.UUID) error
 	ListLinkedBranchesForIssue(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) ([]string, error)
+	ListIssueRelationships(repoID uuid.UUID, issueID uuid.UUID, requesterID uuid.UUID) (*domain.IssueRelationships, error)
+	LinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error
+	UnlinkIssueRelationship(repoID uuid.UUID, issueID uuid.UUID, targetIssueID uuid.UUID, relationshipType string, requesterID uuid.UUID) error
 }

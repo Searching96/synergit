@@ -4,8 +4,9 @@ import { ArrowLeft, Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Cod
 import { CopyIcon, CheckIcon, GitPullRequestIcon, GitMergeIcon, GitPullRequestClosedIcon } from "@primer/octicons-react";
 import { OcticonCrossReference } from "../../icons/Octicons";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
-import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, Label, RepoCollaborator } from "../../../types";
+import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, IssueRelationships, Label, RepoCollaborator, IssueRelationshipType } from "../../../types";
 import { Tooltip } from "../../../components/shared/Tooltip";
+import { Toast } from "../../../components/shared/Toast";
 import IssueDevelopmentSidebarItem from "./IssueDevelopmentSidebarItem";
 import { buildRepoPullViewPath } from "../../../utils/repoRouting";
 interface IssueDetailPageProps {
@@ -111,13 +112,11 @@ export default function IssueDetailPage({
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [repoLabels, setRepoLabels] = useState<Label[]>([]);
   const [relationshipIssues, setRelationshipIssues] = useState<Issue[]>([]);
+  const [relationships, setRelationships] = useState<IssueRelationships>({ blocked_by: [], blocking: [] });
   const [openMenu, setOpenMenu] = useState<"assignees" | "labels" | "relationships" | null>(null);
   const [relationshipPickerMode, setRelationshipPickerMode] = useState<"blocked-by" | "blocking" | null>(null);
   const [relationshipFilter, setRelationshipFilter] = useState<string>("");
-  const [selectedRelationshipIssueIds, setSelectedRelationshipIssueIds] = useState<{
-    blockedBy: Set<string>;
-    blocking: Set<string>;
-  }>({ blockedBy: new Set(), blocking: new Set() });
+  const [updatingRelationshipIssueId, setUpdatingRelationshipIssueId] = useState<string | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -168,16 +167,18 @@ export default function IssueDetailPage({
 
   const loadDetails = useCallback(
     async (resolved: Issue) => {
-      const [ev, lb, asg, cm] = await Promise.all([
+      const [ev, lb, asg, cm, rel] = await Promise.all([
         issuesApi.listEvents(repoId, resolved.id).catch(() => []),
         labelsApi.listForIssue(repoId, resolved.id).catch(() => []),
         issuesApi.listAssignees(repoId, resolved.id).catch(() => []),
         issuesApi.listComments(repoId, resolved.id).catch(() => []),
+        issuesApi.listRelationships(repoId, resolved.id).catch(() => ({ blocked_by: [], blocking: [] })),
       ]);
       setEvents(ev || []);
       setLabels(lb || []);
       setAssignees(asg || []);
       setComments(cm || []);
+      setRelationships(rel || { blocked_by: [], blocking: [] });
     },
     [repoId],
   );
@@ -220,6 +221,12 @@ export default function IssueDetailPage({
 
   const applyStatus = async (status: "OPEN" | "CLOSED", reason?: IssueCloseReason) => {
     if (!issue) return;
+    const nextCloseReason = reason ?? "COMPLETED";
+    if (status === "CLOSED" && nextCloseReason === "COMPLETED" && relationships.blocked_by.some((item) => item.status === "OPEN")) {
+      setError("Cannot close issue as completed while it is blocked by open issues");
+      setCloseMenuOpen(false);
+      return;
+    }
     try {
       setUpdating(true);
       setError(null);
@@ -321,31 +328,32 @@ export default function IssueDetailPage({
     setRelationshipFilter("");
   };
 
-  const toggleRelationshipIssue = (targetIssueId: string) => {
-    if (!relationshipPickerMode) return;
-    const key = relationshipPickerMode === "blocked-by" ? "blockedBy" : "blocking";
-    setSelectedRelationshipIssueIds((prev) => {
-      const nextSet = new Set(prev[key]);
-      if (nextSet.has(targetIssueId)) {
-        nextSet.delete(targetIssueId);
+  const toggleRelationshipIssue = async (targetIssueId: string, isSelected: boolean) => {
+    if (!issue || !relationshipPickerMode) return;
+    const relationshipType: IssueRelationshipType = relationshipPickerMode === "blocked-by" ? "blocked_by" : "blocking";
+    try {
+      setUpdatingRelationshipIssueId(targetIssueId);
+      setError(null);
+      const payload = { target_issue_id: targetIssueId, relationship_type: relationshipType };
+      if (isSelected) {
+        await issuesApi.unlinkRelationship(repoId, issue.id, payload);
       } else {
-        nextSet.add(targetIssueId);
+        await issuesApi.linkRelationship(repoId, issue.id, payload);
       }
-      return { ...prev, [key]: nextSet };
-    });
+      await loadDetails(issue);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update issue relationship");
+    } finally {
+      setUpdatingRelationshipIssueId(null);
+    }
   };
 
-  const selectedBlockedByIssues = useMemo(
-    () => relationshipIssues.filter((item) => selectedRelationshipIssueIds.blockedBy.has(item.id)),
-    [relationshipIssues, selectedRelationshipIssueIds.blockedBy],
-  );
-  const selectedBlockingIssues = useMemo(
-    () => relationshipIssues.filter((item) => selectedRelationshipIssueIds.blocking.has(item.id)),
-    [relationshipIssues, selectedRelationshipIssueIds.blocking],
-  );
+  const selectedBlockedByIssues = relationships.blocked_by || [];
+  const selectedBlockingIssues = relationships.blocking || [];
   const blockedByOpenCount = selectedBlockedByIssues.filter((item) => item.status === "OPEN").length;
   const blockingOpenCount = selectedBlockingIssues.filter((item) => item.status === "OPEN").length;
   const hasRelationships = selectedBlockedByIssues.length > 0 || selectedBlockingIssues.length > 0;
+  const hasOpenBlockers = blockedByOpenCount > 0;
 
   const renderRelationshipIssue = (relationshipIssue: Issue) => {
     const relationshipIssueNumber = issueNumberMap.get(relationshipIssue.id) || 0;
@@ -650,8 +658,9 @@ export default function IssueDetailPage({
                   <div className="relative inline-flex">
                     <button
                       type="button"
-                      disabled={updating}
+                      disabled={updating || hasOpenBlockers}
                       onClick={() => void applyStatus("CLOSED", "COMPLETED")}
+                      title={hasOpenBlockers ? "Resolve open blockers before closing as completed" : undefined}
                       className="h-8 pl-3 pr-2 rounded-l-md border border-[var(--border-default)] bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
                       <CheckCircle2 size={15} className="text-[var(--text-accent-purple)]" />
@@ -677,8 +686,10 @@ export default function IssueDetailPage({
                             <button
                               key={opt.reason}
                               type="button"
+                              disabled={opt.reason === "COMPLETED" && hasOpenBlockers}
                               onClick={() => void applyStatus("CLOSED", opt.reason)}
-                              className="w-full px-3 py-2 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)]"
+                              title={opt.reason === "COMPLETED" && hasOpenBlockers ? "Resolve open blockers before closing as completed" : undefined}
+                              className="w-full px-3 py-2 text-left rounded-md inline-flex items-start gap-2 hover:bg-[var(--surface-hover)] disabled:opacity-50"
                             >
                               <span className="mt-0.5">{opt.icon}</span>
                               <span className="min-w-0">
@@ -1000,19 +1011,21 @@ export default function IssueDetailPage({
                       ) : (
                         visibleRelationshipIssues.map((relationshipIssue) => {
                           const relationshipIssueNumber = issueNumberMap.get(relationshipIssue.id) || 0;
-                          const selectedRelationshipSet =
-                            relationshipPickerMode === "blocked-by" ? selectedRelationshipIssueIds.blockedBy : selectedRelationshipIssueIds.blocking;
-                          const isSelected = selectedRelationshipSet.has(relationshipIssue.id);
+                          const selectedRelationshipIssues =
+                            relationshipPickerMode === "blocked-by" ? selectedBlockedByIssues : selectedBlockingIssues;
+                          const isSelected = selectedRelationshipIssues.some((selectedIssue) => selectedIssue.id === relationshipIssue.id);
                           const isClosed = relationshipIssue.status === "CLOSED";
                           const isCompleted = isClosed && relationshipIssue.close_reason !== "NOT_PLANNED" && relationshipIssue.close_reason !== "DUPLICATE";
+                          const isUpdatingRelationship = updatingRelationshipIssueId === relationshipIssue.id;
                           return (
                             <li key={relationshipIssue.id} className="px-2">
                               <button
                                 type="button"
-                                onClick={() => toggleRelationshipIssue(relationshipIssue.id)}
+                                disabled={isUpdatingRelationship}
+                                onClick={() => void toggleRelationshipIssue(relationshipIssue.id, isSelected)}
                                 className={`relative grid min-h-9 w-full grid-cols-[24px_22px_minmax(0,1fr)_auto] items-center gap-1 rounded-md px-2 text-left hover:bg-[var(--surface-hover)] ${
                                   isSelected ? "bg-[var(--surface-hover)] before:absolute before:left-[-8px] before:top-0 before:h-full before:w-[3px] before:rounded-r before:bg-[var(--text-link)]" : ""
-                                }`}
+                                } disabled:opacity-60`}
                               >
                                 <input type="checkbox" readOnly checked={isSelected} className="h-4 w-4 rounded border-[var(--border-default)]" />
                                 <span className="inline-flex items-center justify-center">
@@ -1075,6 +1088,7 @@ export default function IssueDetailPage({
           ))}
         </aside>
       </div>
+      {error && <Toast message={error} onClose={() => setError(null)} />}
     </div>
   );
 }
