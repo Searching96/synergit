@@ -8,8 +8,25 @@ import { pullsApi } from "../../../services/api/pull";
 import { issuesApi } from "../../../services/api/issues";
 import { reposApi } from "../../../services/api/repos";
 import type { PullRequest, Branch } from "../../../types";
+import { buildRepoPullViewPath } from "../../../utils/repoRouting";
 
-export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumber, issueTitle, onUpdate }: { repoId: string; issueId: string; issueNumber: string; issueTitle: string; onUpdate?: () => void }) {
+export default function IssueDevelopmentSidebarItem({
+  repoId,
+  repoOwner,
+  repoName,
+  issueId,
+  issueNumber,
+  issueTitle,
+  onUpdate,
+}: {
+  repoId: string;
+  repoOwner: string;
+  repoName: string;
+  issueId: string;
+  issueNumber: string;
+  issueTitle: string;
+  onUpdate?: () => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -35,20 +52,19 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
   useEffect(() => {
     issuesApi.listLinkedPullRequests(repoId, issueId).then(res => setLinkedPulls(res || [])).catch(console.error);
     issuesApi.listLinkedBranches(repoId, issueId).then(res => setLinkedBranchNames(res || [])).catch(console.error);
+    pullsApi.list(repoId)
+      .then(res => setAllPulls((res || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))))
+      .catch(console.error);
   }, [repoId, issueId]);
 
   useEffect(() => {
-    if (isOpen && allPulls.length === 0 && allBranches.length === 0) {
+    if (isOpen && allBranches.length === 0) {
       setLoading(true);
-      Promise.all([
-        pullsApi.list(repoId),
-        reposApi.getBranches(repoId)
-      ]).then(([pullsRes, branchesRes]) => {
-        setAllPulls((pullsRes || []).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)));
+      reposApi.getBranches(repoId).then((branchesRes) => {
         setAllBranches((branchesRes || []).filter(b => !b.is_default));
       }).finally(() => setLoading(false));
     }
-  }, [isOpen, repoId, allPulls.length, allBranches.length]);
+  }, [isOpen, repoId, allBranches.length]);
 
   type SuggestionItem = { type: 'pr'; id: string; title: string; pr: PullRequest } | { type: 'branch'; id: string; title: string; branch: Branch };
 
@@ -69,6 +85,14 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
   const unselectedItems = useMemo(() => {
     return suggestionItems.filter(item => !(item.type === 'pr' ? linkedPulls.some(p => p.id === item.id) : linkedBranchNames.includes(item.id)));
   }, [suggestionItems, linkedPulls, linkedBranchNames]);
+
+  const pullNumberMap = useMemo(() => {
+    const mapping = new Map<string, number>();
+    [...allPulls]
+      .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+      .forEach((pull, index) => mapping.set(pull.id, index + 1));
+    return mapping;
+  }, [allPulls]);
 
   const handleTogglePR = async (pr: PullRequest) => {
     if (linking) return;
@@ -173,7 +197,7 @@ export default function IssueDevelopmentSidebarItem({ repoId, issueId, issueNumb
                 {pr.status === "OPEN" ? <GitPullRequestIcon size={16} /> : pr.status === "MERGED" ? <GitMergeIcon size={16} /> : <GitPullRequestClosedIcon size={16} />}
               </span>
               <div className="min-w-0 flex-1 leading-tight">
-                <a href={`/${window.location.pathname.split('/')[1]}/${window.location.pathname.split('/')[2]}/pulls/${pr.id}`} className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline cursor-pointer block truncate">{pr.title}</a>
+                <a href={pullNumberMap.has(pr.id) ? buildRepoPullViewPath(repoOwner, repoName, pullNumberMap.get(pr.id) || "") : "#"} className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline cursor-pointer block truncate">{pr.title}</a>
                 <span className="text-xs text-[var(--text-secondary)] block truncate mt-0.5">{window.location.pathname.split('/')[2]}/{window.location.pathname.split('/')[3]}</span>
               </div>
             </div>

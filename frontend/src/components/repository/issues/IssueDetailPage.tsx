@@ -7,8 +7,11 @@ import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
 import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, Label, RepoCollaborator } from "../../../types";
 import { Tooltip } from "../../../components/shared/Tooltip";
 import IssueDevelopmentSidebarItem from "./IssueDevelopmentSidebarItem";
+import { buildRepoPullViewPath } from "../../../utils/repoRouting";
 interface IssueDetailPageProps {
   repoId: string;
+  repoOwner: string;
+  repoName: string;
   currentUsername: string;
   issueNumber: string;
   onBack: () => void;
@@ -93,6 +96,8 @@ function EventIcon({ type }: { type: string }) {
 
 export default function IssueDetailPage({
   repoId,
+  repoOwner,
+  repoName,
   currentUsername,
   issueNumber,
   onBack,
@@ -459,7 +464,7 @@ export default function IssueDetailPage({
                                     ) : (
                                       <GitPullRequestClosedIcon size={16} className="text-[var(--fgColor-closed,#cf222e)]" />
                                     )}
-                                    <a href={`/repository/${repoId}/pulls/${item.event.pull_request_number}`} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline">
+                                    <a href={buildRepoPullViewPath(repoOwner, repoName, item.event.pull_request_number || "")} className="font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline">
                                       {item.event.pull_request.title} #{item.event.pull_request_number}
                                     </a>
                                   </span>
@@ -850,7 +855,7 @@ export default function IssueDetailPage({
             ) : null}
           </div>
 
-          <IssueDevelopmentSidebarItem repoId={repoId} issueId={issue.id} issueNumber={issueNumber} issueTitle={issue.title} onUpdate={() => void loadDetails(issue)} />
+          <IssueDevelopmentSidebarItem repoId={repoId} repoOwner={repoOwner} repoName={repoName} issueId={issue.id} issueNumber={issueNumber} issueTitle={issue.title} onUpdate={() => void loadDetails(issue)} />
           {[
             { label: "Projects", value: "None yet" },
             { label: "Milestone", value: "No milestone" },

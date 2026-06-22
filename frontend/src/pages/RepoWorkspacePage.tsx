@@ -291,6 +291,8 @@ export default function RepoWorkspaceContent({
             {activeTab === "issues" && routeContentKind === "issue-view" && (
               <IssueDetailPage
                 repoId={selectedRepo.id}
+                repoOwner={selectedRepo.owner || currentUsername}
+                repoName={selectedRepo.name}
                 currentUsername={currentUsername}
                 issueNumber={routeContentPath}
                 onBack={onBackToIssues}
