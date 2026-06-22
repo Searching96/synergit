@@ -8,7 +8,7 @@ import type { Issue, IssueAssignee, IssueCloseReason, IssueComment, IssueEvent, 
 import { Tooltip } from "../../../components/shared/Tooltip";
 import { Toast } from "../../../components/shared/Toast";
 import IssueDevelopmentSidebarItem from "./IssueDevelopmentSidebarItem";
-import { buildRepoPullViewPath } from "../../../utils/repoRouting";
+import { buildRepoPullViewPath, buildRepoIssueViewPath } from "../../../utils/repoRouting";
 interface IssueDetailPageProps {
   repoId: string;
   repoOwner: string;
@@ -371,7 +371,9 @@ export default function IssueDetailPage({
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{relationshipIssue.title}</div>
+          <a href={buildRepoIssueViewPath(repoOwner, repoName, relationshipIssueNumber)} className="block truncate text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--text-link)] hover:underline">
+            {relationshipIssue.title}
+          </a>
           <div className="mt-1 truncate pl-0 text-xs text-[var(--text-secondary)]">
             {repoOwner}/{repoName}#{relationshipIssueNumber}
           </div>

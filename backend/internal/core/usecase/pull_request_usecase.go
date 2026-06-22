@@ -277,6 +277,38 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 		return errors.New("repository not found")
 	}
 
+	linkedIssues, err := s.prStore.ListLinkedIssues(prID)
+	if err == nil {
+		linkedIssueIDs := make(map[uuid.UUID]bool)
+		for _, issue := range linkedIssues {
+			linkedIssueIDs[issue.ID] = true
+		}
+
+		blockedCount := 0
+		for _, issue := range linkedIssues {
+			blockers, err := s.issueStore.ListBlockedBy(issue.ID)
+			if err == nil {
+				hasExternalBlocker := false
+				for _, blocker := range blockers {
+					if blocker.Status == domain.IssueStatusOpen {
+						if !linkedIssueIDs[blocker.ID] {
+							hasExternalBlocker = true
+							break
+						}
+					}
+				}
+				if hasExternalBlocker {
+					blockedCount++
+				}
+			}
+		}
+		if blockedCount == 1 {
+			return errors.New("the issue linked with this pull request is currently being blocked")
+		} else if blockedCount > 1 {
+			return errors.New("the issues linked with this pull request are currently being blocked")
+		}
+	}
+
 	merger, err := s.userStore.GetUserByID(mergerID)
 	if err != nil || merger == nil {
 		return errors.New("merger user not found")
@@ -323,7 +355,7 @@ func (s *PullRequestService) MergePullRequest(prID uuid.UUID, mergerID uuid.UUID
 		s.repoEventUseCase.LogEvent(pr.RepoID, mergerID, domain.EventTypePRMerge, fmt.Sprintf(`{"pr_id": "%s", "target_branch": "%s"}`, pr.ID, pr.TargetBranch))
 	}
 
-	linkedIssues, err := s.prStore.ListLinkedIssues(prID)
+	linkedIssues, err = s.prStore.ListLinkedIssues(prID)
 	if err == nil {
 		for _, issue := range linkedIssues {
 			if issue.Status != domain.IssueStatusClosed || issue.CloseReason != domain.IssueCloseReasonCompleted {

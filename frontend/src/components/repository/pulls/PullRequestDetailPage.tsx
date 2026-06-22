@@ -30,6 +30,7 @@ import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEv
 import { labelsApi } from "../../../services/api/labels";
 import MergeOperationPanel from "./MergeOperationPanel";
 import DevelopmentSidebarItem from "./DevelopmentSidebarItem";
+import { Toast } from "../../../components/shared/Toast";
 
 interface PullRequestDetailPageProps {
   repoId: string;
@@ -132,6 +133,7 @@ export default function PullRequestDetailPage({
   const [commentBody, setCommentBody] = useState<string>("");
   const [commentPreview, setCommentPreview] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [toastError, setToastError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [assignees, setAssignees] = useState<Array<{ user_id: string; assigned_at: string }>>([]);
@@ -288,7 +290,13 @@ export default function PullRequestDetailPage({
       setCommentBody("");
       await load(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : `Failed to ${action} pull request`);
+      const msg = err instanceof Error ? err.message : `Failed to ${action} pull request`;
+      if (msg === "the issue linked with this pull request is currently being blocked" ||
+          msg === "the issues linked with this pull request are currently being blocked") {
+        setToastError(msg);
+      } else {
+        setError(msg);
+      }
     } finally {
       setUpdating(false);
     }
@@ -1045,6 +1053,14 @@ export default function PullRequestDetailPage({
           ) : null}
         </aside>
       </div>
+      {toastError && (
+        <Toast
+          message={toastError}
+          type="error"
+          duration={5000}
+          onClose={() => setToastError(null)}
+        />
+      )}
     </div>
   );
 }
