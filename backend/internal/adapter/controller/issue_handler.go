@@ -310,11 +310,17 @@ func (h *IssueHandler) HandleCreateIssueComment(c *gin.Context) {
 
 func (h *IssueHandler) HandleLinkBranch(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	issueID, ok := parseIssueID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	requesterID, ok := parseRequesterID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	var req dto.LinkBranchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -331,11 +337,17 @@ func (h *IssueHandler) HandleLinkBranch(c *gin.Context) {
 
 func (h *IssueHandler) HandleUnlinkBranch(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	issueID, ok := parseIssueID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	requesterID, ok := parseRequesterID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	branchName := c.Param("branch_name")
 	if branchName == "" {
@@ -352,11 +364,17 @@ func (h *IssueHandler) HandleUnlinkBranch(c *gin.Context) {
 
 func (h *IssueHandler) HandleListLinkedBranches(c *gin.Context) {
 	repoID, ok := parseRepoID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	issueID, ok := parseIssueID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	requesterID, ok := parseRequesterID(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 
 	branches, err := h.issueUseCase.ListLinkedBranchesForIssue(repoID, issueID, requesterID)
 	if err != nil {

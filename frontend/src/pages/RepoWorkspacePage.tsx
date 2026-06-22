@@ -376,6 +376,7 @@ export default function RepoWorkspaceContent({
             {activeTab === "settings" && (
               <RepoSettingsPage
                 repo={selectedRepo}
+                contentPath={routeContentPath}
                 onRepoUpdated={onRepoUpdated}
                 onRepoDeleted={onRepoDeleted}
               />

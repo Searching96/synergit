@@ -264,10 +264,7 @@ export default function PullRequestDetailPage({
   const deletions = compareData?.summary.deletions || 0;
   const contributorCount = compareData?.summary.contributor_count || 1;
   const hasRemainingConflicts = conflictFiles.length > 0;
-  const canMerge = pull?.status === "OPEN" && (
-    (compareData?.mergeable ?? true) ||
-    (!!compareData?.can_compare && !hasRemainingConflicts)
-  );
+  const canMerge = pull?.status === "OPEN" && !hasRemainingConflicts;
   const mergedEvent = events.find((event) => event.event_type === "merged") || null;
   const mergedTime = mergedEvent?.created_at || pull?.updated_at || "";
   const mergeCommitHash = compareData?.commits.find((commit) => commit.message.toLowerCase().includes("merge"))?.hash ||

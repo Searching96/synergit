@@ -92,7 +92,7 @@ export default function MergeOperationPanel({
 }: MergeOperationPanelProps) {
   const isClosed = status === "CLOSED";
   const isMerged = status === "MERGED";
-  const hasConflicts = status === "OPEN" && !canMerge;
+  const hasConflicts = status === "OPEN" && conflictFiles.length > 0;
   const [deletingBranch, setDeletingBranch] = useState(false);
   const [branchDeleted, setBranchDeleted] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -206,12 +206,10 @@ export default function MergeOperationPanel({
               </span>
               <div className="min-w-0">
                 <p className="font-semibold text-[var(--text-primary)]">
-                  {canMerge ? "No conflicts with base branch" : "This branch has conflicts that must be resolved"}
+                  {hasConflicts ? "This branch has conflicts that must be resolved" : "No conflicts with base branch"}
                 </p>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  {canMerge ? (
-                    "Merging can be performed automatically."
-                  ) : (
+                  {hasConflicts ? (
                     <>
                       Use the{" "}
                       <button type="button" onClick={onOpenConflicts} className="text-[var(--text-link)] hover:underline">
@@ -219,6 +217,8 @@ export default function MergeOperationPanel({
                       </button>{" "}
                       or the command line to resolve conflicts before continuing.
                     </>
+                  ) : (
+                    "Merging can be performed automatically."
                   )}
                 </p>
                 {hasConflicts && conflictFiles.length > 0 ? (

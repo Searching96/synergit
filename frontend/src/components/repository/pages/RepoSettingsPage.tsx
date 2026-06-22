@@ -1,34 +1,99 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import {
+  AlertTriangle,
+  X,
+  Settings,
+  Users,
+  MessageSquare,
+  GitBranch,
+  Tag,
+  FileText,
+  PlayCircle,
+  Webhook,
+  Bot,
+  Server,
+  Terminal,
+  AppWindow,
+  Shield,
+  Key,
+  Asterisk,
+  LayoutGrid,
+  Mail,
+  ExternalLink,
+  ChevronDown,
+  Book
+} from "lucide-react";
 import type { Repository } from "../../../types";
 import { reposApi } from "../../../services/api";
 
-const LEFT_NAV_GROUPS = [
+type NavItem = {
+  label: string;
+  icon: React.ElementType;
+  path: string;
+  hasDropdown?: boolean;
+};
+
+type NavGroup = {
+  title?: string;
+  items: NavItem[];
+};
+
+const LEFT_NAV_GROUPS: NavGroup[] = [
   {
-    title: "General",
-    items: ["General", "Access", "Collaborators", "Moderation options"],
+    items: [
+      { label: "General", icon: Settings, path: "" },
+    ],
+  },
+  {
+    title: "Access",
+    items: [
+      { label: "Collaborators", icon: Users, path: "access" },
+      { label: "Moderation options", icon: MessageSquare, path: "moderation", hasDropdown: true },
+    ],
   },
   {
     title: "Code and automation",
-    items: ["Branches", "Tags", "Rules", "Actions", "Webhooks"],
+    items: [
+      { label: "Branches", icon: GitBranch, path: "branches" },
+      { label: "Tags", icon: Tag, path: "tags" },
+      { label: "Rules", icon: FileText, path: "rules", hasDropdown: true },
+      { label: "Actions", icon: PlayCircle, path: "actions", hasDropdown: true },
+      { label: "Webhooks", icon: Webhook, path: "webhooks" },
+      { label: "Copilot", icon: Bot, path: "copilot", hasDropdown: true },
+      { label: "Environments", icon: Server, path: "environments" },
+      { label: "Codespaces", icon: Terminal, path: "codespaces" },
+      { label: "Pages", icon: AppWindow, path: "pages" },
+    ],
   },
   {
     title: "Security and quality",
-    items: ["Advanced Security", "Deploy keys", "Secret and variables"],
+    items: [
+      { label: "Advanced Security", icon: Shield, path: "security" },
+      { label: "Deploy keys", icon: Key, path: "keys" },
+      { label: "Secrets and variables", icon: Asterisk, path: "secrets", hasDropdown: true },
+    ],
   },
   {
     title: "Integrations",
-    items: ["GitHub Apps", "Email notifications"],
+    items: [
+      { label: "GitHub Apps", icon: LayoutGrid, path: "installations" },
+      { label: "Email notifications", icon: Mail, path: "notifications" },
+      { label: "Autolink references", icon: ExternalLink, path: "autolinks" },
+    ],
   },
 ];
 
+import { useNavigate } from "react-router-dom";
+
 interface RepoSettingsPageProps {
   repo: Repository;
+  contentPath?: string;
   onRepoUpdated: (repo: Repository) => void;
   onRepoDeleted: (repoId: string) => void;
 }
 
-export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }: RepoSettingsPageProps) {
+export default function RepoSettingsPage({ repo, contentPath = "", onRepoUpdated, onRepoDeleted }: RepoSettingsPageProps) {
+  const navigate = useNavigate();
   const [visibilityPanelOpen, setVisibilityPanelOpen] = useState(false);
   const [deletePanelOpen, setDeletePanelOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -159,29 +224,49 @@ export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }:
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)] gap-4">
-      <aside className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] py-3">
-        {LEFT_NAV_GROUPS.map((group) => (
-          <div key={group.title} className="mb-3">
-            <p className="px-4 text-xs uppercase tracking-wide font-semibold text-[var(--text-secondary)]">{group.title}</p>
-            <div className="mt-1 space-y-0.5">
-              {group.items.map((item, index) => (
-                <button
-                  key={item}
-                  type="button"
-                  className={`w-full px-4 py-1.5 text-left text-sm ${
-                    group.title === "General" && index === 0
-                      ? "bg-[var(--surface-subtle)] text-[var(--text-primary)] border-l-2 border-[var(--text-link)] font-semibold"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)]"
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+      <aside className="py-2">
+        {LEFT_NAV_GROUPS.map((group, groupIndex) => (
+          <div key={group.title || groupIndex} className={group.title ? "mt-4 pt-4 border-t border-[var(--border-muted)]" : ""}>
+            {group.title && (
+              <h3 className="px-3 mb-2 text-[12px] font-semibold text-[var(--text-secondary)]">
+                {group.title}
+              </h3>
+            )}
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = contentPath === item.path || (!contentPath && item.path === "");
+                return (
+                  <li key={item.label}>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/${repo.owner}/${repo.name}/settings${item.path ? `/${item.path}` : ""}`)}
+                      className={`group flex w-full items-center justify-between py-1.5 px-3 text-[14px] leading-5 ${
+                        isActive
+                          ? "bg-[var(--surface-subtle)] text-[var(--text-primary)] font-semibold rounded-r-md relative"
+                          : "text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] hover:rounded-md"
+                      }`}
+                    >
+                      {isActive && (
+                        <div className="absolute left-0 top-[2px] bottom-[2px] w-[3px] rounded-r-md bg-[var(--text-link)]" />
+                      )}
+                      <div className="flex items-center gap-2">
+                        <item.icon className={`h-4 w-4 ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.hasDropdown && (
+                        <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         ))}
       </aside>
 
+      <div className="flex-1 min-w-0">
+      {(!contentPath || contentPath === "general") && (
       <section className="space-y-5 min-w-0">
         <h2 className="text-[44px] leading-[1.2] font-semibold text-[var(--text-primary)]">General</h2>
 
@@ -342,7 +427,6 @@ export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }:
             <p className="text-sm text-[var(--text-danger)]">{dangerError}</p>
           ) : null}
         </div>
-      </section>
 
       {visibilityPanelOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
@@ -466,6 +550,68 @@ export default function RepoSettingsPage({ repo, onRepoUpdated, onRepoDeleted }:
           </form>
         </div>
       ) : null}
+      </section>
+      )}
+
+      {contentPath === "access" && (
+        <section className="space-y-5 min-w-0">
+          <div className="border-b border-[var(--border-muted)] pb-2 mb-4">
+            <h2 className="text-[24px] leading-[1.2] font-normal text-[var(--text-primary)]">Collaborators and teams</h2>
+          </div>
+
+          <div className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] mb-6">
+            <div className="p-4 flex items-start gap-3">
+              <div className="pt-1">
+                <Book className="w-5 h-5 text-[var(--text-secondary)]" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{repo.visibility === "PRIVATE" ? "Private repository" : "Public repository"}</h3>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">This repository is {repo.visibility === "PRIVATE" ? "private and visible only to people with explicit access" : "public and visible to anyone"}.</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setVisibilityPanelOpen(true)}
+                className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+              >
+                Manage
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="border border-[var(--border-muted)] rounded-t-md bg-[var(--surface-subtle)] p-3">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Direct access
+              </h3>
+            </div>
+            <div className="border-x border-b border-[var(--border-muted)] rounded-b-md bg-[var(--surface-canvas)] p-6 text-center text-sm text-[var(--text-secondary)]">
+              0 collaborators have access to this repository.
+              <br />
+              Only you can contribute to this repository.
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="border border-[var(--border-muted)] rounded-t-md bg-[var(--surface-subtle)] p-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                Manage access
+              </h3>
+              <button 
+                type="button"
+                className="h-8 px-3 rounded-md bg-[var(--text-success)] text-white text-sm font-semibold hover:opacity-90"
+              >
+                Add people
+              </button>
+            </div>
+            <div className="border-x border-b border-[var(--border-muted)] rounded-b-md bg-[var(--surface-canvas)] py-12 px-6 flex flex-col items-center text-center">
+              <img src="https://github.githubassets.com/assets/permissions-4a54b38b5f93.png" alt="user granting permissions" className="mb-3 w-14 h-14" />
+              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">You haven't invited any collaborators yet</h3>
+            </div>
+          </div>
+        </section>
+      )}
+      </div>
     </div>
   );
 }
