@@ -555,58 +555,50 @@ export default function RepoSettingsPage({ repo, contentPath = "", onRepoUpdated
 
       {contentPath === "access" && (
         <section className="space-y-5 min-w-0">
-          <div className="border-b border-[var(--border-muted)] pb-2 mb-4">
-            <h2 className="text-[24px] leading-[1.2] font-normal text-[var(--text-primary)]">Collaborators and teams</h2>
-          </div>
-
-          <div className="border border-[var(--border-muted)] rounded-md bg-[var(--surface-canvas)] mb-6">
-            <div className="p-4 flex items-start gap-3">
-              <div className="pt-1">
-                <Book className="w-5 h-5 text-[var(--text-secondary)]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{repo.visibility === "PRIVATE" ? "Private repository" : "Public repository"}</h3>
-                <p className="text-sm text-[var(--text-secondary)] mt-1">This repository is {repo.visibility === "PRIVATE" ? "private and visible only to people with explicit access" : "public and visible to anyone"}.</p>
+          <div className="mb-6">
+            <h2 className="text-[24px] leading-[1.2] font-normal text-[var(--text-primary)] mb-4">Collaborators and teams</h2>
+            
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 border border-[var(--border-default)] rounded-md flex items-center justify-center bg-[var(--surface-canvas)]">
+                  <Book className="w-5 h-5 text-[var(--text-secondary)]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] leading-snug">{repo.visibility === "PRIVATE" ? "Private repository" : "Public repository"}</h3>
+                  <p className="text-sm text-[var(--text-secondary)] leading-snug">This repository is {repo.visibility === "PRIVATE" ? "private and visible only to people with explicit access" : "public and visible to anyone"}</p>
+                </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setVisibilityPanelOpen(true)}
                 className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
               >
-                Manage
+                Manage visibility
               </button>
             </div>
           </div>
 
-          <div className="mb-6">
-            <div className="border border-[var(--border-muted)] rounded-t-md bg-[var(--surface-subtle)] p-3">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Direct access
-              </h3>
+          <div className="mb-6 border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">Direct access</h3>
+              <Users className="w-4 h-4 text-[var(--text-secondary)]" />
             </div>
-            <div className="border-x border-b border-[var(--border-muted)] rounded-b-md bg-[var(--surface-canvas)] p-6 text-center text-sm text-[var(--text-secondary)]">
-              0 collaborators have access to this repository.
-              <br />
-              Only you can contribute to this repository.
-            </div>
+            <p className="text-[14px] text-[var(--text-secondary)]">
+              0 collaborators have access to this repository. Only you can contribute to this repository.
+            </p>
           </div>
 
           <div className="mb-6">
-            <div className="border border-[var(--border-muted)] rounded-t-md bg-[var(--surface-subtle)] p-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                Manage access
-              </h3>
+            <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-3">Manage access</h3>
+            <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] py-12 px-6 flex flex-col items-center text-center">
+              <img src="https://github.githubassets.com/assets/permissions-4a54b38b5f93.png" alt="user granting permissions" className="mb-4 w-14 h-14" />
+              <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-4">You haven't invited any collaborators yet</h3>
               <button 
                 type="button"
-                className="h-8 px-3 rounded-md bg-[var(--text-success)] text-white text-sm font-semibold hover:opacity-90"
+                className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
               >
                 Add people
               </button>
-            </div>
-            <div className="border-x border-b border-[var(--border-muted)] rounded-b-md bg-[var(--surface-canvas)] py-12 px-6 flex flex-col items-center text-center">
-              <img src="https://github.githubassets.com/assets/permissions-4a54b38b5f93.png" alt="user granting permissions" className="mb-3 w-14 h-14" />
-              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">You haven't invited any collaborators yet</h3>
             </div>
           </div>
         </section>
