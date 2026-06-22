@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Code, Heading, Italic, Link, List, ListOrdered, Settings } from "lucide-react";
+import { ArrowLeft, Bold, CheckCircle2, ChevronDown, CircleDot, CircleSlash, Code, Heading, Italic, Link, List, ListOrdered, Search, Settings } from "lucide-react";
 import { CopyIcon, CheckIcon, GitPullRequestIcon, GitMergeIcon, GitPullRequestClosedIcon } from "@primer/octicons-react";
 import { OcticonCrossReference } from "../../icons/Octicons";
 import { collaboratorsApi, issuesApi, labelsApi } from "../../../services/api";
@@ -110,7 +110,14 @@ export default function IssueDetailPage({
   const [assignees, setAssignees] = useState<IssueAssignee[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [repoLabels, setRepoLabels] = useState<Label[]>([]);
+  const [relationshipIssues, setRelationshipIssues] = useState<Issue[]>([]);
   const [openMenu, setOpenMenu] = useState<"assignees" | "labels" | "relationships" | null>(null);
+  const [relationshipPickerMode, setRelationshipPickerMode] = useState<"blocked-by" | "blocking" | null>(null);
+  const [relationshipFilter, setRelationshipFilter] = useState<string>("");
+  const [selectedRelationshipIssueIds, setSelectedRelationshipIssueIds] = useState<{
+    blockedBy: Set<string>;
+    blocking: Set<string>;
+  }>({ blockedBy: new Set(), blocking: new Set() });
   const [assigneeFilter, setAssigneeFilter] = useState<string>("");
   const [labelFilter, setLabelFilter] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -189,6 +196,7 @@ export default function IssueDetailPage({
       setCollaborators(collabs || []);
       setRepoLabels(rLabels || []);
       const sorted = [...(list || [])].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+      setRelationshipIssues(sorted);
       const resolved = sorted[Number(issueNumber) - 1] || null;
       if (!isSilent) {
         setIssue(resolved);
@@ -291,6 +299,78 @@ export default function IssueDetailPage({
   const visibleLabels = repoLabels.filter((l) =>
     (l.name ?? "").toLowerCase().includes(labelFilter.trim().toLowerCase()),
   );
+  const issueNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    relationshipIssues.forEach((item, index) => map.set(item.id, index + 1));
+    return map;
+  }, [relationshipIssues]);
+  const visibleRelationshipIssues = useMemo(() => {
+    const query = relationshipFilter.trim().toLowerCase();
+    return relationshipIssues
+      .filter((item) => item.id !== issue?.id)
+      .filter((item) => {
+        if (!query) return true;
+        const number = issueNumberMap.get(item.id);
+        return item.title.toLowerCase().includes(query) || (number ? `#${number}`.includes(query) || String(number).includes(query) : false);
+      })
+      .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  }, [issue?.id, issueNumberMap, relationshipFilter, relationshipIssues]);
+
+  const openRelationshipPicker = (mode: "blocked-by" | "blocking") => {
+    setRelationshipPickerMode(mode);
+    setRelationshipFilter("");
+  };
+
+  const toggleRelationshipIssue = (targetIssueId: string) => {
+    if (!relationshipPickerMode) return;
+    const key = relationshipPickerMode === "blocked-by" ? "blockedBy" : "blocking";
+    setSelectedRelationshipIssueIds((prev) => {
+      const nextSet = new Set(prev[key]);
+      if (nextSet.has(targetIssueId)) {
+        nextSet.delete(targetIssueId);
+      } else {
+        nextSet.add(targetIssueId);
+      }
+      return { ...prev, [key]: nextSet };
+    });
+  };
+
+  const selectedBlockedByIssues = useMemo(
+    () => relationshipIssues.filter((item) => selectedRelationshipIssueIds.blockedBy.has(item.id)),
+    [relationshipIssues, selectedRelationshipIssueIds.blockedBy],
+  );
+  const selectedBlockingIssues = useMemo(
+    () => relationshipIssues.filter((item) => selectedRelationshipIssueIds.blocking.has(item.id)),
+    [relationshipIssues, selectedRelationshipIssueIds.blocking],
+  );
+  const blockedByOpenCount = selectedBlockedByIssues.filter((item) => item.status === "OPEN").length;
+  const blockingOpenCount = selectedBlockingIssues.filter((item) => item.status === "OPEN").length;
+  const hasRelationships = selectedBlockedByIssues.length > 0 || selectedBlockingIssues.length > 0;
+
+  const renderRelationshipIssue = (relationshipIssue: Issue) => {
+    const relationshipIssueNumber = issueNumberMap.get(relationshipIssue.id) || 0;
+    const isClosed = relationshipIssue.status === "CLOSED";
+    const isCompleted = isClosed && relationshipIssue.close_reason !== "NOT_PLANNED" && relationshipIssue.close_reason !== "DUPLICATE";
+    return (
+      <div key={relationshipIssue.id} className="mt-3 flex gap-2">
+        <span className="mt-0.5 shrink-0">
+          {relationshipIssue.status === "OPEN" ? (
+            <CircleDot size={18} className="text-[var(--fgColor-open,#1a7f37)]" />
+          ) : isCompleted ? (
+            <CheckCircle2 size={18} className="text-[var(--fgColor-done,#8250df)]" />
+          ) : (
+            <CircleSlash size={18} className="text-[var(--text-secondary)]" />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{relationshipIssue.title}</div>
+          <div className="mt-1 truncate pl-0 text-xs text-[var(--text-secondary)]">
+            {repoOwner}/{repoName}#{relationshipIssueNumber}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (loading && !issue) {
     return null;
@@ -833,24 +913,144 @@ export default function IssueDetailPage({
               <span className="font-semibold text-[var(--text-primary)]">Relationships</span>
               <button
                 type="button"
-                onClick={() => setOpenMenu((m) => (m === "relationships" ? null : "relationships"))}
+                onClick={() => {
+                  setRelationshipPickerMode(null);
+                  setOpenMenu((m) => (m === "relationships" ? null : "relationships"));
+                }}
                 className="h-6 w-6 inline-flex items-center justify-center rounded text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
               >
                 <Settings size={14} />
               </button>
             </div>
-            <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+            {hasRelationships ? (
+              <div className="mt-3 space-y-4">
+                {selectedBlockedByIssues.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <span>Blocked by</span>
+                      {blockedByOpenCount > 0 && (
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--surface-badge)] px-1.5 text-xs font-semibold text-[var(--text-primary)]">
+                          {blockedByOpenCount}
+                        </span>
+                      )}
+                    </div>
+                    {selectedBlockedByIssues.map(renderRelationshipIssue)}
+                  </div>
+                )}
+                {selectedBlockingIssues.length > 0 && (
+                  <div className={selectedBlockedByIssues.length > 0 ? "border-t border-[var(--border-muted)] pt-4" : ""}>
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <span>Is blocking</span>
+                      {blockingOpenCount > 0 && (
+                        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--surface-badge)] px-1.5 text-xs font-semibold text-[var(--text-primary)]">
+                          {blockingOpenCount}
+                        </span>
+                      )}
+                    </div>
+                    {selectedBlockingIssues.map(renderRelationshipIssue)}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-[var(--text-secondary)]">None yet</p>
+            )}
             {openMenu === "relationships" ? (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} aria-hidden />
-                <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg p-2">
-                  <button type="button" className="w-full px-2 py-1.5 text-left text-sm text-[var(--text-primary)] rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-between group">
-                    <span>Mark as blocked by</span>
-                  </button>
-                  <button type="button" className="w-full px-2 py-1.5 text-left text-sm text-[var(--text-primary)] rounded-md hover:bg-[var(--surface-hover)] flex items-center justify-between group">
-                    <span>Mark as blocking</span>
-                  </button>
-                </div>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => {
+                    setOpenMenu(null);
+                    setRelationshipPickerMode(null);
+                  }}
+                  aria-hidden
+                />
+                {relationshipPickerMode ? (
+                  <div className="absolute right-0 z-20 mt-1 h-[480px] w-[360px] overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-lg">
+                    <div className="px-3 pt-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          aria-label="Back to relationship actions"
+                          onClick={() => setRelationshipPickerMode(null)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]"
+                        >
+                          <ArrowLeft size={16} />
+                        </button>
+                        <span className="min-w-0 truncate text-base font-semibold text-[var(--text-primary)]">
+                          {repoOwner}/{repoName}
+                        </span>
+                      </div>
+                      <p className="mt-1 px-[44px] text-sm text-[var(--text-secondary)]">
+                        {relationshipPickerMode === "blocked-by" ? "Mark current issue as blocked by..." : "Mark current issue as blocking..."}
+                      </p>
+                      <div className="relative mt-3">
+                        <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                        <input
+                          value={relationshipFilter}
+                          onChange={(event) => setRelationshipFilter(event.target.value)}
+                          autoFocus
+                          placeholder="Search issues"
+                          className="h-9 w-full rounded-md border border-[var(--focus-border,#0969da)] bg-[var(--surface-canvas)] pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none ring-2 ring-[var(--focus-border,#0969da)]"
+                        />
+                      </div>
+                    </div>
+                    <ul className="mt-3 max-h-[350px] overflow-auto">
+                      {visibleRelationshipIssues.length === 0 ? (
+                        <li className="px-4 py-3 text-sm text-[var(--text-secondary)]">No issues found</li>
+                      ) : (
+                        visibleRelationshipIssues.map((relationshipIssue) => {
+                          const relationshipIssueNumber = issueNumberMap.get(relationshipIssue.id) || 0;
+                          const selectedRelationshipSet =
+                            relationshipPickerMode === "blocked-by" ? selectedRelationshipIssueIds.blockedBy : selectedRelationshipIssueIds.blocking;
+                          const isSelected = selectedRelationshipSet.has(relationshipIssue.id);
+                          const isClosed = relationshipIssue.status === "CLOSED";
+                          const isCompleted = isClosed && relationshipIssue.close_reason !== "NOT_PLANNED" && relationshipIssue.close_reason !== "DUPLICATE";
+                          return (
+                            <li key={relationshipIssue.id} className="px-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleRelationshipIssue(relationshipIssue.id)}
+                                className={`relative grid min-h-9 w-full grid-cols-[24px_22px_minmax(0,1fr)_auto] items-center gap-1 rounded-md px-2 text-left hover:bg-[var(--surface-hover)] ${
+                                  isSelected ? "bg-[var(--surface-hover)] before:absolute before:left-[-8px] before:top-0 before:h-full before:w-[3px] before:rounded-r before:bg-[var(--text-link)]" : ""
+                                }`}
+                              >
+                                <input type="checkbox" readOnly checked={isSelected} className="h-4 w-4 rounded border-[var(--border-default)]" />
+                                <span className="inline-flex items-center justify-center">
+                                  {relationshipIssue.status === "OPEN" ? (
+                                    <CircleDot size={18} className="text-[var(--fgColor-open,#1a7f37)]" />
+                                  ) : isCompleted ? (
+                                    <CheckCircle2 size={18} className="text-[var(--fgColor-done,#8250df)]" />
+                                  ) : (
+                                    <CircleSlash size={18} className="text-[var(--text-secondary)]" />
+                                  )}
+                                </span>
+                                <span className="truncate text-sm text-[var(--text-primary)]">{relationshipIssue.title}</span>
+                                <span className="pl-3 text-sm text-[var(--text-secondary)]">#{relationshipIssueNumber}</span>
+                              </button>
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="absolute right-0 z-20 mt-1 w-64 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] p-2 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => openRelationshipPicker("blocked-by")}
+                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                    >
+                      <span>Mark as blocked by</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openRelationshipPicker("blocking")}
+                      className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                    >
+                      <span>Mark as blocking</span>
+                    </button>
+                  </div>
+                )}
               </>
             ) : null}
           </div>
