@@ -1165,7 +1165,7 @@ export default function RepoRootPage({
 
                             <div className="flex items-center gap-4 text-sm font-semibold text-[var(--text-secondary)] border-b border-[var(--border-default)] pb-2">
                               <button type="button" className="text-[var(--text-primary)] border-b-2 border-[var(--border-tab-active)] pb-1">HTTPS</button>
-                              <button type="button">SSH</button>
+                              <button type="button" className="hidden">SSH</button>
                               <button type="button">GitHub CLI</button>
                             </div>
 

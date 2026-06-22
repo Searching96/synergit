@@ -457,7 +457,7 @@ function App() {
       return;
     }
 
-    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards' || routeContentKind === 'commit-activity' || routeContentKind === 'code-frequency') {
+    if (routeContentKind === 'issues-new' || routeContentKind === 'issue-view' || routeContentKind === 'pull-view' || routeContentKind === 'pull-conflicts' || routeContentKind === 'commit-view' || routeContentKind === 'branches' || routeContentKind === 'fork' || routeContentKind === 'pulse' || routeContentKind === 'contributors' || routeContentKind === 'community' || routeContentKind === 'community-standards' || routeContentKind === 'commit-activity' || routeContentKind === 'code-frequency' || routeContentKind === 'settings') {
       return;
     }
 
