@@ -700,7 +700,7 @@ function App() {
     }
 
     return (
-      <div className={`${isFullBrowserMode ? "h-screen" : "flex-1"} bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col`}>
+      <div className="flex-1 bg-[var(--surface-subtle)] font-sans text-[var(--text-primary)] flex flex-col">
         <header className="border-b border-[var(--border-default)] bg-[var(--surface-page)]">
           <TopHeader
             leftContent={selectedRepo ? (
@@ -750,10 +750,9 @@ function App() {
           />
         </header>
 
-        <main className={`flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)] ${isFullBrowserMode ? "overflow-hidden" : ""
-          }`}>
-          <div className={`flex flex-col ${isFullBrowserMode ? "h-full" : ""}`}>
-            <div className={`${isFullBrowserMode ? "flex-1 h-full min-h-0" : ""}`}>
+        <main className="flex-1 w-full min-w-0 min-h-0 bg-[var(--surface-canvas)]">
+          <div className="flex flex-col">
+            <div>
               <RepoWorkspaceContent
                 selectedRepo={selectedRepo}
                 currentUsername={currentUsername}
@@ -925,7 +924,7 @@ function App() {
 
   return (
     <PageReadyProvider>
-      <div className={`${isFullBrowserMode ? "h-screen overflow-hidden" : "min-h-screen"} flex flex-col`}>
+      <div className="min-h-screen flex flex-col">
         {renderContent()}
         {showFooter && <Footer />}
       </div>

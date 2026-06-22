@@ -129,7 +129,7 @@ export default function RepoBrowserSidebar({
 
   return (
     <aside
-      className={`sticky top-0 self-start border-r border-[var(--border-default)] flex flex-col${
+      className={`sticky top-0 self-start flex flex-col${
         asideClassName ? ` ${asideClassName}` : ""
       }`}
     >

@@ -153,15 +153,15 @@ export default function RepoWorkspaceContent({
   }
 
   return (
-    <div className={isFullBrowserMode ? "w-full h-full min-h-0" : "max-w-[1400px] mx-auto px-4 pb-6"}>
-      <div className={isFullBrowserMode ? "w-full h-full min-h-0 flex flex-col" : "w-full flex flex-col gap-4"}>
+    <div className={isFullBrowserMode ? "w-full" : "max-w-[1400px] mx-auto px-4 pb-6"}>
+      <div className={isFullBrowserMode ? "w-full flex flex-col" : "w-full flex flex-col gap-4"}>
           {!isFullBrowserMode ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
 
             </div>
           ) : null}
 
-          <div className={isFullBrowserMode ? "w-full flex-1 min-h-0 flex flex-col" : "flex-1 min-h-0"}>
+          <div className={isFullBrowserMode ? "w-full flex-1 flex flex-col" : "flex-1 min-h-0"}>
             {activeTab === "files" && routeContentKind === "commits" && (
               <CommitHistory
                 repoId={selectedRepo.id}

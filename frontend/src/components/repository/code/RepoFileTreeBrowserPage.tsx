@@ -559,7 +559,7 @@ export default function RepoFileTreeBrowserPage({
           }}
         />
 
-        <div className="w-0 sticky top-0 self-start h-[calc(100vh-104px)] relative border-r border-[var(--border-default)] bg-[var(--surface-canvas)]">
+        <div className="w-0 relative border-r border-[var(--border-default)]">
           <button
             type="button"
             aria-label="Resize sidebar"
@@ -738,7 +738,7 @@ export default function RepoFileTreeBrowserPage({
                       className="h-8 px-3 rounded-md bg-[var(--surface-canvas)] text-sm text-[var(--text-primary)] hover:bg-[var(--surface-subtle)] inline-flex items-center gap-2"
                     >
                       <History size={14} className="text-[var(--text-secondary)]" />
-                      History{commitStats && commitStats.total_commits > 0 ? <span className="hidden sm:inline font-semibold">· {commitStats.total_commits.toLocaleString()}</span> : null}
+                      History
                     </button>
                   </div>
                 </div>
