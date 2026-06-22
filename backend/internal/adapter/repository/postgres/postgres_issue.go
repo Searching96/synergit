@@ -3,8 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"errors"
-	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 
 	"github.com/google/uuid"
 )

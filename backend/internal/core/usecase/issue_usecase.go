@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 	"time"
 
 	"github.com/google/uuid"

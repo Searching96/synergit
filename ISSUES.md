@@ -47,3 +47,4 @@ Click on any Issue ID to view its details. To create a new issue, copy the `issu
 | [#032](./issues/032-create-more-issue-flow.md) | Closed | Low | Low | Frontend | Enhance Issue Creation Flow: Create More & Redirection | `feature`, `ux` | |
 | [#033](./issues/033-link-issue-to-pull-request.md) | Closed | High | Medium | Fullstack | Link Issue to Pull Request Feature | `feature`, `pull-requests`, `issues`, `ui` | |
 | [#034](./issues/034-issue-development-sidebar-popup.md) | Closed | Medium | Medium | Fullstack | Issue Development Sidebar Popup | `feature`, `issues`, `ui`, `api` | |
+| [#035](./issues/035-issue-blocking-relationships.md) | Closed | Medium | Medium | Fullstack | Issue Blocking Relationships | `feature`, `issues`, `relationships`, `api`, `ui` | [#034](./issues/034-issue-development-sidebar-popup.md) |
