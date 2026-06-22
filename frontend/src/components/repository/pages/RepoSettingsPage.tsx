@@ -21,10 +21,15 @@ import {
   Mail,
   ExternalLink,
   ChevronDown,
-  Book
+  Book,
+  Search,
+  Trash2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import type { Repository } from "../../../types";
-import { reposApi } from "../../../services/api";
+import type { Repository, RepoCollaborator } from "../../../types";
+import { reposApi, usersApi, collaboratorsApi } from "../../../services/api";
+import { Avatar } from "../../shared/Avatar";
 
 type NavItem = {
   label: string;
@@ -99,6 +104,75 @@ export default function RepoSettingsPage({ repo, contentPath = "", onRepoUpdated
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [busyAction, setBusyAction] = useState<"visibility" | "delete" | null>(null);
   const [dangerError, setDangerError] = useState<string | null>(null);
+
+  const [addPeopleOpen, setAddPeopleOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; username: string; email: string }>>([]);
+  const [selectedUser, setSelectedUser] = useState<{ id: string; username: string; email: string } | null>(null);
+
+  const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
+
+  const fetchCollaborators = async () => {
+    try {
+      const data = await collaboratorsApi.list(repo.id);
+      setCollaborators(data?.filter((c) => c.role !== "OWNER") || []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    void fetchCollaborators();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repo.id]);
+
+  const handleAddCollaborator = async () => {
+    if (!selectedUser) return;
+    try {
+      await collaboratorsApi.add(repo.id, selectedUser.id, "WRITE");
+      setAddPeopleOpen(false);
+      void fetchCollaborators();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleRemoveCollaborator = async (userId: string) => {
+    try {
+      await collaboratorsApi.remove(repo.id, userId);
+      void fetchCollaborators();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    if (!addPeopleOpen) {
+      setSearchQuery("");
+      setSearchResults([]);
+      setSelectedUser(null);
+      return;
+    }
+  }, [addPeopleOpen]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSelectedUser(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      usersApi.searchUsers(query).then((results) => {
+        // Filter out existing collaborators here if needed (assuming repo.collaborators exists or we just rely on UI)
+        setSearchResults(results);
+        setSelectedUser(null);
+      }).catch(console.error);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const [defaultBranch, setDefaultBranch] = useState<string>("");
   const [branchInput, setBranchInput] = useState<string>("");
@@ -584,25 +658,193 @@ export default function RepoSettingsPage({ repo, contentPath = "", onRepoUpdated
               <Users className="w-4 h-4 text-[var(--text-secondary)]" />
             </div>
             <p className="text-[14px] text-[var(--text-secondary)]">
-              0 collaborators have access to this repository. Only you can contribute to this repository.
+              {collaborators.length} collaborators have access to this repository. {collaborators.length === 0 ? "Only you can contribute to this repository." : ""}
             </p>
           </div>
 
           <div className="mb-6">
-            <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-3">Manage access</h3>
-            <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] py-12 px-6 flex flex-col items-center text-center">
-              <img src="https://github.githubassets.com/assets/permissions-4a54b38b5f93.png" alt="user granting permissions" className="mb-4 w-14 h-14" />
-              <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-4">You haven't invited any collaborators yet</h3>
-              <button 
-                type="button"
-                className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
-              >
-                Add people
-              </button>
-            </div>
+            {collaborators.length === 0 ? (
+              <>
+                <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-3">Manage access</h3>
+                <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] py-12 px-6 flex flex-col items-center text-center">
+                  <img src="https://github.githubassets.com/assets/permissions-4a54b38b5f93.png" alt="user granting permissions" className="mb-4 w-14 h-14" />
+                  <h3 className="text-[16px] font-semibold text-[var(--text-primary)] mb-4">You haven't invited any collaborators yet</h3>
+                  <button 
+                    type="button"
+                    onClick={() => setAddPeopleOpen(true)}
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+                  >
+                    Add people
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">Manage access</h3>
+                  <button 
+                    onClick={() => setAddPeopleOpen(true)} 
+                    className="h-8 px-3 rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] font-semibold text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]"
+                  >
+                    Add people
+                  </button>
+                </div>
+                <div className="border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)]">
+                  <div className="px-4 py-3 border-b border-[var(--border-default)] flex items-center justify-between bg-[var(--surface-subtle)]">
+                    <div className="flex items-center gap-3">
+                      <input type="checkbox" className="rounded border-[var(--border-default)] text-[var(--accent-primary)] focus:ring-[var(--focus-ring)] bg-[var(--surface-canvas)] w-4 h-4 cursor-pointer" />
+                      <span className="text-[14px] font-semibold text-[var(--text-primary)]">Select all</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button className="text-[14px] font-semibold text-[var(--text-primary)] flex items-center gap-1 hover:text-[var(--text-secondary)]">Type <ChevronDown className="w-4 h-4" /></button>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-[var(--text-secondary)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input type="text" placeholder="Find a collaborator..." className="pl-8 pr-3 py-1 h-8 w-56 text-[14px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] focus:border-[var(--focus-ring)] focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)]" />
+                      </div>
+                    </div>
+                  </div>
+                  {collaborators.map(c => (
+                    <div key={c.user_id} className="px-4 py-3 border-b border-[var(--border-default)] last:border-0 flex items-center justify-between hover:bg-[var(--surface-subtle)] transition-colors group">
+                      <div className="flex items-center gap-4">
+                        <input type="checkbox" className="rounded border-[var(--border-default)] text-[var(--accent-primary)] focus:ring-[var(--focus-ring)] bg-[var(--surface-canvas)] w-4 h-4 cursor-pointer" />
+                        <div className="flex items-center gap-3">
+                          <Avatar username={c.username} size={32} />
+                          <div className="flex flex-col">
+                            <span className="text-[14px] font-semibold text-[#0969da] hover:underline cursor-pointer">{c.username}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-[14px] text-[var(--text-secondary)] mr-2">
+                          Collaborator
+                        </span>
+                        <button 
+                          onClick={() => { handleRemoveCollaborator(c.user_id).catch(console.error); }} 
+                          className="p-1.5 text-[var(--text-danger)] hover:bg-[var(--text-danger)] hover:text-white border border-[var(--border-default)] hover:border-[var(--text-danger)] rounded-md transition-colors"
+                          aria-label="Remove collaborator"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-center gap-4 mt-6">
+                  <button className="text-[14px] font-semibold text-[var(--text-secondary)] flex items-center gap-1 hover:text-[var(--text-primary)] disabled:opacity-50" disabled><ChevronLeft className="w-4 h-4" /> Previous</button>
+                  <button className="text-[14px] font-semibold text-[var(--text-secondary)] flex items-center gap-1 hover:text-[var(--text-primary)] disabled:opacity-50" disabled>Next <ChevronRight className="w-4 h-4" /></button>
+                </div>
+              </>
+            )}
           </div>
         </section>
       )}
+
+      {addPeopleOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+          <button
+            type="button"
+            aria-label="Close add people"
+            onClick={() => setAddPeopleOpen(false)}
+            className="absolute inset-0 bg-[var(--overlay-backdrop)]"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-people-title"
+            className="relative w-full max-w-[600px] rounded-xl border border-[var(--border-default)] bg-[var(--surface-canvas)] shadow-xl p-6"
+          >
+            <button
+              type="button"
+              onClick={() => setAddPeopleOpen(false)}
+              className="absolute top-4 right-4 text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] rounded-md p-1"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 id="add-people-title" className="text-center text-[16px] font-semibold text-[var(--text-primary)] mb-4">
+              Add people to {repo.name}
+            </h2>
+            {selectedUser ? (
+              <div className="relative mb-6 mt-6">
+                <div className="flex items-center justify-between border border-[#91caff] bg-[#e6f4ff] rounded-md px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar username={selectedUser.username} size={36} />
+                  </div>
+                  <div className="flex flex-col items-center justify-center flex-1">
+                    <span className="text-[14px] font-semibold text-[#0958d9]">{selectedUser.username}</span>
+                    <span className="text-[13px] text-[#0958d9]">{selectedUser.username}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUser(null)}
+                    className="text-[#0958d9] hover:bg-[#bae0ff] rounded-md p-1 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-center text-[14px] font-semibold text-[var(--text-primary)] mb-2">
+                  Search by username
+                </div>
+                <div className="relative mb-6">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="w-4 h-4 text-[var(--text-secondary)]" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Find people"
+                    className="w-full pl-9 pr-3 py-1.5 text-[14px] rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] focus:border-[var(--focus-ring)] focus:ring-1 focus:ring-[var(--focus-ring)] focus:outline-none transition-shadow"
+                    autoFocus
+                  />
+                  {searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto border border-[var(--border-default)] rounded-md bg-[var(--surface-canvas)] shadow-lg z-10">
+                      {searchResults.map((user: any) => {
+                        const isSelected = (selectedUser as any)?.id === user?.id;
+                        return (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => setSelectedUser(user)}
+                            className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-subtle)] transition-colors text-left border-b border-[var(--border-muted)] last:border-0 ${isSelected ? "bg-[var(--surface-subtle)]" : ""}`}
+                          >
+                            <Avatar username={user.username} size={36} />
+                            <div className="flex flex-col">
+                              <span className="text-[14px] font-semibold text-[var(--text-primary)]">{user.username}</span>
+                              <span className="text-[13px] text-[var(--text-secondary)]">Invite collaborator</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAddPeopleOpen(false)}
+                className="h-8 px-4 rounded-md border border-[var(--border-default)] bg-[var(--surface-subtle)] text-[14px] font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-button-muted)]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!selectedUser}
+                onClick={() => { handleAddCollaborator().catch(console.error); }}
+                className="h-8 px-4 rounded-md bg-[var(--text-success)] text-white text-[14px] font-semibold disabled:opacity-50 hover:opacity-90"
+              >
+                {selectedUser ? `Add ${selectedUser.username}` : "Add to repository"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       </div>
     </div>
   );

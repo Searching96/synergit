@@ -24,4 +24,16 @@ export const labelsApi = {
 export const collaboratorsApi = {
   list: (repoId: string): Promise<RepoCollaborator[]> =>
     fetcher<RepoCollaborator[]>(`/repos/${repoId}/collabs`),
+
+  add: (repoId: string, userId: string, role: string = 'WRITE'): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/collabs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, role }),
+    }),
+
+  remove: (repoId: string, userId: string): Promise<{ message: string }> =>
+    fetcher<{ message: string }>(`/repos/${repoId}/collabs/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    }),
 };

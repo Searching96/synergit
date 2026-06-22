@@ -104,7 +104,7 @@ func main() {
 	watcherHandler := httpHandler.NewWatcherHandler(watcherUseCase)
 	prHandler := httpHandler.NewPullRequestHandler(prUseCase)
 	prLabelHandler := httpHandler.NewPRLabelHandler(prUseCase)
-	userSettingsHandler := httpHandler.NewUserSettingsHandler(userUseCase)
+	userHandler := httpHandler.NewUserHandler(userUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 	repoEventHandler := httpHandler.NewRepoEventHandler(repoEventUseCase)
 
@@ -152,7 +152,14 @@ func main() {
 		userSettings := v1.Group("/user")
 		userSettings.Use(middleware.AuthMiddleware(jwtSecret))
 		{
-			userSettings.PATCH("/username", userSettingsHandler.HandleChangeUsername)
+			userSettings.PATCH("/username", userHandler.HandleChangeUsername)
+		}
+
+		// User routes secured with JWT
+		users := v1.Group("/users")
+		users.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			users.GET("/search", userHandler.HandleSearchUsers)
 		}
 
 		{

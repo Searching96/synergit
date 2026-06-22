@@ -109,3 +109,32 @@ func (p *PostgresUserStore) UpdateRepoPathsForUser(oldUsername, newUsername stri
 	`, newUsername, oldUsername)
 	return err
 }
+
+func (p *PostgresUserStore) SearchUsers(query string, limit int) ([]*domain.User, error) {
+	sqlQuery := `
+		SELECT id, username, email, password_hash, created_at, updated_at
+		FROM users
+		WHERE username ILIKE '%' || $1 || '%'
+		LIMIT $2`
+
+	rows, err := p.db.Query(sqlQuery, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		user := &domain.User{}
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}

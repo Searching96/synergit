@@ -5,3 +5,4 @@ export { issuesApi } from './issues';
 export { labelsApi, collaboratorsApi } from './labels';
 export { starsApi } from './stars';
 export { watchersApi } from './watchers';
+export { usersApi } from './users';

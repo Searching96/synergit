@@ -13,6 +13,7 @@ type UserRepository interface {
 	GetUserByID(id uuid.UUID) (*domain.User, error)
 	UpdateUsername(id uuid.UUID, newUsername string) error
 	UpdateRepoPathsForUser(oldUsername, newUsername string) error
+	SearchUsers(query string, limit int) ([]*domain.User, error)
 }
 
 type AuthUseCase interface {

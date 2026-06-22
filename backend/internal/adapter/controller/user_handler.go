@@ -9,15 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type UserSettingsHandler struct {
+type UserHandler struct {
 	userUseCase input.UserUseCase
 }
 
-func NewUserSettingsHandler(uuc input.UserUseCase) *UserSettingsHandler {
-	return &UserSettingsHandler{userUseCase: uuc}
+func NewUserHandler(uuc input.UserUseCase) *UserHandler {
+	return &UserHandler{userUseCase: uuc}
 }
 
-func (h *UserSettingsHandler) HandleChangeUsername(c *gin.Context) {
+func (h *UserHandler) HandleChangeUsername(c *gin.Context) {
 	requesterID, ok := parseRequesterID(c)
 	if !ok {
 		return
@@ -46,4 +46,30 @@ func (h *UserSettingsHandler) HandleChangeUsername(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "username updated successfully", "token": token})
+}
+
+func (h *UserHandler) HandleSearchUsers(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "query parameter 'q' is required"})
+		return
+	}
+
+	users, err := h.userUseCase.SearchUsers(query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: "failed to search users"})
+		return
+	}
+
+	// We map the domain users to a simple struct to avoid leaking password hashes, even though they might be empty.
+	var result []map[string]interface{}
+	for _, u := range users {
+		result = append(result, map[string]interface{}{
+			"id":       u.ID,
+			"username": u.Username,
+			"email":    u.Email,
+		})
+	}
+
+	c.JSON(http.StatusOK, result)
 }

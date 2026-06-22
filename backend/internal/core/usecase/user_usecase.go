@@ -4,6 +4,7 @@ import (
 	"errors"
 	"synergit/internal/core/boundary/input"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -58,4 +59,11 @@ func (s *UserService) ChangeUsername(requesterID uuid.UUID, newUsername string) 
 	}
 
 	return token, nil
+}
+
+func (s *UserService) SearchUsers(query string) ([]*domain.User, error) {
+	if len(query) < 2 {
+		return []*domain.User{}, nil
+	}
+	return s.userStore.SearchUsers(query, 10)
 }
