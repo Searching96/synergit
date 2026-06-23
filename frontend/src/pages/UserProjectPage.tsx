@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { 
   useFloating, autoUpdate, offset, flip, shift, 
@@ -7,9 +7,9 @@ import {
 } from "@floating-ui/react";
 import { 
   LockIcon, PlusIcon, SearchIcon, KebabHorizontalIcon, TableIcon, ChevronDownIcon, 
-  SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon,
+  SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon, GitPullRequestClosedIcon,
   RowsIcon, ArrowBothIcon, FilterIcon, ChevronRightIcon, SidebarExpandIcon, CircleIcon,
-  LocationIcon, CalendarIcon, ChevronLeftIcon
+  LocationIcon, CalendarIcon, ChevronLeftIcon, PencilIcon
 } from "@primer/octicons-react";
 import TopHeader from "../layouts/TopHeader";
 import RouteButton from "../components/shared/RouteButton";
@@ -23,9 +23,132 @@ interface UserProjectPageProps {
   onSignOut?: () => void;
 }
 
+const monthsData = [
+  { name: 'January 2026', days: 31 },
+  { name: 'February 2026', days: 28 },
+  { name: 'March 2026', days: 31 },
+  { name: 'April 2026', days: 30 },
+  { name: 'May 2026', days: 31 },
+  { name: 'June 2026', days: 30 },
+  { name: 'July 2026', days: 31 },
+  { name: 'August 2026', days: 31 },
+  { name: 'September 2026', days: 30 },
+  { name: 'October 2026', days: 31 },
+  { name: 'November 2026', days: 30 },
+  { name: 'December 2026', days: 31 },
+];
+
+const generateDays = (startDate: Date, numDays: number) => {
+  const days = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < numDays; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    days.push({
+      id: i,
+      date: d,
+      dateStr: `${d.toLocaleDateString('en-US', { weekday: 'short' })}, ${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getDate()}`,
+      dayOfMonth: d.getDate(),
+      isToday: d.getTime() === today.getTime(),
+      isSunday: d.getDay() === 0
+    });
+  }
+  return days;
+};
+
+const allDays = generateDays(new Date(2026, 0, 1), 365);
+const todayIndex = allDays.findIndex(d => d.isToday);
+
+const hardcodedRows = [
+  { id: 1, type: "issue", title: "hehe", number: "#15", avatar: null },
+  { id: 2, type: "issue", title: "i sub issue to see sub issue", number: "#2", avatar: "https://github.com/Searching96.png" },
+  { id: 3, type: "pull", title: "Update README.md", number: "#14", avatar: null },
+];
+
 export default function UserProjectPage({ username, onMenuClick, onSignOut }: UserProjectPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const layout = searchParams.get("layout") || "table";
+
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [leftPaneWidth, setLeftPaneWidth] = useState(336);
+  const isDraggingRef = useRef(false);
+  const [timelineItems, setTimelineItems] = useState<{rowId: number, dateStr: string, duration?: number}[]>([]);
+
+  const draggingItemRef = useRef<{
+    index: number;
+    type: 'left' | 'right';
+    initialMouseX: number;
+    initialStartDayIndex: number;
+    initialDuration: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingRef.current && timelineRef.current) {
+        const rect = timelineRef.current.getBoundingClientRect();
+        const newWidth = e.clientX - rect.left;
+        setLeftPaneWidth(Math.max(144, newWidth)); // min width is 3 days
+      }
+
+      if (draggingItemRef.current) {
+        const dragInfo = draggingItemRef.current;
+        const diffX = e.clientX - dragInfo.initialMouseX;
+        const diffDays = Math.round(diffX / 48);
+        
+        setTimelineItems(prev => {
+          const next = [...prev];
+          const item = { ...next[dragInfo.index] };
+          
+          if (dragInfo.type === 'right') {
+            let newDuration = dragInfo.initialDuration + diffDays;
+            const maxDuration = allDays.length - dragInfo.initialStartDayIndex;
+            newDuration = Math.max(1, Math.min(newDuration, maxDuration));
+            item.duration = newDuration;
+          } else if (dragInfo.type === 'left') {
+            const rightEdgeDayIndex = dragInfo.initialStartDayIndex + dragInfo.initialDuration - 1;
+            let newStartDayIndex = dragInfo.initialStartDayIndex + diffDays;
+            newStartDayIndex = Math.max(0, Math.min(newStartDayIndex, rightEdgeDayIndex));
+            
+            item.dateStr = allDays[newStartDayIndex].dateStr;
+            item.duration = rightEdgeDayIndex - newStartDayIndex + 1;
+          }
+          next[dragInfo.index] = item;
+          return next;
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      draggingItemRef.current = null;
+      document.body.style.cursor = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+  };
+
+  useEffect(() => {
+    if (layout === 'roadmap' && timelineRef.current) {
+      const cellWidth = 48;
+      const containerWidth = timelineRef.current.clientWidth;
+      const scrollX = (todayIndex * cellWidth) - (containerWidth / 2) + (leftPaneWidth / 2) + (cellWidth / 2);
+      timelineRef.current.scrollLeft = scrollX;
+    }
+  }, [layout]);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -44,6 +167,17 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
   const [showHierarchy, setShowHierarchy] = useState(true);
   const [showAgentSessions, setShowAgentSessions] = useState(true);
+
+  const getRowDates = (rowId: number) => {
+    const item = timelineItems.find(t => t.rowId === rowId);
+    if (!item) return { start: "", end: "" };
+    const startDayIndex = allDays.findIndex(d => d.dateStr === item.dateStr);
+    if (startDayIndex === -1) return { start: item.dateStr, end: item.dateStr };
+    const duration = item.duration || 1;
+    const endDayIndex = startDayIndex + duration - 1;
+    const endDateStr = allDays[endDayIndex]?.dateStr || item.dateStr;
+    return { start: item.dateStr, end: endDateStr };
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[var(--surface-canvas)] font-sans text-[var(--text-primary)]">
@@ -86,35 +220,38 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[var(--surface-canvas)]">
         {/* Project Header */}
-        <div className="px-4 py-3 flex items-center justify-between bg-[var(--surface-page)]">
+        <div className="px-4 py-3 flex items-center justify-between bg-[#f6f8fa] dark:bg-[var(--surface-page)]">
           <div className="flex items-center gap-2">
-            <LockIcon size={16} className="text-[var(--text-primary)]" />
-            <h1 className="text-[20px] font-semibold text-[var(--text-primary)]">
+            <LockIcon size={16} className="text-[#656d76]" />
+            <h1 className="text-[20px] font-semibold text-[#24292f] dark:text-[var(--text-primary)]">
               @{username}'s untitled project
             </h1>
+            <button className="text-[#656d76] hover:text-[#0969da] ml-1">
+              <PencilIcon size={16} />
+            </button>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="h-[28px] px-3 rounded-full bg-[#f3f4f6] dark:bg-[var(--surface-subtle)] text-[13px] font-medium text-[#57606a] dark:text-[var(--text-secondary)] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] inline-flex items-center border border-[#d0d7de] dark:border-[var(--border-default)]">
+            <button type="button" className="h-[28px] px-3 rounded-full bg-[#f3f4f6] dark:bg-[var(--surface-subtle)] text-[12px] font-medium text-[#57606a] dark:text-[var(--text-secondary)] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] inline-flex items-center border border-[#d0d7de] dark:border-[var(--border-default)]">
               Add status update
             </button>
             <div className="flex items-center rounded-md">
-              <button type="button" className="h-[28px] px-3 rounded-l-md bg-[var(--surface-canvas)] border border-[var(--border-default)] border-r-0 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5">
+              <button type="button" className="h-[28px] px-3 rounded-l-md bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-r-0 text-xs font-medium text-[#24292f] dark:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shadow-sm">
                 <GraphIcon size={14} className="text-[#656d76]" />
                 Insights
               </button>
-              <button type="button" className="h-[28px] px-3 rounded-r-md bg-[var(--surface-canvas)] border border-[var(--border-default)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5">
+              <button type="button" className="h-[28px] px-3 rounded-r-md bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] text-xs font-medium text-[#24292f] dark:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shadow-sm">
                 <WorkflowIcon size={14} className="text-[#656d76]" />
                 Workflows
-                <span className="ml-0.5 inline-flex items-center justify-center bg-[#e1e4e8] dark:bg-[var(--surface-subtle)] rounded-full h-[18px] min-w-[18px] px-1.5 text-[11px] font-medium text-[var(--text-primary)]">
+                <span className="ml-0.5 inline-flex items-center justify-center bg-[#f3f4f6] dark:bg-[var(--surface-subtle)] rounded-full h-[18px] min-w-[18px] px-1.5 text-[11px] font-medium text-[#24292f] dark:text-[var(--text-primary)] border border-[#d0d7de] dark:border-[var(--border-default)]">
                   6
                 </span>
               </button>
             </div>
-            <div className="flex items-center rounded-md ml-1">
-              <button type="button" className="h-[28px] w-[32px] rounded-l-md bg-[var(--surface-canvas)] border border-[var(--border-default)] border-r-0 text-[#656d76] hover:bg-[var(--surface-hover)] inline-flex items-center justify-center">
+            <div className="flex items-center rounded-md ml-1 shadow-sm">
+              <button type="button" className="h-[28px] w-[32px] rounded-l-md bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-r-0 text-[#656d76] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center justify-center">
                 <SidebarCollapseIcon size={14} />
               </button>
-              <button type="button" className="h-[28px] w-[32px] rounded-r-md bg-[var(--surface-canvas)] border border-[var(--border-default)] text-[#656d76] hover:bg-[var(--surface-hover)] inline-flex items-center justify-center">
+              <button type="button" className="h-[28px] w-[32px] rounded-r-md bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] text-[#656d76] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center justify-center">
                 <KebabHorizontalIcon size={14} />
               </button>
             </div>
@@ -122,20 +259,21 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
         </div>
 
         {/* View Tabs */}
-        <div className="px-4 pt-2 flex items-end gap-2 bg-white dark:bg-[var(--surface-canvas)] relative">
-          <button type="button" className="h-8 px-3 bg-white dark:bg-[var(--surface-canvas)] border border-[var(--border-default)] border-b-white dark:border-b-[var(--surface-canvas)] rounded-t-md text-[13px] font-medium text-[var(--text-primary)] inline-flex items-center gap-1.5 z-10 -mb-[1px]">
-            <OcticonProjectRoadmap size={14} className="text-[#656d76]" />
+        <div className="px-4 pt-2 flex items-end gap-1 bg-[#f6f8fa] dark:bg-[var(--surface-page)] border-b border-[#d0d7de] dark:border-[var(--border-default)] relative">
+          <button type="button" className="h-[32px] px-3 bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-b-white dark:border-b-[var(--surface-canvas)] rounded-t-md text-[13px] font-medium text-[#24292f] dark:text-[var(--text-primary)] inline-flex items-center gap-1.5 z-10 -mb-[1px]">
+            <TableIcon size={14} className="text-[#656d76]" />
             View 1
-            <ChevronDownIcon size={14} className="text-[#656d76] ml-0.5" />
+            <ChevronDownIcon size={14} className="text-[#656d76] ml-1" />
           </button>
-          <button type="button" className="h-[28px] px-3 mb-[2px] rounded-md bg-[#f6f8fa] dark:bg-[var(--surface-subtle)] text-[13px] font-medium text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 transition-colors">
+          
+          <button type="button" className="h-[32px] px-3 text-[13px] font-medium text-[#57606a] hover:bg-[#ebf0f4] dark:hover:bg-[var(--surface-hover)] hover:text-[#24292f] inline-flex items-center gap-1.5 rounded-t-md transition-colors mb-[1px]">
             <PlusIcon size={14} />
             New view
           </button>
         </div>
 
         {/* Filter Bar */}
-        <div className="px-4 py-2 flex items-center justify-between border-t border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] relative z-0">
+        <div className="px-4 py-2 flex items-center justify-between bg-white dark:bg-[var(--surface-canvas)] relative z-0">
           <div className="relative w-full mr-4">
             <SearchIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
             <input
@@ -150,12 +288,9 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
             type="button" 
             ref={viewRefs.setReference}
             {...getViewReferenceProps()}
-            className="h-[32px] px-3 rounded-md bg-white dark:bg-[var(--surface-canvas)] border border-[var(--border-default)] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shrink-0 shadow-sm"
+            className="h-[32px] px-3 rounded-md bg-white dark:bg-[var(--surface-canvas)] border border-[var(--border-default)] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shrink-0"
           >
-            <div className="relative">
-              <OcticonGear size={14} className="text-[#656d76]" />
-              <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-[#0969da] rounded-full border border-white dark:border-[var(--surface-canvas)]" />
-            </div>
+            <OcticonGear size={14} className="text-[#656d76]" />
             View
           </button>
           
@@ -393,21 +528,23 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
           ) : layout === 'roadmap' ? (
             <div className="flex flex-col min-h-full">
                       {/* Roadmap Split View */}
-              <div className="flex flex-1 overflow-x-auto overflow-y-hidden relative bg-[#f6f8fa] dark:bg-[var(--surface-canvas)]">
-                <div className="min-w-max flex flex-col relative" style={{ width: `${55 * 48}px` }}>
+              <div className="flex flex-1 overflow-x-auto overflow-y-hidden relative bg-[#f6f8fa] dark:bg-[var(--surface-canvas)]" ref={timelineRef}>
+                <div className="min-w-max flex flex-col relative" style={{ width: `${365 * 48}px` }}>
                   {/* NEW Roadmap Header (Months + Toolbar) */}
                   <div className="flex items-center text-[12px] bg-white dark:bg-[var(--surface-canvas)] sticky top-0 z-40 h-[36px] w-full">
-                    {/* June 2026 header */}
-                    <div className="absolute left-0 pl-2 font-semibold text-[var(--text-primary)]">
-                      June 2026
-                    </div>
-                    {/* July 2026 header */}
-                    <div className="absolute left-[1152px] pl-2 font-semibold text-[var(--text-primary)]">
-                      July 2026
+                    {/* Months headers */}
+                    <div className="flex items-center h-full absolute left-0 top-0 bottom-0 pointer-events-none">
+                      {monthsData.map((m) => (
+                        <div key={m.name} className="h-full relative pointer-events-none" style={{ width: `${m.days * 48}px` }}>
+                          <div className="sticky left-0 pl-2 font-semibold text-[var(--text-primary)] flex items-center h-full w-max pointer-events-auto">
+                            {m.name}
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                     {/* Toolbar sticky to the right edge of viewport */}
-                    <div className="sticky right-4 flex items-center gap-4 text-[var(--text-muted)] ml-auto pr-4">
+                    <div className="sticky right-0 flex items-center gap-4 text-[var(--text-muted)] ml-auto pr-4 pl-4 bg-white dark:bg-[var(--surface-canvas)] h-full z-10">
                       <div className="flex items-center gap-1 cursor-pointer hover:text-[var(--text-primary)]">
                         <LocationIcon size={14} /> <span>Markers</span>
                       </div>
@@ -441,17 +578,12 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   {/* Timeline header (Days) - FULL WIDTH */}
                   <div className="flex h-[34px] border-b border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[11px] text-[var(--text-muted)] min-w-max sticky top-[36px] z-30">
                     {/* Render days exactly like the screenshot */}
-                    {[7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30].map(day => (
-                      <div key={`june-${day}`} className="w-[48px] h-full shrink-0 flex items-end justify-center pb-1.5 relative">
-                        <div className={day === 23 ? "text-[#d1242f] font-semibold" : ""}>{day}</div>
-                        {day === 23 && (
+                    {allDays.map(dayObj => (
+                      <div key={`header-${dayObj.id}`} className="w-[48px] h-full shrink-0 flex items-end justify-center pb-1.5 relative">
+                        <div className={dayObj.isToday ? "text-[#d1242f] font-semibold" : ""}>{dayObj.dayOfMonth}</div>
+                        {dayObj.isToday && (
                           <div className="absolute bottom-[-3px] left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#d1242f] rounded-full z-50 pointer-events-none" />
                         )}
-                      </div>
-                    ))}
-                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31].map(day => (
-                      <div key={`july-${day}`} className="w-[48px] h-full shrink-0 flex items-end justify-center pb-1.5 relative">
-                        <div>{day}</div>
                       </div>
                     ))}
                   </div>
@@ -464,23 +596,182 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
                       {/* Columns representing days */}
                       <div className="flex h-full">
-                        {[7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30].map(day => (
-                          <div key={`grid-june-${day}`} className={`w-[48px] shrink-0 relative ${[14, 21, 28].includes(day) ? 'border-r border-[var(--border-default)]' : ''}`}>
-                            {day === 23 && (
+                        {allDays.map(dayObj => (
+                          <div key={`grid-${dayObj.id}`} className={`w-[48px] shrink-0 relative ${dayObj.isSunday ? 'border-r border-[var(--border-default)]' : ''}`}>
+                            {dayObj.isToday && (
                               <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[1px] bg-[#d1242f] z-40 pointer-events-none" />
                             )}
                           </div>
-                        ))}
-                        {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31].map(day => (
-                          <div key={`grid-july-${day}`} className={`w-[48px] shrink-0 ${[5, 12, 19, 26].includes(day) ? 'border-r border-[var(--border-default)]' : ''}`} />
                         ))}
                       </div>
                       
                       {/* Removed horizontal row separators to match Gantt view */}
                     </div>
 
+                    {/* Timeline Interactive Rows */}
+                    <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col pointer-events-none">
+                      {hardcodedRows.map(row => {
+                        const hasItem = timelineItems.some(item => item.rowId === row.id);
+                        return (
+                        <div key={`trow-${row.id}`} className="h-[35px] group/timelineRow flex relative w-max pointer-events-none">
+                          {/* Default [+] button that sticks to right edge of Left Pane */}
+                          {!hasItem && (
+                            <div className="sticky h-full shrink-0 z-50 pointer-events-none peer/defaultBtn" style={{ left: `${leftPaneWidth}px`, width: '0px' }}>
+                              <div className="absolute top-0 bottom-0 left-0 pl-2 pr-2 flex items-center group-has-[.timeline-cell:hover]/timelineRow:hidden pointer-events-auto group/btnInner default-btn-inner">
+                                <div 
+                                  className="w-[22px] h-[22px] flex items-center justify-center rounded-md border border-[var(--border-default)] cursor-pointer bg-white dark:bg-[var(--surface-canvas)] shadow-sm hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-subtle)] relative z-10"
+                                  onClick={() => {
+                                    const todayStr = allDays.find(d => d.isToday)?.dateStr;
+                                    if (todayStr) {
+                                      setTimelineItems([...timelineItems, { rowId: row.id, dateStr: todayStr }]);
+                                    }
+                                  }}
+                                >
+                                  <PlusIcon size={14} className="text-[#656d76]" />
+                                  {/* Tooltip for default button */}
+                                  <div className="hidden group-hover/btnInner:flex absolute left-full top-1/2 -translate-y-1/2 ml-1.5 px-2 py-1 bg-[#24292f] dark:bg-[#e1e4e8] text-white dark:text-[#24292f] font-medium text-[11px] rounded whitespace-nowrap z-50 shadow-md pointer-events-none">
+                                    Add to today at {allDays.find(d => d.isToday)?.dateStr || ''}
+                                    {/* Tooltip arrow pointing left */}
+                                    <div className="absolute top-1/2 -translate-y-1/2 right-full w-0 h-0 border-[4px] border-transparent border-r-[#24292f] dark:border-r-[#e1e4e8]"></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Hover Cells */}
+                          {allDays.map(dayObj => (
+                            <div key={`tcell-${row.id}-${dayObj.id}`} className="w-[48px] h-full shrink-0 relative group/cell timeline-cell flex items-center justify-center pointer-events-auto">
+                              {/* Today outline trigger by default button hover */}
+                              {!hasItem && dayObj.isToday && (
+                                <div className="hidden peer-hover/defaultBtn:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[24px] rounded-md border border-dashed border-[#d0d7de] dark:border-[#8b949e] bg-transparent z-0 pointer-events-none"></div>
+                              )}
+                              {/* The custom tooltip */}
+                              {!hasItem && (
+                                <div className="hidden group-hover/cell:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[#24292f] dark:bg-[#e1e4e8] text-white dark:text-[#24292f] font-medium text-[11px] rounded whitespace-nowrap z-50 shadow-md pointer-events-none">
+                                  Add to {dayObj.dateStr}
+                                  {/* Tooltip arrow */}
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-[4px] border-transparent border-t-[#24292f] dark:border-t-[#e1e4e8]"></div>
+                                </div>
+                              )}
+                              {/* Cell [+] button */}
+                              {!hasItem && (
+                                <div 
+                                  className="hidden group-hover/cell:flex w-full h-[24px] items-center justify-center rounded-md border border-[var(--border-default)] cursor-pointer bg-white dark:bg-[var(--surface-canvas)] shadow-sm absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-subtle)]"
+                                  onClick={() => {
+                                    setTimelineItems([...timelineItems, { rowId: row.id, dateStr: dayObj.dateStr }]);
+                                  }}
+                                >
+                                  <PlusIcon size={14} className="text-[#656d76]" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )})}
+                    </div>
+
+                    {/* Left Pane Resizer Container */}
+                    <div className="sticky left-0 z-40 w-0 h-0 shrink-0 pointer-events-none">
+                      <div 
+                        className="absolute top-[-34px] w-[24px] h-[33px] cursor-col-resize flex items-center justify-center pointer-events-auto hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)]"
+                        style={{ left: `${leftPaneWidth - 12}px` }}
+                        onMouseDown={handleMouseDown}
+                      >
+                        <div className="w-full h-full flex items-center justify-center relative bg-white dark:bg-[var(--surface-canvas)]">
+                          <ArrowBothIcon size={10} className="text-[#656d76]" />
+                          <div className="absolute top-[10px] bottom-[10px] left-1/2 -translate-x-1/2 w-[1px] border-r border-dashed border-[#656d76] pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Timeline Foreground Items */}
+                    <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none z-20">
+                      {timelineItems.map((item, idx) => {
+                        const rowData = hardcodedRows.find(r => r.id === item.rowId);
+                        const startDayIndex = allDays.findIndex(d => d.dateStr === item.dateStr);
+                        if (!rowData || startDayIndex === -1) return null;
+
+                        const duration = item.duration || 1;
+                        const endDayIndex = startDayIndex + duration - 1;
+                        const endDateStr = allDays[endDayIndex]?.dateStr || item.dateStr;
+
+                        const tooltipText = duration === 1 ? item.dateStr : `${item.dateStr} - ${endDateStr}`;
+
+                        const top = (item.rowId - 1) * 35 + 5; // 5px top offset inside 35px row
+                        const left = startDayIndex * 48; // Left edge of the day cell
+                        const width = duration * 48;
+
+                        return (
+                          <div 
+                            key={`item-${idx}`}
+                            className="absolute h-[24px] bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md shadow-sm z-50 pointer-events-auto group/item"
+                            style={{ 
+                              top: `${top}px`, 
+                              left: `${left}px`,
+                              width: `${width}px`, 
+                            }}
+                          >
+                            {/* The custom tooltip */}
+                            <div className="hidden group-hover/item:flex absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-[#24292f] dark:bg-[#e1e4e8] text-white dark:text-[#24292f] font-medium text-[11px] rounded whitespace-nowrap shadow-md pointer-events-none z-[60]">
+                              {tooltipText}
+                              {/* Tooltip arrow */}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-[4px] border-transparent border-t-[#24292f] dark:border-t-[#e1e4e8]"></div>
+                            </div>
+
+                            {/* Left Resize Handle */}
+                            <div 
+                              className="absolute top-0 bottom-0 left-[-6px] w-[12px] cursor-ew-resize z-10"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                draggingItemRef.current = {
+                                  index: idx,
+                                  type: 'left',
+                                  initialMouseX: e.clientX,
+                                  initialStartDayIndex: startDayIndex,
+                                  initialDuration: duration
+                                };
+                                document.body.style.cursor = 'ew-resize';
+                              }}
+                            />
+
+                            {/* Right Resize Handle */}
+                            <div 
+                              className="absolute top-0 bottom-0 right-[-6px] w-[12px] cursor-ew-resize z-10"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                draggingItemRef.current = {
+                                  index: idx,
+                                  type: 'right',
+                                  initialMouseX: e.clientX,
+                                  initialStartDayIndex: startDayIndex,
+                                  initialDuration: duration
+                                };
+                                document.body.style.cursor = 'ew-resize';
+                              }}
+                            />
+
+                            <div className="w-full h-full flex items-center pl-2 whitespace-nowrap overflow-visible">
+                              {rowData.type === 'issue' ? (
+                                <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
+                              ) : (
+                                <GitPullRequestIcon size={14} className="text-[#8250df] shrink-0" />
+                              )}
+                              <div className="flex items-center gap-1.5 ml-2">
+                                <span className="text-[12px] text-[var(--text-primary)]">{rowData.title}</span>
+                                <span className="text-[12px] text-[var(--text-muted)]">{rowData.number}</span>
+                                {rowData.avatar && (
+                                  <img src={rowData.avatar} alt="avatar" className="w-4 h-4 rounded-full shrink-0" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
                     {/* Left Pane (Table) - sticky to left edge */}
-                    <div className="w-[336px] shrink-0 flex flex-col z-20 sticky left-0 pointer-events-auto">
+                    <div className="shrink-0 flex flex-col z-20 sticky left-0 pointer-events-auto" style={{ width: `${leftPaneWidth}px` }}>
                       {/* Rows */}
                       <div className="flex flex-col w-full border-b border-r border-[var(--border-default)] shadow-sm relative z-10 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)]">
                         {/* Row 1 */}
@@ -488,13 +779,8 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                           <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">1</div>
                           <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
                             <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">hehe <span className="text-[var(--text-muted)]">#15</span></span>
-                          </div>
-                          {/* Timeline [+] button projecting into the grid */}
-                          <div className="absolute -right-[30px] top-1/2 -translate-y-1/2 z-30 pointer-events-auto">
-                            <div className="w-[22px] h-[22px] flex items-center justify-center rounded-md border border-[var(--border-default)] cursor-pointer bg-white dark:bg-[var(--surface-canvas)]">
-                               <PlusIcon size={14} className="text-[#656d76]" />
-                            </div>
+                            <span className="text-[13px] text-[var(--text-primary)] truncate">hehe</span>
+                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#15</span>
                           </div>
                         </div>
                         {/* Row 2 */}
@@ -502,13 +788,8 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                           <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">2</div>
                           <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
                             <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">i sub issue to see sub issue <span className="text-[var(--text-muted)]">#2</span></span>
-                          </div>
-                          {/* Timeline [+] button projecting into the grid */}
-                          <div className="absolute -right-[30px] top-1/2 -translate-y-1/2 z-30 pointer-events-auto">
-                            <div className="w-[22px] h-[22px] flex items-center justify-center rounded-md border border-[var(--border-default)] cursor-pointer bg-white dark:bg-[var(--surface-canvas)]">
-                               <PlusIcon size={14} className="text-[#656d76]" />
-                            </div>
+                            <span className="text-[13px] text-[var(--text-primary)] truncate">i sub issue to see sub issue</span>
+                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#2</span>
                           </div>
                         </div>
                         {/* Row 3 */}
@@ -516,13 +797,8 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                           <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">3</div>
                           <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
                             <GitPullRequestIcon size={14} className="text-[#8250df] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">Update README.md <span className="text-[var(--text-muted)]">#14</span></span>
-                          </div>
-                          {/* Timeline [+] button projecting into the grid */}
-                          <div className="absolute -right-[30px] top-1/2 -translate-y-1/2 z-30 pointer-events-auto">
-                            <div className="w-[22px] h-[22px] flex items-center justify-center rounded-md border border-[var(--border-default)] cursor-pointer bg-white dark:bg-[var(--surface-canvas)]">
-                               <PlusIcon size={14} className="text-[#656d76]" />
-                            </div>
+                            <span className="text-[13px] text-[var(--text-primary)] truncate">Update README.md</span>
+                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#14</span>
                           </div>
                         </div>
 
@@ -544,7 +820,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
           ) : (
             <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
             <thead>
-              <tr className="bg-white dark:bg-[var(--surface-canvas)] border-b-[3px] border-[var(--border-default)] text-[12px] text-[#656d76] font-medium">
+              <tr className="bg-white dark:bg-[var(--surface-canvas)] border-t border-b-[3px] border-[var(--border-default)] text-[12px] text-[#656d76] font-medium">
                 <th className="py-[3px] w-[48px] text-center"></th>
                 <th className="py-[3px] pl-3 pr-2 font-normal border-r border-[var(--border-default)] w-[400px]">
                   <div className="flex items-center justify-between group/th">
@@ -573,6 +849,12 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 <th className="py-[3px] px-3 font-normal border-r border-[var(--border-default)] w-[180px]">
                   <div className="flex items-center justify-between group/th">
                     Sub-issues progress
+                    <KebabHorizontalIcon size={14} className="text-[#656d76] cursor-pointer" />
+                  </div>
+                </th>
+                <th className="py-[3px] px-3 font-normal border-r border-[var(--border-default)] w-[140px]">
+                  <div className="flex items-center justify-between group/th">
+                    Start Date
                     <KebabHorizontalIcon size={14} className="text-[#656d76] cursor-pointer" />
                   </div>
                 </th>
@@ -614,9 +896,29 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                     <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
                   </div>
                 </td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[12px] font-medium text-[var(--text-primary)]">
+                      <GitPullRequestIcon size={14} className="text-[#1a7f37]" />
+                      #2
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[12px] font-medium text-[var(--text-primary)]">
+                      <GitPullRequestClosedIcon size={14} className="text-[#cf222e]" />
+                      #3
+                    </span>
+                  </div>
+                </td>
                 <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(1).start}
+                  </div>
+                </td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(1).end}
+                  </div>
+                </td>
                 <td className="py-1.5 px-3 border-r-transparent"></td>
               </tr>
               {/* Row 2 */}
@@ -649,7 +951,16 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 </td>
                 <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
                 <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(2).start}
+                  </div>
+                </td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(2).end}
+                  </div>
+                </td>
                 <td className="py-1.5 px-3 border-r-transparent"></td>
               </tr>
               {/* Row 3 */}
@@ -680,30 +991,40 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 </td>
                 <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
                 <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(3).start}
+                  </div>
+                </td>
+                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
+                    {getRowDates(3).end}
+                  </div>
+                </td>
                 <td className="py-1.5 px-3 border-r-transparent"></td>
               </tr>
               {/* Empty rows and Add an item row overlay */}
-              {Array.from({ length: 20 }).map((_, i) => (
-                <tr key={i} className="border-b border-[var(--border-default)] bg-[#f6f8fa] dark:bg-[var(--surface-page)] h-[35px]">
-                  <td colSpan={8} className="p-0 relative h-[35px]">
-                    {i === 0 && (
-                      <div className="absolute top-0 left-0 w-full bg-white dark:bg-[var(--surface-canvas)] flex items-center border-b border-[var(--border-default)] h-[31px] z-10">
-                        <div className="w-[48px] text-center text-[#656d76] shrink-0 flex justify-center">
-                          <PlusIcon size={14} className="inline-block" />
-                        </div>
-                        <div className="pl-3 pr-2">
-                          <div className="text-[13px] text-[#656d76]">
-                            <span className="text-[var(--text-muted)]">
-                              You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {Array.from({ length: 20 }).map((_, i) => {
+                if (i === 0) {
+                  return (
+                    <tr key={i} className="border-b border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] h-[35px]">
+                      <td className="py-1.5 px-2 text-center text-[#656d76]">
+                        <PlusIcon size={14} className="inline-block" />
+                      </td>
+                      <td colSpan={8} className="py-1.5 pl-3 pr-2 text-[13px] text-[#656d76]">
+                        <span className="text-[var(--text-muted)]">
+                          You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr key={i} className="border-b border-[var(--border-default)] bg-[#f6f8fa] dark:bg-[var(--surface-page)] h-[35px]">
+                    <td colSpan={9} className="p-0 relative h-[35px]"></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           )}
