@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   useFloating, autoUpdate, offset, flip, shift, 
   useClick, useDismiss, useRole, useInteractions, 
@@ -7,7 +8,7 @@ import {
 import { 
   LockIcon, PlusIcon, SearchIcon, KebabHorizontalIcon, TableIcon, ChevronDownIcon, 
   SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon,
-  RowsIcon, ArrowBothIcon, FilterIcon, ChevronRightIcon, SidebarExpandIcon
+  RowsIcon, ArrowBothIcon, FilterIcon, ChevronRightIcon, SidebarExpandIcon, CircleIcon
 } from "@primer/octicons-react";
 import TopHeader from "../layouts/TopHeader";
 import RouteButton from "../components/shared/RouteButton";
@@ -22,6 +23,9 @@ interface UserProjectPageProps {
 }
 
 export default function UserProjectPage({ username, onMenuClick, onSignOut }: UserProjectPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const layout = searchParams.get("layout") || "table";
+
   const [searchQuery, setSearchQuery] = useState("");
 
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -63,7 +67,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 <span className="text-[var(--text-muted)] font-normal">/</span>
                 <RouteButton
                   selected
-                  href={`/users/${username}/projects/8`}
+                  href={`/users/${username}/projects/8/views/1`}
                   className="truncate inline-flex items-center"
                 >
                   @{username}'s untitled project
@@ -163,16 +167,31 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   {/* Tabs */}
                   <div className="p-3 border-b border-[var(--border-default)]">
                     <div className="flex bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] rounded-md border border-[var(--border-default)] overflow-hidden p-0">
-                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] font-medium bg-white dark:bg-[var(--surface-page)] shadow-[inset_0_1px_0_rgba(255,255,255,1)] dark:shadow-none border-r border-r-[var(--border-default)]">
-                        <TableIcon size={16} className="text-[#656d76]" />
+                      <button 
+                        type="button" 
+                        onClick={() => { 
+                          setSearchParams(params => { params.delete('layout'); return params; }); 
+                          setIsViewOpen(false); 
+                        }}
+                        className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] border-r border-r-[var(--border-default)] ${layout === 'table' ? 'font-medium bg-white dark:bg-[var(--surface-page)] shadow-[inset_0_1px_0_rgba(255,255,255,1)] dark:shadow-none' : 'text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)]'}`}
+                      >
+                        <TableIcon size={16} className={layout === 'table' ? 'text-[#656d76]' : ''} />
                         Table
                       </button>
-                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] border-r border-r-[var(--border-default)]">
-                        <OcticonProject size={16} />
+                      <button 
+                        type="button" 
+                        onClick={() => { setSearchParams({ layout: "board" }); setIsViewOpen(false); }}
+                        className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] border-r border-r-[var(--border-default)] ${layout === 'board' ? 'font-medium bg-white dark:bg-[var(--surface-page)] shadow-[inset_0_1px_0_rgba(255,255,255,1)] dark:shadow-none' : 'text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)]'}`}
+                      >
+                        <OcticonProject size={16} className={layout === 'board' ? 'text-[#656d76]' : ''} />
                         Board
                       </button>
-                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)]">
-                        <OcticonProjectRoadmap size={16} />
+                      <button 
+                        type="button" 
+                        onClick={() => { setSearchParams({ layout: "roadmap" }); setIsViewOpen(false); }}
+                        className={`flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] ${layout === 'roadmap' ? 'font-medium bg-white dark:bg-[var(--surface-page)] shadow-[inset_0_1px_0_rgba(255,255,255,1)] dark:shadow-none' : 'text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)]'}`}
+                      >
+                        <OcticonProjectRoadmap size={16} className={layout === 'roadmap' ? 'text-[#656d76]' : ''} />
                         Roadmap
                       </button>
                     </div>
@@ -239,9 +258,136 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
           )}
         </div>
 
-        {/* Table Area */}
-        <div className="flex-1 overflow-auto bg-[#f6f8fa] dark:bg-[var(--surface-page)] pb-10">
-          <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-auto bg-white dark:bg-[var(--surface-page)]">
+          {layout === 'board' ? (
+            <div className="flex overflow-x-auto gap-4 px-4 py-4 min-h-full items-stretch">
+              {/* Todo Column */}
+              <div className="flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
+                <div className="px-3 pt-3 pb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <CircleIcon size={16} className="text-[#1a7f37]" />
+                      <span className="font-semibold text-[14px]">Todo</span>
+                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#656d76]">
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
+                    </div>
+                  </div>
+                  <div className="text-[13px] text-[#656d76]">This item hasn't been started</div>
+                </div>
+                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
+                  {/* Card */}
+                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group flex flex-col">
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
+                        <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
+                        <span>synergit <span className="text-[#656d76]">#2</span></span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
+                        <img src={`https://github.com/Searching96.png`} alt="avatar" className="w-5 h-5 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da] mb-2">
+                      i sub issue to see sub issue
+                    </div>
+                  </div>
+                  
+                  {/* Add item button */}
+                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-colors">
+                    <PlusIcon size={14} /> Add item
+                  </button>
+                </div>
+              </div>
+
+              {/* In Progress Column */}
+              <div className="flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
+                <div className="px-3 pt-3 pb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <CircleIcon size={16} className="text-[#9a6700]" />
+                      <span className="font-semibold text-[14px]">In Progress</span>
+                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#656d76]">
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
+                    </div>
+                  </div>
+                  <div className="text-[13px] text-[#656d76]">This is actively being worked on</div>
+                </div>
+                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
+                  {/* Card */}
+                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group">
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
+                        <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
+                        <span>test-ui <span className="text-[#656d76]">#15</span></span>
+                      </div>
+                      <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
+                    </div>
+                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da]">
+                      hehe
+                    </div>
+                  </div>
+
+                  {/* Add item button */}
+                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-colors">
+                    <PlusIcon size={14} /> Add item
+                  </button>
+                </div>
+              </div>
+
+              {/* Done Column */}
+              <div className="flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
+                <div className="px-3 pt-3 pb-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <CircleIcon size={16} className="text-[#8250df]" />
+                      <span className="font-semibold text-[14px]">Done</span>
+                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#656d76]">
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
+                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
+                    </div>
+                  </div>
+                  <div className="text-[13px] text-[#656d76]">This has been completed</div>
+                </div>
+                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
+                  {/* Card */}
+                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group">
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
+                        <GitPullRequestIcon size={14} className="text-[#8250df]" />
+                        <span>test-ui <span className="text-[#656d76]">#14</span></span>
+                      </div>
+                      <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
+                    </div>
+                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da]">
+                      Update README.md
+                    </div>
+                  </div>
+
+                  {/* Add item button */}
+                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-colors">
+                    <PlusIcon size={14} /> Add item
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Column Button */}
+              <div className="flex flex-col shrink-0 self-start">
+                <button type="button" className="w-8 h-8 rounded-md bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] hover:border-[#0969da] flex items-center justify-center text-[#656d76] hover:text-[#0969da] cursor-pointer mt-0 shadow-sm transition-colors">
+                  <PlusIcon size={16} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
             <thead>
               <tr className="bg-white dark:bg-[var(--surface-canvas)] border-b-[3px] border-[var(--border-default)] text-[12px] text-[#656d76] font-medium">
                 <th className="py-[3px] w-[48px] text-center"></th>
@@ -405,6 +551,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </main>
     </div>

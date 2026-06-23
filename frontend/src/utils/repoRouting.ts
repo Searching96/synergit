@@ -325,9 +325,16 @@ export function parseAppPath(pathname: string): ParsedRoute {
     };
   }
 
-  if (segments.length === 4 && segments[0] === "users" && segments[2] === "projects") {
+  if ((segments.length === 4 || segments.length === 6) && segments[0] === "users" && segments[2] === "projects") {
     const username = decodeURIComponent(segments[1]);
     const projectId = decodeURIComponent(segments[3]);
+    let normalizedPath = `/users/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}`;
+    if (segments.length === 6 && segments[4] === "views") {
+      normalizedPath += `/views/${encodeURIComponent(segments[5])}`;
+    } else {
+      // Auto-append views/1 if missing
+      normalizedPath += `/views/1`;
+    }
     return {
       viewMode: "user-project",
       repoOwner: username,
@@ -338,7 +345,7 @@ export function parseAppPath(pathname: string): ParsedRoute {
       contentPath: projectId,
       branch: "",
       globalPage: null,
-      normalizedPath: `/users/${encodeURIComponent(username)}/projects/${encodeURIComponent(projectId)}`,
+      normalizedPath,
     };
   }
 

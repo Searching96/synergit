@@ -308,6 +308,16 @@ function App() {
       return parsed;
     }
 
+    if (parsed.viewMode === 'user-project') {
+      replaceHistoryIfNeeded(`${parsed.normalizedPath}${search}`);
+      return parsed;
+    }
+
+    if (parsed.viewMode === 'global' && parsed.globalPage === 'search') {
+      replaceHistoryIfNeeded(`${parsed.normalizedPath}${search}`);
+      return parsed;
+    }
+
     replaceHistoryIfNeeded(parsed.normalizedPath);
 
     return parsed;

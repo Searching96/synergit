@@ -45,7 +45,7 @@ export default function ProfileProjectsPage({ isLoading }: ProfileProjectsPagePr
         </div>
         <button 
           type="button" 
-          onClick={() => navigate(`/users/${currentUsername}/projects/8`)}
+          onClick={() => navigate(`/users/${currentUsername}/projects/8/views/1`)}
           className="shrink-0 h-8 px-3 rounded-md bg-[var(--fgColor-success,#1f883d)] text-white text-sm font-semibold hover:bg-[var(--fgColor-success-hover,#1a7f37)]"
         >
           New project
