@@ -883,6 +883,7 @@ export default function PullRequestDetailPage({
         </div>
 
         <aside className="w-full lg:w-72 lg:shrink-0 space-y-4 text-sm">
+{/*
           <div className="pb-4 border-b border-[var(--border-muted)]">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-[var(--text-primary)]">Reviewers</span>
@@ -893,6 +894,7 @@ export default function PullRequestDetailPage({
             </div>
             <p className="mt-2 text-xs text-[var(--text-secondary)]">Copilot</p>
           </div>
+*/}
 
           <div className="relative pb-4 border-b border-[var(--border-muted)]">
             <div className="flex items-center justify-between">

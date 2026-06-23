@@ -13,6 +13,7 @@ import {
 } from "@primer/octicons-react";
 import TopHeader from "../layouts/TopHeader";
 import RouteButton from "../components/shared/RouteButton";
+import { AddItemDropdown } from "../components/shared/AddItemDropdown";
 import { OcticonGear, OcticonProject, OcticonProjectRoadmap } from "../components/icons/Octicons";
 import { RichSwitchButton } from "../components/shared/RichSwitchButton";
 
@@ -512,9 +513,11 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   </div>
 
                   {/* Add item button */}
-                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                    <PlusIcon size={14} /> Add item
-                  </button>
+                  <AddItemDropdown triggerClassName="w-full">
+                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
+                      <PlusIcon size={14} /> Add item
+                    </button>
+                  </AddItemDropdown>
                 </div>
               </div>
 
@@ -803,14 +806,16 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                         </div>
 
                         {/* Add Item Row */}
-                        <div className="flex items-center h-[35px] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                          <div className="w-[48px] flex justify-center items-center h-full">
-                            <PlusIcon size={16} />
+                        <AddItemDropdown triggerClassName="w-full block">
+                          <div className="flex items-center h-[35px] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full">
+                            <div className="w-[48px] flex justify-center items-center h-full">
+                              <PlusIcon size={16} />
+                            </div>
+                            <div className="flex-1 flex items-center px-2 text-[13px] h-full">
+                              Add item
+                            </div>
                           </div>
-                          <div className="flex-1 flex items-center px-2 text-[13px] h-full">
-                            Add item
-                          </div>
-                        </div>
+                        </AddItemDropdown>
                       </div>
                     </div>
                   </div>
@@ -865,7 +870,9 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   </div>
                 </th>
                 <th className="py-[3px] px-3 font-normal w-12 text-center">
-                  <PlusIcon size={14} className="inline-block text-[#656d76] cursor-pointer hover:text-[var(--text-primary)]" />
+                  <AddItemDropdown>
+                    <PlusIcon size={14} className="inline-block text-[#656d76] cursor-pointer hover:text-[var(--text-primary)]" />
+                  </AddItemDropdown>
                 </th>
               </tr>
             </thead>
@@ -1009,12 +1016,16 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   return (
                     <tr key={i} className="border-b border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] h-[35px]">
                       <td className="py-1.5 px-2 text-center text-[#656d76]">
-                        <PlusIcon size={14} className="inline-block" />
+                        <AddItemDropdown triggerClassName="inline-flex cursor-pointer">
+                          <PlusIcon size={14} className="inline-block hover:text-[var(--text-primary)]" />
+                        </AddItemDropdown>
                       </td>
                       <td colSpan={8} className="py-1.5 pl-3 pr-2 text-[13px] text-[#656d76]">
-                        <span className="text-[var(--text-muted)]">
-                          You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
-                        </span>
+                        <AddItemDropdown triggerClassName="inline-flex cursor-pointer">
+                          <span className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+                            You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
+                          </span>
+                        </AddItemDropdown>
                       </td>
                     </tr>
                   );
