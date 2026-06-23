@@ -26,6 +26,7 @@ import { reposApi } from "../../../services/api/repos";
 import { OcticonRepoPush, OcticonGitCommit, OcticonGitPullRequest, OcticonGitPullRequestClosed, OcticonGitMergeReady, OcticonCrossReference } from "../../icons/Octicons";
 import { CopyIcon, CheckIcon, IssueOpenedIcon, IssueClosedIcon } from "@primer/octicons-react";
 import { Tooltip } from "../../../components/shared/Tooltip";
+import { SpinnerPlaceholder } from "../../../components/shared/LoadingPlaceholders";
 import type { ConflictFile, PullRequest, PullRequestCompareResult, PullRequestEvent, RepoCollaborator, Issue, Label } from "../../../types";
 import { labelsApi } from "../../../services/api/labels";
 import MergeOperationPanel from "./MergeOperationPanel";
@@ -129,6 +130,7 @@ export default function PullRequestDetailPage({
   const [events, setEvents] = useState<PullRequestEvent[]>([]);
   const [collaborators, setCollaborators] = useState<RepoCollaborator[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMerge, setLoadingMerge] = useState<boolean>(true);
   const [updating, setUpdating] = useState<boolean>(false);
   const [commentBody, setCommentBody] = useState<string>("");
   const [commentPreview, setCommentPreview] = useState<boolean>(false);
@@ -196,6 +198,7 @@ export default function PullRequestDetailPage({
     try {
       if (!isSilent) {
         setLoading(true);
+        setLoadingMerge(true);
         setError(null);
         setCompareData(null);
         setConflictFiles([]);
@@ -222,11 +225,16 @@ export default function PullRequestDetailPage({
         setConflictFiles([]);
         setEvents([]);
         if (isSilent) setPull(null);
+        setLoading(false);
+        setLoadingMerge(false);
         return;
       }
 
-      const [freshPull, compare, pullEvents, conflicts, asg, lb] = await Promise.all([
+      const [freshPull, pullEvents, asg, lb, compare] = await Promise.all([
         pullsApi.get(repoId, resolved.id).catch(() => resolved),
+        pullsApi.listEvents(repoId, resolved.id).catch(() => []),
+        pullsApi.listPRAssignees(repoId, resolved.id).catch(() => []),
+        pullsApi.listPRLabels(repoId, resolved.id).catch(() => []),
         reposApi.getCompare(
           repoId,
           resolved.status === "MERGED" && resolved.target_commit_hash
@@ -236,21 +244,28 @@ export default function PullRequestDetailPage({
               : (resolved.target_commit_hash || resolved.target_branch),
           resolved.status === "OPEN" ? resolved.source_branch : (resolved.source_commit_hash || resolved.source_branch),
         ).catch(() => null),
-        pullsApi.listEvents(repoId, resolved.id).catch(() => []),
-        pullsApi.getConflicts(repoId, resolved.id).catch(() => []),
-        pullsApi.listPRAssignees(repoId, resolved.id).catch(() => []),
-        pullsApi.listPRLabels(repoId, resolved.id).catch(() => []),
       ]);
       setPull(freshPull);
-      setCompareData(compare);
       setEvents(pullEvents || []);
-      setConflictFiles(conflicts || []);
       setAssignees(asg || []);
       setLabels(lb || []);
+      setCompareData(compare);
+
+      if (!isSilent) {
+        setLoading(false);
+      }
+
+      const conflicts = await pullsApi.getConflicts(repoId, resolved.id).catch(() => []);
+      
+      setConflictFiles(conflicts || []);
+      
+      if (!isSilent) {
+        setLoadingMerge(false);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load pull request");
-    } finally {
       setLoading(false);
+      setLoadingMerge(false);
     }
   }, [pullNumber, repoId]);
 
@@ -541,7 +556,12 @@ export default function PullRequestDetailPage({
   const prSubtitle = pull?.status === "MERGED" ? (
     <span>
       <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> merged{" "}
-      <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+      {loading ? (
+        <span className="inline-block w-16 h-4 bg-[var(--surface-hover)] rounded animate-pulse align-middle" />
+      ) : (
+        <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span>
+      )}{" "}
+      into{" "}
       <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.target_branch}</span>{" "}
       from{" "}
       <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull.source_branch}</span>{" "}
@@ -550,7 +570,12 @@ export default function PullRequestDetailPage({
   ) : (
     <span>
       <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> wants to merge{" "}
-      <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span> into{" "}
+      {loading ? (
+        <span className="inline-block w-16 h-4 bg-[var(--surface-hover)] rounded animate-pulse align-middle" />
+      ) : (
+        <span>{commitCount} commit{commitCount === 1 ? "" : "s"}</span>
+      )}{" "}
+      into{" "}
       <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.target_branch}</span>{" "}
       from{" "}
       <span className="rounded px-1.5 py-0.5 bg-[var(--surface-info-subtle)] text-[var(--text-link)] font-mono text-xs">{pull?.source_branch}</span>
@@ -642,7 +667,7 @@ export default function PullRequestDetailPage({
               <button
                 key={tab.label}
                 type="button"
-                className={`h-10 px-3 text-sm border rounded-t-md inline-flex items-center gap-2 ${
+                className={`h-10 px-3 text-sm border rounded-t-md inline-flex items-center gap-2 -mb-[1px] ${
                   index === 0
                     ? "border-[var(--border-muted)] border-b-[var(--surface-canvas)] bg-[var(--surface-canvas)] text-[var(--text-primary)]"
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -684,91 +709,100 @@ export default function PullRequestDetailPage({
             </div>
           </div>
 
-          <div className="relative mt-4">
-            <span className="absolute left-[var(--rail)] -top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
-            {!hasThickLine && (
-              <span className="absolute left-16 right-0 -bottom-2.5 h-[2px] bg-[var(--border-muted)]" aria-hidden />
-            )}
-            <ul className="space-y-4">
-              <li className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start">
-                <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
-                  <OcticonRepoPush size={14} />
-                </span>
-                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
-                    {creatorName.charAt(0)}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
-                    <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span>
-                  </div>
-                </div>
-              </li>
-
-              {(compareData?.commits || []).map((commit) => {
-                const author = commit.author || creatorName;
-                const authorInitial = (author.charAt(0) || "U").toUpperCase();
-                return (
-                  <li key={commit.hash} className="relative pl-[calc(var(--rail)_+_17px)]">
-                    <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
-                      <OcticonGitCommit size={14} />
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <SpinnerPlaceholder size={24} className="text-[var(--text-secondary)]" />
+            </div>
+          ) : (
+            <>
+              <div className="relative mt-4">
+                <span className="absolute left-[var(--rail)] -top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+                {!hasThickLine && (
+                  <span className="absolute left-16 right-0 -bottom-2.5 h-[2px] bg-[var(--border-muted)]" aria-hidden />
+                )}
+                <ul className="space-y-4">
+                  <li className="relative py-4 pl-[calc(var(--rail)_+_17px)] flex items-start">
+                    <span className="absolute left-[calc(var(--rail)_-_11px)] top-4 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                      <OcticonRepoPush size={14} />
                     </span>
-                    <div className="min-h-8 flex items-center justify-between gap-3 text-sm">
-                      <span className="min-w-0 inline-flex items-center gap-2">
-                        <span
-                          className="h-5 w-5 shrink-0 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]"
-                          title={author}
-                        >
-                          {authorInitial}
-                        </span>
-                        <span className="truncate text-[var(--text-primary)] underline underline-offset-2 decoration-[var(--border-muted)] hover:text-[var(--text-link)]">
-                          {commit.message || "Untitled commit"}
-                        </span>
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <span className="shrink-0 h-5 w-5 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">
+                        {creatorName.charAt(0)}
                       </span>
-                      <span className="shrink-0 hidden sm:inline-flex items-center gap-3">
-                        <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
-                          Verified
-                        </span>
-                        <CommitChangeLink 
-                          hash={commit.hash} 
-                          text={shortenHash(commit.hash)}
-                          className="font-mono text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-link)]"
-                        />
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-[var(--text-primary)]">{creatorName}</span> added {commitCount} commit{commitCount === 1 ? "" : "s"}{" "}
+                        <span title={fullTime(pull.created_at)} className="underline hover:text-[var(--text-link)]">{relativeTime(pull.created_at)}</span>
+                      </div>
                     </div>
                   </li>
-                );
-              })}
 
-              {renderEventList(mainEvents)}
-            </ul>
-          </div>
+                  {(compareData?.commits || []).map((commit) => {
+                    const author = commit.author || creatorName;
+                    const authorInitial = (author.charAt(0) || "U").toUpperCase();
+                    return (
+                      <li key={commit.hash} className="relative pl-[calc(var(--rail)_+_17px)]">
+                        <span className="absolute left-[calc(var(--rail)_-_11px)] top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full bg-[var(--surface-badge)] text-[var(--text-secondary)] inline-flex items-center justify-center">
+                          <OcticonGitCommit size={14} />
+                        </span>
+                        <div className="min-h-8 flex items-center justify-between gap-3 text-sm">
+                          <span className="min-w-0 inline-flex items-center gap-2">
+                            <span
+                              className="h-5 w-5 shrink-0 rounded-full bg-[var(--surface-badge)] text-[9px] inline-flex items-center justify-center uppercase text-[var(--text-secondary)]"
+                              title={author}
+                            >
+                              {authorInitial}
+                            </span>
+                            <span className="truncate text-[var(--text-primary)] underline underline-offset-2 decoration-[var(--border-muted)] hover:text-[var(--text-link)]">
+                              {commit.message || "Untitled commit"}
+                            </span>
+                          </span>
+                          <span className="shrink-0 hidden sm:inline-flex items-center gap-3">
+                            <span className="rounded-full border border-[var(--border-success-muted)] bg-[var(--surface-canvas)] px-2 py-0.5 text-xs text-[var(--fgColor-open,#1a7f37)]">
+                              Verified
+                            </span>
+                            <CommitChangeLink 
+                              hash={commit.hash} 
+                              text={shortenHash(commit.hash)}
+                              className="font-mono text-xs text-[var(--text-secondary)] underline hover:text-[var(--text-link)]"
+                            />
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
 
-          {postMergeEvents.length > 0 && (
-            <div className="relative mt-8">
-              {postMergeEvents.length > 1 && (
-                <span className="absolute left-[var(--rail)] top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+                  {renderEventList(mainEvents)}
+                </ul>
+              </div>
+
+              {postMergeEvents.length > 0 && (
+                <div className="relative mt-8">
+                  {postMergeEvents.length > 1 && (
+                    <span className="absolute left-[var(--rail)] top-4 -bottom-2.5 w-0.5 bg-[var(--border-muted)]" aria-hidden />
+                  )}
+                  <ul className="space-y-4">
+                    {renderEventList(postMergeEvents)}
+                  </ul>
+                </div>
               )}
-              <ul className="space-y-4">
-                {renderEventList(postMergeEvents)}
-              </ul>
-            </div>
-          )}
 
-          <div className="mt-8">
-            <MergeOperationPanel
-              repoId={repoId}
-              status={pull.status}
-              sourceBranch={pull.source_branch}
-              pullNumber={Number(pullNumber)}
-              currentUsername={currentUsername}
-              canMerge={canMerge}
-              updating={updating}
-              conflictFiles={conflictFiles}
-              onMerge={(msg, desc) => void updatePull("merge", msg, desc)}
-              onOpenConflicts={onOpenConflicts}
-            />
-          </div>
+              <div className="mt-8">
+                <MergeOperationPanel
+                  repoId={repoId}
+                  status={pull.status}
+                  sourceBranch={pull.source_branch}
+                  pullNumber={Number(pullNumber)}
+                  currentUsername={currentUsername}
+                  canMerge={canMerge}
+                  updating={updating}
+                  isLoading={loadingMerge}
+                  conflictFiles={conflictFiles}
+                  onMerge={(msg, desc) => void updatePull("merge", msg, desc)}
+                  onOpenConflicts={onOpenConflicts}
+                />
+              </div>
+            </>
+          )}
 
           <div className="relative pl-16 mt-6 ml-[calc(var(--rail)_-_85px)]">
             <span className="absolute left-0 top-0 h-10 w-10 rounded-full bg-[var(--surface-badge)] text-sm inline-flex items-center justify-center uppercase text-[var(--text-secondary)]">

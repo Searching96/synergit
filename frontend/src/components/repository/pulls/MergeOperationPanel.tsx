@@ -2,6 +2,7 @@ import { AlertTriangle, ChevronDown, File, GitMerge } from "lucide-react";
 import { useState } from "react";
 import { reposApi } from "../../../services/api/repos";
 import type { ConflictFile, PullRequest } from "../../../types";
+import { SpinnerPlaceholder } from "../../../components/shared/LoadingPlaceholders";
 
 interface MergeOperationPanelProps {
   repoId: string;
@@ -11,6 +12,7 @@ interface MergeOperationPanelProps {
   currentUsername: string;
   canMerge: boolean;
   updating: boolean;
+  isLoading?: boolean;
   conflictFiles: ConflictFile[];
   onMerge: (commitMessage?: string, description?: string) => void;
   onOpenConflicts: () => void;
@@ -85,6 +87,7 @@ export default function MergeOperationPanel({
   currentUsername,
   canMerge,
   updating,
+  isLoading,
   conflictFiles,
   onMerge,
   onOpenConflicts,
@@ -118,6 +121,16 @@ export default function MergeOperationPanel({
       setDeletingBranch(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="relative pl-16">
+        <div className="rounded-md border border-[var(--border-default)] bg-[var(--surface-canvas)] px-4 py-8 flex flex-col items-center justify-center">
+          <SpinnerPlaceholder size={24} className="text-[var(--text-secondary)]" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative pl-16">
