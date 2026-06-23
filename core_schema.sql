@@ -229,3 +229,49 @@ CREATE TABLE IF NOT EXISTS core.repo_events (
 
 CREATE INDEX IF NOT EXISTS idx_core_repo_events_repo_id
     ON core.repo_events (repo_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS core.projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    number INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (owner_id, number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_core_projects_owner_created_at
+    ON core.projects (owner_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS core.project_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES core.projects(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    layout VARCHAR(32) NOT NULL
+        CHECK (layout IN ('TABLE', 'BOARD', 'ROADMAP')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_core_project_views_project_created_at
+    ON core.project_views (project_id, created_at);
+
+CREATE TABLE IF NOT EXISTS core.project_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES core.projects(id) ON DELETE CASCADE,
+    content_type VARCHAR(32) NOT NULL
+        CHECK (content_type IN ('ISSUE', 'PULL_REQUEST')),
+    content_id UUID NOT NULL,
+    status VARCHAR(255) NOT NULL DEFAULT '',
+    start_date TIMESTAMPTZ,
+    target_date TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (project_id, content_type, content_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_core_project_items_project_created_at
+    ON core.project_items (project_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_core_project_items_content
+    ON core.project_items (content_type, content_id);

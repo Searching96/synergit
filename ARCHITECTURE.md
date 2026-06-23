@@ -55,10 +55,10 @@ flowchart LR
 
 ## Git Smart HTTP vs Standard HTTP API
 
-| Aspect | Standard HTTP API | Git Smart HTTP |
+| Feature | Standard (Dumb) HTTP | Git Smart HTTP |
 |---|---|---|
-| Definition | Application-defined HTTP endpoints. | Git protocol tunneled over HTTP. |
-| Request shape | REST-like routes with JSON/query/body contracts. | Fixed Git endpoints such as `info/refs`, `git-upload-pack`, and `git-receive-pack`. |
-| Response shape | Usually JSON or simple files. | Git pkt-line and packfile streams. |
-| Semantics | Business actions defined by the app. | Git object negotiation, fetch, clone, and push. |
-| Server role | Interprets app commands and returns app data. | Speaks Git wire protocol and reads/writes Git objects. |
+| Efficiency | Very Low. The client often has to download entire massive packfiles even if it only needs one specific object. | High. The server dynamically compresses and sends only the exact data the client is missing. |
+| HTTP Requests | High. Requires dozens or hundreds of individual GET requests to discover and fetch objects. | Low. Uses a couple of efficient POST requests to transfer bulk data. |
+| Server Requirement | Any basic static web server. | Web server with CGI capability + Git installed. |
+| Push Capabilities | Complicated. Pushing requires setting up WebDAV, which is notoriously slow and difficult to configure securely. | Native. Fully supports pushing natively via git-receive-pack with standard authentication. |
+| Firewall Friendliness | Excellent (uses ports 80/443). | Excellent (uses ports 80/443). |
