@@ -45,6 +45,14 @@ flowchart LR
 | Insight DB | Relational storage for analytics snapshots. |
 | Hard disk | Filesystem storage for bare Git repositories. |
 
+## Schema Files
+
+| Service | Schema file |
+|---|---|
+| Core Service | `core_schema.sql` |
+| Insight Service | `insight_schema.sql` |
+| Git Repo Service | None; uses hard disk storage. |
+
 ## Git Smart HTTP vs Standard HTTP API
 
 | Aspect | Standard HTTP API | Git Smart HTTP |
@@ -54,11 +62,3 @@ flowchart LR
 | Response shape | Usually JSON or simple files. | Git pkt-line and packfile streams. |
 | Semantics | Business actions defined by the app. | Git object negotiation, fetch, clone, and push. |
 | Server role | Interprets app commands and returns app data. | Speaks Git wire protocol and reads/writes Git objects. |
-
-## Schema Files
-
-| Service | Schema file |
-|---|---|
-| Core Service | `core_schema.sql` |
-| Insight Service | `insight_schema.sql` |
-| Git Repo Service | None; uses hard disk storage. |

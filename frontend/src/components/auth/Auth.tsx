@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authApi } from "../../services/api";
-import { BookOpen } from "lucide-react";
+
 
 interface AuthProps {
   onLoginSuccess: (token: string) => void;
@@ -41,8 +41,8 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
   return (
     <div className="min-h-screen bg-[var(--surface-subtle)] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center text-[var(--text-link)]">
-          <BookOpen size={48} />
+        <div className="flex justify-center">
+          <img src="/favicon.png" alt="Synergit logo" width={48} height={48} />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-[var(--text-primary)]">
           Synergit

@@ -209,7 +209,7 @@ export default function GithubProfilePages({
         languageColor={languageColor}
       />
     ) : activeTab === "projects" ? (
-      <ProfileProjectsPage />
+      <ProfileProjectsPage isLoading={hasFetchPending} />
     ) : activeTab === "packages" ? (
       <ProfilePackagesPage />
     ) : (
@@ -261,7 +261,7 @@ export default function GithubProfilePages({
         <ProfileInfo username={username} />
 
         <section className="min-w-0 w-full">
-          {fetchStatusMessage && activeTab !== "overview" && activeTab !== "repositories" ? (
+          {fetchStatusMessage && activeTab !== "overview" && activeTab !== "repositories" && activeTab !== "projects" ? (
             <p className="mb-3 text-sm text-[var(--text-secondary)]">{fetchStatusMessage}</p>
           ) : null}
           {content}
