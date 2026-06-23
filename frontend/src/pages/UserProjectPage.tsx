@@ -1,8 +1,18 @@
 import { useState } from "react";
-import { LockIcon, PlusIcon, SearchIcon, KebabHorizontalIcon, TableIcon, ChevronDownIcon, SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon } from "@primer/octicons-react";
+import { 
+  useFloating, autoUpdate, offset, flip, shift, 
+  useClick, useDismiss, useRole, useInteractions, 
+  FloatingPortal, FloatingFocusManager 
+} from "@floating-ui/react";
+import { 
+  LockIcon, PlusIcon, SearchIcon, KebabHorizontalIcon, TableIcon, ChevronDownIcon, 
+  SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon,
+  RowsIcon, ArrowBothIcon, FilterIcon, ChevronRightIcon, SidebarExpandIcon
+} from "@primer/octicons-react";
 import TopHeader from "../layouts/TopHeader";
 import RouteButton from "../components/shared/RouteButton";
-import { OcticonGear } from "../components/icons/Octicons";
+import { OcticonGear, OcticonProject, OcticonProjectRoadmap } from "../components/icons/Octicons";
+import { RichSwitchButton } from "../components/shared/RichSwitchButton";
 
 interface UserProjectPageProps {
   username: string;
@@ -13,6 +23,22 @@ interface UserProjectPageProps {
 
 export default function UserProjectPage({ username, onMenuClick, onSignOut }: UserProjectPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const { refs: viewRefs, floatingStyles: viewFloatingStyles, context: viewContext } = useFloating({
+    open: isViewOpen,
+    onOpenChange: setIsViewOpen,
+    placement: "bottom-end",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(4), flip(), shift()],
+  });
+  const viewClick = useClick(viewContext);
+  const viewDismiss = useDismiss(viewContext);
+  const viewRole = useRole(viewContext);
+  const { getReferenceProps: getViewReferenceProps, getFloatingProps: getViewFloatingProps } = useInteractions([viewClick, viewDismiss, viewRole]);
+
+  const [showHierarchy, setShowHierarchy] = useState(true);
+  const [showAgentSessions, setShowAgentSessions] = useState(true);
 
   return (
     <div className="flex flex-col h-screen bg-[var(--surface-canvas)] font-sans text-[var(--text-primary)]">
@@ -115,10 +141,102 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
               className="w-full h-[32px] pl-8 pr-3 rounded-md border border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[13px] focus:outline-none focus:ring-1 focus:ring-[#0969da] focus:border-[#0969da]"
             />
           </div>
-          <button type="button" className="h-[32px] px-3 rounded-md bg-[#f6f8fa] dark:bg-[var(--surface-page)] border border-[var(--border-default)] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shrink-0">
+          <button 
+            type="button" 
+            ref={viewRefs.setReference}
+            {...getViewReferenceProps()}
+            className="h-[32px] px-3 rounded-md bg-[#f6f8fa] dark:bg-[var(--surface-page)] border border-[var(--border-default)] text-[13px] font-medium text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5 shrink-0"
+          >
             <OcticonGear size={14} className="text-[#656d76]" />
             View
           </button>
+          
+          {isViewOpen && (
+            <FloatingPortal>
+              <FloatingFocusManager context={viewContext} modal={false}>
+                <div
+                  ref={viewRefs.setFloating}
+                  style={viewFloatingStyles}
+                  {...getViewFloatingProps()}
+                  className="z-50 w-[300px] bg-white dark:bg-[var(--surface-overlay)] border border-[var(--border-default)] rounded-xl shadow-[0_8px_24px_rgba(140,149,159,0.2)] dark:shadow-[0_8px_24px_rgba(1,4,9,0.8)] overflow-hidden flex flex-col font-sans text-[var(--text-primary)]"
+                >
+                  {/* Tabs */}
+                  <div className="p-3 border-b border-[var(--border-default)]">
+                    <div className="flex bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] rounded-md border border-[var(--border-default)] overflow-hidden p-0">
+                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] font-medium bg-white dark:bg-[var(--surface-page)] shadow-[inset_0_1px_0_rgba(255,255,255,1)] dark:shadow-none border-r border-r-[var(--border-default)]">
+                        <TableIcon size={16} className="text-[#656d76]" />
+                        Table
+                      </button>
+                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] border-r border-r-[var(--border-default)]">
+                        <OcticonProject size={16} />
+                        Board
+                      </button>
+                      <button type="button" className="flex-1 flex justify-center items-center gap-1.5 py-1.5 text-[13px] text-[#656d76] hover:text-[var(--text-primary)] hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)]">
+                        <OcticonProjectRoadmap size={16} />
+                        Roadmap
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Settings List */}
+                  <div className="py-2 border-b border-[var(--border-default)] flex flex-col">
+                    <button type="button" className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] group">
+                      <div className="flex items-center gap-2">
+                        <SidebarExpandIcon size={16} className="text-[#656d76]" />
+                        <span className="text-[13px] text-[#656d76]">Fields:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] truncate max-w-[140px]">Title, Assignees, Status...</span>
+                        <ChevronRightIcon size={16} className="text-[#656d76]" />
+                      </div>
+                    </button>
+                    <button type="button" className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] group">
+                      <div className="flex items-center gap-2">
+                        <RowsIcon size={16} className="text-[#656d76]" />
+                        <span className="text-[13px] text-[#656d76]">Group by:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] italic">none</span>
+                        <ChevronRightIcon size={16} className="text-[#656d76]" />
+                      </div>
+                    </button>
+                    <button type="button" className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] group">
+                      <div className="flex items-center gap-2">
+                        <ArrowBothIcon size={16} className="text-[#656d76]" />
+                        <span className="text-[13px] text-[#656d76]">Sort by:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] italic">manual</span>
+                        <ChevronRightIcon size={16} className="text-[#656d76]" />
+                      </div>
+                    </button>
+                    <button type="button" className="w-full px-4 py-1.5 flex items-center justify-between hover:bg-[#f3f4f6] dark:hover:bg-[var(--surface-hover)] group">
+                      <div className="flex items-center gap-2">
+                        <FilterIcon size={16} className="text-[#656d76]" />
+                        <span className="text-[13px] text-[#656d76]">Slice by:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] italic">none</span>
+                        <ChevronRightIcon size={16} className="text-[#656d76]" />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Switches */}
+                  <div className="py-3 px-4 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px]">Show hierarchy</span>
+                      <RichSwitchButton checked={showHierarchy} onChange={setShowHierarchy} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px]">Show agent sessions</span>
+                      <RichSwitchButton checked={showAgentSessions} onChange={setShowAgentSessions} />
+                    </div>
+                  </div>
+                </div>
+              </FloatingFocusManager>
+            </FloatingPortal>
+          )}
         </div>
 
         {/* Table Area */}
