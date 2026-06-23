@@ -216,7 +216,7 @@ export function AddItemDropdown({ children, onSelectIssue, placement = 'bottom-e
               <div className="p-2 border-t border-[var(--border-default)] bg-[#f6f8fa] dark:bg-[var(--surface-subtle)]">
                 {selectedRepo ? (
                   <a
-                    href={`/workspace/${selectedRepo.name}`} // Since issue creation is usually in repo workspace or specific route, we assume /workspace/{repoName}/issues/new or similar. The prompt says "giữ href tới page new issue", so let's use `/${selectedRepo.name}/issues/new` if we know the user. Wait, `selectedRepo.owner.username`?
+                    href={`/${selectedRepo.owner}/${selectedRepo.name}/issues/new`}
                     className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-primary)] hover:text-[#0969da]"
                     onClick={(e) => e.stopPropagation()} // Prevent closing dropdown if they just click the link
                   >

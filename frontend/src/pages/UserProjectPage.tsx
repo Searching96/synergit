@@ -437,9 +437,11 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   </div>
                   
                   {/* Add item button */}
-                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                    <PlusIcon size={14} /> Add item
-                  </button>
+                  <AddItemDropdown triggerClassName="w-full">
+                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
+                      <PlusIcon size={14} /> Add item
+                    </button>
+                  </AddItemDropdown>
                 </div>
               </div>
 
@@ -475,9 +477,11 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   </div>
 
                   {/* Add item button */}
-                  <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                    <PlusIcon size={14} /> Add item
-                  </button>
+                  <AddItemDropdown triggerClassName="w-full">
+                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
+                      <PlusIcon size={14} /> Add item
+                    </button>
+                  </AddItemDropdown>
                 </div>
               </div>
 
