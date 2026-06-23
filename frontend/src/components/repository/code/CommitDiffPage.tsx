@@ -73,7 +73,7 @@ export default function CommitDiffPage({ repoId, commitHash, onBrowseFiles }: Co
         totalDeletions={totalDeletions}
         onBrowseFiles={onBrowseFiles}
       />
-      <div className="flex items-stretch flex-1 min-h-0">
+      <div className="flex items-stretch flex-1 min-h-[calc(100vh-160px)]">
         <CommitDiffFileBrowserSection diff={diff} />
         <CommitDiffSection diff={diff} />
       </div>

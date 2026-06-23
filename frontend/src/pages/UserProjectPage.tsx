@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { 
   useFloating, autoUpdate, offset, flip, shift, 
   useClick, useDismiss, useRole, useInteractions, 
@@ -7,19 +7,23 @@ import {
 } from "@floating-ui/react";
 import { 
   LockIcon, PlusIcon, SearchIcon, KebabHorizontalIcon, TableIcon, ChevronDownIcon, 
-  SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon, GitPullRequestClosedIcon,
+  SidebarCollapseIcon, GraphIcon, WorkflowIcon, IssueOpenedIcon, GitPullRequestIcon,
   RowsIcon, ArrowBothIcon, FilterIcon, ChevronRightIcon, SidebarExpandIcon, CircleIcon,
   LocationIcon, CalendarIcon, ChevronLeftIcon, PencilIcon
 } from "@primer/octicons-react";
 import TopHeader from "../layouts/TopHeader";
 import RouteButton from "../components/shared/RouteButton";
 import { AddItemDropdown } from "../components/shared/AddItemDropdown";
+import { Tooltip } from "../components/shared/Tooltip";
+import { Avatar } from "../components/shared/Avatar";
 import { OcticonGear, OcticonProject, OcticonProjectRoadmap } from "../components/icons/Octicons";
 import { RichSwitchButton } from "../components/shared/RichSwitchButton";
+import { projectsApi } from "../services/api";
+import type { Project, ProjectView, ProjectItemDTO } from "../types";
 
 interface UserProjectPageProps {
   username: string;
-  projectId: string;
+  projectId: string; // This is the project number (from URL)
   onMenuClick?: () => void;
   onSignOut?: () => void;
 }
@@ -63,20 +67,130 @@ const generateDays = (startDate: Date, numDays: number) => {
 const allDays = generateDays(new Date(2026, 0, 1), 365);
 const todayIndex = allDays.findIndex(d => d.isToday);
 
-const hardcodedRows = [
-  { id: 1, type: "issue", title: "hehe", number: "#15", avatar: null },
-  { id: 2, type: "issue", title: "i sub issue to see sub issue", number: "#2", avatar: "https://github.com/Searching96.png" },
-  { id: 3, type: "pull", title: "Update README.md", number: "#14", avatar: null },
+
+const STATUS_COLUMNS = [
+  { key: 'Todo', label: 'Todo', description: "This item hasn't been started", color: 'text-[#1a7f37]' },
+  { key: 'In Progress', label: 'In Progress', description: 'This is actively being worked on', color: 'text-[#9a6700]' },
+  { key: 'Done', label: 'Done', description: 'This has been completed', color: 'text-[#8250df]' },
 ];
 
-export default function UserProjectPage({ username, onMenuClick, onSignOut }: UserProjectPageProps) {
+function StatusBadge({ status }: { status: string }) {
+  if (status === 'In Progress') {
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#d4a72c] bg-[#fff8c5] text-[#9a6700]">In Progress</span>;
+  }
+  if (status === 'Done') {
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#bf87fa] bg-[#f3e8fd] text-[#8250df]">Done</span>;
+  }
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#4ac26b] bg-[#dafbe1] text-[#1a7f37]">Todo</span>;
+}
+
+export default function UserProjectPage({ username, projectId, onMenuClick, onSignOut }: UserProjectPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const layout = searchParams.get("layout") || "table";
+
+  // Real project data
+  const [project, setProject] = useState<Project | null>(null);
+  const [views, setViews] = useState<ProjectView[]>([]);
+  const [items, setItems] = useState<ProjectItemDTO[]>([]);
+  const [, setDataLoading] = useState(false);
+  const [draggingBoardItemId, setDraggingBoardItemId] = useState<string | null>(null);
+
+  // Edit name state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
+  const fetchProjectData = useCallback(async () => {
+    if (!projectId) return;
+    setDataLoading(true);
+    try {
+      // List all projects and find by number
+      const allProjects = await projectsApi.listProjects();
+      const found = allProjects.find((p) => String(p.number) === String(projectId));
+      if (found) {
+        setProject(found);
+        const [fetchedViews, fetchedItems] = await Promise.all([
+          projectsApi.listViews(found.id),
+          projectsApi.listItems(found.id),
+        ]);
+        setViews(fetchedViews || []);
+        setItems(fetchedItems || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch project", e);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void fetchProjectData();
+  }, [fetchProjectData]);
+
+  const handleStartEditName = () => {
+    setEditNameValue(project?.title || "");
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!project || !editNameValue.trim() || savingName) return;
+    setSavingName(true);
+    try {
+      const updated = await projectsApi.updateProject(project.id, { title: editNameValue.trim() });
+      setProject(updated);
+    } catch (e) {
+      console.error("Failed to update project name", e);
+    } finally {
+      setSavingName(false);
+      setIsEditingName(false);
+    }
+  };
+
+  const handleAddItem = useCallback(async (issue: { id: string }, status: string = 'Todo') => {
+    if (!project) return;
+    try {
+      await projectsApi.addItem(project.id, {
+        content_type: 'ISSUE',
+        content_id: issue.id,
+        status,
+      });
+      // Refresh items
+      const refreshed = await projectsApi.listItems(project.id);
+      setItems(refreshed || []);
+    } catch (e) {
+      console.error("Failed to add item", e);
+    }
+  }, [project]);
+
+  const handleMoveBoardItem = useCallback(async (itemId: string, nextStatus: string) => {
+    if (!project) return;
+
+    const currentItem = items.find((item) => item.id === itemId);
+    if (!currentItem || currentItem.status === nextStatus) return;
+
+    setItems((prev) => prev.map((item) => (
+      item.id === itemId ? { ...item, status: nextStatus } : item
+    )));
+
+    try {
+      await projectsApi.updateItem(project.id, itemId, { status: nextStatus });
+    } catch (e) {
+      console.error("Failed to move project item", e);
+      setItems((prev) => prev.map((item) => (
+        item.id === itemId ? { ...item, status: currentItem.status } : item
+      )));
+    }
+  }, [items, project]);
+
+  const projectTitle = project?.title || "Untitled project";
+  const roadmapBodyHeight = (items.length + 1) * 35;
+
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const [leftPaneWidth, setLeftPaneWidth] = useState(336);
   const isDraggingRef = useRef(false);
-  const [timelineItems, setTimelineItems] = useState<{rowId: number, dateStr: string, duration?: number}[]>([]);
+  const [timelineItems, setTimelineItems] = useState<{rowId: string, dateStr: string, duration?: number}[]>([]);
 
   const draggingItemRef = useRef<{
     index: number;
@@ -149,7 +263,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
       const scrollX = (todayIndex * cellWidth) - (containerWidth / 2) + (leftPaneWidth / 2) + (cellWidth / 2);
       timelineRef.current.scrollLeft = scrollX;
     }
-  }, [layout]);
+  }, [layout, leftPaneWidth]);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -168,17 +282,6 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
   const [showHierarchy, setShowHierarchy] = useState(true);
   const [showAgentSessions, setShowAgentSessions] = useState(true);
-
-  const getRowDates = (rowId: number) => {
-    const item = timelineItems.find(t => t.rowId === rowId);
-    if (!item) return { start: "", end: "" };
-    const startDayIndex = allDays.findIndex(d => d.dateStr === item.dateStr);
-    if (startDayIndex === -1) return { start: item.dateStr, end: item.dateStr };
-    const duration = item.duration || 1;
-    const endDayIndex = startDayIndex + duration - 1;
-    const endDateStr = allDays[endDayIndex]?.dateStr || item.dateStr;
-    return { start: item.dateStr, end: endDateStr };
-  };
 
   return (
     <div className="flex flex-col h-screen bg-[var(--surface-canvas)] font-sans text-[var(--text-primary)]">
@@ -203,10 +306,10 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 <span className="text-[var(--text-muted)] font-normal">/</span>
                 <RouteButton
                   selected
-                  href={`/users/${username}/projects/8/views/1`}
+                  href={`/users/${username}/projects/${projectId}/views/${views[0]?.id ?? '1'}`}
                   className="truncate inline-flex items-center"
                 >
-                  @{username}'s untitled project
+                  {projectTitle}
                   <LockIcon size={12} className="ml-1.5 relative -top-[1px] text-[var(--text-primary)]" />
                 </RouteButton>
               </div>
@@ -224,12 +327,35 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
         <div className="px-4 py-3 flex items-center justify-between bg-[#f6f8fa] dark:bg-[var(--surface-page)]">
           <div className="flex items-center gap-2">
             <LockIcon size={16} className="text-[#656d76]" />
-            <h1 className="text-[20px] font-semibold text-[#24292f] dark:text-[var(--text-primary)]">
-              @{username}'s untitled project
-            </h1>
-            <button className="text-[#656d76] hover:text-[#0969da] ml-1">
-              <PencilIcon size={16} />
-            </button>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void handleSaveName(); if (e.key === 'Escape') setIsEditingName(false); }}
+                  className="text-[20px] font-semibold bg-white dark:bg-[var(--surface-canvas)] border border-[#0969da] rounded px-2 py-0.5 focus:outline-none"
+                  autoFocus
+                />
+                <button onClick={() => void handleSaveName()} disabled={savingName} className="text-xs text-white bg-[#0969da] px-2 py-1 rounded hover:bg-[#0757ba] disabled:opacity-60">
+                  {savingName ? 'Saving...' : 'Save'}
+                </button>
+                <button onClick={() => setIsEditingName(false)} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-[20px] font-semibold text-[#24292f] dark:text-[var(--text-primary)]">
+                  {projectTitle}
+                </h1>
+                <Tooltip content="Edit project name" placement="bottom">
+                  <button className="text-[#656d76] hover:text-[#0969da] ml-1" onClick={handleStartEditName}>
+                    <PencilIcon size={16} />
+                  </button>
+                </Tooltip>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button type="button" className="h-[28px] px-3 rounded-full bg-[#f3f4f6] dark:bg-[var(--surface-subtle)] text-[12px] font-medium text-[#57606a] dark:text-[var(--text-secondary)] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] inline-flex items-center border border-[#d0d7de] dark:border-[var(--border-default)]">
@@ -261,11 +387,33 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
         {/* View Tabs */}
         <div className="px-4 pt-2 flex items-end gap-1 bg-[#f6f8fa] dark:bg-[var(--surface-page)] border-b border-[#d0d7de] dark:border-[var(--border-default)] relative">
-          <button type="button" className="h-[32px] px-3 bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-b-white dark:border-b-[var(--surface-canvas)] rounded-t-md text-[13px] font-medium text-[#24292f] dark:text-[var(--text-primary)] inline-flex items-center gap-1.5 z-10 -mb-[1px]">
-            <TableIcon size={14} className="text-[#656d76]" />
-            View 1
-            <ChevronDownIcon size={14} className="text-[#656d76] ml-1" />
-          </button>
+          {views.length > 0 ? views.map((view) => (
+            <button
+              key={view.id}
+              type="button"
+              onClick={() => {
+                navigate(`/users/${username}/projects/${projectId}/views/${view.id}`);
+                // Also set layout based on view type
+                const lowerLayout = view.layout.toLowerCase();
+                if (lowerLayout === 'table') {
+                  setSearchParams((p) => { p.delete('layout'); return p; });
+                } else {
+                  setSearchParams({ layout: lowerLayout });
+                }
+              }}
+              className="h-[32px] px-3 bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-b-white dark:border-b-[var(--surface-canvas)] rounded-t-md text-[13px] font-medium text-[#24292f] dark:text-[var(--text-primary)] inline-flex items-center gap-1.5 z-10 -mb-[1px]"
+            >
+              <TableIcon size={14} className="text-[#656d76]" />
+              {view.name}
+              <ChevronDownIcon size={14} className="text-[#656d76] ml-1" />
+            </button>
+          )) : (
+            <button type="button" className="h-[32px] px-3 bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] border-b-white dark:border-b-[var(--surface-canvas)] rounded-t-md text-[13px] font-medium text-[#24292f] dark:text-[var(--text-primary)] inline-flex items-center gap-1.5 z-10 -mb-[1px]">
+              <TableIcon size={14} className="text-[#656d76]" />
+              View 1
+              <ChevronDownIcon size={14} className="text-[#656d76] ml-1" />
+            </button>
+          )}
           
           <button type="button" className="h-[32px] px-3 text-[13px] font-medium text-[#57606a] hover:bg-[#ebf0f4] dark:hover:bg-[var(--surface-hover)] hover:text-[#24292f] inline-flex items-center gap-1.5 rounded-t-md transition-colors mb-[1px]">
             <PlusIcon size={14} />
@@ -402,128 +550,85 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
         <div className="flex-1 overflow-auto bg-white dark:bg-[var(--surface-page)]">
           {layout === 'board' ? (
             <div className="flex overflow-x-auto gap-4 px-4 py-4 min-h-full items-stretch">
-              {/* Todo Column */}
-              <div className="group/col flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
-                <div className="px-3 pt-3 pb-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <CircleIcon size={16} className="text-[#1a7f37]" />
-                      <span className="font-semibold text-[14px]">Todo</span>
-                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[#656d76]">
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
-                    </div>
-                  </div>
-                  <div className="text-[13px] text-[#656d76]">This item hasn't been started</div>
-                </div>
-                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
-                  {/* Card */}
-                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group flex flex-col">
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
-                        <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
-                        <span>synergit <span className="text-[#656d76]">#2</span></span>
+              {STATUS_COLUMNS.map((col) => {
+                const colItems = items.filter((item) => item.status === col.key);
+                return (
+                  <div
+                    key={col.key}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const itemId = e.dataTransfer.getData('text/plain') || draggingBoardItemId;
+                      if (itemId) void handleMoveBoardItem(itemId, col.key);
+                      setDraggingBoardItemId(null);
+                    }}
+                    className={`group/col flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border rounded-md ${
+                      draggingBoardItemId
+                        ? 'border-[#0969da] dark:border-[#0969da]'
+                        : 'border-[#d0d7de] dark:border-[var(--border-default)]'
+                    }`}
+                  >
+                    <div className="px-3 pt-3 pb-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <CircleIcon size={16} className={col.color} />
+                          <span className="font-semibold text-[14px]">{col.label}</span>
+                          <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">{colItems.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[#656d76]">
+                          <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
+                          <AddItemDropdown triggerClassName="inline-flex" onSelectIssue={(issue) => handleAddItem(issue, col.key)}>
+                            <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
+                          </AddItemDropdown>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
-                        <img src={`https://github.com/Searching96.png`} alt="avatar" className="w-5 h-5 rounded-full" />
-                      </div>
+                      <div className="text-[13px] text-[#656d76]">{col.description}</div>
                     </div>
-                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da] mb-2">
-                      i sub issue to see sub issue
-                    </div>
-                  </div>
-                  
-                  {/* Add item button */}
-                  <AddItemDropdown triggerClassName="w-full">
-                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                      <PlusIcon size={14} /> Add item
-                    </button>
-                  </AddItemDropdown>
-                </div>
-              </div>
+                    <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
+                      {colItems.map((item) => (
+                        <div
+                          key={item.id}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggingBoardItemId(item.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', item.id);
+                          }}
+                          onDragEnd={() => setDraggingBoardItemId(null)}
+                          className={`bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-grab active:cursor-grabbing group flex flex-col ${
+                            draggingBoardItemId === item.id ? 'opacity-60' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-1">
+                            <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
+                              {item.content_type === 'PULL_REQUEST' ? (
+                                <GitPullRequestIcon size={14} className="text-[#8250df]" />
+                              ) : (
+                                <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
+                              )}
+                              <span>{item.number}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
+                              {item.avatar ? <Avatar username={item.avatar} size={20} /> : null}
+                            </div>
+                          </div>
+                          <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da] mb-2">
+                            {item.title}
+                          </div>
+                        </div>
+                      ))}
 
-              {/* In Progress Column */}
-              <div className="group/col flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
-                <div className="px-3 pt-3 pb-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <CircleIcon size={16} className="text-[#9a6700]" />
-                      <span className="font-semibold text-[14px]">In Progress</span>
-                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[#656d76]">
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
+                      {/* Add item button */}
+                      <AddItemDropdown triggerClassName="w-full" onSelectIssue={(issue) => handleAddItem(issue, col.key)}>
+                        <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
+                          <PlusIcon size={14} /> Add item
+                        </button>
+                      </AddItemDropdown>
                     </div>
                   </div>
-                  <div className="text-[13px] text-[#656d76]">This is actively being worked on</div>
-                </div>
-                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
-                  {/* Card */}
-                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group">
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
-                        <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
-                        <span>test-ui <span className="text-[#656d76]">#15</span></span>
-                      </div>
-                      <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
-                    </div>
-                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da]">
-                      hehe
-                    </div>
-                  </div>
-
-                  {/* Add item button */}
-                  <AddItemDropdown triggerClassName="w-full">
-                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                      <PlusIcon size={14} /> Add item
-                    </button>
-                  </AddItemDropdown>
-                </div>
-              </div>
-
-              {/* Done Column */}
-              <div className="group/col flex flex-col min-w-[340px] max-w-[340px] shrink-0 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md">
-                <div className="px-3 pt-3 pb-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <CircleIcon size={16} className="text-[#8250df]" />
-                      <span className="font-semibold text-[14px]">Done</span>
-                      <span className="inline-flex items-center justify-center bg-[#ebecf0] dark:bg-[var(--surface-subtle)] text-[#57606a] dark:text-[var(--text-primary)] rounded-full text-[12px] h-5 min-w-[20px] px-1.5 font-medium">1</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[#656d76]">
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><KebabHorizontalIcon size={16} /></button>
-                      <button type="button" className="p-1 hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] rounded-md cursor-pointer"><PlusIcon size={16} /></button>
-                    </div>
-                  </div>
-                  <div className="text-[13px] text-[#656d76]">This has been completed</div>
-                </div>
-                <div className="px-2 pb-2 flex flex-col gap-2 flex-1">
-                  {/* Card */}
-                  <div className="bg-white dark:bg-[var(--surface-canvas)] border border-[#d0d7de] dark:border-[var(--border-default)] rounded-md p-3 shadow-sm hover:border-[#0969da] cursor-pointer group">
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-1.5 text-[12px] text-[#656d76]">
-                        <GitPullRequestIcon size={14} className="text-[#8250df]" />
-                        <span>test-ui <span className="text-[#656d76]">#14</span></span>
-                      </div>
-                      <button type="button" className="text-[#656d76] hover:bg-[#e5e7eb] dark:hover:bg-[var(--surface-hover)] p-0.5 rounded-md opacity-0 group-hover:opacity-100"><KebabHorizontalIcon size={14} /></button>
-                    </div>
-                    <div className="text-[13px] text-[var(--text-primary)] group-hover:text-[#0969da]">
-                      Update README.md
-                    </div>
-                  </div>
-
-                  {/* Add item button */}
-                  <AddItemDropdown triggerClassName="w-full">
-                    <button type="button" className="w-full py-1.5 flex items-center justify-center gap-1 text-[#656d76] hover:bg-[#ebecf0] dark:hover:bg-[var(--surface-hover)] rounded-md text-[13px] mt-1 transition-all opacity-0 group-hover/col:opacity-100 focus:opacity-100">
-                      <PlusIcon size={14} /> Add item
-                    </button>
-                  </AddItemDropdown>
-                </div>
-              </div>
+                );
+              })}
 
               {/* Add Column Button */}
               <div className="flex flex-col shrink-0 self-start">
@@ -532,9 +637,10 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                 </button>
               </div>
             </div>
+
           ) : layout === 'roadmap' ? (
             <div className="flex flex-col min-h-full">
-                      {/* Roadmap Split View */}
+              {/* Roadmap Split View */}
               <div className="flex flex-1 overflow-x-auto overflow-y-hidden relative bg-[#f6f8fa] dark:bg-[var(--surface-canvas)]" ref={timelineRef}>
                 <div className="min-w-max flex flex-col relative" style={{ width: `${365 * 48}px` }}>
                   {/* NEW Roadmap Header (Months + Toolbar) */}
@@ -596,10 +702,10 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                   </div>
 
                   {/* Body Wrapper */}
-                  <div className="flex-1 relative flex">
+                  <div className="relative flex" style={{ height: `${roadmapBodyHeight}px` }}>
                     
                     {/* Grid (Behind Left Pane) */}
-                    <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none border-b border-[var(--border-default)] shadow-sm" style={{ height: '140px' }}>
+                    <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none border-b border-[var(--border-default)] shadow-sm" style={{ height: `${roadmapBodyHeight}px` }}>
 
                       {/* Columns representing days */}
                       <div className="flex h-full">
@@ -611,13 +717,11 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                           </div>
                         ))}
                       </div>
-                      
-                      {/* Removed horizontal row separators to match Gantt view */}
                     </div>
 
                     {/* Timeline Interactive Rows */}
-                    <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col pointer-events-none">
-                      {hardcodedRows.map(row => {
+                    <div className="absolute top-0 left-0 right-0 flex flex-col pointer-events-none" style={{ height: `${roadmapBodyHeight}px` }}>
+                      {items.map(row => {
                         const hasItem = timelineItems.some(item => item.rowId === row.id);
                         return (
                         <div key={`trow-${row.id}`} className="h-[35px] group/timelineRow flex relative w-max pointer-events-none">
@@ -676,6 +780,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                           ))}
                         </div>
                       )})}
+                      <div className="h-[35px] flex relative w-max pointer-events-none" />
                     </div>
 
                     {/* Left Pane Resizer Container */}
@@ -693,9 +798,9 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                     </div>
 
                     {/* Timeline Foreground Items */}
-                    <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none z-20">
+                    <div className="absolute top-0 left-0 right-0 pointer-events-none z-20" style={{ height: `${roadmapBodyHeight}px` }}>
                       {timelineItems.map((item, idx) => {
-                        const rowData = hardcodedRows.find(r => r.id === item.rowId);
+                        const rowData = items.find(r => r.id === item.rowId);
                         const startDayIndex = allDays.findIndex(d => d.dateStr === item.dateStr);
                         if (!rowData || startDayIndex === -1) return null;
 
@@ -705,7 +810,8 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
 
                         const tooltipText = duration === 1 ? item.dateStr : `${item.dateStr} - ${endDateStr}`;
 
-                        const top = (item.rowId - 1) * 35 + 5; // 5px top offset inside 35px row
+                        const rowIndex = items.findIndex(r => r.id === item.rowId);
+                        const top = rowIndex * 35 + 5;
                         const left = startDayIndex * 48; // Left edge of the day cell
                         const width = duration * 48;
 
@@ -759,7 +865,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                             />
 
                             <div className="w-full h-full flex items-center pl-2 whitespace-nowrap overflow-visible">
-                              {rowData.type === 'issue' ? (
+                              {rowData.content_type === 'ISSUE' ? (
                                 <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
                               ) : (
                                 <GitPullRequestIcon size={14} className="text-[#8250df] shrink-0" />
@@ -767,9 +873,7 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                               <div className="flex items-center gap-1.5 ml-2">
                                 <span className="text-[12px] text-[var(--text-primary)]">{rowData.title}</span>
                                 <span className="text-[12px] text-[var(--text-muted)]">{rowData.number}</span>
-                                {rowData.avatar && (
-                                  <img src={rowData.avatar} alt="avatar" className="w-4 h-4 rounded-full shrink-0" />
-                                )}
+                                {rowData.avatar ? <Avatar username={rowData.avatar} size={16} /> : null}
                               </div>
                             </div>
                           </div>
@@ -781,36 +885,23 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
                     <div className="shrink-0 flex flex-col z-20 sticky left-0 pointer-events-auto" style={{ width: `${leftPaneWidth}px` }}>
                       {/* Rows */}
                       <div className="flex flex-col w-full border-b border-r border-[var(--border-default)] shadow-sm relative z-10 bg-[#f6f8fa] dark:bg-[var(--surface-canvas)]">
-                        {/* Row 1 */}
-                        <div className="flex items-center h-[35px] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] relative">
-                          <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">1</div>
-                          <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
-                            <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">hehe</span>
-                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#15</span>
+                        {items.map((item, idx) => (
+                          <div key={item.id} className="flex items-center h-[35px] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] relative">
+                            <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">{idx + 1}</div>
+                            <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
+                              {item.content_type === 'PULL_REQUEST' ? (
+                                <GitPullRequestIcon size={14} className="text-[#8250df] shrink-0" />
+                              ) : (
+                                <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
+                              )}
+                              <span className="text-[13px] text-[var(--text-primary)] truncate">{item.title}</span>
+                              <span className="text-[13px] text-[var(--text-muted)] shrink-0">{item.number}</span>
+                            </div>
                           </div>
-                        </div>
-                        {/* Row 2 */}
-                        <div className="flex items-center h-[35px] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] relative">
-                          <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">2</div>
-                          <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
-                            <IssueOpenedIcon size={14} className="text-[#1a7f37] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">i sub issue to see sub issue</span>
-                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#2</span>
-                          </div>
-                        </div>
-                        {/* Row 3 */}
-                        <div className="flex items-center h-[35px] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] relative">
-                          <div className="w-[48px] text-center text-[12px] text-[var(--text-muted)]">3</div>
-                          <div className="flex-1 flex items-center gap-2 overflow-hidden px-2 h-full">
-                            <GitPullRequestIcon size={14} className="text-[#8250df] shrink-0" />
-                            <span className="text-[13px] text-[var(--text-primary)] truncate">Update README.md</span>
-                            <span className="text-[13px] text-[var(--text-muted)] shrink-0">#14</span>
-                          </div>
-                        </div>
+                        ))}
 
                         {/* Add Item Row */}
-                        <AddItemDropdown triggerClassName="w-full block">
+                        <AddItemDropdown triggerClassName="w-full block" onSelectIssue={(issue) => handleAddItem(issue)}>
                           <div className="flex items-center h-[35px] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] bg-white dark:bg-[var(--surface-canvas)] cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full">
                             <div className="w-[48px] flex justify-center items-center h-full">
                               <PlusIcon size={16} />
@@ -881,166 +972,68 @@ export default function UserProjectPage({ username, onMenuClick, onSignOut }: Us
               </tr>
             </thead>
             <tbody>
-              {/* Row 1 */}
-              <tr className="bg-white dark:bg-[var(--surface-canvas)] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] h-[35px]">
-                <td className="py-1.5 px-2 text-center text-[12px] text-[#656d76]">
-                  1
-                </td>
-                <td className="py-1.5 pl-3 pr-2 border-r border-[var(--border-default)]">
-                  <div className="flex items-center gap-2">
-                    <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
-                    <span className="text-[13px] text-[var(--text-primary)]">hehe <span className="text-[var(--text-muted)]">#15</span></span>
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-primary)]">
+              {items.map((item, idx) => (
+                <tr key={item.id} className="bg-white dark:bg-[var(--surface-canvas)] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] h-[35px]">
+                  <td className="py-1.5 px-2 text-center text-[12px] text-[#656d76]">
+                    {idx + 1}
+                  </td>
+                  <td className="py-1.5 pl-3 pr-2 border-r border-[var(--border-default)]">
+                    <div className="flex items-center gap-2">
+                      {item.content_type === 'PULL_REQUEST' ? (
+                        <GitPullRequestIcon size={14} className="text-[#8250df]" />
+                      ) : (
+                        <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
+                      )}
+                      <span className="text-[13px] text-[var(--text-primary)]">{item.title} <span className="text-[var(--text-muted)]">{item.number}</span></span>
                     </div>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#d4a72c] bg-[#fff8c5] text-[#9a6700]">
-                      In Progress
-                    </span>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[12px] font-medium text-[var(--text-primary)]">
-                      <GitPullRequestIcon size={14} className="text-[#1a7f37]" />
-                      #2
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] text-[12px] font-medium text-[var(--text-primary)]">
-                      <GitPullRequestClosedIcon size={14} className="text-[#cf222e]" />
-                      #3
-                    </span>
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(1).start}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(1).end}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r-transparent"></td>
-              </tr>
-              {/* Row 2 */}
-              <tr className="bg-white dark:bg-[var(--surface-canvas)] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] h-[35px]">
-                <td className="py-1.5 px-2 text-center text-[12px] text-[#656d76]">
-                  2
-                </td>
-                <td className="py-1.5 pl-3 pr-2 border-r border-[var(--border-default)]">
-                  <div className="flex items-center gap-2">
-                    <IssueOpenedIcon size={14} className="text-[#1a7f37]" />
-                    <span className="text-[13px] text-[var(--text-primary)]">i sub issue to see sub issue <span className="text-[var(--text-muted)]">#2</span></span>
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-primary)]">
-                      <img src={`https://github.com/Searching96.png`} alt="avatar" className="w-4 h-4 rounded-full" />
-                      Searching96
+                  </td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                    <div className="flex items-center justify-between group/cell w-full h-full">
+                      <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-primary)]">
+                        {item.avatar ? <Avatar username={item.avatar} size={16} /> : null}
+                      </div>
+                      <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
                     </div>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#4ac26b] bg-[#dafbe1] text-[#1a7f37]">
-                      Todo
-                    </span>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(2).start}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(2).end}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r-transparent"></td>
-              </tr>
-              {/* Row 3 */}
-              <tr className="bg-white dark:bg-[var(--surface-canvas)] border-b border-[var(--border-default)] group hover:bg-[#f6f8fa] dark:hover:bg-[var(--surface-subtle)] h-[35px]">
-                <td className="py-1.5 px-2 text-center text-[12px] text-[#656d76]">
-                  3
-                </td>
-                <td className="py-1.5 pl-3 pr-2 border-r border-[var(--border-default)]">
-                  <div className="flex items-center gap-2">
-                    <GitPullRequestIcon size={14} className="text-[#8250df]" />
-                    <span className="text-[13px] text-[var(--text-primary)]">Update README.md <span className="text-[var(--text-muted)]">#14</span></span>
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <div className="flex items-center gap-1.5 text-[13px] text-[var(--text-primary)]">
+                  </td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                    <div className="flex items-center justify-between group/cell w-full h-full">
+                      <StatusBadge status={item.status} />
+                      <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
                     </div>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
+                  </td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                    <div className="text-[13px] text-[#656d76]">{item.start_date || ''}</div>
+                  </td>
+                  <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
+                    <div className="text-[13px] text-[#656d76]">{item.target_date || ''}</div>
+                  </td>
+                  <td className="py-1.5 px-3 border-r-transparent"></td>
+                </tr>
+              ))}
+              {/* Add an item row */}
+              <tr className="border-b border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] h-[35px]">
+                <td className="py-1.5 px-2 text-center text-[#656d76]">
+                  <AddItemDropdown triggerClassName="inline-flex cursor-pointer" onSelectIssue={(issue) => handleAddItem(issue)}>
+                    <PlusIcon size={14} className="inline-block hover:text-[var(--text-primary)]" />
+                  </AddItemDropdown>
                 </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium border border-[#bf87fa] bg-[#f3e8fd] text-[#8250df]">
-                      Done
+                <td colSpan={8} className="py-1.5 pl-3 pr-2 text-[13px] text-[#656d76]">
+                  <AddItemDropdown triggerClassName="inline-flex cursor-pointer" onSelectIssue={(issue) => handleAddItem(issue)}>
+                    <span className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
+                      You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
                     </span>
-                    <ChevronDownIcon size={14} className="text-[#656d76] opacity-0 group-hover/cell:opacity-100 cursor-pointer" />
-                  </div>
+                  </AddItemDropdown>
                 </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]"></td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(3).start}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r border-[var(--border-default)]">
-                  <div className="flex items-center justify-between group/cell w-full h-full text-[13px] text-[#656d76]">
-                    {getRowDates(3).end}
-                  </div>
-                </td>
-                <td className="py-1.5 px-3 border-r-transparent"></td>
               </tr>
-              {/* Empty rows and Add an item row overlay */}
-              {Array.from({ length: 20 }).map((_, i) => {
-                if (i === 0) {
-                  return (
-                    <tr key={i} className="border-b border-[var(--border-default)] bg-white dark:bg-[var(--surface-canvas)] h-[35px]">
-                      <td className="py-1.5 px-2 text-center text-[#656d76]">
-                        <AddItemDropdown triggerClassName="inline-flex cursor-pointer">
-                          <PlusIcon size={14} className="inline-block hover:text-[var(--text-primary)]" />
-                        </AddItemDropdown>
-                      </td>
-                      <td colSpan={8} className="py-1.5 pl-3 pr-2 text-[13px] text-[#656d76]">
-                        <AddItemDropdown triggerClassName="inline-flex cursor-pointer">
-                          <span className="text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer">
-                            You can use <kbd className="px-1.5 py-0.5 text-[11px] font-sans bg-white border border-[var(--border-default)] rounded-md text-[var(--text-primary)]">Control + Space</kbd> to add an item
-                          </span>
-                        </AddItemDropdown>
-                      </td>
-                    </tr>
-                  );
-                }
-                return (
-                  <tr key={i} className="border-b border-[var(--border-default)] bg-[#f6f8fa] dark:bg-[var(--surface-page)] h-[35px]">
-                    <td colSpan={9} className="p-0 relative h-[35px]"></td>
-                  </tr>
-                );
-              })}
+              {Array.from({ length: 10 }).map((_, i) => (
+                <tr key={i} className="border-b border-[var(--border-default)] bg-[#f6f8fa] dark:bg-[var(--surface-page)] h-[35px]">
+                  <td colSpan={9} className="p-0 relative h-[35px]"></td>
+                </tr>
+              ))}
             </tbody>
+
           </table>
           )}
         </div>

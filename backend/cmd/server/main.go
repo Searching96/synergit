@@ -71,6 +71,7 @@ func main() {
 	dbWatcherAdapter := postgres.NewPostgresWatcherStore(db)
 	dbRepoInsightsAdapter := postgres.NewPostgresRepoInsightsStore(db)
 	dbRepoEventAdapter := postgres.NewPostgresRepoEventStore(db)
+	dbProjectAdapter := postgres.NewPostgresProjectStore(db)
 
 	// 3. Initialize usecases (injecting the adapters)
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -93,6 +94,7 @@ func main() {
 	prUseCase := usecase.NewPullRequestService(dbPRAdapter, dbCollabAdapter,
 		gitAdapter, dbRepoAdapter, dbUserAdapter, prLabelStore, prAssigneeStore, repoEventUseCase, dbIssueAdapter)
 	userUseCase := usecase.NewUserService(dbUserAdapter, tokenManager, gitAdapter)
+	projectUseCase := usecase.NewProjectService(dbProjectAdapter)
 
 	// 4. Initialize delivery/handlers (injecting the usecases)
 	repoHandler := httpHandler.NewRepoHandler(repoUseCase, publicBaseURL)
@@ -107,6 +109,7 @@ func main() {
 	userHandler := httpHandler.NewUserHandler(userUseCase)
 	repoInsightsHandler := httpHandler.NewRepoInsightsHandler(repoInsightUseCase)
 	repoEventHandler := httpHandler.NewRepoEventHandler(repoEventUseCase)
+	projectHandler := httpHandler.NewProjectHandler(projectUseCase)
 
 	// 5. Set up the gin router
 	router := gin.Default()
@@ -160,6 +163,27 @@ func main() {
 		users.Use(middleware.AuthMiddleware(jwtSecret))
 		{
 			users.GET("/search", userHandler.HandleSearchUsers)
+		}
+
+		// Project routes secured with JWT
+		projects := v1.Group("/projects")
+		projects.Use(middleware.AuthMiddleware(jwtSecret))
+		{
+			projects.POST("", projectHandler.HandleCreateProject)
+			projects.GET("", projectHandler.HandleListProjects)
+			projects.GET("/:project_id", projectHandler.HandleGetProject)
+			projects.PATCH("/:project_id", projectHandler.HandleUpdateProject)
+			projects.DELETE("/:project_id", projectHandler.HandleDeleteProject)
+
+			projects.POST("/:project_id/views", projectHandler.HandleCreateView)
+			projects.GET("/:project_id/views", projectHandler.HandleListViews)
+			projects.PATCH("/:project_id/views/:view_id", projectHandler.HandleUpdateView)
+			projects.DELETE("/:project_id/views/:view_id", projectHandler.HandleDeleteView)
+
+			projects.POST("/:project_id/items", projectHandler.HandleAddItem)
+			projects.GET("/:project_id/items", projectHandler.HandleListItems)
+			projects.PATCH("/:project_id/items/:item_id", projectHandler.HandleUpdateItem)
+			projects.DELETE("/:project_id/items/:item_id", projectHandler.HandleDeleteItem)
 		}
 
 		{

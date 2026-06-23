@@ -428,6 +428,7 @@ export type EventType =
 
 export interface RepoEvent {
   id: string;
+
   repo_id: string;
   actor_id: string;
   event_type: EventType;
@@ -437,4 +438,72 @@ export interface RepoEvent {
     username: string;
     email: string;
   };
+}
+
+export type ProjectViewLayout = 'TABLE' | 'BOARD' | 'ROADMAP';
+
+export type ProjectItemContentType = 'ISSUE' | 'PULL_REQUEST';
+
+export interface Project {
+  id: string;
+  owner_id: string;
+  number: number;
+  title: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectView {
+  id: string;
+  project_id: string;
+  name: string;
+  layout: ProjectViewLayout;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectItem {
+  id: string;
+  project_id: string;
+  content_type: ProjectItemContentType;
+  content_id: string;
+  status: string;
+  start_date?: string;
+  target_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectItemDTO extends ProjectItem {
+  title: string;
+  number: string;
+  avatar: string;
+}
+
+export interface CreateProjectPayload {
+  title: string;
+  description?: string;
+}
+
+export interface UpdateProjectPayload {
+  title: string;
+  description?: string;
+}
+
+export interface CreateProjectViewPayload {
+  name: string;
+  layout: ProjectViewLayout;
+}
+
+export interface CreateProjectItemPayload {
+  content_type: ProjectItemContentType;
+  content_id: string;
+  status?: string;
+}
+
+export interface UpdateProjectItemPayload {
+  status?: string;
+  start_date?: string;
+  target_date?: string;
 }
