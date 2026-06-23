@@ -19,6 +19,7 @@ import GlobalPlaceholderPage from "./pages/GlobalPlaceholderPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import RepoWorkspaceContent from "./pages/RepoWorkspacePage";
+import UserProjectPage from "./pages/UserProjectPage";
 import { REPO_TABS, type RepoTabKey } from "./utils/repoTabs";
 import { repoTabCountsCacheKey, readRepoTabCounts, writeRepoTabCounts } from "./utils/countCache";
 import {
@@ -109,7 +110,7 @@ function App() {
   const [repoRouteResolved, setRepoRouteResolved] = useState<boolean>(false);
   const [initialRoute] = useState(() => parseAppPath(window.location.pathname));
   const [activeTab, setActiveTab] = useState<RepoTabKey>(initialRoute.tab);
-  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global'>(initialRoute.viewMode);
+  const [viewMode, setViewMode] = useState<'profile' | 'repo' | 'create-repo' | 'global' | 'user-project'>(initialRoute.viewMode);
   const [createRepoSubmitting, setCreateRepoSubmitting] = useState<boolean>(false);
   const [createRepoError, setCreateRepoError] = useState<string | null>(null);
   const [createForkSubmitting, setCreateForkSubmitting] = useState<boolean>(false);
@@ -656,6 +657,18 @@ function App() {
             onMenuClick={() => setIsSidebarMenuOpen(true)}
           />
         </>
+      );
+    }
+
+    if (viewMode === 'user-project') {
+      const parsed = parseAppPath(location.pathname);
+      return (
+        <UserProjectPage
+          username={parsed.repoOwner || currentUsername}
+          projectId={parsed.contentPath}
+          onMenuClick={() => setIsSidebarMenuOpen(true)}
+          onSignOut={handleLogout}
+        />
       );
     }
 

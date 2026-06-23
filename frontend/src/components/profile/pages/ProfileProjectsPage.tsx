@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { X, ChevronDown, TableProperties } from "lucide-react";
 import { SpinnerPlaceholder } from "../../shared/LoadingPlaceholders";
 import { QueryInput } from "../../shared/QueryInput";
+import { useAuth } from "../../../contexts/AuthContext";
 
 interface ProfileProjectsPageProps {
   isLoading?: boolean;
@@ -9,6 +11,8 @@ interface ProfileProjectsPageProps {
 
 export default function ProfileProjectsPage({ isLoading }: ProfileProjectsPageProps) {
   const [query, setQuery] = useState("is:open");
+  const navigate = useNavigate();
+  const { currentUsername } = useAuth();
 
   if (isLoading) {
     return (
@@ -39,7 +43,11 @@ export default function ProfileProjectsPage({ isLoading }: ProfileProjectsPagePr
             </button>
           )}
         </div>
-        <button type="button" className="shrink-0 h-8 px-3 rounded-md bg-[var(--fgColor-success,#1f883d)] text-white text-sm font-semibold hover:bg-[var(--fgColor-success-hover,#1a7f37)]">
+        <button 
+          type="button" 
+          onClick={() => navigate(`/users/${currentUsername}/projects/8`)}
+          className="shrink-0 h-8 px-3 rounded-md bg-[var(--fgColor-success,#1f883d)] text-white text-sm font-semibold hover:bg-[var(--fgColor-success-hover,#1a7f37)]"
+        >
           New project
         </button>
       </div>
