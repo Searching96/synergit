@@ -52,7 +52,7 @@ func parseCloneCoordinates(c *gin.Context) (string, string, bool) {
 
 func requestBaseURL(c *gin.Context, configuredBaseURL string) string {
 	configured := strings.TrimSpace(configuredBaseURL)
-	if configured != "" {
+	if configured != "" && !isWildcardPublicBaseURL(configured) {
 		return strings.TrimSuffix(configured, "/")
 	}
 
@@ -78,8 +78,23 @@ func requestBaseURL(c *gin.Context, configuredBaseURL string) string {
 	if host == "" {
 		host = "localhost"
 	}
+	if isWildcardHost(host) {
+		host = "localhost"
+	}
 
 	return strings.TrimSuffix(fmt.Sprintf("%s://%s", proto, host), "/")
+}
+
+func isWildcardPublicBaseURL(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return strings.Contains(normalized, "://0.0.0.0") ||
+		strings.Contains(normalized, "://[::]") ||
+		strings.Contains(normalized, "://::")
+}
+
+func isWildcardHost(host string) bool {
+	normalized := strings.ToLower(strings.Trim(strings.TrimSpace(host), "[]"))
+	return normalized == "0.0.0.0" || normalized == "::" || normalized == ""
 }
 
 func inferOwnerFromRepoPath(repoPath string) string {

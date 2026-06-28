@@ -327,13 +327,21 @@ export default function RepoRootPage({
 
   const isRootMode = true;
   const cloneUrl = useMemo(() => {
-    if (backendCloneUrl && backendCloneUrl.trim()) {
-      return backendCloneUrl.trim();
-    }
-
     const owner = (repoOwner || "owner").trim();
+    const cleanBackendCloneUrl = backendCloneUrl?.trim();
     const explicitCloneBase = (import.meta.env.VITE_CLONE_BASE_URL as string | undefined)?.trim();
     const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+
+    if (cleanBackendCloneUrl) {
+      try {
+        const parsed = new URL(cleanBackendCloneUrl);
+        if (parsed.hostname !== "0.0.0.0" && parsed.hostname !== "::") {
+          return cleanBackendCloneUrl;
+        }
+      } catch {
+        return cleanBackendCloneUrl;
+      }
+    }
 
     if (explicitCloneBase) {
       return `${explicitCloneBase.replace(/\/$/, "")}/${owner}/${repoName}.git`;
@@ -1268,7 +1276,14 @@ export default function RepoRootPage({
                               )}
                               <a
                                 href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/${item.type === "DIR" ? "tree" : "blob"}/${encodeURIComponent(branch)}/${item.path}`}
-                                onClick={(e) => { e.preventDefault(); item.type === "DIR" ? openDirectory(item.path) : openFile(item.path); }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (item.type === "DIR") {
+                                    openDirectory(item.path);
+                                  } else {
+                                    openFile(item.path);
+                                  }
+                                }}
                                 className="truncate text-[var(--text-secondary)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
                               >
                                 {item.name}
@@ -1717,7 +1732,14 @@ export default function RepoRootPage({
                               )}
                               <a
                                 href={`/${encodeURIComponent(repoOwner || currentUsername || "")}/${encodeURIComponent(repoName)}/${item.type === "DIR" ? "tree" : "blob"}/${encodeURIComponent(branch)}/${item.path}`}
-                                onClick={(e) => { e.preventDefault(); item.type === "DIR" ? openDirectory(item.path) : openFile(item.path); }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (item.type === "DIR") {
+                                    openDirectory(item.path);
+                                  } else {
+                                    openFile(item.path);
+                                  }
+                                }}
                                 className="truncate text-[var(--text-secondary)] hover:text-[var(--text-link)] hover:underline cursor-pointer"
                               >
                                 {item.name}

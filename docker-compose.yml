@@ -22,6 +22,7 @@ services:
       - GIT_ROOT=/var/synergit-data
       - JWT_SECRET=${JWT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
+      - GIT_BASE_URL=${GIT_BASE_URL:-}
     volumes:
       - gitdata:/var/synergit-data
     depends_on:

@@ -32,11 +32,13 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	host := strings.TrimSpace(os.Getenv("HOST"))
-	if host == "" {
-		host = "localhost"
+	publicBaseURL := strings.TrimSpace(os.Getenv("GIT_BASE_URL"))
+	if publicBaseURL == "" {
+		publicBaseURL = strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL"))
 	}
-	publicBaseURL := fmt.Sprintf("http://%s:%s", host, port)
+	if publicBaseURL == "" {
+		publicBaseURL = strings.TrimSpace(os.Getenv("FRONTEND_URL"))
+	}
 
 	// 1. Connect to database
 	connStr := os.Getenv("DATABASE_URL")

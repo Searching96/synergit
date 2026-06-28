@@ -50,6 +50,10 @@ HTTPS_PORT=7443
 # Frontend URL (Used by Backend for CORS - MUST match the HTTPS port)
 FRONTEND_URL=https://your_vps_ip_address:7443
 
+# Public Git Smart HTTP clone/push URL shown in the web UI.
+# Usually this is the same external origin as FRONTEND_URL.
+GIT_BASE_URL=https://your_vps_ip_address:7443
+
 ```
 
 ### 3. Generate SSL Certificates for Nginx
