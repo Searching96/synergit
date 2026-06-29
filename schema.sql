@@ -73,13 +73,6 @@ CREATE TABLE IF NOT EXISTS pull_request_events (
 CREATE INDEX IF NOT EXISTS idx_pull_request_events_pull_request
     ON pull_request_events (pull_request_id, created_at);
 
-CREATE TABLE IF NOT EXISTS pull_request_linked_issues (
-    pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
-    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-    linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (pull_request_id, issue_id)
-);
-
 CREATE TABLE IF NOT EXISTS issues (
     id UUID PRIMARY KEY,
     repo_id UUID NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
@@ -106,6 +99,27 @@ CREATE TABLE IF NOT EXISTS issue_linked_branches (
     linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (issue_id, branch_name)
 );
+
+CREATE TABLE IF NOT EXISTS pull_request_linked_issues (
+    pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
+    issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (pull_request_id, issue_id)
+);
+
+CREATE TABLE IF NOT EXISTS issue_relationships (
+    blocking_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    blocked_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+    linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (blocking_issue_id, blocked_issue_id),
+    CHECK (blocking_issue_id <> blocked_issue_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocked
+    ON issue_relationships (blocked_issue_id, linked_at);
+
+CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocking
+    ON issue_relationships (blocking_issue_id, linked_at);
 
 CREATE TABLE IF NOT EXISTS issue_assignees (
     issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,

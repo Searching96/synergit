@@ -17,48 +17,7 @@ type PostgresProjectStore struct {
 }
 
 func NewPostgresProjectStore(db *sql.DB) *PostgresProjectStore {
-	store := &PostgresProjectStore{db: db}
-	store.ensureProjectSchema()
-	return store
-}
-
-func (p *PostgresProjectStore) ensureProjectSchema() {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS projects (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-			number INTEGER NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			description TEXT NOT NULL DEFAULT '',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			UNIQUE (owner_id, number)
-		)`,
-		`CREATE TABLE IF NOT EXISTS project_views (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-			name VARCHAR(255) NOT NULL,
-			layout VARCHAR(32) NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE TABLE IF NOT EXISTS project_items (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-			content_type VARCHAR(32) NOT NULL,
-			content_id UUID NOT NULL,
-			status VARCHAR(255) NOT NULL DEFAULT '',
-			start_date TIMESTAMPTZ,
-			target_date TIMESTAMPTZ,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			UNIQUE (project_id, content_type, content_id)
-		)`,
-	}
-
-	for _, query := range queries {
-		_, _ = p.db.Exec(query)
-	}
+	return &PostgresProjectStore{db: db}
 }
 
 // Project Methods

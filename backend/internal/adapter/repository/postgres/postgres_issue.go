@@ -16,29 +16,7 @@ type PostgresIssueStore struct {
 }
 
 func NewPostgresIssueStore(db *sql.DB) *PostgresIssueStore {
-	store := &PostgresIssueStore{db: db}
-	store.ensureRelationshipSchema()
-	return store
-}
-
-func (p *PostgresIssueStore) ensureRelationshipSchema() {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS issue_relationships (
-			blocking_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-			blocked_issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-			linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (blocking_issue_id, blocked_issue_id),
-			CHECK (blocking_issue_id <> blocked_issue_id)
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocked
-			ON issue_relationships (blocked_issue_id, linked_at)`,
-		`CREATE INDEX IF NOT EXISTS idx_issue_relationships_blocking
-			ON issue_relationships (blocking_issue_id, linked_at)`,
-	}
-
-	for _, query := range queries {
-		_, _ = p.db.Exec(query)
-	}
+	return &PostgresIssueStore{db: db}
 }
 
 func (p *PostgresIssueStore) Create(issue *domain.Issue) error {

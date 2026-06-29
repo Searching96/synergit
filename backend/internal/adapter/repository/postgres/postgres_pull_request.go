@@ -3,8 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"errors"
-	"synergit/internal/core/domain"
 	"synergit/internal/core/boundary/output"
+	"synergit/internal/core/domain"
 
 	"github.com/google/uuid"
 )
@@ -16,37 +16,7 @@ type PostgresPullRequestStore struct {
 }
 
 func NewPostgresPullRequestStore(db *sql.DB) *PostgresPullRequestStore {
-	store := &PostgresPullRequestStore{db: db}
-	store.ensureSnapshotColumns()
-	return store
-}
-
-func (p *PostgresPullRequestStore) ensureSnapshotColumns() {
-	queries := []string{
-		`ALTER TABLE pull_requests ADD COLUMN IF NOT EXISTS source_commit_hash VARCHAR(64) NOT NULL DEFAULT ''`,
-		`ALTER TABLE pull_requests ADD COLUMN IF NOT EXISTS target_commit_hash VARCHAR(64) NOT NULL DEFAULT ''`,
-		`CREATE TABLE IF NOT EXISTS pull_request_events (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
-			actor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-			event_type VARCHAR(32) NOT NULL,
-			payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_pull_request_events_pull_request
-			ON pull_request_events (pull_request_id, created_at)`,
-		`ALTER TABLE pull_request_events ADD COLUMN IF NOT EXISTS payload JSONB NOT NULL DEFAULT '{}'::jsonb`,
-		`CREATE TABLE IF NOT EXISTS pull_request_linked_issues (
-			pull_request_id UUID NOT NULL REFERENCES pull_requests(id) ON DELETE CASCADE,
-			issue_id UUID NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
-			linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			PRIMARY KEY (pull_request_id, issue_id)
-		)`,
-	}
-
-	for _, query := range queries {
-		_, _ = p.db.Exec(query)
-	}
+	return &PostgresPullRequestStore{db: db}
 }
 
 func (p *PostgresPullRequestStore) Create(pr *domain.PullRequest) error {
