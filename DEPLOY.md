@@ -136,23 +136,32 @@ CMD ["nginx", "-g", "daemon off;"]
 
 With the environment configured and SSL keys generated, you can launch the entire stack.
 
-1. Build and start the containers in detached mode:
+1. Start Postgres and apply database migrations:
+
+```bash
+docker compose up -d db
+docker compose run --rm migrate
+
+```
+
+2. Build and start the application containers in detached mode:
 
 ```bash
 docker compose up -d --build
 
 ```
 
-2. Verify that all 3 containers (`synergit-db-1`, `synergit-backend-1`, `synergit-web-1`) are running:
+3. Verify that all 3 containers (`synergit-db-1`, `synergit-backend-1`, `synergit-web-1`) are running:
 
 ```bash
 docker ps
 
 ```
 
-### 6. Database Schema Initialization Notes
+### 6. Database Migration Notes
 
-The Postgres container is configured to automatically run `/schema.sql` on its **first startup**.
+Database changes are managed through versioned `golang-migrate` SQL files in `migrations/`.
+`schema.sql` is kept as a full schema snapshot/reference, but deployment uses migrations.
 
 * If you need to verify the tables were created successfully, run:
 ```bash
@@ -160,10 +169,17 @@ docker compose exec db psql -U synergit_user -d synergit -c "\dt"
 
 ```
 
-* **Troubleshooting:** If the database is empty (schema failed to run due to a previous corrupted start), you must wipe the database volume and restart to trigger the initialization script again:
+* To apply migrations manually, run:
+```bash
+docker compose run --rm migrate
+
+```
+
+* **Troubleshooting:** If a local development database is intentionally disposable, you can wipe the database volume and re-run migrations from scratch:
 ```bash
 docker compose down -v
-docker compose up -d
+docker compose up -d db
+docker compose run --rm migrate
 
 ```
 
