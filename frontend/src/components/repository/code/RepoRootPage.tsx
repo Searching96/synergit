@@ -353,7 +353,9 @@ export default function RepoRootPage({
       return `${apiOrigin}/${owner}/${repoName}.git`;
     }
 
-    return `http://localhost:8080/${owner}/${repoName}.git`;
+    const browserOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const fallbackOrigin = browserOrigin || "http://localhost";
+    return `${fallbackOrigin.replace(/\/$/, "")}/${owner}/${repoName}.git`;
   }, [backendCloneUrl, repoOwner, repoName]);
   const quickSetupCreateCommands = useMemo(
     () =>

@@ -191,3 +191,41 @@ Once deployed, the application is accessible via:
 * **HTTP Redirect:** `http://your_vps_ip_address:7080` (Automatically redirects to the secure port)
 
 *Note: If using a self-signed certificate via IP address, your browser will display a "Connection is not private" warning. This is expected. Click "Advanced" -> "Proceed" to access the application.*
+
+### 8. VPS Development Through SSH Tunnel
+
+For development on a VPS without exposing dev ports publicly, use the dev Compose overlay. It keeps production ports unchanged while binding dev services to VPS loopback only:
+
+* Frontend Vite dev server: `127.0.0.1:25173`
+* Backend API and Git Smart HTTP: `127.0.0.1:28080`
+
+Start the dev stack on the VPS:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend frontend-dev
+
+```
+
+Open the SSH tunnel from your local machine:
+
+```bash
+ssh -L 25173:127.0.0.1:25173 -L 28080:127.0.0.1:28080 whencali@180.93.37.50
+
+```
+
+Then open:
+
+```text
+http://127.0.0.1:25173
+```
+
+The dev UI will call `http://127.0.0.1:28080/api/v1`, and clone URLs shown in the UI will use `http://127.0.0.1:28080/{owner}/{repo}.git`.
+
+Optional dev defaults are documented in `.env.dev.example`. To use a separate dev env file, load it after the normal `.env` so database and secret values remain available:
+
+```bash
+docker compose --env-file .env --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d backend frontend-dev
+
+```

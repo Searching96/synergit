@@ -12,5 +12,5 @@ FROM alpine:latest
 RUN apk add --no-cache git
 WORKDIR /app
 COPY --from=builder /app/server .
-EXPOSE 8080
+EXPOSE 7880
 CMD ["./server"]
