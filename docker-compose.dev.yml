@@ -1,3 +1,5 @@
+name: synergit-dev
+
 services:
   backend:
     environment:
