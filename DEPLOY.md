@@ -23,12 +23,12 @@ sudo systemctl start docker
 
 ### 2. Configure Environment Variables
 
-Navigate to the project root directory and create a central `.env` file. This file controls the database credentials, application secrets, and exposed ports.
+Navigate to the project root directory and create a central `.env.prod` file. This file controls the database credentials, application secrets, and exposed ports.
 
 Create the file:
 
 ```bash
-nano .env
+nano .env.prod
 
 ```
 
@@ -39,6 +39,11 @@ Paste the following configuration (replace the IP with your actual VPS IP or dom
 DB_USER=synergit_user
 DB_PASSWORD=your_secure_password
 DB_NAME=synergit
+
+# Image configuration
+# Production can use `latest`, a release tag, or an immutable CI build tag.
+IMAGE_REGISTRY=synergit
+IMAGE_TAG=latest
 
 # Backend configuration
 JWT_SECRET=a_long_and_complex_random_secret_string
@@ -79,7 +84,7 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 To ensure the compiled React/Vite frontend correctly communicates with the Nginx reverse proxy, Vite needs to know the relative API path at build time. We handle this cleanly using a dedicated environment file specifically for the frontend.
 
 **Step 1: Create the Frontend `.env` File**
-Create a `.env` file inside your `frontend/` directory (separate from the main project `.env`).
+Create a `.env` file inside your `frontend/` directory (separate from the main project `.env.prod`).
 
 ```bash
 nano frontend/.env
@@ -139,15 +144,15 @@ With the environment configured and SSL keys generated, you can launch the entir
 1. Start Postgres and apply database migrations:
 
 ```bash
-docker compose up -d db
-docker compose run --rm migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d db
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate
 
 ```
 
 2. Build and start the application containers in detached mode:
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
 
 ```
 
@@ -165,21 +170,21 @@ Database changes are managed through versioned `golang-migrate` SQL files in `mi
 
 * If you need to verify the tables were created successfully, run:
 ```bash
-docker compose exec db psql -U synergit_user -d synergit -c "\dt"
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec db psql -U synergit_user -d synergit -c "\dt"
 
 ```
 
 * To apply migrations manually, run:
 ```bash
-docker compose run --rm migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate
 
 ```
 
 * **Troubleshooting:** If a local development database is intentionally disposable, you can wipe the database volume and re-run migrations from scratch:
 ```bash
-docker compose down -v
-docker compose up -d db
-docker compose run --rm migrate
+docker compose --env-file .env.prod -f docker-compose.prod.yml down -v
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d db
+docker compose --env-file .env.prod -f docker-compose.prod.yml run --rm migrate
 
 ```
 
@@ -199,12 +204,14 @@ For development on a VPS without exposing dev ports publicly, use the dev Compos
 * Frontend Vite dev server: `127.0.0.1:25173`
 * Backend API and Git Smart HTTP: `127.0.0.1:28080`
 
+The compose files use one canonical image namespace: `${IMAGE_REGISTRY}/backend` and `${IMAGE_REGISTRY}/web`. Each environment sets `IMAGE_TAG`; production can use a release tag, and dev uses `dev`.
+
 Start the dev stack on the VPS:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
-docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm migrate
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend frontend-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db
+docker compose --env-file .env.dev -f docker-compose.dev.yml run --rm migrate
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build backend frontend
 
 ```
 
@@ -223,9 +230,9 @@ http://127.0.0.1:25173
 
 The dev UI will call `http://127.0.0.1:28080/api/v1`, and clone URLs shown in the UI will use `http://127.0.0.1:28080/{owner}/{repo}.git`.
 
-Optional dev defaults are documented in `.env.dev.example`. To use a separate dev env file, load it after the normal `.env` so database and secret values remain available:
+Dev defaults are documented in `.env.dev.example`. Use `.env.dev` by itself for development so production `.env.prod` stays production-only:
 
 ```bash
-docker compose --env-file .env --env-file .env.dev -f docker-compose.yml -f docker-compose.dev.yml up -d backend frontend-dev
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d --build backend frontend
 
 ```

@@ -22,6 +22,28 @@ import (
 	_ "github.com/lib/pq" // Ensure you have your postgres driver imported!
 )
 
+func allowedOrigins() []string {
+	rawValues := []string{os.Getenv("FRONTEND_URL"), os.Getenv("FRONTEND_URLS")}
+	seen := make(map[string]struct{})
+	origins := make([]string, 0)
+
+	for _, raw := range rawValues {
+		for _, origin := range strings.Split(raw, ",") {
+			origin = strings.TrimSpace(origin)
+			if origin == "" {
+				continue
+			}
+			if _, ok := seen[origin]; ok {
+				continue
+			}
+			seen[origin] = struct{}{}
+			origins = append(origins, origin)
+		}
+	}
+
+	return origins
+}
+
 func main() {
 	// 0. Load environment variables
 	if err := godotenv.Load(); err != nil {
@@ -117,9 +139,8 @@ func main() {
 	router := gin.Default()
 
 	// Config CORS
-	frontendURL := os.Getenv("FRONTEND_URL")
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{frontendURL},
+		AllowOrigins:     allowedOrigins(),
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
